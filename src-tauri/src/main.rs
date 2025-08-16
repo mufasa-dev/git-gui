@@ -33,6 +33,7 @@ fn list_branches(path: String) -> Result<Vec<String>, String> {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![open_repo, list_branches])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
