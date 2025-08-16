@@ -1,6 +1,39 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use std::process::Command;
+use std::path::Path;
+
+#[tauri::command]
+fn open_repo(path: String) -> Result<String, String> {
+    if Path::new(&path).join(".git").exists() {
+        Ok(format!("Repositório válido em {}", path))
+    } else {
+        Err("Não é um repositório Git válido".into())
+    }
+}
+
+#[tauri::command]
+fn list_branches(path: String) -> Result<Vec<String>, String> {
+    let output = Command::new("git")
+        .arg("branch")
+        .current_dir(path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let raw = String::from_utf8_lossy(&output.stdout);
+    let branches: Vec<String> = raw
+        .lines()
+        .map(|line| line.trim().to_string())
+        .collect();
+
+    Ok(branches)
+}
 
 fn main() {
-    meu_git_gui_lib::run()
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![open_repo, list_branches])
+        .run(tauri::generate_context!())
+        .expect("erro ao rodar o app");
 }
