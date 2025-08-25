@@ -97,7 +97,7 @@ export default function RepoView(props: { repo: Repo }) {
 
       {/* Painel direito */}
       <div class="flex-1 p-4 overflow-auto">
-        {viewMode() === "commits" && <CommitsList repo={props.repo} />}
+        {viewMode() === "commits" && <CommitsList repo={props.repo} branch={props.repo.branches[0]} />}
         {viewMode() === "changes" && <div>Alterações locais aqui</div>}
       </div>
     </div>

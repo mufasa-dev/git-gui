@@ -1,4 +1,5 @@
 use std::process::Command;
+use serde::Serialize;
 use std::path::Path;
 
 #[tauri::command]
@@ -52,10 +53,56 @@ fn list_remote_branches(path: String) -> Result<Vec<String>, String> {
     }
 }
 
+#[derive(Serialize)]
+struct Commit {
+    hash: String,
+    message: String,
+    author: String,
+    date: String,
+}
+
+#[tauri::command]
+fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String> {
+    let output = Command::new("git")
+        .args(&[
+            "log",
+            "--pretty=format:%H|%an|%ad|%s",
+            &branch
+        ])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err("Erro ao listar commits".into());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let commits: Vec<Commit> = stdout
+        .lines()
+        .map(|line| {
+            let parts: Vec<&str> = line.splitn(4, '|').collect();
+            Commit {
+                hash: parts.get(0).unwrap_or(&"").to_string(),
+                author: parts.get(1).unwrap_or(&"").to_string(),
+                date: parts.get(2).unwrap_or(&"").to_string(),
+                message: parts.get(3).unwrap_or(&"").to_string(),
+            }
+        })
+        .collect();
+
+    Ok(commits)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![open_repo, list_branches, list_remote_branches])
+        .invoke_handler(tauri::generate_handler![
+            open_repo, 
+            list_branches, 
+            list_remote_branches,
+            list_commits
+        ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
 }
