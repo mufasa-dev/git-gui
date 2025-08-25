@@ -1,10 +1,6 @@
 import TabBar from "./TabBar";
 import RepoView from "./RepoView";
-
-type Repo = {
-  path: string;
-  name: string;
-};
+import { Repo } from "../../models/Repo.model";
 
 export default function RepoTabs(props: {
   repos: Repo[];

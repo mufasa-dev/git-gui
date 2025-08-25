@@ -1,15 +1,10 @@
 import { createSignal } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
-import { validateRepo, getBranches } from "../services/gitService";
+import { validateRepo, getBranches, getRemoteBranches } from "../services/gitService";
 import TabBar from "../components/repo/TabBar";
 import RepoView from "../components/repo/RepoView";
 import Button from "../components/ui/Button";
-
-type Repo = {
-  path: string;
-  name: string;
-  branches: string[];
-};
+import { Repo } from "../models/Repo.model";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -22,9 +17,10 @@ export default function RepoTabsPage() {
       try {
         await validateRepo(selected);
         const branches = await getBranches(selected);
+        const remoteBranches = await getRemoteBranches(selected);
         const name = selected.split("/").pop() ?? selected;
-
-        const newRepo: Repo = { path: selected, name, branches };
+        console.log("Branches:", branches);
+        const newRepo: Repo = { path: selected, name, branches, remoteBranches };
 
         // Evita duplicar se já estiver aberto
         if (!repos().some(r => r.path === selected)) {
