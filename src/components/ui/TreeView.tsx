@@ -1,28 +1,43 @@
 import { createSignal } from "solid-js";
 
-export type Tree = {
-  [key: string]: Tree | null;
+type TreeNode = {
+  name: string;      // nome exibido (ex: "main")
+  original: string;  // nome original (ex: "origin/main")
+  children?: TreeNodeMap;
 };
 
-export function buildTree(branches: string[]): Tree {
-  const tree: Tree = {};
+export type TreeNodeMap = { [key: string]: TreeNode };
+
+export type TreeViewProps = {
+  tree: TreeNodeMap;
+  activeBranch?: string;
+  onSelectBranch?: (branch: string) => void;
+};
+
+export function buildTree(branches: string[]): TreeNodeMap {
+  const tree: TreeNodeMap = {};
 
   branches.forEach((branch) => {
-    // remove espaços extras
     const clean = branch.trim();
 
-    // HEAD -> origin/main não é branch real
     if (clean.startsWith("HEAD ->")) return;
 
-    const parts = clean.split("/");
-
+    const parts = clean.split("/"); // exemplo: "origin/main" -> ["origin","main"]
     let current = tree;
+
     parts.forEach((part, i) => {
+      const isLeaf = i === parts.length - 1;
+
       if (!current[part]) {
-        current[part] = i === parts.length - 1 ? null : {};
+        current[part] = {
+          name: part,      // nome exibido
+          original: isLeaf ? clean : "", // somente nó final mantém o original
+          children: isLeaf ? undefined : {},
+        };
       }
-      if (current[part] !== null) {
-        current = current[part] as Tree;
+
+      if (!isLeaf) {
+        current = current[part].children!;
       }
     });
   });
@@ -30,32 +45,44 @@ export function buildTree(branches: string[]): Tree {
   return tree;
 }
 
-export default function TreeView(props: { tree: Tree }) {
+export default function TreeView(props: TreeViewProps) {
   const [open, setOpen] = createSignal<{ [key: string]: boolean }>({});
 
   const toggle = (key: string) => {
     setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleClick = (node: TreeNode) => {
+    if (node.children) {
+      toggle(node.name);
+    } else {
+      props.onSelectBranch?.(node.original);
+    }
+  };
+
   return (
     <ul class="ml-4 space-y-1">
-      {Object.entries(props.tree).map(([key, value]) => (
-        <li>
-          {value ? (
-            <div>
-              <span
-                class="cursor-pointer select-none"
-                onClick={() => toggle(key)}
-              >
-                {open()[key] ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-right"></i>} {key}
-              </span>
-              {open()[key] && <TreeView tree={value} />}
-            </div>
-          ) : (
-            <span>{key}</span>
-          )}
-        </li>
-      ))}
+      {Object.values(props.tree).map((node) => {
+        const isLeaf = !node.children;
+        const isActive = node.original === props.activeBranch;
+        return (
+            <li>
+                <div
+                class={`cursor-pointer select-none ${isActive ? "font-bold text-green-600" : ""}`}
+                onClick={() => handleClick(node)}
+                >
+                {isLeaf ? "" : open()[node.name] ? <i class="fa-solid fa-caret-down"></i>  : <i class="fa-solid fa-caret-right"></i> } { node.name }
+                </div>
+                {node.children && open()[node.name] && (
+                    <TreeView
+                        tree={node.children || {}}
+                        activeBranch={props.activeBranch}
+                        onSelectBranch={props.onSelectBranch}
+                    />
+                )}
+          </li>
+        )}
+      )}
     </ul>
   );
 }

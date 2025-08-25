@@ -12,6 +12,7 @@ export default function RepoView(props: { repo: Repo }) {
   const [viewMode, setViewMode] = createSignal<"commits" | "changes">("commits");
   const [sidebarWidth, setSidebarWidth] = createSignal(300); // largura inicial em px
   const [isResizing, setIsResizing] = createSignal(false);
+  const [activeBranch, setActiveBranch] = createSignal(props.repo.branches[0]); // branch inicial
 
   const startResize = () => setIsResizing(true);
   const stopResize = () => setIsResizing(false);
@@ -86,7 +87,12 @@ export default function RepoView(props: { repo: Repo }) {
           />
         </div>
 
-        <BranchList localTree={localTree()} remoteTree={remoteTree()} />
+        <BranchList 
+          localTree={localTree()} 
+          remoteTree={remoteTree()} 
+          activeBranch={activeBranch()}
+          onSelectBranch={setActiveBranch}
+          />
       </div>
 
       {/* Barra de resize */}
@@ -97,7 +103,7 @@ export default function RepoView(props: { repo: Repo }) {
 
       {/* Painel direito */}
       <div class="flex-1 p-4 overflow-auto">
-        {viewMode() === "commits" && <CommitsList repo={props.repo} branch={props.repo.branches[0]} />}
+        {viewMode() === "commits" && <CommitsList repo={props.repo} branch={activeBranch()} />}
         {viewMode() === "changes" && <div>Alterações locais aqui</div>}
       </div>
     </div>

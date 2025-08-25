@@ -1,18 +1,26 @@
-import TreeView, { Tree }  from "../ui/TreeView";
+import TreeView, { TreeNodeMap }  from "../ui/TreeView";
 
 type Props = {
-  localTree: Tree;
-  remoteTree: Tree;
+  localTree: TreeNodeMap;
+  remoteTree: TreeNodeMap;
+  activeBranch?: string;
+  onSelectBranch?: (branch: string) => void;
 };
 
 export default function BranchList(props: Props) {
   return (
     <div>
       <b>Branchs</b>
-      <TreeView tree={props.localTree} />
+      <TreeView tree={props.localTree} 
+        activeBranch={props.activeBranch}
+        onSelectBranch={props.onSelectBranch}
+      />
 
       <b>Remotes</b>
-      <TreeView tree={props.remoteTree} />
+      <TreeView tree={props.remoteTree}
+        activeBranch={props.activeBranch}
+        onSelectBranch={props.onSelectBranch} 
+      />
     </div>
   );
 }
