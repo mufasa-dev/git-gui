@@ -5,8 +5,24 @@ import { buildTree } from "../ui/TreeView"; // importe a função buildTree
 import CommitsList from "./CommitsList";
 
 export default function RepoView(props: { repo: Repo }) {
+  const minWidth = 200;
+  const maxWidth = 600;
+
   const [search, setSearch] = createSignal("");
   const [viewMode, setViewMode] = createSignal<"commits" | "changes">("commits");
+  const [sidebarWidth, setSidebarWidth] = createSignal(300); // largura inicial em px
+  const [isResizing, setIsResizing] = createSignal(false);
+
+  const startResize = () => setIsResizing(true);
+  const stopResize = () => setIsResizing(false);
+  const onMouseMove = (e: MouseEvent) => {
+    if (isResizing()) {
+      let newWidth = e.clientX;
+      if (newWidth < minWidth) newWidth = minWidth;
+      if (newWidth > maxWidth) newWidth = maxWidth;
+      setSidebarWidth(newWidth);
+    }
+  };
 
   // Filtra branches locais e remotas
   const filteredBranches = createMemo(() => {
@@ -28,9 +44,13 @@ export default function RepoView(props: { repo: Repo }) {
   );
 
   return (
-    <div class="flex h-full w-full">
+    <div class="flex h-full w-full select-none"
+      onMouseMove={onMouseMove}
+      onMouseUp={stopResize}
+      onMouseLeave={stopResize}
+    >
       {/* Painel esquerdo */}
-      <div class="w-1/3 border-r border-gray-300 p-4 flex flex-col">
+      <div class="flex flex-col border-r border-gray-300 p-4" style={{ width: `${sidebarWidth()}px` }}>
         <h2 class="text-xl font-bold mb-2">{props.repo.name}</h2>
 
         <div class="mb-4 flex flex-col space-y-2">
@@ -68,6 +88,12 @@ export default function RepoView(props: { repo: Repo }) {
 
         <BranchList localTree={localTree()} remoteTree={remoteTree()} />
       </div>
+
+      {/* Barra de resize */}
+      <div
+        class="w-1 cursor-col-resize bg-gray-200 hover:bg-gray-400"
+        onMouseDown={startResize}
+      ></div>
 
       {/* Painel direito */}
       <div class="flex-1 p-4 overflow-auto">
