@@ -1,23 +1,18 @@
-import TreeView, { buildTree }  from "../ui/TreeView";
+import TreeView, { Tree }  from "../ui/TreeView";
 
 type Props = {
-  branches: string[];
-  remoteBranches?: string[];
+  localTree: Tree;
+  remoteTree: Tree;
 };
 
 export default function BranchList(props: Props) {
-  const localTree = buildTree(props.branches);
-  const remoteTree = props.remoteBranches
-    ? buildTree(props.remoteBranches)
-    : {};
-
   return (
     <div>
       <b>Branchs</b>
-      <TreeView tree={localTree} />
+      <TreeView tree={props.localTree} />
 
       <b>Remotes</b>
-      <TreeView tree={remoteTree} />
+      <TreeView tree={props.remoteTree} />
     </div>
   );
 }
