@@ -1,4 +1,5 @@
 import RepositoryPage from "./pages/RepositoryPage";
+import "./index.css";
 
 export default function App() {
   return (

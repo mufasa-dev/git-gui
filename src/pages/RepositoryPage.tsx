@@ -43,7 +43,7 @@ export default function RepoTabsPage() {
       {/* Topo com botão */}
       <div class="p-2 border-b bg-gray-100 flex justify-between items-center">
         <Button onClick={openRepo}>
-          <i class="fas fa-folder-o"></i> Abrir Repositório
+          <i class="fas fa-folder"></i> Abrir Repositório
         </Button>
       </div>
 
