@@ -37,7 +37,7 @@ export default function RepoTabsPage() {
   return (
     <div class="flex flex-col h-full">
       {/* Topo com botão */}
-      <div class="p-2 border-b bg-gray-100 flex justify-between items-center">
+      <div class="p-2 border-b bg-gray-100 flex justify-between items-center px-4">
         <Button onClick={openRepo}>
           <i class="fas fa-folder"></i> Abrir Repositório
         </Button>
@@ -47,11 +47,11 @@ export default function RepoTabsPage() {
       <div class="flex flex-col flex-1">
         <TabBar repos={repos()} active={active()} onChangeActive={setActive} />
 
-        <div class="flex-1 overflow-auto p-4">
+        <div class="flex-1 overflow-auto">
           {active() ? (
             <RepoView repo={repos().find(r => r.path === active())!} />
           ) : (
-            <p class="text-gray-500">Nenhum repositório aberto</p>
+            <p class="text-gray-500 p-4">Nenhum repositório aberto</p>
           )}
         </div>
       </div>
