@@ -1,6 +1,7 @@
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { getLocalChanges } from "../../services/gitService";
+import { FolderTreeView } from "../ui/FolderTreeview";
 
 export function LocalChanges(props: { repo: Repo; branch: string }) {
   const [changes, setChanges] = createSignal<
@@ -13,11 +14,16 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
 
   createEffect(() => {
     if (!props.repo.path) return;
-    getLocalChanges(props.repo.path).then(setChanges);
+    getLocalChanges(props.repo.path).then((res) => {
+      console.log("local changes", res);
+      setChanges(res);
+    });
   });
 
   const staged = () => changes().filter((c) => c.staged && c.status !== "untracked");
   const unstaged = () => changes().filter((c) => !c.staged || c.status == "untracked");
+  console.log("unstaged", unstaged());
+  console.log("staged", staged());
 
   return (
     <div class="p-4 space-y-4">
@@ -27,16 +33,7 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
           Preparar tudo
         </button>
       </div>
-      <ul class="ml-4 list-disc text-sm">
-        {unstaged().length === 0 && (
-          <li class="text-gray-400">Nenhuma alteração</li>
-        )}
-        {unstaged().map((c) => (
-          <li>
-            <span class="text-gray-500">[{getStatusLetter(c.status)}]</span> {c.path}
-          </li>
-        ))}
-      </ul>
+      <FolderTreeView items={unstaged()} />
 
       <div class="flex items-center mt-4">
         <b>Alterações preparadas</b>
@@ -44,16 +41,8 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
           Desfazer tudo
         </button>
       </div>
-      <ul class="ml-4 list-disc text-sm">
-        {staged().length === 0 && (
-          <li class="text-gray-400">Nenhuma alteração</li>
-        )}
-        {staged().map((c) => (
-          <li>
-            <span class="text-gray-500">[{getStatusLetter(c.status)}]</span> {c.path}
-          </li>
-        ))}
-      </ul>
+      
+      <FolderTreeView items={staged()} />
     </div>
   );
 }
