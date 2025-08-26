@@ -1,4 +1,4 @@
-import { createEffect, createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
@@ -10,10 +10,6 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
   const [selected, setSelected] = createSignal<string[]>([]);
   const [stagedPreparedSelected, setStagedPreparedSelected] = createSignal<string[]>([]);
 
-  const getStatusLetter = (status: string) => {
-    return status.charAt(0).toUpperCase();
-  }
-
   const loadChanges = async () => {
     if (!props.repo.path) return;
     const res = await getLocalChanges(props.repo.path);
@@ -22,6 +18,22 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
 
   createEffect(() => {
     loadChanges();
+  });
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "visible") {
+      loadChanges();
+    }
+  };
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+
+  const handleFocus = () => loadChanges();
+  window.addEventListener("focus", handleFocus);
+
+  onCleanup(() => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.removeEventListener("focus", handleFocus);
   });
 
   const staged = () => changes().filter((c) => c.staged && c.status !== "untracked");
