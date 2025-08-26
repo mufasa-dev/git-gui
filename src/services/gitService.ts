@@ -29,3 +29,9 @@ export async function getCommitDetails(path: string, hash: string) {
     files: { file: string; changes: string }[];
   }>("get_commit_details", { path, hash });
 }
+
+export async function getLocalChanges(path: string) {
+  return await invoke<
+    { path: string; status: string; staged: boolean }[]
+  >("list_local_changes", { path });
+}

@@ -4,6 +4,7 @@ import BranchList from "./Branchlist";
 import { buildTree } from "../ui/TreeView"; // importe a função buildTree
 import CommitsList from "./CommitsList";
 import { CommitDetails } from "./CommitDetails";
+import { LocalChanges } from "./LocalChanges";
 
 export default function RepoView(props: { repo: Repo }) {
   const minWidth = 200;
@@ -106,7 +107,7 @@ export default function RepoView(props: { repo: Repo }) {
       {viewMode() === "commits" && (
           <CommitsList repo={props.repo} branch={activeBranch()} />
         )}
-      {viewMode() === "changes" && <div>Alterações locais aqui</div>}
+      {viewMode() === "changes" && <LocalChanges repo={props.repo} branch={activeBranch()} />}
     </div>
   );
 }

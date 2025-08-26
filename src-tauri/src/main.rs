@@ -146,6 +146,54 @@ fn get_commit_details(path: String, hash: String) -> Result<serde_json::Value, S
     }))
 }
 
+#[tauri::command]
+fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
+    use std::process::Command;
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&path)
+        .arg("status")
+        .arg("--porcelain")
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut changes = Vec::new();
+
+    for line in stdout.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        let status_chars: Vec<char> = line.chars().collect();
+        let staged_flag = status_chars[0] != ' ';
+        let status_code = format!("{}{}", status_chars[0], status_chars[1]);
+        let file_path = line[3..].to_string();
+
+        let status = match status_code.trim() {
+            "M" | " M" | "MM" => "modified",
+            "A" | " A" => "added",
+            "D" | " D" => "deleted",
+            "R" | " R" => "renamed",
+            "C" | " C" => "copied",
+            "??" => "untracked",
+            _ => "unknown",
+        };
+
+        changes.push(serde_json::json!({
+            "path": file_path,
+            "status": status,
+            "staged": staged_flag
+        }));
+    }
+
+    Ok(changes)
+}
 
 fn main() {
     tauri::Builder::default()
@@ -155,7 +203,8 @@ fn main() {
             list_branches, 
             list_remote_branches,
             list_commits,
-            get_commit_details
+            get_commit_details,
+            list_local_changes
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");

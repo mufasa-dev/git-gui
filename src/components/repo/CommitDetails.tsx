@@ -3,6 +3,7 @@ export function CommitDetails(props: { commit: any, subject: string }) {
     return <div class="p-4 text-gray-400">Selecione um commit</div>;
   }
 
+
   return (
     <div class="p-4 space-y-2">
       <div class="font-mono text-sm text-gray-600">{props.commit.hash}</div>
