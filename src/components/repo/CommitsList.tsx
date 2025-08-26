@@ -80,7 +80,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
             class="overflow-auto"
             style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px", "max-height": "50%" }}
         >
-            <CommitDetails commit={selectedCommit()} />
+            <CommitDetails commit={selectedCommit()} subject={selectedCommit()?.subject} />
         </div>
     </div>
   );

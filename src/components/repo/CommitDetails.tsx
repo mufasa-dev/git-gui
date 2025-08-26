@@ -1,5 +1,5 @@
-export function CommitDetails(props: { commit: any }) {
-  if (!props.commit && !props.commit.subject) {
+export function CommitDetails(props: { commit: any, subject: string }) {
+  if (!props.subject) {
     return <div class="p-4 text-gray-400">Selecione um commit</div>;
   }
 
