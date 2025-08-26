@@ -4,11 +4,18 @@ import { getLocalChanges, stageFiles, unstageFiles } from "../../services/gitSer
 import { FolderTreeView } from "../ui/FolderTreeview";
 
 export function LocalChanges(props: { repo: Repo; branch: string }) {
+  const minWidth = 200;
+  const maxWidth = 600;
+
   const [changes, setChanges] = createSignal<
     { path: string; status: string; staged: boolean }[]
   >([]);
   const [selected, setSelected] = createSignal<string[]>([]);
   const [stagedPreparedSelected, setStagedPreparedSelected] = createSignal<string[]>([]);
+  const [sidebarWidth, setSidebarWidth] = createSignal(300); // largura inicial em px
+  const [isResizing, setIsResizing] = createSignal(false);
+  const [startX, setStartX] = createSignal(0);
+  const [startWidth, setStartWidth] = createSignal(0);
 
   const loadChanges = async () => {
     if (!props.repo.path) return;
@@ -35,6 +42,21 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
     document.removeEventListener("visibilitychange", handleVisibilityChange);
     window.removeEventListener("focus", handleFocus);
   });
+
+  const startResize = (e: MouseEvent) => {
+    setIsResizing(true);
+    setStartX(e.clientX);
+    setStartWidth(sidebarWidth());
+  };
+  const stopResize = () => setIsResizing(false);
+  const onMouseMove = (e: MouseEvent) => {
+    if (!isResizing()) return;
+    const deltaX = e.clientX - startX();
+    let newWidth = startWidth() + deltaX;
+    if (newWidth < minWidth) newWidth = minWidth;
+    if (newWidth > maxWidth) newWidth = maxWidth;
+    setSidebarWidth(newWidth);
+  };
 
   const staged = () => changes().filter((c) => c.staged && c.status !== "untracked");
   const unstaged = () => changes().filter((c) => !c.staged || c.status == "untracked");
@@ -75,23 +97,40 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
   }
 
   return (
-    <div class="p-4 space-y-4">
-      <div class="flex items-center">
-        <b>Alterações</b>
-        <button class="ml-auto px-2 py-1 text-sm bg-blue-500 text-white rounded" onClick={() => prepare()}>
-          Preparar
-        </button>
-      </div>
-      <FolderTreeView items={unstaged()} selected={selected()} onToggle={toggleItem} />
+    <div class="flex h-full w-full select-none"
+      onMouseMove={onMouseMove}
+      onMouseUp={stopResize}
+      onMouseLeave={stopResize}>
+      <div class="flex flex-col border-r border-gray-300 p-4" style={{ width: `${sidebarWidth()}px` }}>
+        <div class="flex items-center">
+          <b>Alterações</b>
+          <button class="ml-auto px-2 py-1 text-sm bg-blue-500 text-white rounded" onClick={() => prepare()}>
+            Preparar
+          </button>
+        </div>
+        <FolderTreeView items={unstaged()} selected={selected()} onToggle={toggleItem} />
 
-      <div class="flex items-center mt-4">
-        <b class="mr-1">Preparadas</b>
-        <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded" onclick={() => unstage()}>
-          Desfazer
-        </button>
+        <div class="flex items-center mt-4">
+          <b class="mr-1">Preparadas</b>
+          <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded" onclick={() => unstage()}>
+            Desfazer
+          </button>
+        </div>
+        
+        <FolderTreeView items={staged()} selected={stagedPreparedSelected()} onToggle={toggleStagedItem} />
       </div>
-      
-      <FolderTreeView items={staged()} selected={stagedPreparedSelected()} onToggle={toggleStagedItem} />
+
+      {/* Barra de resize */}
+      <div
+        class="w-1 cursor-col-resize bg-gray-200 hover:bg-gray-400"
+        onMouseDown={startResize}
+      ></div>
+
+      <div  class="flex-1 flex flex-col h-full overflow-hidden">
+        <div class="flex-1 overflow-auto px-2">
+          
+        </div>
+      </div>
     </div>
   );
 }
