@@ -3,6 +3,7 @@ import { Repo } from "../../models/Repo.model";
 import BranchList from "./Branchlist";
 import { buildTree } from "../ui/TreeView"; // importe a função buildTree
 import CommitsList from "./CommitsList";
+import { CommitDetails } from "./CommitDetails";
 
 export default function RepoView(props: { repo: Repo }) {
   const minWidth = 200;
@@ -102,10 +103,10 @@ export default function RepoView(props: { repo: Repo }) {
       ></div>
 
       {/* Painel direito */}
-      <div class="flex-1 p-4 overflow-auto">
-        {viewMode() === "commits" && <CommitsList repo={props.repo} branch={activeBranch()} />}
-        {viewMode() === "changes" && <div>Alterações locais aqui</div>}
-      </div>
+      {viewMode() === "commits" && (
+          <CommitsList repo={props.repo} branch={activeBranch()} />
+        )}
+      {viewMode() === "changes" && <div>Alterações locais aqui</div>}
     </div>
   );
 }
