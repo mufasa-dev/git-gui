@@ -1,6 +1,7 @@
 use std::process::Command;
 use serde::Serialize;
 use std::path::Path;
+use tauri::command;
 
 #[tauri::command]
 fn open_repo(path: String) -> Result<String, String> {
@@ -195,6 +196,40 @@ fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
     Ok(changes)
 }
 
+/// Stage arquivos (git add)
+#[command]
+fn stage_files(path: String, files: Vec<String>) -> Result<(), String> {
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(&path)
+        .arg("add")
+        .args(&files);
+
+    let output = cmd.output().map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(())
+}
+
+/// Unstage arquivos (git reset)
+#[command]
+fn unstage_files(path: String, files: Vec<String>) -> Result<(), String> {
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(&path)
+        .arg("reset")
+        .args(&files);
+
+    let output = cmd.output().map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -204,7 +239,9 @@ fn main() {
             list_remote_branches,
             list_commits,
             get_commit_details,
-            list_local_changes
+            list_local_changes,
+            stage_files,
+            unstage_files
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");

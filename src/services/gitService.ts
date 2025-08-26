@@ -35,3 +35,11 @@ export async function getLocalChanges(path: string) {
     { path: string; status: string; staged: boolean }[]
   >("list_local_changes", { path });
 }
+
+export async function stageFiles(repoPath: string, paths: string[]) {
+  return await invoke("stage_files", { path: repoPath, files: paths });
+}
+
+export async function unstageFiles(repoPath: string, paths: string[]) {
+  return await invoke("unstage_files", { path: repoPath, files: paths });
+}
