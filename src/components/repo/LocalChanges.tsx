@@ -1,6 +1,6 @@
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { getLocalChanges, stageFiles } from "../../services/gitService";
+import { getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
 
 export function LocalChanges(props: { repo: Repo; branch: string }) {
@@ -8,6 +8,7 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
     { path: string; status: string; staged: boolean }[]
   >([]);
   const [selected, setSelected] = createSignal<string[]>([]);
+  const [stagedPreparedSelected, setStagedPreparedSelected] = createSignal<string[]>([]);
 
   const getStatusLetter = (status: string) => {
     return status.charAt(0).toUpperCase();
@@ -33,6 +34,13 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
     });
   };
 
+  const toggleStagedItem = (path: string, select: boolean) => {
+    setStagedPreparedSelected((prev) => {
+      if (select) return [...prev, path];
+      else return prev.filter((p) => p !== path);
+    });
+  };
+
   const prepare = async () => {
     const paths = selected();
     await stageFiles(props.repo.path, paths);
@@ -47,6 +55,13 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
     await loadChanges();
   };
 
+  const unstage = async () => {
+    const paths = stagedPreparedSelected();
+    await unstageFiles(props.repo.path, paths);
+    setSelected([]);
+    await loadChanges();
+  }
+
   return (
     <div class="p-4 space-y-4">
       <div class="flex items-center">
@@ -58,13 +73,13 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
       <FolderTreeView items={unstaged()} selected={selected()} onToggle={toggleItem} />
 
       <div class="flex items-center mt-4">
-        <b>Alterações preparadas</b>
-        <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded">
+        <b class="mr-1">Preparadas</b>
+        <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded" onclick={() => unstage()}>
           Desfazer
         </button>
       </div>
       
-      <FolderTreeView items={staged()} selected={selected()} onToggle={toggleItem} />
+      <FolderTreeView items={staged()} selected={stagedPreparedSelected()} onToggle={toggleStagedItem} />
     </div>
   );
 }

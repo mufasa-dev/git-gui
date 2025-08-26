@@ -79,7 +79,7 @@ export default function RepoView(props: { repo: Repo }) {
           <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
             <i class="fas fa-search"></i>
           </span>
-
+ 
           <input
             type="text"
             placeholder="Pesquisar branches..."
