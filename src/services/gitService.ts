@@ -18,3 +18,14 @@ export async function getCommits(path: string, branch: string) {
     { path, branch }
   );
 }
+
+export async function getCommitDetails(path: string, hash: string) {
+  return await invoke<{
+    hash: string;
+    authorName: string;
+    authorEmail: string;
+    authorDate: string;
+    subject: string;
+    files: { file: string; changes: string }[];
+  }>("get_commit_details", { path, hash });
+}

@@ -94,6 +94,59 @@ fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String> {
     Ok(commits)
 }
 
+#[tauri::command]
+fn get_commit_details(path: String, hash: String) -> Result<serde_json::Value, String> {
+    use std::process::Command;
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&path)
+        .arg("show")
+        .arg("--stat")
+        .arg("--pretty=format:%H%n%an%n%ae%n%ad%n%s")
+        .arg(&hash)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let lines: Vec<&str> = stdout.split('\n').collect();
+
+    let commit_hash = lines.get(0).unwrap_or(&"").to_string();
+    let author_name = lines.get(1).unwrap_or(&"").to_string();
+    let author_email = lines.get(2).unwrap_or(&"").to_string();
+    let author_date = lines.get(3).unwrap_or(&"").to_string();
+    let subject = lines.get(4).unwrap_or(&"").to_string();
+
+    let mut files: Vec<serde_json::Value> = Vec::new();
+
+    for line in lines.iter().skip(5) {
+        if line.trim().is_empty() || line.contains("files changed") {
+            continue;
+        }
+        let parts: Vec<&str> = line.split('|').collect();
+        if parts.len() >= 2 {
+            files.push(serde_json::json!({
+                "file": parts[0].trim(),
+                "changes": parts[1].trim(),
+            }));
+        }
+    }
+
+    Ok(serde_json::json!({
+        "hash": commit_hash,
+        "authorName": author_name,
+        "authorEmail": author_email,
+        "authorDate": author_date,
+        "subject": subject,
+        "files": files
+    }))
+}
+
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -101,7 +154,8 @@ fn main() {
             open_repo, 
             list_branches, 
             list_remote_branches,
-            list_commits
+            list_commits,
+            get_commit_details
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");

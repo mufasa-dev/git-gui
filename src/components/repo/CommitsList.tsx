@@ -1,6 +1,6 @@
 import { createEffect, createSignal } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { getCommits } from "../../services/gitService";
+import { getCommitDetails, getCommits } from "../../services/gitService";
 import { formatDate } from "../../utils/date";
 import { CommitDetails } from "./CommitDetails";
 
@@ -31,12 +31,17 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
     }
   }
 
+  async function selectCommit(hash: string) {
+    const details = await getCommitDetails(props.repo.path, hash);
+    setSelectedCommit({...details});
+  }
+
   createEffect(() => {
     if (!props.repo.path || !props.branch) return;
 
     const branchName = props.branch.replace("* ", "");
-    console.log("Loading commits for branch:", branchName);
-    console.log("Repo path:", props.repo);
+    
+    setLoading(true);
     getCommits(props.repo.path, branchName)
     .then(setCommits)
     .finally(() => setLoading(false));
@@ -47,14 +52,19 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}>
-        <div class="flex-1 overflow-auto space-y-2 px-2">
-            <div class="space-y-2" style={{"height": "100px"}}>
+        <div class="flex-1 overflow-auto px-2">
+            <div style={{"height": "100px"}}>
             {loading() ? <div>Carregando...</div> : commits().map((c) => (
-                <div class="flex items-center border-b border-gray-200 pb-2">
-                <div class="text-sm font-mono text-gray-500">{c.hash.slice(0, 7)}</div>
-                <div class="font-semibold px-1">{c.message}</div>
-                <div class="text-xs text-gray-400 ml-auto">{c.author}</div>
-                <div class="px-1">{formatDate(c.date)}</div>
+                <div
+                    class={`flex items-center border-b border-gray-200 py-2 cursor-pointer ${
+                        selectedCommit()?.hash === c.hash ? "bg-blue-100" : ""
+                    }`}
+                    onClick={() => selectCommit(c.hash)}
+                >
+                    <div class="text-sm font-mono text-gray-500">{c.hash.slice(0, 7)}</div>
+                    <div class="font-semibold px-1">{c.message}</div>
+                    <div class="text-xs text-gray-400 ml-auto">{c.author}</div>
+                    <div class="px-1">{formatDate(c.date)}</div>
                 </div>
             ))}
             </div>
@@ -67,7 +77,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
         ></div>
         
         <div
-            class="bg-blue-600 overflow-auto"
+            class="overflow-auto"
             style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px", "max-height": "50%" }}
         >
             <CommitDetails commit={selectedCommit()} />
