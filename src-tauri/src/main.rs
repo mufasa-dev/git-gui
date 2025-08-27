@@ -230,6 +230,33 @@ fn unstage_files(path: String, files: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
+#[command]
+fn git_commit(repo_path: String, message: String, description: String, amend: bool) -> Result<String, String> {
+    // Mensagem final: se tiver descrição, junta com "\n\n"
+    let mut full_message = message;
+    if !description.trim().is_empty() {
+        full_message.push_str("\n\n");
+        full_message.push_str(&description);
+    }
+
+    let mut args = vec!["commit", "-m", &full_message];
+    if amend {
+        args.push("--amend");
+    }
+
+    let output = Command::new("git")
+        .args(&args)
+        .current_dir(&repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -241,7 +268,8 @@ fn main() {
             get_commit_details,
             list_local_changes,
             stage_files,
-            unstage_files
+            unstage_files,
+            git_commit
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
