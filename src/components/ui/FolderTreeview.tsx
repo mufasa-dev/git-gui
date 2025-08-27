@@ -29,9 +29,6 @@ export function FolderTreeView(props: {
         current = isFile ? current : current[part].__children;
       });
     }
-    console.log("tree", Object.entries(root));
-    console.log("tree.name", root.name);
-    console.log("tree.child", root.children);
     return root;
   };
 

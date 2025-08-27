@@ -1,6 +1,6 @@
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
+import { commit, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
 
 export function LocalChanges(props: { repo: Repo; branch: string }) {
@@ -16,6 +16,9 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
   const [isResizing, setIsResizing] = createSignal(false);
   const [startX, setStartX] = createSignal(0);
   const [startWidth, setStartWidth] = createSignal(0);
+  const [commitMessage, setCommitMessage] = createSignal("");
+  const [commitDescription, setCommitDescription] = createSignal("");
+  const [commitAmend, setCommitAmend] = createSignal(false);
 
   const loadChanges = async () => {
     if (!props.repo.path) return;
@@ -96,6 +99,23 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
     await loadChanges();
   }
 
+  const handleCommit = async () => {
+    if (!commitMessage().trim()) {
+      alert("Digite uma mensagem de commit!");
+      return;
+    }
+    try {
+      const res = await commit(props.repo.path, commitMessage(), commitDescription(), commitAmend());
+      setCommitMessage("");
+      setCommitDescription("");
+      setCommitAmend(false);
+      await loadChanges();
+    } catch (err) {
+      console.error("Erro no commit:", err);
+      alert("Erro no commit: " + err);
+    }
+  };
+
   return (
     <div class="flex h-full w-full select-none"
       onMouseMove={onMouseMove}
@@ -128,7 +148,28 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
 
       <div  class="flex-1 flex flex-col h-full overflow-hidden">
         <div class="flex-1 overflow-auto px-2">
-          
+          Detalhes do arquivo
+        </div>
+        <div class="border-t border-gray-300 p-4">
+          <input type="text" class="w-full border rounded border-gray-300 py-1 px-2" placeholder="Mensagem do commit"
+            value={commitMessage()}
+            onInput={(e) => setCommitMessage(e.currentTarget.value)} />
+          <input type="text" class="w-full border rounded border-gray-300 py-1 px-2 mt-2" placeholder="Descrição"
+            value={commitDescription()}
+            onInput={(e) => setCommitDescription(e.currentTarget.value)} />
+          <div class="flex mt-2">
+            <div>
+              <input
+                type="checkbox" id="amend" name="amend"
+                checked={commitAmend()} onChange={(e) => setCommitAmend(e.currentTarget.checked)}
+              />
+              <label for="amend" class="ml-1">Amend</label>
+            </div>
+            <button class="pl-2 pr-4 py-1 bg-blue-600 ml-auto text-white rounded" onClick={handleCommit}
+              disabled={staged().length === 0 || !commitMessage().trim()}>
+              <i class="fa fa-check"></i> Commit
+            </button>
+          </div>
         </div>
       </div>
     </div>
