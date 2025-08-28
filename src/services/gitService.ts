@@ -77,3 +77,12 @@ export async function pushRepo(
 ): Promise<string> {
   return await invoke("push_repo", { path: repoPath, remote, branch });
 }
+
+export async function pull(repoPath: string, branch: string): Promise<string> {
+  try {
+    const result = await invoke<string>("git_pull", { repoPath, branch });
+    return result;
+  } catch (err: any) {
+    throw new Error(err);
+  }
+}

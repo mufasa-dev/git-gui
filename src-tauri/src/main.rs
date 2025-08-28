@@ -15,7 +15,8 @@ fn main() {
             commands::stage::list_local_changes,
             commands::stage::stage_files,
             commands::stage::unstage_files,
-            commands::repo::push_repo
+            commands::repo::push_repo,
+            commands::repo::git_pull
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
