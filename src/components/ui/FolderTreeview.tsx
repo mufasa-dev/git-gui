@@ -75,6 +75,25 @@ function TreeNode(props: { node: any; name: string; path: string; selected: stri
     }
   };
 
+  const getStatusStyle = (status: string) => {
+    const letter = getStatusLetter(status);
+    switch (letter) {
+      case 'A': return 'bg-green-600'; // Added
+      case 'M': return 'bg-yellow-400';  // Modified
+      case 'D': return 'bg-red-600';   // Deleted
+      case 'R': return 'bg-blue-600';  // Renamed
+      case 'C': return 'bg-purple-600'; // Copied
+      case 'U': return 'bg-orange-600'; // Unmerged
+      case '?': return 'bg-gray-600';   // Untracked
+      case '!': return 'bg-black';      // Ignored
+      default: return 'bg-gray-600';    // Unknown
+    }
+  }
+
+  const getStatusLetter = (status: string) => {
+    return status.charAt(0).toUpperCase();
+  }
+
   return (
     <li>
       <div
@@ -83,11 +102,11 @@ function TreeNode(props: { node: any; name: string; path: string; selected: stri
         onClick={toggle}
       >
         {props.node.__isFile ? (
-          <span class="ml-4 text-sm">
-            <span class="text-gray-500">
-              [{props.node.__status?.charAt(0).toUpperCase()}]
+          <span class="pl-4 text-sm">
+            <span class={'px-1 rounded text-white ' + getStatusStyle(props.node.__status || '')}>
+              {getStatusLetter(props.node.__status)}
             </span>{" "}
-            <i class="fa fa-file"></i> {props.name}
+            <i class="fa-regular fa-file"></i> {props.name}
           </span>
         ) : (
           <>
@@ -102,7 +121,7 @@ function TreeNode(props: { node: any; name: string; path: string; selected: stri
       </div>
 
       <Show when={open() && !props.node.__isFile}>
-        <ul class="ml-4">
+        <ul class="pl-4">
           <For each={Object.entries(props.node.__children)}>
             {([name, child]: any) => (
               <TreeNode
