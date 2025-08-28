@@ -1,7 +1,5 @@
 use std::process::Command;
 use serde_json::json;
-use tauri::command;
-
 
 #[tauri::command]
 pub fn list_branches(path: String) -> Result<Vec<String>, String> {

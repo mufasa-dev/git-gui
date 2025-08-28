@@ -44,3 +44,21 @@ pub fn git_pull(repo_path: String, branch: String) -> Result<String, String> {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
+
+#[tauri::command]
+pub fn fetch_repo(repo_path: String, remote: String) -> Result<String, String> {
+    use std::process::Command;
+
+    let output = Command::new("git")
+        .arg("fetch")
+        .arg(&remote)
+        .current_dir(&repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}

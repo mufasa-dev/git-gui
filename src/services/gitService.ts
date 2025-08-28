@@ -86,3 +86,7 @@ export async function pull(repoPath: string, branch: string): Promise<string> {
     throw new Error(err);
   }
 }
+
+export async function fetchRepo(path: string, remote: string): Promise<string> {
+  return await invoke("fetch_repo", { repoPath: path, remote });
+}
