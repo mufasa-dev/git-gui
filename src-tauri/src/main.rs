@@ -99,6 +99,22 @@ fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Value>, String
     Ok(branches)
 }
 
+#[tauri::command]
+fn get_current_branch(path: String) -> Result<String, String> {
+    use std::process::Command;
+
+    let output = Command::new("git")
+        .args(["-C", &path, "rev-parse", "--abbrev-ref", "HEAD"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
 #[derive(Serialize)]
 struct Commit {
     hash: String,
@@ -329,6 +345,7 @@ fn main() {
             list_branches, 
             list_remote_branches,
             get_branch_status,
+            get_current_branch,
             list_commits,
             get_commit_details,
             list_local_changes,
