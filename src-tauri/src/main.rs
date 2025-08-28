@@ -54,6 +54,51 @@ fn list_remote_branches(path: String) -> Result<Vec<String>, String> {
     }
 }
 
+#[tauri::command]
+fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Value>, String> {
+    use std::process::Command;
+    use serde_json::json;
+
+    let branches_output = Command::new("git")
+        .args(["for-each-ref", "--format=%(refname:short)", "refs/heads/"])
+        .current_dir(&repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let branches_str = String::from_utf8_lossy(&branches_output.stdout);
+    let mut branches = Vec::new();
+
+    for branch in branches_str.lines() {
+        let ahead = Command::new("git")
+            .args(["rev-list", "--count", &format!("@{{u}}..{}", branch)])
+            .current_dir(&repo_path)
+            .output();
+
+        let behind = Command::new("git")
+            .args(["rev-list", "--count", &format!("{}..@{{u}}", branch)])
+            .current_dir(&repo_path)
+            .output();
+
+        let ahead_count = ahead.ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .and_then(|s| s.trim().parse::<u32>().ok())
+            .unwrap_or(0);
+
+        let behind_count = behind.ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .and_then(|s| s.trim().parse::<u32>().ok())
+            .unwrap_or(0);
+
+        branches.push(json!({
+            "name": branch,
+            "ahead": ahead_count,
+            "behind": behind_count
+        }));
+    }
+
+    Ok(branches)
+}
+
 #[derive(Serialize)]
 struct Commit {
     hash: String,
@@ -264,6 +309,7 @@ fn main() {
             open_repo, 
             list_branches, 
             list_remote_branches,
+            get_branch_status,
             list_commits,
             get_commit_details,
             list_local_changes,

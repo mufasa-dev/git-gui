@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { Branch } from "../models/Banch.model";
 
 export async function validateRepo(path: string): Promise<string> {
   return await invoke("open_repo", { path });
@@ -10,6 +11,13 @@ export async function getBranches(path: string): Promise<string[]> {
 
 export async function getRemoteBranches(path: string): Promise<string[]> {
   return await invoke("list_remote_branches", { path });
+}
+
+export async function getBranchStatus(repoPath: string): Promise<Branch[]> {
+  return await invoke<Branch[]>(
+    "get_branch_status",
+    { repoPath }
+  );
 }
 
 export async function getCommits(path: string, branch: string) {
