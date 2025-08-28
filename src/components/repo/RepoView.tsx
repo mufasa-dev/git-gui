@@ -57,7 +57,7 @@ export default function RepoView(props: { repo: Repo }) {
     >
       {/* Painel esquerdo */}
       <div class="flex flex-col border-r border-gray-300 p-4" style={{ width: `${sidebarWidth()}px` }}>
-        <h2 class="text-xl font-bold mb-2">{props.repo.name}</h2>
+        <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>
 
         <div class="mb-4 flex flex-col space-y-2">
           <button

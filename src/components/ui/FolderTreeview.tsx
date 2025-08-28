@@ -102,7 +102,7 @@ function TreeNode(props: { node: any; name: string; path: string; selected: stri
         onClick={toggle}
       >
         {props.node.__isFile ? (
-          <span class="pl-4 text-sm">
+          <span title={props.name} class="pl-4 text-sm truncate">
             <span class={'px-1 rounded text-white ' + getStatusStyle(props.node.__status || '')}>
               {getStatusLetter(props.node.__status)}
             </span>{" "}
@@ -113,7 +113,7 @@ function TreeNode(props: { node: any; name: string; path: string; selected: stri
             <span class="mr-1">
               <i class="fa-solid" classList={{ 'fa-caret-down': open(), 'fa-caret-right': !open() }}></i>
             </span>
-            <span>
+            <span title={props.name} class="truncate">
               <i class="fa text-yellow-600" classList={{ 'fa-folder-open': open(), 'fa-folder': !open() }}></i> {props.name}
             </span>
           </>

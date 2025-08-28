@@ -6,6 +6,10 @@ import RepoView from "../components/repo/RepoView";
 import Button from "../components/ui/Button";
 import { Repo } from "../models/Repo.model";
 import RepoContext from "../context/RepoContext";
+import folderIcon from "../assets/folder.png";
+import fetchIcon from "../assets/fetch.png";
+import pullIcon from "../assets/pull.png";
+import pushIcon from "../assets/push.png";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -103,16 +107,20 @@ export default function RepoTabsPage() {
         {/* Topo com botão */}
         <div class="p-2 border-b bg-gray-100 flex items-center px-4">
           <Button class="top-btn" onClick={openRepo}>
-            <i class="fa-regular fa-folder fa-2x"></i> <small>Abrir Repositório</small>
+            <img src={folderIcon} class="inline h-6 mr-2" />
+            <small>Abrir Repositório</small>
           </Button>
           <Button class="top-btn" onClick={async () => { await doFetch()}} disabled={disabledButton()}>
-            <i class="fa-regular fa-sync-alt fa-2x"></i> <small>{fetching() ? " Atualizando..." : " Fetch"}</small>
+            <img src={fetchIcon} class="inline h-6 mr-2" />
+            <small>{fetching() ? " Atualizando..." : " Fetch"}</small>
           </Button>
           <Button class="top-btn" onClick={async () => { await doPull()}} disabled={disabledButton()}>
-            <i class="fa-regular fa-turn-down fa-2x"></i> <small>{pulling() ? " Atualizando..." : " Pull"}</small>
+            <img src={pullIcon} class="inline h-6 mr-2" />
+             <small>{pulling() ? " Atualizando..." : " Pull"}</small>
           </Button>
           <Button class="top-btn" onClick={async () => { await doPush()}} disabled={disabledButton()}>
-            <i class="fa-regular fa-turn-up fa-2x"></i> <small>{pushing() ? " Enviando..." : " Push"}</small>
+            <img src={pushIcon} class="inline h-6 mr-2" />
+            <small>{pushing() ? " Enviando..." : " Push"}</small>
           </Button>
         </div>
 
