@@ -65,3 +65,11 @@ export async function commit(
     amend,
   });
 }
+
+export async function pushRepo(
+  repoPath: string,
+  remote: string = "origin",
+  branch: string = "HEAD"
+): Promise<string> {
+  return await invoke("push_repo", { path: repoPath, remote, branch });
+}

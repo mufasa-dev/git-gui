@@ -302,6 +302,25 @@ fn git_commit(repo_path: String, message: String, description: String, amend: bo
     }
 }
 
+#[tauri::command]
+fn push_repo(path: String, remote: Option<String>, branch: Option<String>) -> Result<String, String> {
+    use std::process::Command;
+
+    let remote_name = remote.unwrap_or("origin".to_string());
+    let branch_name = branch.unwrap_or("HEAD".to_string());
+
+    let output = Command::new("git")
+        .args(["-C", &path, "push", &remote_name, &branch_name])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -315,7 +334,8 @@ fn main() {
             list_local_changes,
             stage_files,
             unstage_files,
-            git_commit
+            git_commit,
+            push_repo
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
