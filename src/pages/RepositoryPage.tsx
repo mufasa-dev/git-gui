@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
-import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull } from "../services/gitService";
+import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo } from "../services/gitService";
 import TabBar from "../components/repo/TabBar";
 import RepoView from "../components/repo/RepoView";
 import Button from "../components/ui/Button";
@@ -12,6 +12,7 @@ export default function RepoTabsPage() {
   const [active, setActive] = createSignal<string | null>(null);
   const [pushing, setPushing] = createSignal(false);
   const [pulling, setPulling] = createSignal(false);
+  const [fetching, setFetching] = createSignal(false);
 
   async function openRepo() {
     const selected = await open({ directory: true, multiple: false });
@@ -67,6 +68,24 @@ export default function RepoTabsPage() {
     }
   }
 
+  const doFetch = async () => {
+    if (!active()) return;
+    setFetching(true);
+    try {
+      await fetchRepo(active()!, "origin");
+      alert("Fetch realizado com sucesso!");
+      await refreshBranches(active()!);
+    } catch (err) {
+      alert("Erro no fetch: " + err);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  const disabledButton = () => {
+    return pushing() || pulling() || fetching();
+  }
+
   async function refreshBranches(repoPath: string) {
     const branches = await getBranchStatus(repoPath);
     const remoteBranches = await getRemoteBranches(repoPath);
@@ -86,13 +105,13 @@ export default function RepoTabsPage() {
           <Button class="top-btn" onClick={openRepo}>
             <i class="fa-regular fa-folder fa-2x"></i> <small>Abrir Repositório</small>
           </Button>
-          <Button class="top-btn" onClick={openRepo}>
-            <i class="fa-regular fa-sync-alt fa-2x"></i> <small>Fetch</small>
+          <Button class="top-btn" onClick={async () => { await doFetch()}} disabled={disabledButton()}>
+            <i class="fa-regular fa-sync-alt fa-2x"></i> <small>{fetching() ? " Atualizando..." : " Fetch"}</small>
           </Button>
-          <Button class="top-btn" onClick={doPull} disabled={pulling()}>
-            <i class="fa-regular fa-turn-down fa-2x"></i> <small>{pulling() ? " Enviando..." : " Pull"}</small>
+          <Button class="top-btn" onClick={async () => { await doPull()}} disabled={disabledButton()}>
+            <i class="fa-regular fa-turn-down fa-2x"></i> <small>{pulling() ? " Atualizando..." : " Pull"}</small>
           </Button>
-          <Button class="top-btn" onClick={doPush} disabled={pushing()}>
+          <Button class="top-btn" onClick={async () => { await doPush()}} disabled={disabledButton()}>
             <i class="fa-regular fa-turn-up fa-2x"></i> <small>{pushing() ? " Enviando..." : " Push"}</small>
           </Button>
         </div>
