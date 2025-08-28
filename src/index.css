@@ -1,3 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  .top-btn {
+    @apply flex flex-col justify-items-center items-center bg-transparent hover:bg-black/10 rounded-md border-0 px-3 py-1 cursor-pointer transition;
+  }
+
+  .btn-primary {
+    @apply bg-blue-600 text-white hover:bg-blue-700 rounded-md border-0 px-3 py-1 cursor-pointer transition;
+  }
+}

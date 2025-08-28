@@ -50,9 +50,18 @@ export default function RepoTabsPage() {
      <RepoContext.Provider value={{ repos, active, refreshBranches }}>
       <div class="flex flex-col h-full">
         {/* Topo com botão */}
-        <div class="p-2 border-b bg-gray-100 flex justify-between items-center px-4">
-          <Button onClick={openRepo}>
-            <i class="fas fa-folder"></i> Abrir Repositório
+        <div class="p-2 border-b bg-gray-100 flex items-center px-4">
+          <Button class="top-btn" onClick={openRepo}>
+            <i class="fa-regular fa-folder fa-2x"></i> <small>Abrir Repositório</small>
+          </Button>
+          <Button class="top-btn" onClick={openRepo}>
+            <i class="fa-regular fa-sync-alt fa-2x"></i> <small>Fetch</small>
+          </Button>
+          <Button class="top-btn" onClick={openRepo}>
+            <i class="fa-regular fa-arrow-down fa-2x"></i> <small>Push</small>
+          </Button>
+          <Button class="top-btn" onClick={openRepo}>
+            <i class="fa-regular fa-arrow-up fa-2x"></i> <small>Pull</small>
           </Button>
         </div>
 
