@@ -2,6 +2,7 @@ import { createEffect, createResource, createSignal, For, onCleanup, Show } from
 import { Repo } from "../../models/Repo.model";
 import { commit, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
+import { useRepoContext } from "../../context/RepoContext";
 
 export function LocalChanges(props: { repo: Repo; branch: string }) {
   const minWidth = 200;
@@ -19,6 +20,7 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
   const [commitMessage, setCommitMessage] = createSignal("");
   const [commitDescription, setCommitDescription] = createSignal("");
   const [commitAmend, setCommitAmend] = createSignal(false);
+  const { refreshBranches } = useRepoContext();
 
   const loadChanges = async () => {
     if (!props.repo.path) return;
@@ -110,11 +112,13 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
       setCommitDescription("");
       setCommitAmend(false);
       await loadChanges();
+      await refreshBranches(props.repo.path);
     } catch (err) {
       console.error("Erro no commit:", err);
       alert("Erro no commit: " + err);
     }
   };
+  
 
   return (
     <div class="flex h-full w-full select-none"

@@ -5,6 +5,7 @@ import TabBar from "../components/repo/TabBar";
 import RepoView from "../components/repo/RepoView";
 import Button from "../components/ui/Button";
 import { Repo } from "../models/Repo.model";
+import RepoContext from "../context/RepoContext";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -34,27 +35,40 @@ export default function RepoTabsPage() {
     }
   }
 
+  async function refreshBranches(repoPath: string) {
+    const branches = await getBranchStatus(repoPath);
+    const remoteBranches = await getRemoteBranches(repoPath);
+
+    setRepos(prev =>
+      prev.map(r =>
+        r.path === repoPath ? { ...r, branches, remoteBranches } : r
+      )
+    );
+  }
+
   return (
-    <div class="flex flex-col h-full">
-      {/* Topo com botão */}
-      <div class="p-2 border-b bg-gray-100 flex justify-between items-center px-4">
-        <Button onClick={openRepo}>
-          <i class="fas fa-folder"></i> Abrir Repositório
-        </Button>
-      </div>
+     <RepoContext.Provider value={{ repos, active, refreshBranches }}>
+      <div class="flex flex-col h-full">
+        {/* Topo com botão */}
+        <div class="p-2 border-b bg-gray-100 flex justify-between items-center px-4">
+          <Button onClick={openRepo}>
+            <i class="fas fa-folder"></i> Abrir Repositório
+          </Button>
+        </div>
 
-      {/* Abas + conteúdo */}
-      <div class="flex flex-col flex-1">
-        <TabBar repos={repos()} active={active()} onChangeActive={setActive} />
+        {/* Abas + conteúdo */}
+        <div class="flex flex-col flex-1">
+          <TabBar repos={repos()} active={active()} onChangeActive={setActive} />
 
-        <div class="flex-1 overflow-auto">
-          {active() ? (
-            <RepoView repo={repos().find(r => r.path === active())!} />
-          ) : (
-            <p class="text-gray-500 p-4">Nenhum repositório aberto</p>
-          )}
+          <div class="flex-1 overflow-auto">
+            {active() ? (
+              <RepoView repo={repos().find(r => r.path === active())!} />
+            ) : (
+              <p class="text-gray-500 p-4">Nenhum repositório aberto</p>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </RepoContext.Provider>
   );
 }
