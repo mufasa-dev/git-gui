@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
-import { validateRepo, getBranches, getRemoteBranches, getBranchStatus } from "../services/gitService";
+import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch } from "../services/gitService";
 import TabBar from "../components/repo/TabBar";
 import RepoView from "../components/repo/RepoView";
 import Button from "../components/ui/Button";
@@ -10,6 +10,7 @@ import RepoContext from "../context/RepoContext";
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
   const [active, setActive] = createSignal<string | null>(null);
+  const [pushing, setPushing] = createSignal(false);
 
   async function openRepo() {
     const selected = await open({ directory: true, multiple: false });
@@ -35,6 +36,21 @@ export default function RepoTabsPage() {
     }
   }
 
+  const doPush = async () => {
+    if (!active()) return;
+    setPushing(true);
+    try {
+      const branch = await getCurrentBranch(active()!);
+      await pushRepo(active()!, "origin", branch);
+      alert("Push realizado com sucesso!");
+      await refreshBranches(active()!);
+    } catch (err) {
+      alert("Erro no push: " + err);
+    } finally {
+      setPushing(false);
+    }
+  };
+
   async function refreshBranches(repoPath: string) {
     const branches = await getBranchStatus(repoPath);
     const remoteBranches = await getRemoteBranches(repoPath);
@@ -58,10 +74,10 @@ export default function RepoTabsPage() {
             <i class="fa-regular fa-sync-alt fa-2x"></i> <small>Fetch</small>
           </Button>
           <Button class="top-btn" onClick={openRepo}>
-            <i class="fa-regular fa-arrow-down fa-2x"></i> <small>Push</small>
+            <i class="fa-regular fa-turn-down fa-2x"></i> <small>Pull</small>
           </Button>
-          <Button class="top-btn" onClick={openRepo}>
-            <i class="fa-regular fa-arrow-up fa-2x"></i> <small>Pull</small>
+          <Button class="top-btn" onClick={doPush}>
+            <i class="fa-regular fa-turn-up fa-2x"></i> <small>{pushing() ? " Enviando..." : " Push"}</small>
           </Button>
         </div>
 
