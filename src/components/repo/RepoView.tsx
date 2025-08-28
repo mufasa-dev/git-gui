@@ -1,9 +1,9 @@
 import { createSignal, createMemo } from "solid-js";
 import { Repo } from "../../models/Repo.model";
+import { Branch } from "../../models/Banch.model";
 import BranchList from "./Branchlist";
-import { buildTree } from "../ui/TreeView"; // importe a função buildTree
+import { buildTree } from "../ui/TreeView";
 import CommitsList from "./CommitsList";
-import { CommitDetails } from "./CommitDetails";
 import { LocalChanges } from "./LocalChanges";
 
 export default function RepoView(props: { repo: Repo }) {
@@ -14,7 +14,7 @@ export default function RepoView(props: { repo: Repo }) {
   const [viewMode, setViewMode] = createSignal<"commits" | "changes">("commits");
   const [sidebarWidth, setSidebarWidth] = createSignal(300); // largura inicial em px
   const [isResizing, setIsResizing] = createSignal(false);
-  const [activeBranch, setActiveBranch] = createSignal(props.repo.branches[0]); // branch inicial
+  const [activeBranch, setActiveBranch] = createSignal(props.repo.branches[0].name); // branch inicial
 
   const startResize = () => setIsResizing(true);
   const stopResize = () => setIsResizing(false);
@@ -30,14 +30,17 @@ export default function RepoView(props: { repo: Repo }) {
   // Filtra branches locais e remotas
   const filteredBranches = createMemo(() => {
     const term = search().toLowerCase();
-    return props.repo.branches.filter((b) => b.toLowerCase().includes(term));
+    return props.repo.branches.filter((b) => b.name.toLowerCase().includes(term));
   });
 
   const filteredRemoteBranches = createMemo(() => {
     const term = search().toLowerCase();
     return props.repo.remoteBranches?.filter((b) =>
       b.toLowerCase().includes(term)
-    );
+    ).map((name) => {
+      let branch: Branch = { name, ahead: 0, behind: 0 };
+      return branch;
+    });
   });
 
   // Constrói árvores reativas sempre que os arrays filtrados mudam

@@ -1,8 +1,11 @@
 import { createSignal } from "solid-js";
+import { Branch } from "../../models/Banch.model";
 
 type TreeNode = {
   name: string;      // nome exibido (ex: "main")
   original: string;  // nome original (ex: "origin/main")
+  ahead: number;
+  behind: number;
   children?: TreeNodeMap;
 };
 
@@ -14,11 +17,11 @@ export type TreeViewProps = {
   onSelectBranch?: (branch: string) => void;
 };
 
-export function buildTree(branches: string[]): TreeNodeMap {
+export function buildTree(branches: Branch[]): TreeNodeMap {
   const tree: TreeNodeMap = {};
 
   branches.forEach((branch) => {
-    const clean = branch.trim();
+    const clean = branch.name.trim();
 
     if (clean.startsWith("HEAD ->")) return;
 
@@ -31,6 +34,8 @@ export function buildTree(branches: string[]): TreeNodeMap {
       if (!current[part]) {
         current[part] = {
           name: part,      // nome exibido
+          ahead: branch.ahead,
+          behind: branch.behind,
           original: isLeaf ? clean : "", // somente nó final mantém o original
           children: isLeaf ? undefined : {},
         };
@@ -68,10 +73,15 @@ export default function TreeView(props: TreeViewProps) {
         return (
             <li>
                 <div
-                class={`cursor-pointer select-none ${isActive ? "font-bold text-green-600" : ""}`}
+                class={`cursor-pointer select-none flex ${isActive ? "font-bold text-green-600" : ""}`}
                 onClick={() => handleClick(node)}
                 >
-                {isLeaf ? "" : open()[node.name] ? <i class="fa-solid fa-caret-down"></i>  : <i class="fa-solid fa-caret-right"></i> } { node.name }
+                  {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[node.name], "fa-caret-right" : !open()[node.name]}}></i>} 
+                  { node.name }
+                  <div class="ml-auto">
+                    {node.ahead > 0 && <span class="text-green-600">↑{node.ahead}</span>}
+                    {node.behind > 0 && <span class="text-red-600">↓{node.behind}</span>}
+                  </div>
                 </div>
                 {node.children && open()[node.name] && (
                     <TreeView

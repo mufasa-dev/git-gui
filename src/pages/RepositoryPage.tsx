@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
-import { validateRepo, getBranches, getRemoteBranches } from "../services/gitService";
+import { validateRepo, getBranches, getRemoteBranches, getBranchStatus } from "../services/gitService";
 import TabBar from "../components/repo/TabBar";
 import RepoView from "../components/repo/RepoView";
 import Button from "../components/ui/Button";
@@ -16,7 +16,7 @@ export default function RepoTabsPage() {
     if (typeof selected === "string") {
       try {
         await validateRepo(selected);
-        const branches = await getBranches(selected);
+        const branches = await getBranchStatus(selected);
         const remoteBranches = await getRemoteBranches(selected);
         const name = selected.split("/").pop() ?? selected;
         console.log("Branches:", branches);
