@@ -98,7 +98,7 @@ function TreeNode(props: { node: any; name: string; path: string; selected: stri
     <li>
       <div
         class="cursor-pointer select-none flex items-center"
-        classList={{ "bg-blue-100": props.selected.includes(props.path) }}
+        classList={{ "text-blue-500": props.selected.includes(props.path) }}
         onClick={toggle}
       >
         {props.node.__isFile ? (
@@ -110,7 +110,7 @@ function TreeNode(props: { node: any; name: string; path: string; selected: stri
           </span>
         ) : (
           <>
-            <span class="mr-1">
+            <span class="mr-1" onClick={() => setOpen(!open())}>
               <i class="fa-solid" classList={{ 'fa-caret-down': open(), 'fa-caret-right': !open() }}></i>
             </span>
             <span title={props.name} class="truncate">

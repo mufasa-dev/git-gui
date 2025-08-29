@@ -10,6 +10,8 @@ import folderIcon from "../assets/folder.png";
 import fetchIcon from "../assets/fetch.png";
 import pullIcon from "../assets/pull.png";
 import pushIcon from "../assets/push.png";
+import sunIcon from "../assets/sun.png";
+import moonIcon from "../assets/moon.png";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -17,6 +19,18 @@ export default function RepoTabsPage() {
   const [pushing, setPushing] = createSignal(false);
   const [pulling, setPulling] = createSignal(false);
   const [fetching, setFetching] = createSignal(false);
+  const [dark, setDark] = createSignal(false);
+
+  const toggleDark = () => {
+    setDark(!dark());
+    if (dark()) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  };
 
   async function openRepo() {
     const selected = await open({ directory: true, multiple: false });
@@ -103,24 +117,31 @@ export default function RepoTabsPage() {
 
   return (
      <RepoContext.Provider value={{ repos, active, refreshBranches }}>
-      <div class="flex flex-col h-full">
+      <div class="flex flex-col h-full dark:bg-gray-800 dark:text-white">
         {/* Topo com botão */}
-        <div class="p-2 border-b bg-gray-100 flex items-center px-4">
+        <div class="p-2 border-b bg-gray-100 flex items-center px-4 dark:bg-gray-800 dark:text-white dark:border-gray-700">
           <Button class="top-btn" onClick={openRepo}>
-            <img src={folderIcon} class="inline h-6 mr-2" />
+            <img src={folderIcon} class="inline h-6" />
             <small>Abrir Repositório</small>
           </Button>
           <Button class="top-btn" onClick={async () => { await doFetch()}} disabled={disabledButton()}>
-            <img src={fetchIcon} class="inline h-6 mr-2" />
+            <img src={fetchIcon} class="inline h-6" />
             <small>{fetching() ? " Atualizando..." : " Fetch"}</small>
           </Button>
           <Button class="top-btn" onClick={async () => { await doPull()}} disabled={disabledButton()}>
-            <img src={pullIcon} class="inline h-6 mr-2" />
+            <img src={pullIcon} class="inline h-6" />
              <small>{pulling() ? " Atualizando..." : " Pull"}</small>
           </Button>
           <Button class="top-btn" onClick={async () => { await doPush()}} disabled={disabledButton()}>
-            <img src={pushIcon} class="inline h-6 mr-2" />
+            <img src={pushIcon} class="inline h-6" />
             <small>{pushing() ? " Enviando..." : " Push"}</small>
+          </Button>
+          <Button
+            class="top-btn ml-auto"
+            onClick={toggleDark}
+          >
+            <img src={dark() ? sunIcon : moonIcon} class="inline h-6" />
+            <small>{dark() ? "Claro" : "Escuro"}</small>
           </Button>
         </div>
 

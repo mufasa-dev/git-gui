@@ -139,7 +139,7 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}>
-      <div class="flex flex-col border-r border-gray-300 p-4" style={{ width: `${sidebarWidth()}px` }}>
+      <div class="flex flex-col border-r border-gray-300 dark:border-gray-900 p-4" style={{ width: `${sidebarWidth()}px` }}>
         <div class="flex items-center">
           <b>Alterações</b>
           <button class="ml-auto px-2 py-1 text-sm bg-blue-500 text-white rounded" onClick={() => prepare()}>
@@ -160,7 +160,7 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
 
       {/* Barra de resize */}
       <div
-        class="w-1 cursor-col-resize bg-gray-200 hover:bg-gray-400"
+        class="w-1 cursor-col-resize bg-gray-200 hover:bg-gray-400 dark:bg-gray-900 dark:hover:bg-gray-700"
         onMouseDown={startResize}
       ></div>
 
@@ -171,10 +171,10 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
           </div>
         </div>
         <div class="border-t border-gray-300 p-4">
-          <input type="text" class="w-full border rounded border-gray-300 py-1 px-2" placeholder="Mensagem do commit"
+          <input type="text" class="w-full border rounded border-gray-300 py-1 px-2 dark:bg-gray-700 dark:border-gray-900" placeholder="Mensagem do commit"
             value={commitMessage()}
             onInput={(e) => setCommitMessage(e.currentTarget.value)} />
-          <input type="text" class="w-full border rounded border-gray-300 py-1 px-2 mt-2" placeholder="Descrição"
+          <input type="text" class="w-full border rounded border-gray-300 py-1 px-2 mt-2 dark:bg-gray-700 dark:border-gray-900" placeholder="Descrição"
             value={commitDescription()}
             onInput={(e) => setCommitDescription(e.currentTarget.value)} />
           <div class="flex mt-2">

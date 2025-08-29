@@ -56,13 +56,13 @@ export default function RepoView(props: { repo: Repo }) {
       onMouseLeave={stopResize}
     >
       {/* Painel esquerdo */}
-      <div class="flex flex-col border-r border-gray-300 p-4" style={{ width: `${sidebarWidth()}px` }}>
+      <div class="flex flex-col border-r border-gray-300 p-4 dark:border-gray-900 " style={{ width: `${sidebarWidth()}px` }}>
         <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>
 
         <div class="mb-4 flex flex-col space-y-2">
           <button
             class={`px-2 py-1 rounded text-left ${
-              viewMode() === "changes" ? "bg-blue-600 text-white" : "bg-gray-200"
+              viewMode() === "changes" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700"
             }`}
             onClick={() => setViewMode("changes")}
           >
@@ -70,7 +70,7 @@ export default function RepoView(props: { repo: Repo }) {
           </button>
           <button
             class={`px-2 py-1 rounded text-left ${
-              viewMode() === "commits" ? "bg-blue-600 text-white" : "bg-gray-200"
+              viewMode() === "commits" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700"
             }`}
             onClick={() => setViewMode("commits")}
           >
@@ -79,7 +79,7 @@ export default function RepoView(props: { repo: Repo }) {
         </div>
 
         <div class="relative w-full mb-4">
-          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-white">
             <i class="fas fa-search"></i>
           </span>
  
@@ -88,7 +88,7 @@ export default function RepoView(props: { repo: Repo }) {
             placeholder="Pesquisar branches..."
             value={search()}
             onInput={(e) => setSearch(e.currentTarget.value)}
-            class="w-full pl-10 pr-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full pl-10 pr-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-900"
           />
         </div>
 
@@ -102,7 +102,7 @@ export default function RepoView(props: { repo: Repo }) {
 
       {/* Barra de resize */}
       <div
-        class="w-1 cursor-col-resize bg-gray-200 hover:bg-gray-400"
+        class="w-1 cursor-col-resize bg-gray-200 hover:bg-gray-400 dark:bg-gray-900 dark:hover:bg-gray-700"
         onMouseDown={startResize}
       ></div>
 

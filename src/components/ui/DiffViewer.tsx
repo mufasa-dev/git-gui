@@ -10,9 +10,9 @@ export default function DiffViewer(props: Props) {
             {props.diff.split("\n").map(line => (
                 <div
                 class={
-                    line.startsWith("+") ? "bg-green-300" :
-                    line.startsWith("-") ? "bg-red-300" :
-                    "text-black"
+                    line.startsWith("+") ? "bg-green-300 text-black" :
+                    line.startsWith("-") ? "bg-red-300 text-black" :
+                    "text-black dark:text-white"
                 }
                 >
                 {line}

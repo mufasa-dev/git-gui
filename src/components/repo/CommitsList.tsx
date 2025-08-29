@@ -52,18 +52,18 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}>
-        <div class="flex-1 overflow-auto px-2">
+        <div class="flex-1 overflow-auto">
             <div style={{"height": "100px"}}>
             {loading() ? <div>Carregando...</div> : commits().map((c) => (
                 <div
-                    class={`flex items-center border-b border-gray-200 py-2 cursor-pointer ${
-                        selectedCommit()?.hash === c.hash ? "bg-blue-100" : ""
+                    class={`flex items-center border-b border-gray-200 p-2 cursor-pointer dark:border-gray-900 ${
+                        selectedCommit()?.hash === c.hash ? "bg-blue-400 dark:text-black " : ""
                     }`}
                     onClick={() => selectCommit(c.hash)}
                 >
                     <div class="text-sm font-mono text-gray-500">{c.hash.slice(0, 7)}</div>
                     <div class="font-semibold px-1">{c.message}</div>
-                    <div class="text-xs text-gray-400 ml-auto">{c.author}</div>
+                    <div class="text-xs text-gray-500 ml-auto">{c.author}</div>
                     <div class="px-1">{formatDate(c.date)}</div>
                 </div>
             ))}
@@ -72,7 +72,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
 
         {/* Barra de resize */}
         <div
-            class="h-1 cursor-row-resize bg-gray-200 hover:bg-gray-400"
+            class="h-1 cursor-row-resize bg-gray-200 hover:bg-gray-400 dark:bg-gray-900 dark:hover:bg-gray-700"
             onMouseDown={startResize}
         ></div>
         
