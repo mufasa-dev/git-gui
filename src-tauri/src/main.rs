@@ -16,6 +16,7 @@ fn main() {
             commands::stage::stage_files,
             commands::stage::unstage_files,
             commands::stage::discard_changes,
+            commands::stage::get_diff,
             commands::repo::push_repo,
             commands::repo::git_pull,
             commands::repo::fetch_repo,

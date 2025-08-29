@@ -56,6 +56,23 @@ export async function unstageFiles(repoPath: string, paths: string[]) {
   return await invoke("unstage_files", { path: repoPath, files: paths });
 }
 
+export async function getDiff(
+  repoPath: string,
+  file: string,
+  staged: boolean = false
+): Promise<string> {
+  let relativeFile =file;
+  if (file.startsWith(repoPath)) {
+    relativeFile = file.replace(repoPath + "/", "");
+  }
+  console.log("Getting diff for", relativeFile, "in repo", repoPath, "staged:", staged);
+  return await invoke<string>("get_diff", {
+    repoPath,
+    file: relativeFile,
+    staged,
+  });
+}
+
 export async function commit(
   repoPath: string,
   message: string,

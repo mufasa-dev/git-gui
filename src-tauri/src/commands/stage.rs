@@ -1,6 +1,6 @@
 use std::process::Command;
 use tauri::command;
-
+use std::path::Path;
 
 #[tauri::command]
 pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
@@ -99,4 +99,41 @@ pub fn discard_changes(path: String, files: Vec<String>) -> Result<String, Strin
     } else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
+}
+
+#[tauri::command]
+pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<String, String> {
+    // Caminho absoluto do arquivo
+    let file_path = Path::new(&repo_path).join(&file);
+
+    // Verifica se é untracked
+    let status_output = Command::new("git")
+        .arg("-C").arg(&repo_path)
+        .arg("ls-files").arg("--others").arg("--exclude-standard").arg(&file)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !status_output.stdout.is_empty() {
+        // Arquivo é untracked → mostra conteúdo inteiro como "added"
+        let content = std::fs::read_to_string(&file_path).unwrap_or_default();
+        let diff = format!(
+            "diff --git a/{f} b/{f}\nnew file mode 100644\n--- /dev/null\n+++ b/{f}\n+{c}",
+            f = file,
+            c = content.replace("\n", "\n+")
+        );
+        return Ok(diff);
+    }
+
+    // Se não for untracked → usa git diff normal
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(&repo_path);
+
+    if staged {
+        cmd.args(["diff", "--cached", "--"]).arg(&file);
+    } else {
+        cmd.args(["diff", "--"]).arg(&file);
+    }
+
+    let output = cmd.output().map_err(|e| e.to_string())?;
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
