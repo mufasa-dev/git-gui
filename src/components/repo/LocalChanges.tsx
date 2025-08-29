@@ -1,8 +1,9 @@
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { commit, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
+import { commit, getDiff, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
 import { useRepoContext } from "../../context/RepoContext";
+import DiffViewer from "../ui/DiffViewer";
 
 export function LocalChanges(props: { repo: Repo; branch: string }) {
   const minWidth = 200;
@@ -12,8 +13,9 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
     { path: string; status: string; staged: boolean }[]
   >([]);
   const [selected, setSelected] = createSignal<string[]>([]);
+  const [fileSelected, setFileSelected] = createSignal<string>("");
   const [stagedPreparedSelected, setStagedPreparedSelected] = createSignal<string[]>([]);
-  const [sidebarWidth, setSidebarWidth] = createSignal(300); // largura inicial em px
+  const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
   const [startX, setStartX] = createSignal(0);
   const [startWidth, setStartWidth] = createSignal(0);
@@ -21,6 +23,7 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
   const [commitDescription, setCommitDescription] = createSignal("");
   const [commitAmend, setCommitAmend] = createSignal(false);
   const { refreshBranches } = useRepoContext();
+  const [diff, setDiff] = createSignal<string>("");
 
   const loadChanges = async () => {
     if (!props.repo.path) return;
@@ -67,6 +70,8 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
   const unstaged = () => changes().filter((c) => !c.staged || c.status == "untracked");
 
   const toggleItem = (path: string, select: boolean) => {
+    setFileSelected(path);
+    loadDiff(false);
     setSelected((prev) => {
       if (select) return [...prev, path];
       else return prev.filter((p) => p !== path);
@@ -74,11 +79,20 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
   };
 
   const toggleStagedItem = (path: string, select: boolean) => {
+    setFileSelected(path);
+    loadDiff(true);
     setStagedPreparedSelected((prev) => {
       if (select) return [...prev, path];
       else return prev.filter((p) => p !== path);
     });
   };
+
+  const loadDiff = async (staged: boolean) => {
+    console.log("Loading diff for", fileSelected(), "staged:", staged, props.repo.path);
+    const result = await getDiff(props.repo.path, fileSelected(), staged);
+    console.log("Diff loaded:", result);
+    setDiff(result);
+  }
 
   const prepare = async () => {
     const paths = selected();
@@ -152,7 +166,9 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
 
       <div  class="flex-1 flex flex-col h-full overflow-hidden">
         <div class="flex-1 overflow-auto px-2">
-          Detalhes do arquivo
+          <div style={{"height": "100px"}}>
+            <DiffViewer diff={diff()} class="h-full" />
+          </div>
         </div>
         <div class="border-t border-gray-300 p-4">
           <input type="text" class="w-full border rounded border-gray-300 py-1 px-2" placeholder="Mensagem do commit"
