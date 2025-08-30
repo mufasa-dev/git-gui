@@ -53,7 +53,7 @@ pub fn get_commit_details(path: String, hash: String) -> Result<serde_json::Valu
         .arg(&path)
         .arg("show")
         .arg("--stat")
-        .arg("--pretty=format:%H%n%an%n%ae%n%ad%n%s")
+        .arg("--pretty=format:%H%n%an%n%ae%n%ad%n%s%n%b%n%P")
         .arg(&hash)
         .output()
         .map_err(|e| e.to_string())?;
@@ -71,9 +71,30 @@ pub fn get_commit_details(path: String, hash: String) -> Result<serde_json::Valu
     let author_date = lines.get(3).unwrap_or(&"").to_string();
     let subject = lines.get(4).unwrap_or(&"").to_string();
 
-    let mut files: Vec<serde_json::Value> = Vec::new();
+    // O body pode ter múltiplas linhas, então pegamos até antes dos parents
+    let mut body_lines = Vec::new();
+    let mut idx = 5;
+    while idx < lines.len() {
+        if lines[idx].len() == 40 || lines[idx].split_whitespace().all(|h| h.len() == 40) {
+            break; // chegamos nos parents
+        }
+        if !lines[idx].contains('|') && !lines[idx].contains("changed") {
+            body_lines.push(lines[idx]);
+        }
+        idx += 1;
+    }
+    let body = body_lines.join("\n");
 
-    for line in lines.iter().skip(5) {
+    // Parents ficam na última linha antes da lista de arquivos
+    let parents_line = lines.get(idx).unwrap_or(&"");
+    let parents: Vec<String> = parents_line
+        .split_whitespace()
+        .map(|p| p.to_string())
+        .collect();
+
+    // Agora capturamos os arquivos (restante das linhas depois dos pais)
+    let mut files: Vec<serde_json::Value> = Vec::new();
+    for line in lines.iter().skip(idx + 1) {
         if line.trim().is_empty() || line.contains("files changed") {
             continue;
         }
@@ -92,10 +113,11 @@ pub fn get_commit_details(path: String, hash: String) -> Result<serde_json::Valu
         "authorEmail": author_email,
         "authorDate": author_date,
         "subject": subject,
+        "body": body,
+        "parents": parents,
         "files": files
     }))
 }
-
 
 #[command]
 pub fn git_commit(repo_path: String, message: String, description: String, amend: bool) -> Result<String, String> {
