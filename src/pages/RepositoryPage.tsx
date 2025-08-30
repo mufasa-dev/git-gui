@@ -1,7 +1,7 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
 import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo } from "../services/gitService";
-import TabBar from "../components/repo/TabBar";
+import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
 import Button from "../components/ui/Button";
 import { Repo } from "../models/Repo.model";
