@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
 import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo } from "../services/gitService";
 import TabBar from "../components/repo/TabBar";
@@ -104,6 +104,32 @@ export default function RepoTabsPage() {
     return pushing() || pulling() || fetching();
   }
 
+  const closeRepo = (id: string) => {
+    setRepos(prev => {
+      const nextRepos = prev.filter(r => r.path !== id);
+
+      if (active() === id) {
+        setActive(nextRepos.length > 0 ? nextRepos[0].path : null);
+      }
+
+      return nextRepos;
+    });
+  };
+
+  onMount(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === "w") {
+        e.preventDefault();
+        if (active()) {
+          closeRepo(active()!);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
+  });
+
   async function refreshBranches(repoPath: string) {
     const branches = await getBranchStatus(repoPath);
     const remoteBranches = await getRemoteBranches(repoPath);
@@ -147,7 +173,7 @@ export default function RepoTabsPage() {
 
         {/* Abas + conteúdo */}
         <div class="flex flex-col flex-1">
-          <TabBar repos={repos()} active={active()} onChangeActive={setActive} />
+          <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
 
           <div class="flex-1 overflow-auto">
             {active() ? (
