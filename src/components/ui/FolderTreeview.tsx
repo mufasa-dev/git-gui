@@ -127,7 +127,7 @@ function TreeNode(props: { node: any; name: string; path: string; selected: stri
               <TreeNode
                 node={child}
                 name={name}
-                path={props.path + "/" + name} // aqui passamos o path completo
+                path={props.path + "/" + name}
                 selected={props.selected}
                 onToggle={props.onToggle}
               />
