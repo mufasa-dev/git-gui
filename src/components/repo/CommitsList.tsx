@@ -33,7 +33,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
 
   async function selectCommit(hash: string) {
     const details = await getCommitDetails(props.repo.path, hash);
-    setSelectedCommit({...details});
+    setSelectedCommit({ ...details, _ts: Date.now() });
   }
 
   createEffect(() => {
@@ -80,7 +80,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
             class="overflow-auto"
             style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px", "max-height": "50%" }}
         >
-            <CommitDetails commit={selectedCommit()} subject={selectedCommit()?.subject} />
+            <CommitDetails commit={selectedCommit()} />
         </div>
     </div>
   );
