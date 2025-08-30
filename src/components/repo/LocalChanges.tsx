@@ -139,23 +139,26 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}>
-      <div class="flex flex-col border-r border-gray-300 dark:border-gray-900 p-4" style={{ width: `${sidebarWidth()}px` }}>
-        <div class="flex items-center">
-          <b>Alterações</b>
-          <button class="ml-auto px-2 py-1 text-sm bg-blue-500 text-white rounded" onClick={() => prepare()}>
-            Preparar
-          </button>
-        </div>
-        <FolderTreeView items={unstaged()} selected={selected()} onToggle={toggleItem} />
+      <div class="overflow-auto border-r border-gray-300 dark:border-gray-900 py-2" style={{ width: `${sidebarWidth()}px` }}>
+        <div style={{"height": "40px"}} class="flex flex-col">
+          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center">
+            <b>Alterações</b>
+            <button class="ml-auto px-2 py-1 text-sm bg-blue-500 text-white rounded" onClick={() => prepare()}>
+              Preparar
+            </button>
+          </div>
+          {unstaged().length === 0 && <div class="px-4 pt-4 text-center text-gray-400">Nenhuma alteração local</div>}
+          <FolderTreeView items={unstaged()} selected={selected()} onToggle={toggleItem} />
 
-        <div class="flex items-center mt-4">
-          <b class="mr-1">Preparadas</b>
-          <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded" onclick={() => unstage()}>
-            Desfazer
-          </button>
+          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center mt-4">
+            <b class="mr-1">Preparadas</b>
+            <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded" onclick={() => unstage()}>
+              Desfazer
+            </button>
+          </div>
+          
+          <FolderTreeView items={staged()} selected={stagedPreparedSelected()} onToggle={toggleStagedItem} />
         </div>
-        
-        <FolderTreeView items={staged()} selected={stagedPreparedSelected()} onToggle={toggleStagedItem} />
       </div>
 
       {/* Barra de resize */}
@@ -170,7 +173,7 @@ export function LocalChanges(props: { repo: Repo; branch: string }) {
             <DiffViewer diff={diff()} class="h-full" />
           </div>
         </div>
-        <div class="border-t border-gray-300 p-4">
+        <div class="border-t border-gray-300 p-4 dark:border-gray-900">
           <input type="text" class="w-full border rounded border-gray-300 py-1 px-2 dark:bg-gray-700 dark:border-gray-900" placeholder="Mensagem do commit"
             value={commitMessage()}
             onInput={(e) => setCommitMessage(e.currentTarget.value)} />
