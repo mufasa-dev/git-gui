@@ -56,7 +56,7 @@ export default function RepoView(props: { repo: Repo }) {
       onMouseLeave={stopResize}
     >
       {/* Painel esquerdo */}
-      <div class="flex flex-col border-r border-gray-300 p-4 dark:border-gray-900 " style={{ width: `${sidebarWidth()}px` }}>
+      <div class="flex flex-col border-r overflow-auto border-gray-300 p-4 dark:border-gray-900 " style={{ width: `${sidebarWidth()}px` }}>
         <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>
 
         <div class="mb-4 flex flex-col space-y-2">

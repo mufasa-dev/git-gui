@@ -64,45 +64,53 @@ pub fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Value>, St
             .current_dir(&repo_path)
             .output();
 
-        if upstream_check.is_err() || !upstream_check.as_ref().unwrap().status.success() {
-            // Sem upstream: não calcula ahead/behind
+        if let Ok(up) = upstream_check {
+            if up.status.success() {
+                // Tem upstream: calcula ahead/behind
+                let ahead = Command::new("git")
+                    .args(["rev-list", "--count", &format!("{}@{{u}}..{}", branch, branch)])
+                    .current_dir(&repo_path)
+                    .output();
+
+                let behind = Command::new("git")
+                    .args(["rev-list", "--count", &format!("{}..{}@{{u}}", branch, branch)])
+                    .current_dir(&repo_path)
+                    .output();
+
+                let ahead_count = ahead.ok()
+                    .and_then(|o| String::from_utf8(o.stdout).ok())
+                    .and_then(|s| s.trim().parse::<u32>().ok())
+                    .unwrap_or(0);
+
+                let behind_count = behind.ok()
+                    .and_then(|o| String::from_utf8(o.stdout).ok())
+                    .and_then(|s| s.trim().parse::<u32>().ok())
+                    .unwrap_or(0);
+
+                branches.push(json!({
+                    "name": branch,
+                    "ahead": ahead_count,
+                    "behind": behind_count,
+                    "hasUpstream": true
+                }));
+            } else {
+                // Sem upstream
+                branches.push(json!({
+                    "name": branch,
+                    "ahead": 0,
+                    "behind": 0,
+                    "hasUpstream": false
+                }));
+            }
+        } else {
+            // Erro no comando
             branches.push(json!({
                 "name": branch,
                 "ahead": 0,
                 "behind": 0,
                 "hasUpstream": false
             }));
-            continue;
         }
-
-        // Calcula ahead
-        let ahead = Command::new("git")
-            .args(["rev-list", "--count", &format!("@{{u}}..{}", branch)])
-            .current_dir(&repo_path)
-            .output();
-
-        // Calcula behind
-        let behind = Command::new("git")
-            .args(["rev-list", "--count", &format!("{}..@{{u}}", branch)])
-            .current_dir(&repo_path)
-            .output();
-
-        let ahead_count = ahead.ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .and_then(|s| s.trim().parse::<u32>().ok())
-            .unwrap_or(0);
-
-        let behind_count = behind.ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .and_then(|s| s.trim().parse::<u32>().ok())
-            .unwrap_or(0);
-
-        branches.push(json!({
-            "name": branch,
-            "ahead": ahead_count,
-            "behind": behind_count,
-            "hasUpstream": true
-        }));
     }
 
     Ok(branches)
