@@ -9,7 +9,7 @@ type Props = {
 
 export default function BranchList(props: Props) {
   return (
-    <div>
+    <div class="h-[100px]">
       <b>Branchs</b>
       <TreeView tree={props.localTree} 
         activeBranch={props.activeBranch}
