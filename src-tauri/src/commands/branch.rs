@@ -58,11 +58,30 @@ pub fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Value>, St
     let mut branches = Vec::new();
 
     for branch in branches_str.lines() {
+        // Verifica se tem upstream configurado
+        let upstream_check = Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", &format!("{}@{{u}}", branch)])
+            .current_dir(&repo_path)
+            .output();
+
+        if upstream_check.is_err() || !upstream_check.as_ref().unwrap().status.success() {
+            // Sem upstream: não calcula ahead/behind
+            branches.push(json!({
+                "name": branch,
+                "ahead": 0,
+                "behind": 0,
+                "hasUpstream": false
+            }));
+            continue;
+        }
+
+        // Calcula ahead
         let ahead = Command::new("git")
             .args(["rev-list", "--count", &format!("@{{u}}..{}", branch)])
             .current_dir(&repo_path)
             .output();
 
+        // Calcula behind
         let behind = Command::new("git")
             .args(["rev-list", "--count", &format!("{}..@{{u}}", branch)])
             .current_dir(&repo_path)
@@ -81,7 +100,8 @@ pub fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Value>, St
         branches.push(json!({
             "name": branch,
             "ahead": ahead_count,
-            "behind": behind_count
+            "behind": behind_count,
+            "hasUpstream": true
         }));
     }
 
