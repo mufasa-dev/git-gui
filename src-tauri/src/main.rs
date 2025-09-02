@@ -9,6 +9,7 @@ fn main() {
             commands::branch::list_remote_branches,
             commands::branch::get_branch_status,
             commands::branch::get_current_branch,
+            commands::branch::checkout_branch,
             commands::commit::list_commits,
             commands::commit::get_commit_details,
             commands::commit::git_commit,

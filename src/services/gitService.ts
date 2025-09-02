@@ -24,6 +24,10 @@ export async function getCurrentBranch(repoPath: string): Promise<string> {
   return await invoke("get_current_branch", { path: repoPath });
 }
 
+export async function checkoutBranch(repoPath: string, branch: string): Promise<string> {
+  return await invoke("checkout_branch", { repoPath, branch });
+}
+
 export async function getCommits(path: string, branch: string) {
   return await invoke<{ hash: string; message: string; author: string; date: string }[]>(
     "list_commits",

@@ -131,3 +131,20 @@ pub fn get_current_branch(path: String) -> Result<String, String> {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
+
+#[tauri::command]
+pub fn checkout_branch(repo_path: String, branch: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&repo_path)
+        .arg("checkout")
+        .arg(&branch)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
