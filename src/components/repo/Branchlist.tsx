@@ -6,6 +6,7 @@ type Props = {
   activeBranch?: string;
   selectedBranch?: string;
   onSelectBranch?: (branch: string) => void;
+  onActivateBranch?: (branch: string) => void;
 };
 
 export default function BranchList(props: Props) {
@@ -16,6 +17,7 @@ export default function BranchList(props: Props) {
         activeBranch={props.activeBranch}
         selectedBranch={props.selectedBranch}
         onSelectBranch={props.onSelectBranch}
+        onActivateBranch={props.onActivateBranch}
       />
 
       <b>Remotes</b>

@@ -1,6 +1,6 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
-import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo } from "../services/gitService";
+import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo, checkoutBranch } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
 import Button from "../components/ui/Button";
@@ -135,10 +135,11 @@ export default function RepoTabsPage() {
   async function refreshBranches(repoPath: string) {
     const branches = await getBranchStatus(repoPath);
     const remoteBranches = await getRemoteBranches(repoPath);
+    const branch = await getCurrentBranch(repoPath!);
 
     setRepos(prev =>
       prev.map(r =>
-        r.path === repoPath ? { ...r, branches, remoteBranches } : r
+        r.path === repoPath ? { ...r, branches, remoteBranches, activeBranch: branch } : r
       )
     );
   }
@@ -179,7 +180,7 @@ export default function RepoTabsPage() {
 
           <div class="flex-1 overflow-auto">
             {active() ? (
-              <RepoView repo={repos().find(r => r.path === active())!} />
+              <RepoView repo={repos().find(r => r.path === active())!} refreshBranches={refreshBranches} />
             ) : (
               <p class="text-gray-500 p-4">Nenhum repositório aberto</p>
             )}

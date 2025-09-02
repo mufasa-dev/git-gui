@@ -5,8 +5,9 @@ import BranchList from "./Branchlist";
 import { buildTree } from "../ui/TreeView";
 import CommitsList from "./CommitsList";
 import { LocalChanges } from "./LocalChanges";
+import { checkoutBranch, getLocalChanges } from "../../services/gitService";
 
-export default function RepoView(props: { repo: Repo }) {
+export default function RepoView(props: { repo: Repo , refreshBranches: (path: string) => Promise<void> }) {
   const minWidth = 200;
   const maxWidth = 600;
 
@@ -14,7 +15,7 @@ export default function RepoView(props: { repo: Repo }) {
   const [viewMode, setViewMode] = createSignal<"commits" | "changes">("commits");
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
-  const [selectedBranch, setSelectedBranch] = createSignal(props.repo.branches[0].name);
+  const [selectedBranch, setSelectedBranch] = createSignal(props.repo.activeBranch);
   const [activeBranch, setActiveBranch] = createSignal(props.repo.branches[0].name);
 
   const startResize = () => setIsResizing(true);
@@ -48,6 +49,23 @@ export default function RepoView(props: { repo: Repo }) {
       return branch;
     });
   });
+
+  const handleActiveBranch = async (path: string, branch: string) => {
+    try {
+    const changes = await getLocalChanges(path);
+
+    if (changes.length > 0) {
+      // Abre modal de confirmação
+      // openConfirmDialog(branch, changes);
+    } else {
+      await checkoutBranch(path, branch);
+      await props.refreshBranches(path);
+      alert(`✅ Mudou para a branch: ${branch}`);
+    }
+    } catch (err) {
+      alert("Erro ao trocar de branch: " + err);
+    }
+  };
 
   // Constrói árvores reativas sempre que os arrays filtrados mudam
   const localTree = createMemo(() => buildTree(filteredBranches()));
@@ -104,6 +122,7 @@ export default function RepoView(props: { repo: Repo }) {
           activeBranch={props.repo.activeBranch}
           selectedBranch={selectedBranch()}
           onSelectBranch={selectBranch}
+          onActivateBranch={(branch: string) => handleActiveBranch(props.repo.path, branch)}  
           />
       </div>
 

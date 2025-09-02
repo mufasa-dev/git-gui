@@ -16,7 +16,7 @@ export type TreeViewProps = {
   activeBranch?: string;
   selectedBranch?: string;
   onSelectBranch?: (branch: string) => void;
-  onActiveBranch?: (branch: string) => void;
+  onActivateBranch?: (branch: string) => void;
 };
 
 export function buildTree(branches: Branch[]): TreeNodeMap {
@@ -76,8 +76,14 @@ export default function TreeView(props: TreeViewProps) {
         return (
             <li>
                 <div
-                class={`cursor-pointer select-none flex items-center ${isSelected ? "font-bold text-green-600" : ""}`}
-                onClick={() => handleClick(node)}
+                  class={`cursor-pointer select-none flex items-center ${isSelected ? "font-bold text-green-600" : ""}`}
+                  onClick={() => handleClick(node)}
+                  onDblClick={() => {
+                    if (!node.children) {
+                      props.onActivateBranch?.(node.original);
+                    }
+                  }}
+
                 >
                   {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[node.name], "fa-caret-right" : !open()[node.name]}}></i>} 
                   {!isLeaf && <i class="fa-solid mr-1 text-yellow-600" classList={{"fa-folder-open" : open()[node.name], "fa-folder" : !open()[node.name]}}></i>} 
