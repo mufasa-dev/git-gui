@@ -28,7 +28,7 @@ export function CommitDetails(props: { commit: any}) {
           </div>
 
           {
-            props.commit.parents?.length > 0 && <div class="flex items-center">
+            props.commit?.parents?.length > 0 && <div class="flex items-center">
               <div class="w-[60px] text-right">Parents</div>
               <div class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">{props.commit.parents}</div>
             </div>

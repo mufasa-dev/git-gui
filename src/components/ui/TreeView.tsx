@@ -14,7 +14,9 @@ export type TreeNodeMap = { [key: string]: TreeNode };
 export type TreeViewProps = {
   tree: TreeNodeMap;
   activeBranch?: string;
+  selectedBranch?: string;
   onSelectBranch?: (branch: string) => void;
+  onActiveBranch?: (branch: string) => void;
 };
 
 export function buildTree(branches: Branch[]): TreeNodeMap {
@@ -70,13 +72,16 @@ export default function TreeView(props: TreeViewProps) {
       {Object.values(props.tree).map((node) => {
         const isLeaf = !node.children;
         const isActive = node.original === props.activeBranch;
+        const isSelected = node.original === props.selectedBranch;
         return (
             <li>
                 <div
-                class={`cursor-pointer select-none flex ${isActive ? "font-bold text-green-600" : ""}`}
+                class={`cursor-pointer select-none flex items-center ${isSelected ? "font-bold text-green-600" : ""}`}
                 onClick={() => handleClick(node)}
                 >
                   {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[node.name], "fa-caret-right" : !open()[node.name]}}></i>} 
+                  {!isLeaf && <i class="fa-solid mr-1 text-yellow-600" classList={{"fa-folder-open" : open()[node.name], "fa-folder" : !open()[node.name]}}></i>} 
+                  {isLeaf && <i class="fa-solid" classList={{"fa-code-branch" : !isActive, "fa-check" : isActive}}></i>}
                   { node.name }
                   <div class="ml-auto">
                     {node.ahead > 0 && <span class="text-green-600">↑{node.ahead}</span>}
@@ -87,6 +92,7 @@ export default function TreeView(props: TreeViewProps) {
                     <TreeView
                         tree={node.children || {}}
                         activeBranch={props.activeBranch}
+                        selectedBranch={props.selectedBranch}
                         onSelectBranch={props.onSelectBranch}
                     />
                 )}

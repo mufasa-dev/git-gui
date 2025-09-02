@@ -12,9 +12,10 @@ export default function RepoView(props: { repo: Repo }) {
 
   const [search, setSearch] = createSignal("");
   const [viewMode, setViewMode] = createSignal<"commits" | "changes">("commits");
-  const [sidebarWidth, setSidebarWidth] = createSignal(300); // largura inicial em px
+  const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
-  const [activeBranch, setActiveBranch] = createSignal(props.repo.branches[0].name); // branch inicial
+  const [selectedBranch, setSelectedBranch] = createSignal(props.repo.branches[0].name);
+  const [activeBranch, setActiveBranch] = createSignal(props.repo.branches[0].name);
 
   const startResize = () => setIsResizing(true);
   const stopResize = () => setIsResizing(false);
@@ -26,6 +27,11 @@ export default function RepoView(props: { repo: Repo }) {
       setSidebarWidth(newWidth);
     }
   };
+
+  const selectBranch = (branch: string) => {
+    setSelectedBranch(branch);
+    setViewMode("commits");
+  }
 
   // Filtra branches locais e remotas
   const filteredBranches = createMemo(() => {
@@ -95,8 +101,9 @@ export default function RepoView(props: { repo: Repo }) {
         <BranchList 
           localTree={localTree()} 
           remoteTree={remoteTree()} 
-          activeBranch={activeBranch()}
-          onSelectBranch={setActiveBranch}
+          activeBranch={props.repo.activeBranch}
+          selectedBranch={selectedBranch()}
+          onSelectBranch={selectBranch}
           />
       </div>
 
@@ -108,9 +115,9 @@ export default function RepoView(props: { repo: Repo }) {
 
       {/* Painel direito */}
       {viewMode() === "commits" && (
-          <CommitsList repo={props.repo} branch={activeBranch()} />
-        )}
-      {viewMode() === "changes" && <LocalChanges repo={props.repo} branch={activeBranch()} />}
+        <CommitsList repo={props.repo} branch={selectedBranch()} />
+      )}
+      {viewMode() === "changes" && <LocalChanges repo={props.repo}/>}
     </div>
   );
 }

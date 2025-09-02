@@ -5,7 +5,7 @@ import { FolderTreeView } from "../ui/FolderTreeview";
 import { useRepoContext } from "../../context/RepoContext";
 import DiffViewer from "../ui/DiffViewer";
 
-export function LocalChanges(props: { repo: Repo; branch: string }) {
+export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
   const maxWidth = 600;
 

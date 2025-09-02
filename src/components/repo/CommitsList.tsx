@@ -43,7 +43,10 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
     
     setLoading(true);
     getCommits(props.repo.path, branchName)
-    .then(setCommits)
+    .then(commits => {
+      setCommits(commits);
+      setSelectedCommit(null);
+    })
     .finally(() => setLoading(false));
   });
 
@@ -57,7 +60,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
             {loading() ? <div>Carregando...</div> : commits().map((c) => (
                 <div
                     class={`flex items-center border-b border-gray-200 p-2 cursor-pointer dark:border-gray-900 ${
-                        selectedCommit()?.hash === c.hash ? "bg-blue-400 dark:text-black " : ""
+                        selectedCommit() != null && selectedCommit().hash === c.hash ? "bg-blue-400 dark:text-black " : ""
                     }`}
                     onClick={() => selectCommit(c.hash)}
                 >
