@@ -41,8 +41,9 @@ export default function RepoTabsPage() {
         const branches = await getBranchStatus(selected);
         const remoteBranches = await getRemoteBranches(selected);
         const name = selected.split("/").pop() ?? selected;
+        const branch = await getCurrentBranch(selected!);
         console.log("Branches:", branches);
-        const newRepo: Repo = { path: selected, name, branches, remoteBranches };
+        const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch: branch };
 
         // Evita duplicar se já estiver aberto
         if (!repos().some(r => r.path === selected)) {
