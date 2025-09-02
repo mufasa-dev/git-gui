@@ -12,6 +12,7 @@ import pullIcon from "../assets/pull.png";
 import pushIcon from "../assets/push.png";
 import sunIcon from "../assets/sun.png";
 import moonIcon from "../assets/moon.png";
+import { path } from "@tauri-apps/api";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -40,7 +41,7 @@ export default function RepoTabsPage() {
         await validateRepo(selected);
         const branches = await getBranchStatus(selected);
         const remoteBranches = await getRemoteBranches(selected);
-        const name = selected.split("/").pop() ?? selected;
+        const name = await path.basename(selected);
         const branch = await getCurrentBranch(selected!);
         console.log("Branches:", branches);
         const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch: branch };
