@@ -3,10 +3,13 @@ export default {
   darkMode: 'class',
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}", // pega seus componentes Solid
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {},
+    fontSize: {
+      base: "14px",
+    },
   },
   plugins: [],
 }

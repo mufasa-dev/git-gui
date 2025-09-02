@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  @apply text-base;
+}
+
 @layer components {
   .top-btn {
     @apply flex flex-col justify-items-center items-center bg-transparent hover:bg-black/10 rounded-md border-0 px-3 py-1 cursor-pointer transition;
