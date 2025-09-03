@@ -4,14 +4,13 @@ import { commit, getDiff, getLocalChanges, stageFiles, unstageFiles } from "../.
 import { FolderTreeView } from "../ui/FolderTreeview";
 import { useRepoContext } from "../../context/RepoContext";
 import DiffViewer from "../ui/DiffViewer";
+import { LocalChange } from "../../models/LocalChanges.model";
 
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
   const maxWidth = 600;
 
-  const [changes, setChanges] = createSignal<
-    { path: string; status: string; staged: boolean }[]
-  >([]);
+  const [changes, setChanges] = createSignal<LocalChange[]>([]);
   const [selected, setSelected] = createSignal<string[]>([]);
   const [fileSelected, setFileSelected] = createSignal<string>("");
   const [stagedPreparedSelected, setStagedPreparedSelected] = createSignal<string[]>([]);

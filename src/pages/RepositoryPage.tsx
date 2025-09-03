@@ -1,6 +1,6 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
-import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo, checkoutBranch } from "../services/gitService";
+import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo, checkoutBranch, getLocalChanges } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
 import Button from "../components/ui/Button";
@@ -42,9 +42,10 @@ export default function RepoTabsPage() {
         const branches = await getBranchStatus(selected);
         const remoteBranches = await getRemoteBranches(selected);
         const name = await path.basename(selected);
-        const branch = await getCurrentBranch(selected!);
+        const activeBranch = await getCurrentBranch(selected!);
+        const localChanges = await getLocalChanges(selected);
         console.log("Branches:", branches);
-        const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch: branch };
+        const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges };
 
         // Evita duplicar se já estiver aberto
         if (!repos().some(r => r.path === selected)) {
@@ -135,11 +136,12 @@ export default function RepoTabsPage() {
   async function refreshBranches(repoPath: string) {
     const branches = await getBranchStatus(repoPath);
     const remoteBranches = await getRemoteBranches(repoPath);
-    const branch = await getCurrentBranch(repoPath!);
+    const activeBranch = await getCurrentBranch(repoPath!);
+    const localChanges = await getLocalChanges(repoPath);
 
     setRepos(prev =>
       prev.map(r =>
-        r.path === repoPath ? { ...r, branches, remoteBranches, activeBranch: branch } : r
+        r.path === repoPath ? { ...r, branches, remoteBranches, activeBranch, localChanges } : r
       )
     );
   }

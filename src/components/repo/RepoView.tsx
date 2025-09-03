@@ -85,12 +85,17 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
 
         <div class="mb-4 flex flex-col space-y-2">
           <button
-            class={`px-2 py-1 rounded text-left ${
+            class={`px-2 py-1 rounded flex items-center ${
               viewMode() === "changes" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700"
             }`}
             onClick={() => setViewMode("changes")}
           >
             <i class="fa fa-copy"></i> Alterações
+            {props.repo.localChanges && props.repo.localChanges.length > 0 && (
+              <span class="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                {props.repo.localChanges.length}
+              </span>
+            )}
           </button>
           <button
             class={`px-2 py-1 rounded text-left ${
