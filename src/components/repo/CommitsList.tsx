@@ -11,7 +11,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   >([]);
   const [loading, setLoading] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
-  const [commitDetailsHeight, setCommitDetailsHeight] = createSignal(300);
+  const [commitDetailsHeight, setCommitDetailsHeight] = createSignal(250);
   const [resizing, setResizing] = createSignal(false);
 
   function startResize(e: MouseEvent) {
