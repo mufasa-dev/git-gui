@@ -1,5 +1,5 @@
 [package]
-name = "meu-git-gui"
+name = "garfo"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
@@ -13,6 +13,7 @@ edition = "2021"
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "meu_git_gui_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+windows_subsystem = "windows"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
