@@ -100,6 +100,7 @@ export default function TreeView(props: TreeViewProps) {
                         activeBranch={props.activeBranch}
                         selectedBranch={props.selectedBranch}
                         onSelectBranch={props.onSelectBranch}
+                        onActivateBranch={props.onActivateBranch}
                     />
                 )}
           </li>
