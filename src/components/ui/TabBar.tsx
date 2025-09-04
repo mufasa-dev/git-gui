@@ -1,7 +1,4 @@
-type Repo = {
-  path: string;
-  name: string;
-};
+import { Repo } from "../../models/Repo.model";
 
 export default function TabBar(props: {
   repos: Repo[];
@@ -20,6 +17,7 @@ export default function TabBar(props: {
           }`}
           onClick={() => props.onChangeActive(repo.path)}
         >
+          {repo.localChanges && repo.localChanges.length > 0 && <i class="fa-solid fa-circle text-red-300 dark:text-red-900 mr-2"></i>}
           <span>{repo.name}</span>
           <button
             class="ml-2 text-gray-500 hover:text-red-500"
