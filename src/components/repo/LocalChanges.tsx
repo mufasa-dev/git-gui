@@ -97,6 +97,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     const paths = selected();
     await stageFiles(props.repo.path, paths);
     setSelected([]);
+    clearDiff();
     await loadChanges();
   }
 
@@ -111,6 +112,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     const paths = stagedPreparedSelected();
     await unstageFiles(props.repo.path, paths);
     setSelected([]);
+    clearDiff();
     await loadChanges();
   }
 
@@ -124,6 +126,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       setCommitMessage("");
       setCommitDescription("");
       setCommitAmend(false);
+      clearDiff();
       await loadChanges();
       await refreshBranches(props.repo.path);
     } catch (err) {
@@ -131,7 +134,8 @@ export function LocalChanges(props: { repo: Repo; }) {
       alert("Erro no commit: " + err);
     }
   };
-  
+
+  const clearDiff = () => setDiff("");  
 
   return (
     <div class="flex h-full w-full select-none"
