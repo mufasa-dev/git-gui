@@ -2,6 +2,7 @@ import { For, Show } from "solid-js";
 
 type Props = {
   diff: string;
+  class: string;
 };
 
 type DiffLine = {
