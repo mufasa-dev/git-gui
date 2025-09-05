@@ -137,3 +137,32 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<String,
     let output = cmd.output().map_err(|e| e.to_string())?;
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
+
+fn run_git(repo_path: &str, args: &[&str]) -> Result<String, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(args)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+#[command]
+pub fn stash_changes(repo_path: String) -> Result<String, String> {
+    run_git(&repo_path, &["stash", "push", "-u"])
+}
+
+#[command]
+pub fn stash_pop(repo_path: String) -> Result<String, String> {
+    run_git(&repo_path, &["stash", "pop"])
+}
+
+#[command]
+pub fn reset_hard(repo_path: String) -> Result<String, String> {
+    run_git(&repo_path, &["reset", "--hard"])
+}
