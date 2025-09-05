@@ -55,16 +55,18 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
 
   const handleActiveBranch = async (path: string, branch: string) => {
     try {
-    const changes = await getLocalChanges(path);
+      if (branch === props.repo.activeBranch) return;
+      
+      const changes = await getLocalChanges(path);
 
-    if (changes.length > 0) {
-      setModalSwtBranchOpen(true);
-      setTargetBranch(branch);
-    } else {
-      await checkoutBranch(path, branch);
-      await props.refreshBranches(path);
-      alert(`✅ Mudou para a branch: ${branch}`);
-    }
+      if (changes.length > 0) {
+        setModalSwtBranchOpen(true);
+        setTargetBranch(branch);
+      } else {
+        await checkoutBranch(path, branch);
+        await props.refreshBranches(path);
+        alert(`✅ Mudou para a branch: ${branch}`);
+      }
     } catch (err) {
       alert("Erro ao trocar de branch: " + err);
     }
