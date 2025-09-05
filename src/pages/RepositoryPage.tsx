@@ -1,6 +1,6 @@
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
-import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo, checkoutBranch, getLocalChanges } from "../services/gitService";
+import { validateRepo, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo, getLocalChanges } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
 import Button from "../components/ui/Button";
@@ -13,9 +13,7 @@ import pushIcon from "../assets/push.png";
 import sunIcon from "../assets/sun.png";
 import moonIcon from "../assets/moon.png";
 import { path } from "@tauri-apps/api";
-import { Store } from "@tauri-apps/plugin-store";
-
-let store: Store;
+import { loadRepos, saveRepos } from "../services/storeService";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -47,15 +45,15 @@ export default function RepoTabsPage() {
         const name = await path.basename(selected);
         const activeBranch = await getCurrentBranch(selected!);
         const localChanges = await getLocalChanges(selected);
-        console.log("Branches:", branches);
         const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges };
 
         // Evita duplicar se já estiver aberto
         if (!repos().some(r => r.path === selected)) {
           setRepos([...repos(), newRepo]);
+          await saveRepos([...repos(), newRepo]);
         }
-
         setActive(selected);
+
       } catch (err) {
         alert("Erro: " + err);
       }
@@ -113,37 +111,36 @@ export default function RepoTabsPage() {
   const closeRepo = (id: string) => {
     setRepos(prev => {
       const nextRepos = prev.filter(r => r.path !== id);
-
+      saveRepos(nextRepos);
       if (active() === id) {
         setActive(nextRepos.length > 0 ? nextRepos[0].path : null);
       }
-
       return nextRepos;
     });
   };
 
   onMount(async () => {
-    store = await Store.load(".settings.dat");
+    const savedPaths = await loadRepos();
 
-    const saved: string[] = (await store.get("repos")) || [];
-
-    for (const repoPath of saved) {
+    for (const repoPath of savedPaths) {
+      if (repos().some(r => r.path === repoPath)) continue;
       try {
         await validateRepo(repoPath);
         const branches = await getBranchStatus(repoPath);
         const remoteBranches = await getRemoteBranches(repoPath);
         const name = await path.basename(repoPath);
-        const activeBranch = await getCurrentBranch(repoPath!);
+        const activeBranch = await getCurrentBranch(repoPath);
         const localChanges = await getLocalChanges(repoPath);
 
         const repo: Repo = { path: repoPath, name, branches, remoteBranches, activeBranch, localChanges };
         setRepos(prev => [...prev, repo]);
       } catch (err) {
-        console.error("Erro ao reabrir repo salvo:", err);
+        console.warn(`Não foi possível reabrir repo ${repoPath}`, err);
       }
     }
-
-    if (saved.length > 0) setActive(saved[0]);
+    if (repos().length > 0) {
+      setActive(repos()[0].path);
+    }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === "w") {
@@ -156,13 +153,6 @@ export default function RepoTabsPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
-  });
-
-  createEffect(async () => {
-    if (store) {
-      await store.set("repos", repos().map(r => r.path));
-      await store.save();
-    }
   });
 
   const handleVisibilityChange = () => {
