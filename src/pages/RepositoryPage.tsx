@@ -175,13 +175,31 @@ export default function RepoTabsPage() {
             <img src={fetchIcon} class="inline h-6" />
             <small>{fetching() ? " Atualizando..." : " Fetch"}</small>
           </Button>
-          <Button class="top-btn" onClick={async () => { await doPull()}} disabled={disabledButton()}>
+          <Button class="top-btn relative" onClick={async () => { await doPull()}} disabled={disabledButton()}>
             <img src={pullIcon} class="inline h-6" />
              <small>{pulling() ? " Atualizando..." : " Pull"}</small>
+             {active() && (() => {
+              const repo = repos().find(r => r.path === active());
+              const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
+              return branch && branch.behind > 0
+                ? <span class="text-red-700 dark:text-red-200 font-bold rounded-full ml-1 absolute px-2 right-0">
+                  {branch.behind}
+                </span>
+                : null;
+            })()}
           </Button>
-          <Button class="top-btn" onClick={async () => { await doPush()}} disabled={disabledButton()}>
+          <Button class="top-btn relative" onClick={async () => { await doPush()}} disabled={disabledButton()}>
             <img src={pushIcon} class="inline h-6" />
             <small>{pushing() ? " Enviando..." : " Push"}</small>
+            {active() && (() => {
+              const repo = repos().find(r => r.path === active());
+              const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
+              return branch && branch.ahead > 0
+                ? <span class="text-green-700 dark:text-green-200 font-bold rounded-full ml-1 absolute px-2 left-0">
+                  {branch.ahead}
+                </span>
+                : null;
+            })()}
           </Button>
           <Button
             class="top-btn ml-auto"
