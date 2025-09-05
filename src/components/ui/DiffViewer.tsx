@@ -13,6 +13,8 @@ type DiffLine = {
 };
 
 function parseDiff(diff: string): DiffLine[] {
+  if (!diff) return [];
+  
   const lines = diff.split("\n");
   const result: DiffLine[] = [];
 
