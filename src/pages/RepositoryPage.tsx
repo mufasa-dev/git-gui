@@ -133,6 +133,22 @@ export default function RepoTabsPage() {
     onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
   });
 
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "visible") {
+      refreshBranches(active()!);
+    }
+  };
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+
+  const handleFocus = () => refreshBranches(active()!);
+  window.addEventListener("focus", handleFocus);
+
+  onCleanup(() => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.removeEventListener("focus", handleFocus);
+  });
+
   async function refreshBranches(repoPath: string) {
     const branches = await getBranchStatus(repoPath);
     const remoteBranches = await getRemoteBranches(repoPath);
