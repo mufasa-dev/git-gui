@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
 import { validateRepo, getBranches, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo, checkoutBranch, getLocalChanges } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
@@ -13,6 +13,9 @@ import pushIcon from "../assets/push.png";
 import sunIcon from "../assets/sun.png";
 import moonIcon from "../assets/moon.png";
 import { path } from "@tauri-apps/api";
+import { Store } from "@tauri-apps/plugin-store";
+
+let store: Store;
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -119,7 +122,29 @@ export default function RepoTabsPage() {
     });
   };
 
-  onMount(() => {
+  onMount(async () => {
+    store = await Store.load(".settings.dat");
+
+    const saved: string[] = (await store.get("repos")) || [];
+
+    for (const repoPath of saved) {
+      try {
+        await validateRepo(repoPath);
+        const branches = await getBranchStatus(repoPath);
+        const remoteBranches = await getRemoteBranches(repoPath);
+        const name = await path.basename(repoPath);
+        const activeBranch = await getCurrentBranch(repoPath!);
+        const localChanges = await getLocalChanges(repoPath);
+
+        const repo: Repo = { path: repoPath, name, branches, remoteBranches, activeBranch, localChanges };
+        setRepos(prev => [...prev, repo]);
+      } catch (err) {
+        console.error("Erro ao reabrir repo salvo:", err);
+      }
+    }
+
+    if (saved.length > 0) setActive(saved[0]);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === "w") {
         e.preventDefault();
@@ -133,15 +158,24 @@ export default function RepoTabsPage() {
     onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
   });
 
+  createEffect(async () => {
+    if (store) {
+      await store.set("repos", repos().map(r => r.path));
+      await store.save();
+    }
+  });
+
   const handleVisibilityChange = () => {
-    if (document.visibilityState === "visible") {
+    if (document.visibilityState === "visible" && active()) {
       refreshBranches(active()!);
     }
   };
 
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
-  const handleFocus = () => refreshBranches(active()!);
+  const handleFocus = () => {
+    if (active()) refreshBranches(active()!);
+  };
   window.addEventListener("focus", handleFocus);
 
   onCleanup(() => {
