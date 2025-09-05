@@ -5,7 +5,8 @@ import BranchList from "./Branchlist";
 import { buildTree } from "../ui/TreeView";
 import CommitsList from "./CommitsList";
 import { LocalChanges } from "./LocalChanges";
-import { checkoutBranch, getLocalChanges } from "../../services/gitService";
+import { checkoutBranch, getLocalChanges, resetHard, stashChanges, stashPop } from "../../services/gitService";
+import BranchSwitchModal from "./BranchSwitchModal";
 
 export default function RepoView(props: { repo: Repo , refreshBranches: (path: string) => Promise<void> }) {
   const minWidth = 200;
@@ -17,6 +18,8 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   const [isResizing, setIsResizing] = createSignal(false);
   const [selectedBranch, setSelectedBranch] = createSignal(props.repo.activeBranch);
   const [activeBranch, setActiveBranch] = createSignal(props.repo.branches[0].name);
+  const [modalSwtBranchOpen, setModalSwtBranchOpen] = createSignal(false);
+  const [targetBranch, setTargetBranch] = createSignal<string | null>(null);
 
   const startResize = () => setIsResizing(true);
   const stopResize = () => setIsResizing(false);
@@ -55,8 +58,8 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
     const changes = await getLocalChanges(path);
 
     if (changes.length > 0) {
-      // Abre modal de confirmação
-      // openConfirmDialog(branch, changes);
+      setModalSwtBranchOpen(true);
+      setTargetBranch(branch);
     } else {
       await checkoutBranch(path, branch);
       await props.refreshBranches(path);
@@ -66,6 +69,19 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
       alert("Erro ao trocar de branch: " + err);
     }
   };
+
+  async function doStashAndApply() {
+    await stashChanges(props.repo.path);
+    await checkoutBranch(props.repo.path, targetBranch()!);
+    await stashPop(props.repo.path);
+    setModalSwtBranchOpen(false);
+  }
+
+  async function doDiscard() {
+    await resetHard(props.repo.path);
+    await checkoutBranch(props.repo.path, targetBranch()!);
+    setModalSwtBranchOpen(false);
+  }
 
   // Constrói árvores reativas sempre que os arrays filtrados mudam
   const localTree = createMemo(() => buildTree(filteredBranches()));
@@ -142,6 +158,14 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
         <CommitsList repo={props.repo} branch={selectedBranch()} />
       )}
       {viewMode() === "changes" && <LocalChanges repo={props.repo}/>}
+
+      <BranchSwitchModal
+        open={modalSwtBranchOpen()}
+        branch={targetBranch() ?? ""}
+        onCancel={() => setModalSwtBranchOpen(false)}
+        onDiscard={doDiscard}
+        onStashAndApply={doStashAndApply}
+      />
     </div>
   );
 }
