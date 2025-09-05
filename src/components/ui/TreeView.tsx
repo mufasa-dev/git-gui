@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import { Branch } from "../../models/Banch.model";
+import { buildOpenMap } from "../../utils/tree";
 
 type TreeNode = {
   name: string;      // nome exibido (ex: "main")
@@ -35,10 +36,10 @@ export function buildTree(branches: Branch[]): TreeNodeMap {
 
       if (!current[part]) {
         current[part] = {
-          name: part,      // nome exibido
+          name: part,
           ahead: branch.ahead,
           behind: branch.behind,
-          original: isLeaf ? clean : "", // somente nó final mantém o original
+          original: isLeaf ? clean : "",
           children: isLeaf ? undefined : {},
         };
       }
@@ -53,7 +54,7 @@ export function buildTree(branches: Branch[]): TreeNodeMap {
 }
 
 export default function TreeView(props: TreeViewProps) {
-  const [open, setOpen] = createSignal<{ [key: string]: boolean }>({});
+  const [open, setOpen] = createSignal<{ [key: string]: boolean }>(buildOpenMap(props.tree));
 
   const toggle = (key: string) => {
     setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -66,6 +67,7 @@ export default function TreeView(props: TreeViewProps) {
       props.onSelectBranch?.(node.original);
     }
   };
+  
 
   return (
     <ul class="ml-4 space-y-1">
