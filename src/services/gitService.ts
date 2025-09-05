@@ -111,3 +111,15 @@ export async function pull(repoPath: string, branch: string): Promise<string> {
 export async function fetchRepo(path: string, remote: string): Promise<string> {
   return await invoke("fetch_repo", { repoPath: path, remote });
 }
+
+export async function stashChanges(repoPath: string) {
+  return await invoke("stash_changes", { repoPath });
+}
+
+export async function stashPop(repoPath: string) {
+  return await invoke("stash_pop", { repoPath });
+}
+
+export async function resetHard(repoPath: string) {
+  return await invoke("reset_hard", { repoPath });
+}
