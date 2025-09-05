@@ -2,6 +2,7 @@ import { JSX, Show } from "solid-js";
 
 type Props = {
   open: boolean;
+  title?: string;
   onClose?: () => void;
   children: JSX.Element;
 };
@@ -10,14 +11,28 @@ export default function Dialog(props: Props) {
   return (
     <Show when={props.open}>
       <div
-        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50"
         onClick={props.onClose}
       >
         <div
-          class="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 w-[400px] relative"
+          class="bg-white dark:bg-gray-800 rounded shadow-xl w-[400px] relative"
           onClick={(e) => e.stopPropagation()}
         >
-          {props.children}
+          {/* Header */}
+          <div class="flex items-center justify-between bg-gray-600 dark:bg-gray-700 px-4 py-2 rounded-t">
+            <span class="text-white font-bold">{props.title}</span>
+            <button
+              class="text-white hover:text-gray-300"
+              onClick={props.onClose}
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          {/* Conteúdo */}
+          <div class="p-6">
+            {props.children}
+          </div>
         </div>
       </div>
     </Show>
