@@ -12,8 +12,11 @@ import pullIcon from "../assets/pull.png";
 import pushIcon from "../assets/push.png";
 import sunIcon from "../assets/sun.png";
 import moonIcon from "../assets/moon.png";
+import newWindowIcon from "../assets/new-window.png";
 import { path } from "@tauri-apps/api";
 import { loadRepos, saveRepos } from "../services/storeService";
+import { openBash, openBrowser, openConsole, openFileManager, openVsCode } from "../services/openService";
+import DropdownButton from "../components/ui/DropdownButton";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -225,8 +228,36 @@ export default function RepoTabsPage() {
                 : null;
             })()}
           </Button>
+          <DropdownButton
+            label="Abrir"
+            class="ml-auto"
+            img={newWindowIcon}
+            options={[
+              {
+                label: "Abrir Console",
+                action: () => openConsole(active()!)
+              },
+              {
+                label: "Abrir no Git Bash",
+                action: () => openBash(active()!)
+              },
+              {
+                label: "Gerenciador de Arquivos",
+                action: () => openFileManager(active()!)
+              },
+              {
+                label: "Navegador",
+                action: () => openBrowser("https://github.com")
+              },
+              {
+                label: "Abrir no VSCode",
+                action: () => openVsCode(active()!)
+              },
+            ]}
+          />
+
           <Button
-            class="top-btn ml-auto"
+            class="top-btn ml-2"
             onClick={toggleDark}
           >
             <img src={dark() ? sunIcon : moonIcon} class="inline h-6" />
