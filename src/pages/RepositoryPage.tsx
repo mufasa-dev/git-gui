@@ -17,6 +17,7 @@ import { path } from "@tauri-apps/api";
 import { loadRepos, saveRepos } from "../services/storeService";
 import { openBash, openBrowser, openConsole, openFileManager, openVsCode } from "../services/openService";
 import DropdownButton from "../components/ui/DropdownButton";
+import { platform } from "@tauri-apps/plugin-os";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -25,6 +26,7 @@ export default function RepoTabsPage() {
   const [pulling, setPulling] = createSignal(false);
   const [fetching, setFetching] = createSignal(false);
   const [dark, setDark] = createSignal(false);
+  const [platform, setPlatform] = createSignal("");
 
   const toggleDark = () => {
     setDark(!dark());
@@ -123,6 +125,9 @@ export default function RepoTabsPage() {
   };
 
   onMount(async () => {
+    const plat = platform();
+    setPlatform(plat); // "windows", "macos", "linux", etc.
+
     const savedPaths = await loadRepos();
 
     for (const repoPath of savedPaths) {
@@ -239,6 +244,7 @@ export default function RepoTabsPage() {
               },
               {
                 label: "Abrir no Git Bash",
+                hide: platform() != "windows",
                 action: () => openBash(active()!)
               },
               {
