@@ -31,6 +31,11 @@ export function LocalChanges(props: { repo: Repo; }) {
   };
 
   createEffect(() => {
+    const path = props.repo.path;
+    if (!path) return;
+
+    clearDiff();
+    setSelected([]);
     loadChanges();
   });
 
