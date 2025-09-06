@@ -1,7 +1,6 @@
-use std::process::Command;
 use serde::Serialize;
+use std::process::Command;
 use tauri::command;
-
 
 #[derive(Serialize)]
 pub struct Commit {
@@ -14,11 +13,7 @@ pub struct Commit {
 #[tauri::command]
 pub fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String> {
     let output = Command::new("git")
-        .args(&[
-            "log",
-            "--pretty=format:%H|%an|%ad|%s",
-            &branch
-        ])
+        .args(&["log", "--pretty=format:%H|%an|%ad|%s", &branch])
         .current_dir(&path)
         .output()
         .map_err(|e| e.to_string())?;
@@ -120,7 +115,12 @@ pub fn get_commit_details(path: String, hash: String) -> Result<serde_json::Valu
 }
 
 #[command]
-pub fn git_commit(repo_path: String, message: String, description: String, amend: bool) -> Result<String, String> {
+pub fn git_commit(
+    repo_path: String,
+    message: String,
+    description: String,
+    amend: bool,
+) -> Result<String, String> {
     // Mensagem final: se tiver descrição, junta com "\n\n"
     let mut full_message = message;
     if !description.trim().is_empty() {

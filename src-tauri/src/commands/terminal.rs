@@ -1,5 +1,5 @@
-use std::process::Command;
 use open;
+use std::process::Command;
 
 #[tauri::command]
 pub fn open_console(path: String) {

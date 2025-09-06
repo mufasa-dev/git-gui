@@ -1,6 +1,6 @@
+use std::path::Path;
 use std::process::Command;
 use tauri::command;
-use std::path::Path;
 
 #[tauri::command]
 pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
@@ -55,9 +55,7 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
 #[command]
 pub fn stage_files(path: String, files: Vec<String>) -> Result<(), String> {
     let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(&path)
-        .arg("add")
-        .args(&files);
+    cmd.arg("-C").arg(&path).arg("add").args(&files);
 
     let output = cmd.output().map_err(|e| e.to_string())?;
 
@@ -72,9 +70,7 @@ pub fn stage_files(path: String, files: Vec<String>) -> Result<(), String> {
 #[command]
 pub fn unstage_files(path: String, files: Vec<String>) -> Result<(), String> {
     let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(&path)
-        .arg("reset")
-        .args(&files);
+    cmd.arg("-C").arg(&path).arg("reset").args(&files);
 
     let output = cmd.output().map_err(|e| e.to_string())?;
 
@@ -108,8 +104,12 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<String,
 
     // Verifica se é untracked
     let status_output = Command::new("git")
-        .arg("-C").arg(&repo_path)
-        .arg("ls-files").arg("--others").arg("--exclude-standard").arg(&file)
+        .arg("-C")
+        .arg(&repo_path)
+        .arg("ls-files")
+        .arg("--others")
+        .arg("--exclude-standard")
+        .arg(&file)
         .output()
         .map_err(|e| e.to_string())?;
 

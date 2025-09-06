@@ -1,5 +1,5 @@
-use std::process::Command;
 use serde_json::json;
+use std::process::Command;
 
 #[tauri::command]
 pub fn list_branches(path: String) -> Result<Vec<String>, String> {
@@ -14,10 +14,7 @@ pub fn list_branches(path: String) -> Result<Vec<String>, String> {
     }
 
     let raw = String::from_utf8_lossy(&output.stdout);
-    let branches: Vec<String> = raw
-        .lines()
-        .map(|line| line.trim().to_string())
-        .collect();
+    let branches: Vec<String> = raw.lines().map(|line| line.trim().to_string()).collect();
 
     Ok(branches)
 }
@@ -45,8 +42,8 @@ pub fn list_remote_branches(path: String) -> Result<Vec<String>, String> {
 
 #[tauri::command]
 pub fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Value>, String> {
-    use std::process::Command;
     use serde_json::json;
+    use std::process::Command;
 
     let branches_output = Command::new("git")
         .args(["for-each-ref", "--format=%(refname:short)", "refs/heads/"])
@@ -68,21 +65,31 @@ pub fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Value>, St
             if up.status.success() {
                 // Tem upstream: calcula ahead/behind
                 let ahead = Command::new("git")
-                    .args(["rev-list", "--count", &format!("{}@{{u}}..{}", branch, branch)])
+                    .args([
+                        "rev-list",
+                        "--count",
+                        &format!("{}@{{u}}..{}", branch, branch),
+                    ])
                     .current_dir(&repo_path)
                     .output();
 
                 let behind = Command::new("git")
-                    .args(["rev-list", "--count", &format!("{}..{}@{{u}}", branch, branch)])
+                    .args([
+                        "rev-list",
+                        "--count",
+                        &format!("{}..{}@{{u}}", branch, branch),
+                    ])
                     .current_dir(&repo_path)
                     .output();
 
-                let ahead_count = ahead.ok()
+                let ahead_count = ahead
+                    .ok()
                     .and_then(|o| String::from_utf8(o.stdout).ok())
                     .and_then(|s| s.trim().parse::<u32>().ok())
                     .unwrap_or(0);
 
-                let behind_count = behind.ok()
+                let behind_count = behind
+                    .ok()
                     .and_then(|o| String::from_utf8(o.stdout).ok())
                     .and_then(|s| s.trim().parse::<u32>().ok())
                     .unwrap_or(0);

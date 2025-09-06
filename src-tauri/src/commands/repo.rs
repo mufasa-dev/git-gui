@@ -12,7 +12,11 @@ pub fn open_repo(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn push_repo(path: String, remote: Option<String>, branch: Option<String>) -> Result<String, String> {
+pub fn push_repo(
+    path: String,
+    remote: Option<String>,
+    branch: Option<String>,
+) -> Result<String, String> {
     use std::process::Command;
 
     let remote_name = remote.unwrap_or("origin".to_string());
