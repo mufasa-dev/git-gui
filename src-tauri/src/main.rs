@@ -25,6 +25,11 @@ fn main() {
             commands::repo::push_repo,
             commands::repo::git_pull,
             commands::repo::fetch_repo,
+            commands::terminal::open_console,
+            commands::terminal::open_file_manager,
+            commands::terminal::open_browser,
+            commands::terminal::open_vscode,
+            commands::terminal::open_git_bash
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
