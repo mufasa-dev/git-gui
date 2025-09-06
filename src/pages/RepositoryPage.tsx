@@ -15,7 +15,7 @@ import moonIcon from "../assets/moon.png";
 import newWindowIcon from "../assets/new-window.png";
 import { path } from "@tauri-apps/api";
 import { loadRepos, saveRepos } from "../services/storeService";
-import { openBash, openBrowser, openConsole, openFileManager, openVsCode } from "../services/openService";
+import { openBash, openBrowser, openConsole, openFileManager, openRepositoryBrowser, openVsCode } from "../services/openService";
 import DropdownButton from "../components/ui/DropdownButton";
 import { platform } from "@tauri-apps/plugin-os";
 
@@ -253,7 +253,7 @@ export default function RepoTabsPage() {
               },
               {
                 label: "Navegador",
-                action: () => openBrowser("https://github.com")
+                action: () => openRepositoryBrowser(active()!)
               },
               {
                 label: "Abrir no VSCode",

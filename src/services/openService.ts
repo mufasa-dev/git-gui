@@ -19,3 +19,7 @@ export async function openVsCode(path: string): Promise<string[]> {
 export async function openBash(path: string): Promise<string[]> {
   return await invoke("open_git_bash", { path });
 }
+
+export async function openRepositoryBrowser(path: string): Promise<string[]> {
+  return await invoke("open_repo_in_browser", { path });
+}
