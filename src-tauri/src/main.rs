@@ -30,7 +30,8 @@ fn main() {
             commands::terminal::open_file_manager,
             commands::terminal::open_browser,
             commands::terminal::open_vscode,
-            commands::terminal::open_git_bash
+            commands::terminal::open_git_bash,
+            commands::terminal::open_repo_in_browser
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");

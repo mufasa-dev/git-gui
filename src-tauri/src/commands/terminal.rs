@@ -85,3 +85,53 @@ pub fn open_git_bash(_path: String) {
         eprintln!("Git Bash só está disponível no Windows");
     }
 }
+
+#[tauri::command]
+pub async fn open_repo_in_browser(path: String) -> Result<(), String> {
+    // roda git config pra pegar a URL remota
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&path)
+        .args(["config", "--get", "remote.origin.url"])
+        .output()
+        .map_err(|e| format!("Erro ao executar git: {}", e))?;
+
+    if !output.status.success() {
+        return Err("Não foi possível obter remote.origin.url".into());
+    }
+
+    let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if url.is_empty() {
+        return Err("Nenhuma URL encontrada para remote.origin.url".into());
+    }
+
+    // converte URLs SSH → HTTPS
+    let mut web_url = if url.starts_with("git@") {
+        // exemplo: git@github.com:user/repo.git → https://github.com/user/repo
+        url.replace("git@", "https://")
+            .replace(":", "/")
+    } else {
+        url.clone()
+    };
+
+    // remove sufixo .git
+    if web_url.ends_with(".git") {
+        web_url = web_url.trim_end_matches(".git").to_string();
+    }
+
+    // valida qual serviço é
+    if web_url.contains("github.com") {
+        // já tá certo
+    } else if web_url.contains("gitlab.com") {
+        // já tá certo
+    } else if web_url.contains("dev.azure.com") || web_url.contains("visualstudio.com") {
+        // Azure DevOps → já acessível direto
+    } else {
+        return Err(format!("Serviço Git desconhecido: {}", web_url));
+    }
+
+    // abre no navegador
+    open::that(web_url).expect("Falha ao abrir navegador");
+
+    Ok(())
+}
