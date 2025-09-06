@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 
 type Option = {
   label: string;
@@ -15,19 +15,34 @@ type Props = {
 
 export default function DropdownButton(props: Props) {
   const [open, setOpen] = createSignal(false);
+  let containerRef: HTMLDivElement | undefined;
 
   const toggle = () => setOpen(!open());
 
+  const handleClickOutside = (event: MouseEvent) => {
+    if (open() && containerRef && !containerRef.contains(event.target as Node)) {
+      setOpen(false);
+    }
+  };
+
+  onMount(() => {
+    document.addEventListener("click", handleClickOutside);
+  });
+
+  onCleanup(() => {
+    document.removeEventListener("click", handleClickOutside);
+  });
+
   return (
-    <div class={props.class + " relative"}>
+    <div ref={containerRef} class={props.class + " relative"}>
       <button
         onClick={toggle}
         class={props.btnClass + " top-btn flex flex-col justify-center items-center"}
       >
-        {<img src={props.img} class="inline h-6 mr-2" />}
-        <div class="flex items-center">
+        {<img src={props.img} class="inline h-6" />}
+        <div class="flex justify-center items-center">
             {props.label}
-            <i class="fa fa-carret-down"></i>
+            <i class="fa-solid fa-caret-down"></i>
         </div>
       </button>
 
