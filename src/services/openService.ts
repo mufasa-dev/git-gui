@@ -8,8 +8,8 @@ export async function openFileManager(path: string): Promise<string[]> {
   return await invoke("open_file_manager", { path });
 }
 
-export async function openBrowser(path: string): Promise<string[]> {
-  return await invoke("open_browser", { path });
+export async function openBrowser(url: string): Promise<string[]> {
+  return await invoke("open_browser", { url });
 }
 
 export async function openVsCode(path: string): Promise<string[]> {
