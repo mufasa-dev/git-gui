@@ -25,7 +25,7 @@ export default function RepoTabsPage() {
   const [pushing, setPushing] = createSignal(false);
   const [pulling, setPulling] = createSignal(false);
   const [fetching, setFetching] = createSignal(false);
-  const [dark, setDark] = createSignal(false);
+  const [dark, setDark] = createSignal(localStorage.getItem("theme") == "dark");
   const [platform, setPlatform] = createSignal("");
 
   const toggleDark = () => {
