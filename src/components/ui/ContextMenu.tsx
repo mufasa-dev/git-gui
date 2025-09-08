@@ -2,6 +2,7 @@ import { For, JSX } from "solid-js";
 
 export type ContextMenuItem = {
   label: string;
+  hr?: boolean;
   action: () => void;
 };
 
@@ -30,6 +31,7 @@ export default function ContextMenu(props: ContextMenuProps) {
               >
                 {item.label}
               </button>
+              {item.hr && <hr class="my-1 border-gray-300 dark:border-gray-600" />}
             </li>
           )}
         </For>

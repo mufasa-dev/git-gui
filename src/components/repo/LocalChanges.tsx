@@ -110,6 +110,7 @@ export function LocalChanges(props: { repo: Repo; }) {
 
       items.push({
         label: "Abrir diff no VSCode",
+        hr: true,
         action: () => openVsCodeDiff(props.repo.path, item.path),
       });
     }
