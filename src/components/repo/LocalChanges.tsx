@@ -100,7 +100,7 @@ export function LocalChanges(props: { repo: Repo; }) {
 
     let items = []
     if (item && item.path) {
-      if (item.staged) items.push({ label: "Preparar", action: () => prepare([item.path]) });
+      if (!item.staged) items.push({ label: "Preparar", action: () => prepare([item.path]) });
       else items.push({ label: "Desfazer", action: () => unstage([item.path]) });
     }
     items.push({ label: "Preparar tudo", action: () => prepareAll() });
@@ -182,7 +182,7 @@ export function LocalChanges(props: { repo: Repo; }) {
             </button>
           </div>
           {unstaged().length === 0 && <div class="px-4 pt-4 text-center text-gray-400">Nenhuma alteração local</div>}
-          <FolderTreeView items={unstaged()} selected={selected()} onToggle={toggleItem} onContextMenu={showContextMenu} />
+          <FolderTreeView items={unstaged()} selected={selected()} staged={false} onToggle={toggleItem} onContextMenu={showContextMenu} />
 
           <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center mt-4">
             <b class="mr-1">Preparadas</b>
@@ -191,7 +191,7 @@ export function LocalChanges(props: { repo: Repo; }) {
             </button>
           </div>
           
-          <FolderTreeView items={staged()} selected={stagedPreparedSelected()} onToggle={toggleStagedItem} onContextMenu={showContextMenu} />
+          <FolderTreeView items={staged()} selected={stagedPreparedSelected()} staged={true} onToggle={toggleStagedItem} onContextMenu={showContextMenu} />
         </div>
       </div>
 

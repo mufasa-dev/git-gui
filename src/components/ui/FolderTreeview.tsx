@@ -8,6 +8,7 @@ type ChangeItem = {
 export function FolderTreeView(props: { 
     items: ChangeItem[],
     selected: string[];
+    staged: boolean;
     onToggle: (path: string, selected: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
  }) {
@@ -39,7 +40,7 @@ export function FolderTreeView(props: {
     <ul class="ml-2 space-y-1">
       <For each={Object.entries(tree())}>
         {([name, child]: any) => (
-            <TreeNode node={child} name={name} path={name} selected={props.selected} onToggle={props.onToggle} onContextMenu={props.onContextMenu} />
+            <TreeNode node={child} name={name} path={name} selected={props.selected} staged={props.staged} onToggle={props.onToggle} onContextMenu={props.onContextMenu} />
         )}
       </For>
     </ul>
@@ -50,6 +51,7 @@ function TreeNode(props: {
     node: any; 
     name: string; 
     path: string; 
+    staged: boolean
     selected: string[]; 
     onToggle: (path: string, selected: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void }
@@ -106,7 +108,7 @@ function TreeNode(props: {
     <li oncontextmenu={(e) => { 
       e.preventDefault();
       e.stopPropagation();
-      props.onContextMenu && props.onContextMenu(e, { path: props.path, status: props.node.__status });
+      props.onContextMenu && props.onContextMenu(e, props.node.__isFile ? { path: props.path, status: props.node.__status, staged: props.staged } : null);
     }}>
       <div
         class="cursor-pointer select-none flex items-center"
@@ -141,6 +143,7 @@ function TreeNode(props: {
                 name={name}
                 path={props.path + "/" + name}
                 selected={props.selected}
+                staged={props.staged}
                 onToggle={props.onToggle}
                 onContextMenu={props.onContextMenu}
               />
