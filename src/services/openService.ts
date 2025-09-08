@@ -16,6 +16,10 @@ export async function openVsCode(path: string): Promise<string[]> {
   return await invoke("open_vscode", { path });
 }
 
+export async function openVsCodeDiff(repoPath: string, filePath: string) {
+  await invoke("open_vscode_git_diff", { repoPath, filePath });
+}
+
 export async function openBash(path: string): Promise<string[]> {
   return await invoke("open_git_bash", { path });
 }

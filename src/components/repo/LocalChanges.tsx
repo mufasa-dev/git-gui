@@ -6,6 +6,7 @@ import { useRepoContext } from "../../context/RepoContext";
 import DiffViewer from "../ui/DiffViewer";
 import { LocalChange } from "../../models/LocalChanges.model";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
+import { openVsCodeDiff } from "../../services/openService";
 
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
@@ -100,8 +101,17 @@ export function LocalChanges(props: { repo: Repo; }) {
 
     let items = []
     if (item && item.path) {
-      if (!item.staged) items.push({ label: "Preparar", action: () => prepare([item.path]) });
-      else items.push({ label: "Desfazer", action: () => unstage([item.path]) });
+      if (!item.staged) {
+        items.push({ label: "Preparar", action: () => prepare([item.path]) });
+      }
+      else {
+        items.push({ label: "Desfazer", action: () => unstage([item.path]) });
+      }
+
+      items.push({
+        label: "Abrir diff no VSCode",
+        action: () => openVsCodeDiff(props.repo.path, item.path),
+      });
     }
     items.push({ label: "Preparar tudo", action: () => prepareAll() });
     items.push({
