@@ -1,12 +1,12 @@
 import { createSignal, createMemo } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { Branch } from "../../models/Banch.model";
-import BranchList from "./Branchlist";
+import BranchList from "../branch/Branchlist";
 import { buildTree } from "../ui/TreeView";
-import CommitsList from "./CommitsList";
+import CommitsList from "../commits/CommitsList";
 import { LocalChanges } from "./LocalChanges";
 import { checkoutBranch, getLocalChanges, resetHard, stashChanges, stashPop } from "../../services/gitService";
-import BranchSwitchModal from "./BranchSwitchModal";
+import BranchSwitchModal from "../branch/BranchSwitchModal";
 
 export default function RepoView(props: { repo: Repo , refreshBranches: (path: string) => Promise<void> }) {
   const minWidth = 200;
