@@ -5,6 +5,7 @@ import { FolderTreeView } from "../ui/FolderTreeview";
 import { useRepoContext } from "../../context/RepoContext";
 import DiffViewer from "../ui/DiffViewer";
 import { LocalChange } from "../../models/LocalChanges.model";
+import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
 
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
@@ -23,6 +24,9 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [commitAmend, setCommitAmend] = createSignal(false);
   const { refreshBranches } = useRepoContext();
   const [diff, setDiff] = createSignal<string>("");
+  const [menuVisible, setMenuVisible] = createSignal(false);
+  const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
+  const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
 
   const loadChanges = async () => {
     if (!props.repo.path) return;
@@ -91,6 +95,27 @@ export function LocalChanges(props: { repo: Repo; }) {
     });
   };
 
+  const showContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+
+    // opções que aparecem nesse contexto
+    setMenuItems([
+      { label: "Preparar tudo", action: () => prepareAll() },
+      {
+        label: "Descartar alterações",
+        action: () => alert("TODO: implementar discard"),
+      },
+    ]);
+
+    setMenuPos({ x: e.clientX, y: e.clientY });
+    setMenuVisible(true);
+  };
+
+  const hideContextMenu = () => setMenuVisible(false);
+
+  document.addEventListener("click", hideContextMenu);
+  onCleanup(() => document.removeEventListener("click", hideContextMenu));
+
   const loadDiff = async (staged: boolean) => {
     console.log("Loading diff for", fileSelected(), "staged:", staged, props.repo.path);
     const result = await getDiff(props.repo.path, fileSelected(), staged);
@@ -149,7 +174,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       onMouseLeave={stopResize}>
       <div class="overflow-auto border-r border-gray-300 dark:border-gray-900 py-2" style={{ width: `${sidebarWidth()}px` }}>
         <div style={{"height": "40px"}} class="flex flex-col">
-          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center">
+          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center" onContextMenu={showContextMenu}>
             <b>Alterações</b>
             <button class="ml-auto px-2 py-1 text-sm bg-blue-500 text-white rounded" onClick={() => prepare()}>
               Preparar
@@ -203,6 +228,13 @@ export function LocalChanges(props: { repo: Repo; }) {
           </div>
         </div>
       </div>
+      <Show when={menuVisible()}>
+        <ContextMenu
+          items={menuItems()}
+          position={menuPos()}
+          onClose={hideContextMenu}
+        />
+      </Show>
     </div>
   );
 }
