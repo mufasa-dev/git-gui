@@ -1,4 +1,4 @@
-import { createSignal, createMemo } from "solid-js";
+import { createSignal, createMemo, createEffect } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { Branch } from "../../models/Banch.model";
 import BranchList from "../branch/Branchlist";
@@ -90,6 +90,13 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   const remoteTree = createMemo(() =>
     filteredRemoteBranches() ? buildTree(filteredRemoteBranches()!) : {}
   );
+
+  createEffect(() => {
+    const path = props.repo.path;
+    if (!path) return;
+
+    setSelectedBranch(props.repo.activeBranch);
+  });
 
   return (
     <div class="flex h-full w-full select-none"
