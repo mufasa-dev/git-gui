@@ -63,14 +63,6 @@ pub fn open_browser(url: String) {
 }
 
 #[tauri::command]
-pub fn open_vscode(path: String) {
-    Command::new("code")
-        .arg(path)
-        .spawn()
-        .expect("Falha ao abrir VSCode. Verifique se o comando `code` está no PATH.");
-}
-
-#[tauri::command]
 pub fn open_git_bash(_path: String) {
     #[cfg(target_os = "windows")]
     {
