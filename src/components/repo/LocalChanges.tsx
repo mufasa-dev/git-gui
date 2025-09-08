@@ -95,18 +95,21 @@ export function LocalChanges(props: { repo: Repo; }) {
     });
   };
 
-  const showContextMenu = (e: MouseEvent) => {
+  const showContextMenu = (e: MouseEvent, item: any = null) => {
     e.preventDefault();
 
-    // opções que aparecem nesse contexto
-    setMenuItems([
-      { label: "Preparar tudo", action: () => prepareAll() },
-      {
-        label: "Descartar alterações",
-        action: () => alert("TODO: implementar discard"),
-      },
-    ]);
+    let items = []
+    if (item && item.path) {
+      if (item.staged) items.push({ label: "Preparar", action: () => prepare([item.path]) });
+      else items.push({ label: "Desfazer", action: () => unstage([item.path]) });
+    }
+    items.push({ label: "Preparar tudo", action: () => prepareAll() });
+    items.push({
+      label: "Descartar alterações",
+      action: () => alert("TODO: implementar discard"),
+    });
 
+    setMenuItems(items);
     setMenuPos({ x: e.clientX, y: e.clientY });
     setMenuVisible(true);
   };
@@ -123,8 +126,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     setDiff(result);
   }
 
-  const prepare = async () => {
-    const paths = selected();
+  const prepare = async (paths: string[]) => {
     await stageFiles(props.repo.path, paths);
     setSelected([]);
     clearDiff();
@@ -138,8 +140,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     await loadChanges();
   };
 
-  const unstage = async () => {
-    const paths = stagedPreparedSelected();
+  const unstage = async (paths: string[]) => {
     await unstageFiles(props.repo.path, paths);
     setSelected([]);
     clearDiff();
@@ -176,21 +177,21 @@ export function LocalChanges(props: { repo: Repo; }) {
         <div style={{"height": "40px"}} class="flex flex-col">
           <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center" onContextMenu={showContextMenu}>
             <b>Alterações</b>
-            <button class="ml-auto px-2 py-1 text-sm bg-blue-500 text-white rounded" onClick={() => prepare()}>
+            <button class="ml-auto px-2 py-1 text-sm bg-blue-500 text-white rounded" onClick={() => prepare(selected())}>
               Preparar
             </button>
           </div>
           {unstaged().length === 0 && <div class="px-4 pt-4 text-center text-gray-400">Nenhuma alteração local</div>}
-          <FolderTreeView items={unstaged()} selected={selected()} onToggle={toggleItem} />
+          <FolderTreeView items={unstaged()} selected={selected()} onToggle={toggleItem} onContextMenu={showContextMenu} />
 
           <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center mt-4">
             <b class="mr-1">Preparadas</b>
-            <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded" onclick={() => unstage()}>
+            <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded" onclick={() => unstage(stagedPreparedSelected())}>
               Desfazer
             </button>
           </div>
           
-          <FolderTreeView items={staged()} selected={stagedPreparedSelected()} onToggle={toggleStagedItem} />
+          <FolderTreeView items={staged()} selected={stagedPreparedSelected()} onToggle={toggleStagedItem} onContextMenu={showContextMenu} />
         </div>
       </div>
 

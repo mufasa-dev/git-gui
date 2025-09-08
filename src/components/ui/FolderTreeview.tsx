@@ -9,6 +9,7 @@ export function FolderTreeView(props: {
     items: ChangeItem[],
     selected: string[];
     onToggle: (path: string, selected: boolean) => void;
+    onContextMenu?: (e: MouseEvent, item: any) => void;
  }) {
   const buildTree = (files: ChangeItem[]) => {
     const root: any = {};
@@ -38,14 +39,21 @@ export function FolderTreeView(props: {
     <ul class="ml-2 space-y-1">
       <For each={Object.entries(tree())}>
         {([name, child]: any) => (
-            <TreeNode node={child} name={name} path={name} selected={props.selected} onToggle={props.onToggle} />
+            <TreeNode node={child} name={name} path={name} selected={props.selected} onToggle={props.onToggle} onContextMenu={props.onContextMenu} />
         )}
       </For>
     </ul>
   );
 }
 
-function TreeNode(props: { node: any; name: string; path: string; selected: string[]; onToggle: (path: string, selected: boolean) => void }) {
+function TreeNode(props: { 
+    node: any; 
+    name: string; 
+    path: string; 
+    selected: string[]; 
+    onToggle: (path: string, selected: boolean) => void;
+    onContextMenu?: (e: MouseEvent, item: any) => void }
+  ) {
   const [open, setOpen] = createSignal(true);
 
   const entries = () =>
@@ -95,7 +103,11 @@ function TreeNode(props: { node: any; name: string; path: string; selected: stri
   }
 
   return (
-    <li>
+    <li oncontextmenu={(e) => { 
+      e.preventDefault();
+      e.stopPropagation();
+      props.onContextMenu && props.onContextMenu(e, { path: props.path, status: props.node.__status });
+    }}>
       <div
         class="cursor-pointer select-none flex items-center"
         classList={{ "text-blue-500": props.selected.includes(props.path) }}
@@ -130,6 +142,7 @@ function TreeNode(props: { node: any; name: string; path: string; selected: stri
                 path={props.path + "/" + name}
                 selected={props.selected}
                 onToggle={props.onToggle}
+                onContextMenu={props.onContextMenu}
               />
             )}
           </For>
