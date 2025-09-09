@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Branch } from "../models/Banch.model";
+import { Diff } from "../models/Diff.model";
 
 export async function validateRepo(path: string): Promise<string> {
   return await invoke("open_repo", { path });
@@ -64,13 +65,12 @@ export async function getDiff(
   repoPath: string,
   file: string,
   staged: boolean = false
-): Promise<string> {
+): Promise<Diff> {
   let relativeFile =file;
   if (file.startsWith(repoPath)) {
     relativeFile = file.replace(repoPath + "/", "");
   }
-  console.log("Getting diff for", relativeFile, "in repo", repoPath, "staged:", staged);
-  return await invoke<string>("get_diff", {
+  return await invoke<Diff>("get_diff", {
     repoPath,
     file: relativeFile,
     staged,

@@ -7,6 +7,7 @@ import DiffViewer from "../ui/DiffViewer";
 import { LocalChange } from "../../models/LocalChanges.model";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
 import { openVsCodeDiff } from "../../services/openService";
+import { Diff } from "../../models/Diff.model";
 
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
@@ -24,7 +25,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [commitDescription, setCommitDescription] = createSignal("");
   const [commitAmend, setCommitAmend] = createSignal(false);
   const { refreshBranches } = useRepoContext();
-  const [diff, setDiff] = createSignal<string>("");
+  const [diff, setDiff] = createSignal<Diff>({diff: ""});
   const [menuVisible, setMenuVisible] = createSignal(false);
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
@@ -177,7 +178,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   };
 
-  const clearDiff = () => setDiff("");  
+  const clearDiff = () => setDiff({diff: ""});  
 
   return (
     <div class="flex h-full w-full select-none"
