@@ -14,6 +14,10 @@ html {
   .btn-primary {
     @apply bg-blue-600 text-white hover:bg-blue-700 rounded-md border-0 px-3 py-1 cursor-pointer transition;
   }
+
+  .input-text {
+    @apply border rounded border-gray-300 py-1 px-2 mt-2 dark:bg-gray-700 dark:border-gray-900;
+  }
 }
 
 /* Estilização da scrollbar */
