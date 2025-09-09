@@ -1,117 +1,18 @@
-import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
-import { open } from "@tauri-apps/plugin-dialog";
-import { validateRepo, getRemoteBranches, getBranchStatus, pushRepo, getCurrentBranch, pull, fetchRepo, getLocalChanges } from "../services/gitService";
+import { createSignal, onCleanup, onMount } from "solid-js";
+import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
-import Button from "../components/ui/Button";
 import { Repo } from "../models/Repo.model";
 import RepoContext from "../context/RepoContext";
-import folderIcon from "../assets/folder.png";
-import fetchIcon from "../assets/fetch.png";
-import pullIcon from "../assets/pull.png";
-import pushIcon from "../assets/push.png";
-import sunIcon from "../assets/sun.png";
-import moonIcon from "../assets/moon.png";
-import newWindowIcon from "../assets/new-window.png";
+
 import { path } from "@tauri-apps/api";
 import { loadRepos, saveRepos } from "../services/storeService";
-import { openBash, openBrowser, openConsole, openFileManager, openRepositoryBrowser, openVsCode } from "../services/openService";
-import DropdownButton from "../components/ui/DropdownButton";
 import { platform } from "@tauri-apps/plugin-os";
+import Header from "../components/layout/Header";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
   const [active, setActive] = createSignal<string | null>(null);
-  const [pushing, setPushing] = createSignal(false);
-  const [pulling, setPulling] = createSignal(false);
-  const [fetching, setFetching] = createSignal(false);
-  const [dark, setDark] = createSignal(localStorage.getItem("theme") == "dark");
-  const [platform, setPlatform] = createSignal("");
-
-  const toggleDark = () => {
-    setDark(!dark());
-    if (dark()) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  };
-
-  async function openRepo() {
-    const selected = await open({ directory: true, multiple: false });
-
-    if (typeof selected === "string") {
-      try {
-        await validateRepo(selected);
-        const branches = await getBranchStatus(selected);
-        const remoteBranches = await getRemoteBranches(selected);
-        const name = await path.basename(selected);
-        const activeBranch = await getCurrentBranch(selected!);
-        const localChanges = await getLocalChanges(selected);
-        const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges };
-
-        // Evita duplicar se já estiver aberto
-        if (!repos().some(r => r.path === selected)) {
-          setRepos([...repos(), newRepo]);
-          await saveRepos([...repos(), newRepo]);
-        }
-        setActive(selected);
-
-      } catch (err) {
-        alert("Erro: " + err);
-      }
-    }
-  }
-
-  const doPush = async () => {
-    if (!active()) return;
-    setPushing(true);
-    try {
-      const branch = await getCurrentBranch(active()!);
-      await pushRepo(active()!, "origin", branch);
-      alert("Push realizado com sucesso!");
-      await refreshBranches(active()!);
-    } catch (err) {
-      alert("Erro no push: " + err);
-    } finally {
-      setPushing(false);
-    }
-  };
-
-  const doPull = async () => {
-    if (!active()) return;
-    setPulling(true);
-    try {
-      const branch = await getCurrentBranch(active()!);
-      await pull(active()!, branch);
-      alert("Pull realizado com sucesso!");
-      await refreshBranches(active()!);
-    } catch (err) {
-      alert("Erro no pull: " + err);
-    } finally {
-      setPulling(false);
-    }
-  }
-
-  const doFetch = async () => {
-    if (!active()) return;
-    setFetching(true);
-    try {
-      await fetchRepo(active()!, "origin");
-      alert("Fetch realizado com sucesso!");
-      await refreshBranches(active()!);
-    } catch (err) {
-      alert("Erro no fetch: " + err);
-    } finally {
-      setFetching(false);
-    }
-  };
-
-  const disabledButton = () => {
-    return pushing() || pulling() || fetching();
-  }
 
   const closeRepo = (id: string) => {
     setRepos(prev => {
@@ -125,9 +26,6 @@ export default function RepoTabsPage() {
   };
 
   onMount(async () => {
-    const plat = platform();
-    setPlatform(plat); // "windows", "macos", "linux", etc.
-
     const savedPaths = await loadRepos();
 
     for (const repoPath of savedPaths) {
@@ -198,78 +96,7 @@ export default function RepoTabsPage() {
      <RepoContext.Provider value={{ repos, active, refreshBranches }}>
       <div class="flex flex-col h-full dark:bg-gray-800 dark:text-white">
         {/* Topo com botão */}
-        <div class="p-2 border-b bg-gray-100 flex items-center px-4 dark:bg-gray-800 dark:text-white dark:border-gray-700">
-          <Button class="top-btn" onClick={openRepo}>
-            <img src={folderIcon} class="inline h-6" />
-            <small>Abrir Repositório</small>
-          </Button>
-          <Button class="top-btn" onClick={async () => { await doFetch()}} disabled={disabledButton()}>
-            <img src={fetchIcon} class="inline h-6" />
-            <small>{fetching() ? " Atualizando..." : " Fetch"}</small>
-          </Button>
-          <Button class="top-btn relative" onClick={async () => { await doPull()}} disabled={disabledButton()}>
-            <img src={pullIcon} class="inline h-6" />
-             <small>{pulling() ? " Atualizando..." : " Pull"}</small>
-             {active() && (() => {
-              const repo = repos().find(r => r.path === active());
-              const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
-              return branch && branch.behind > 0
-                ? <span class="text-red-700 dark:text-red-200 font-bold rounded-full ml-1 absolute px-2 right-0">
-                  {branch.behind}
-                </span>
-                : null;
-            })()}
-          </Button>
-          <Button class="top-btn relative" onClick={async () => { await doPush()}} disabled={disabledButton()}>
-            <img src={pushIcon} class="inline h-6" />
-            <small>{pushing() ? " Enviando..." : " Push"}</small>
-            {active() && (() => {
-              const repo = repos().find(r => r.path === active());
-              const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
-              return branch && branch.ahead > 0
-                ? <span class="text-green-700 dark:text-green-200 font-bold rounded-full ml-1 absolute px-2 left-0">
-                  {branch.ahead}
-                </span>
-                : null;
-            })()}
-          </Button>
-          <DropdownButton
-            label="Abrir"
-            class="ml-auto"
-            img={newWindowIcon}
-            options={[
-              {
-                label: "Abrir Console",
-                action: () => openConsole(active()!)
-              },
-              {
-                label: "Abrir no Git Bash",
-                hide: platform() != "windows",
-                action: () => openBash(active()!)
-              },
-              {
-                label: "Gerenciador de Arquivos",
-                action: () => openFileManager(active()!)
-              },
-              {
-                label: "Navegador",
-                action: () => openRepositoryBrowser(active()!)
-              },
-              {
-                label: "Abrir no VSCode",
-                action: () => openVsCode(active()!)
-              },
-            ]}
-          />
-
-          <Button
-            class="top-btn ml-2"
-            onClick={toggleDark}
-          >
-            <img src={dark() ? sunIcon : moonIcon} class="inline h-6" />
-            <small>{dark() ? "Claro" : "Escuro"}</small>
-          </Button>
-        </div>
+        <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
 
         {/* Abas + conteúdo */}
         <div class="flex flex-col flex-1">
