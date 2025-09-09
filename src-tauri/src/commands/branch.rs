@@ -157,7 +157,13 @@ pub fn checkout_branch(repo_path: String, branch: String) -> Result<String, Stri
 }
 
 #[tauri::command]
-pub fn create_branch(repo_path: String, branch_name: String, branch_type: String, checkout: bool) -> Result<String, String> {
+pub fn create_branch(
+    repo_path: String,
+    branch_name: String,
+    branch_type: String,
+    base_branch: String,
+    checkout: bool
+) -> Result<String, String> {
     // Monta o nome final da branch com base no tipo
     let full_branch_name = match branch_type.as_str() {
         "feature" => format!("feature/{}", branch_name),
@@ -166,12 +172,19 @@ pub fn create_branch(repo_path: String, branch_name: String, branch_type: String
         _ => branch_name.clone(),
     };
 
-    // Cria a branch
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(&repo_path)
-        .arg("branch")
-        .arg(&full_branch_name)
+    // Comando para criar a branch a partir da base
+    let mut create_cmd = Command::new("git");
+    create_cmd.arg("-C").arg(&repo_path);
+
+    if checkout {
+        // Cria e já troca para a nova branch
+        create_cmd.args(["checkout", "-b", &full_branch_name, &base_branch]);
+    } else {
+        // Apenas cria a branch a partir da base
+        create_cmd.args(["branch", &full_branch_name, &base_branch]);
+    }
+
+    let output = create_cmd
         .output()
         .map_err(|e| format!("Erro ao executar git: {}", e))?;
 
@@ -180,24 +193,6 @@ pub fn create_branch(repo_path: String, branch_name: String, branch_type: String
             "Falha ao criar branch: {}",
             String::from_utf8_lossy(&output.stderr)
         ));
-    }
-
-    // Se marcado, já faz checkout na branch nova
-    if checkout {
-        let checkout_output = Command::new("git")
-            .arg("-C")
-            .arg(&repo_path)
-            .arg("checkout")
-            .arg(&full_branch_name)
-            .output()
-            .map_err(|e| format!("Erro ao executar git checkout: {}", e))?;
-
-        if !checkout_output.status.success() {
-            return Err(format!(
-                "Branch criada, mas falha ao trocar: {}",
-                String::from_utf8_lossy(&checkout_output.stderr)
-            ));
-        }
     }
 
     Ok(full_branch_name)
