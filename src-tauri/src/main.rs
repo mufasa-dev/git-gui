@@ -12,6 +12,7 @@ fn main() {
             commands::branch::get_branch_status,
             commands::branch::get_current_branch,
             commands::branch::checkout_branch,
+            commands::branch::create_branch,
             commands::commit::list_commits,
             commands::commit::get_commit_details,
             commands::commit::git_commit,

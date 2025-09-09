@@ -155,3 +155,50 @@ pub fn checkout_branch(repo_path: String, branch: String) -> Result<String, Stri
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
+
+#[tauri::command]
+pub fn create_branch(repo_path: String, branch_name: String, branch_type: String, checkout: bool) -> Result<String, String> {
+    // Monta o nome final da branch com base no tipo
+    let full_branch_name = match branch_type.as_str() {
+        "feature" => format!("feature/{}", branch_name),
+        "hotfix" => format!("hotfix/{}", branch_name),
+        "release" => format!("release/{}", branch_name),
+        _ => branch_name.clone(),
+    };
+
+    // Cria a branch
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&repo_path)
+        .arg("branch")
+        .arg(&full_branch_name)
+        .output()
+        .map_err(|e| format!("Erro ao executar git: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "Falha ao criar branch: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    // Se marcado, já faz checkout na branch nova
+    if checkout {
+        let checkout_output = Command::new("git")
+            .arg("-C")
+            .arg(&repo_path)
+            .arg("checkout")
+            .arg(&full_branch_name)
+            .output()
+            .map_err(|e| format!("Erro ao executar git checkout: {}", e))?;
+
+        if !checkout_output.status.success() {
+            return Err(format!(
+                "Branch criada, mas falha ao trocar: {}",
+                String::from_utf8_lossy(&checkout_output.stderr)
+            ));
+        }
+    }
+
+    Ok(full_branch_name)
+}
