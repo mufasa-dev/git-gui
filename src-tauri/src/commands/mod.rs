@@ -4,3 +4,4 @@ pub mod repo;
 pub mod stage;
 pub mod terminal;
 pub mod vs_code;
+pub mod image;
