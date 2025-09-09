@@ -1,6 +1,9 @@
 use std::path::Path;
 use std::process::Command;
 use tauri::command;
+use std::fs;
+use std::env::temp_dir;
+use serde_json::json;
 
 #[tauri::command]
 pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
@@ -98,8 +101,7 @@ pub fn discard_changes(path: String, files: Vec<String>) -> Result<String, Strin
 }
 
 #[tauri::command]
-pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<String, String> {
-    // Caminho absoluto do arquivo
+pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_json::Value, String> {
     let file_path = Path::new(&repo_path).join(&file);
 
     // Verifica se é untracked
@@ -115,13 +117,18 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<String,
 
     if !status_output.stdout.is_empty() {
         // Arquivo é untracked → mostra conteúdo inteiro como "added"
-        let content = std::fs::read_to_string(&file_path).unwrap_or_default();
+        let content = fs::read_to_string(&file_path).unwrap_or_default();
         let diff = format!(
             "diff --git a/{f} b/{f}\nnew file mode 100644\n--- /dev/null\n+++ b/{f}\n+{c}",
             f = file,
             c = content.replace("\n", "\n+")
         );
-        return Ok(diff);
+
+        return Ok(json!({
+            "diff": diff,
+            "oldFile": null,
+            "newFile": file_path.to_string_lossy().to_string()
+        }));
     }
 
     // Se não for untracked → usa git diff normal
@@ -135,7 +142,38 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<String,
     }
 
     let output = cmd.output().map_err(|e| e.to_string())?;
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    let diff_str = String::from_utf8_lossy(&output.stdout).to_string();
+
+    // ⚡ Detecta binário (git diff retorna "Binary files ... differ")
+    if diff_str.contains("Binary files") {
+        // cria arquivo temporário para versão antiga
+        let mut show_cmd = Command::new("git");
+        show_cmd.arg("-C").arg(&repo_path);
+        if staged {
+            show_cmd.args(["show", &format!(":{}", file)]);
+        } else {
+            show_cmd.args(["show", &format!("HEAD:{}", file)]);
+        }
+
+        let show_output = show_cmd.output().map_err(|e| e.to_string())?;
+        if !show_output.stdout.is_empty() {
+            let tmp_path = temp_dir().join(format!("old_{}", file.replace("/", "_")));
+            fs::write(&tmp_path, &show_output.stdout).map_err(|e| e.to_string())?;
+
+            return Ok(json!({
+                "diff": diff_str,
+                "oldFile": tmp_path.to_string_lossy().to_string(),
+                "newFile": file_path.to_string_lossy().to_string()
+            }));
+        }
+    }
+
+    // Caso normal (texto)
+    Ok(json!({
+        "diff": diff_str,
+        "oldFile": null,
+        "newFile": null
+    }))
 }
 
 fn run_git(repo_path: &str, args: &[&str]) -> Result<String, String> {
