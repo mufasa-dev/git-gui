@@ -112,6 +112,15 @@ export async function fetchRepo(path: string, remote: string): Promise<string> {
   return await invoke("fetch_repo", { repoPath: path, remote });
 }
 
+export async function createBranch(branchName: string, branchType: string, checkout: boolean, repoPath: string) {
+  return await invoke<string>("create_branch", {
+    repoPath,
+    branchName,
+    branchType,
+    checkout,
+  });
+}
+
 export async function stashChanges(repoPath: string) {
   return await invoke("stash_changes", { repoPath });
 }
