@@ -9,6 +9,7 @@ use serde_json::json;
 pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
     use std::process::Command;
     use serde_json::json;
+    use std::path::Path;
 
     let output = Command::new("git")
         .arg("-C")
@@ -30,13 +31,18 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
             continue;
         }
 
-        // Segurança: algumas saídas podem ser menores, proteja slices
         let code = if line.len() >= 2 { &line[0..2] } else { line };
         let file_path = if line.len() > 3 { line[3..].to_string() } else { "".to_string() };
 
-        // Caso especial: diretório untracked (ex: "?? src/components/layout/")
+        // extrair extensão (se existir)
+        let extension = Path::new(&file_path)
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        // Caso especial: diretório untracked
         if code == "??" && file_path.ends_with('/') {
-            // lista arquivos não rastreados dentro da pasta
             let list_output = Command::new("git")
                 .arg("-C")
                 .arg(&path)
@@ -54,25 +60,31 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
                     if f.trim().is_empty() {
                         continue;
                     }
+
+                    let ext = Path::new(f)
+                        .extension()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+
                     changes.push(json!({
                         "path": f.to_string(),
                         "status": "untracked",
-                        "staged": false
+                        "staged": false,
+                        "extension": ext
                     }));
                 }
             } else {
-                // se falhar, caia para incluir a própria pasta (fallback)
                 changes.push(json!({
                     "path": file_path.clone(),
                     "status": "untracked",
-                    "staged": false
+                    "staged": false,
+                    "extension": extension
                 }));
             }
-
-            continue; // já processamos essa linha
+            continue;
         }
 
-        // Normal: interpretar os dois chars de status
         let (status, staged_flag) = match code {
             " M" | "MM" | "M " => ("modified", code.starts_with('M')),
             "A " | " A" => ("added", code.starts_with('A')),
@@ -86,13 +98,13 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
         changes.push(json!({
             "path": file_path,
             "status": status,
-            "staged": staged_flag
+            "staged": staged_flag,
+            "extension": extension
         }));
     }
 
     Ok(changes)
 }
-
 
 /// Stage arquivos (git add)
 #[command]
