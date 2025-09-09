@@ -1,34 +1,32 @@
-import { createSignal } from "solid-js/types/server/reactive.js";
+import { createSignal } from "solid-js";
 import Button from "../ui/Button";
 import Dialog from "../ui/Dialog";
 
 type Props = {
   open: boolean;
-  branch: string;
+  repoPath?: string;
   onCancel: () => void;
   onCreate: (branchName: string, branchType: string, checkout: boolean) => void;
+  refreshBranches: (repoPath: string) => Promise<void>;
 };
 
 export default function BranchSwitchModal(props: Props) {
   const [branchName, setBranchName] = createSignal("");
-  const [branchType, setBranchType] = createSignal("local");
+  const [branchType, setBranchType] = createSignal("branch");
   const [checkout, setCheckout] = createSignal(true);
 
   return (
-    <Dialog open={props.open} title="Mudar de Branch" onClose={props.onCancel}>
-        <h2 class="text-lg font-semibold">
-          Nova Branch
-        </h2>
+    <Dialog open={props.open} title="Nova Branch" onClose={props.onCancel}>
         <div>
-          <label>Nome:</label>
-          <input type="text" class="w-full input-text" placeholder="Mensagem do commit"
+          <label>Nome da branch:</label>
+          <input type="text" class="w-full input-text" placeholder="Nome da nova branch"
             value={branchName()}
             onInput={(e) => setBranchName(e.currentTarget.value)} />
         </div>
 
         <div>
           <label>Tipo:</label>
-          <select class="w-full input-text" value={branchType()} onChange={(e) => setBranchType(e.currentTarget.value)}>
+          <select class="w-full input-select" value={branchType()} onChange={(e) => setBranchType(e.currentTarget.value)}>
             <option value="branch">Branch</option>
             <option value="feature">Feature</option>
             <option value="hotfix">Hotfix</option>
@@ -36,7 +34,7 @@ export default function BranchSwitchModal(props: Props) {
           </select>
         </div>
 
-        <div>
+        <div class="mt-2">
           <input
             type="checkbox" id="checkout" name="checkout"
             checked={checkout()} onChange={(e) => setCheckout(e.currentTarget.checked)}
@@ -44,16 +42,16 @@ export default function BranchSwitchModal(props: Props) {
           <label for="checkout" class="ml-1">Fazer checkout para a nova branch</label>
         </div>
 
-        <div class="flex flex-col gap-2 mt-4">
+        <div class="flex gap-2 mt-4">
           <Button
-            class="border-gray-400 dark:border-gray-700"
+            class="border rounded border-gray-400 dark:border-gray-700 flex-1"
             onClick={props.onCancel}
           >
             Cancelar
           </Button>
 
           <Button
-            class="bg-blue-600 text-white hover:bg-blue-700 ml-2"
+            class="btn-primary ml-2 flex-1"
             onClick={() => props.onCreate(branchName(), branchType(), checkout())}
           >
             Criar
