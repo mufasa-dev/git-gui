@@ -1,12 +1,13 @@
-import { createSignal } from "solid-js";
+import { createSignal, For } from "solid-js";
 import Button from "../ui/Button";
 import Dialog from "../ui/Dialog";
 
 type Props = {
   open: boolean;
   repoPath?: string;
+  branches: string[];
   onCancel: () => void;
-  onCreate: (branchName: string, branchType: string, checkout: boolean) => void;
+  onCreate: (branchName: string, branchType: string, checkout: boolean, baseBranch: string) => void;
   refreshBranches: (repoPath: string) => Promise<void>;
 };
 
@@ -14,6 +15,7 @@ export default function BranchSwitchModal(props: Props) {
   const [branchName, setBranchName] = createSignal("");
   const [branchType, setBranchType] = createSignal("branch");
   const [checkout, setCheckout] = createSignal(true);
+  const [baseBranch, setBaseBranch] = createSignal("main");
 
   return (
     <Dialog open={props.open} title="Nova Branch" onClose={props.onCancel}>
@@ -31,6 +33,19 @@ export default function BranchSwitchModal(props: Props) {
             <option value="feature">Feature</option>
             <option value="hotfix">Hotfix</option>
             <option value="release">Release</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Base:</label>
+          <select
+            class="w-full input-select"
+            value={baseBranch()}
+            onChange={(e) => setBaseBranch(e.currentTarget.value)}
+          >
+            <For each={props.branches}>
+              {(b) => <option value={b}>{b}</option>}
+            </For>
           </select>
         </div>
 
@@ -52,7 +67,7 @@ export default function BranchSwitchModal(props: Props) {
 
           <Button
             class="btn-primary ml-2 flex-1"
-            onClick={() => props.onCreate(branchName(), branchType(), checkout())}
+            onClick={() => props.onCreate(branchName(), branchType(), checkout(), baseBranch())}
           >
             Criar
           </Button>
