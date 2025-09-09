@@ -115,10 +115,10 @@ export default function Header(props: Props) {
       }
     };
 
-    const doCreateBranch = async (branchName: string, branchType: string, checkout: boolean) => {
+    const doCreateBranch = async (branchName: string, branchType: string, checkout: boolean, baseBranch: string) => {
       if (!props.active) return;
       try {
-        await createBranch(branchName, branchType, checkout, props.active!);
+        await createBranch(branchName, branchType, checkout, baseBranch, props.active!);
         alert(`Branch ${branchName} criada com sucesso!`);
         setOpenModalNewBranch(false);
         await props.refreshBranches(props.active!);
@@ -214,8 +214,8 @@ export default function Header(props: Props) {
           </Button>
           <NewBranchModal open={openModalNewBranch()} 
             onCancel={() => setOpenModalNewBranch(false)} 
-            onCreate={(branchName: string, branchType: string, checkout: boolean) => doCreateBranch(branchName, branchType, checkout)}
-            repoPath={props.active!} 
+            onCreate={(branchName: string, branchType: string, checkout: boolean, baseBranch: string) => doCreateBranch(branchName, branchType, checkout, baseBranch)}
+            repoPath={props.active!} branches={props.active ? props.repos.find(r => r.path === props.active!)?.branches.map(b => b.name) || [] : []}
             refreshBranches={props.refreshBranches} />
         </div>
     )
