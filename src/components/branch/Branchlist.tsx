@@ -1,11 +1,14 @@
-import { createSignal } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
 import TreeView, { TreeNodeMap }  from "../ui/TreeView";
+import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
+import { openPullRequestUrl } from "../../services/gitService";
 
 type Props = {
   localTree: TreeNodeMap;
   remoteTree: TreeNodeMap;
   activeBranch?: string;
   selectedBranch?: string;
+  repoPath: string;
   onSelectBranch?: (branch: string) => void;
   onActivateBranch?: (branch: string) => void;
 };
@@ -13,6 +16,26 @@ type Props = {
 export default function BranchList(props: Props) {
   const [openBranch, setOpenBranch] = createSignal<boolean>(true);
   const [openRemote, setOpenRemote] = createSignal<boolean>(false);
+  const [menuVisible, setMenuVisible] = createSignal(false);
+  const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
+  const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
+
+  const openContextMenu = (e: MouseEvent,branch: string) => {
+    e.preventDefault();
+    
+    let items = [];
+
+    items.push({ label: "Criar pull request", action: () => openPullRequestUrl(props.repoPath, branch) });
+
+    setMenuItems(items);
+    setMenuPos({ x: e.clientX, y: e.clientY });
+    setMenuVisible(true);
+  }
+
+  const hideContextMenu = () => setMenuVisible(false);
+  
+  document.addEventListener("click", hideContextMenu);
+  onCleanup(() => document.removeEventListener("click", hideContextMenu));
 
   return (
     <div class="h-[100px]">
@@ -25,6 +48,7 @@ export default function BranchList(props: Props) {
         selectedBranch={props.selectedBranch}
         onSelectBranch={props.onSelectBranch}
         onActivateBranch={props.onActivateBranch}
+        openContextMenu={openContextMenu}
       />}
 
       <b onClick={() => setOpenRemote(!openRemote())} class="cursor-pointer mt-4 block">
@@ -35,7 +59,15 @@ export default function BranchList(props: Props) {
         activeBranch={props.activeBranch}
         selectedBranch={props.selectedBranch}
         onSelectBranch={props.onSelectBranch} 
+        openContextMenu={openContextMenu}
       />}
+      <Show when={menuVisible()}>
+        <ContextMenu
+          items={menuItems()}
+          position={menuPos()}
+          onClose={() => setMenuVisible(false)}
+        />
+      </Show>
     </div>
   );
 }
