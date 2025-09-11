@@ -134,6 +134,6 @@ export async function resetHard(repoPath: string) {
   return await invoke("reset_hard", { repoPath });
 }
 
-export async function openPullRequestUrl(repoPath: string, branch: string) {
-  return await invoke("open_pull_request", { repoPath, branch });
+export async function openPullRequestUrl(path: string, branch: string) {
+  return await invoke("open_pull_request", { path, branch });
 }
