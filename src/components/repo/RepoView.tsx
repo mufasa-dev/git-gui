@@ -150,6 +150,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
           localTree={localTree()} 
           remoteTree={remoteTree()} 
           activeBranch={props.repo.activeBranch}
+          repoPath={props.repo.path}
           selectedBranch={selectedBranch()}
           onSelectBranch={selectBranch}
           onActivateBranch={(branch: string) => handleActiveBranch(props.repo.path, branch)}  
