@@ -36,7 +36,8 @@ fn main() {
             commands::vs_code::open_vscode_diff,
             commands::vs_code::open_vscode_git_diff,
             commands::image::load_image_base64,
-            commands::merge::merge_branch
+            commands::merge::merge_branch,
+            commands::pull_request::open_pull_request
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
