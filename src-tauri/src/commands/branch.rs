@@ -197,3 +197,21 @@ pub fn create_branch(
 
     Ok(full_branch_name)
 }
+
+#[tauri::command]
+pub fn delete_branch(path: String, branch: String, force: bool) -> Result<(), String> {
+    let flag = if force { "-D" } else { "-d" };
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&path)
+        .args(["branch", flag, &branch])
+        .output()
+        .map_err(|e| format!("Erro ao executar git: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(())
+}
