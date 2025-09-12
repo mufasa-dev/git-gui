@@ -1,7 +1,7 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import TreeView, { TreeNodeMap }  from "../ui/TreeView";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
-import { openPullRequestUrl } from "../../services/gitService";
+import { mergeBranch, openPullRequestUrl } from "../../services/gitService";
 
 type Props = {
   localTree: TreeNodeMap;
@@ -24,6 +24,10 @@ export default function BranchList(props: Props) {
     e.preventDefault();
     
     let items = [];
+
+    if (branch != props.activeBranch) {
+      items.push({ label: "Merge em " + props.activeBranch, action: () => mergeBranch(props.repoPath, branch, props.activeBranch!) });
+    }
 
     items.push({ label: "Criar pull request", action: () => openPullRequestUrl(props.repoPath, branch) });
 
