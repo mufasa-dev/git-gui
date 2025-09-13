@@ -215,3 +215,21 @@ pub fn delete_branch(path: String, branch: String, force: bool) -> Result<(), St
 
     Ok(())
 }
+
+#[tauri::command]
+pub fn delete_remote_branch(path: String, branch: String, remote: Option<String>) -> Result<(), String> {
+    let remote_name = remote.unwrap_or_else(|| "origin".to_string());
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&path)
+        .args(["push", &remote_name, "--delete", &branch])
+        .output()
+        .map_err(|e| format!("Erro ao executar git: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(())
+}
