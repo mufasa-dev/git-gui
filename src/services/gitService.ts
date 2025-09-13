@@ -141,3 +141,11 @@ export async function openPullRequestUrl(repoPath: string, branch: string) {
 export async function mergeBranch(repoPath: string, fromBranch: string, toBranch: string) {
   return await invoke("merge_branch", { repoPath, fromBranch, toBranch });
 }
+
+export async function deleteBranch(repoPath: string, branch: string) {
+  return await invoke("delete_branch", { path: repoPath, branch });
+}
+
+export async function deleteRemoteBranch(repoPath: string, branch: string, remote: string = "origin") {
+  return await invoke("delete_remote_branch", { path: repoPath, branch, remote });
+}
