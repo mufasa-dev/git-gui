@@ -112,6 +112,16 @@ export async function fetchRepo(path: string, remote: string): Promise<string> {
   return await invoke("fetch_repo", { repoPath: path, remote });
 }
 
+export async function createBranch(branchName: string, branchType: string, checkout: boolean, baseBranch: string, repoPath: string) {
+  return await invoke<string>("create_branch", {
+    repoPath,
+    branchName,
+    branchType,
+    baseBranch,
+    checkout,
+  });
+}
+
 export async function stashChanges(repoPath: string) {
   return await invoke("stash_changes", { repoPath });
 }
@@ -122,4 +132,20 @@ export async function stashPop(repoPath: string) {
 
 export async function resetHard(repoPath: string) {
   return await invoke("reset_hard", { repoPath });
+}
+
+export async function openPullRequestUrl(repoPath: string, branch: string) {
+  return await invoke("open_pull_request", { repoPath, branch });
+}
+
+export async function mergeBranch(repoPath: string, fromBranch: string, toBranch: string) {
+  return await invoke("merge_branch", { repoPath, fromBranch, toBranch });
+}
+
+export async function deleteBranch(repoPath: string, branch: string) {
+  return await invoke("delete_branch", { path: repoPath, branch });
+}
+
+export async function deleteRemoteBranch(repoPath: string, branch: string, remote: string = "origin") {
+  return await invoke("delete_remote_branch", { path: repoPath, branch, remote });
 }

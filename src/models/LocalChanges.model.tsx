@@ -1,5 +1,6 @@
 export type LocalChange = {
     path: string; 
     status: string; 
-    staged: boolean
+    staged: boolean;
+    extension?: string;
 }

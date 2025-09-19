@@ -155,3 +155,81 @@ pub fn checkout_branch(repo_path: String, branch: String) -> Result<String, Stri
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
+
+#[tauri::command]
+pub fn create_branch(
+    repo_path: String,
+    branch_name: String,
+    branch_type: String,
+    base_branch: String,
+    checkout: bool
+) -> Result<String, String> {
+    // Monta o nome final da branch com base no tipo
+    let full_branch_name = match branch_type.as_str() {
+        "feature" => format!("feature/{}", branch_name),
+        "hotfix" => format!("hotfix/{}", branch_name),
+        "release" => format!("release/{}", branch_name),
+        _ => branch_name.clone(),
+    };
+
+    // Comando para criar a branch a partir da base
+    let mut create_cmd = Command::new("git");
+    create_cmd.arg("-C").arg(&repo_path);
+
+    if checkout {
+        // Cria e já troca para a nova branch
+        create_cmd.args(["checkout", "-b", &full_branch_name, &base_branch]);
+    } else {
+        // Apenas cria a branch a partir da base
+        create_cmd.args(["branch", &full_branch_name, &base_branch]);
+    }
+
+    let output = create_cmd
+        .output()
+        .map_err(|e| format!("Erro ao executar git: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "Falha ao criar branch: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    Ok(full_branch_name)
+}
+
+#[tauri::command]
+pub fn delete_branch(path: String, branch: String, force: bool) -> Result<(), String> {
+    let flag = if force { "-D" } else { "-d" };
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&path)
+        .args(["branch", flag, &branch])
+        .output()
+        .map_err(|e| format!("Erro ao executar git: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_remote_branch(path: String, branch: String, remote: Option<String>) -> Result<(), String> {
+    let remote_name = remote.unwrap_or_else(|| "origin".to_string());
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&path)
+        .args(["push", &remote_name, "--delete", &branch])
+        .output()
+        .map_err(|e| format!("Erro ao executar git: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(())
+}

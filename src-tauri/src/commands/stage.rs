@@ -8,6 +8,8 @@ use serde_json::json;
 #[tauri::command]
 pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
     use std::process::Command;
+    use serde_json::json;
+    use std::path::Path;
 
     let output = Command::new("git")
         .arg("-C")
@@ -29,25 +31,75 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
             continue;
         }
 
-        let status_chars: Vec<char> = line.chars().collect();
-        let staged_flag = status_chars[0] != ' ';
-        let status_code = format!("{}{}", status_chars[0], status_chars[1]);
-        let file_path = line[3..].to_string();
+        let code = if line.len() >= 2 { &line[0..2] } else { line };
+        let file_path = if line.len() > 3 { line[3..].to_string() } else { "".to_string() };
 
-        let status = match status_code.trim() {
-            "M" | " M" | "MM" => "modified",
-            "A" | " A" => "added",
-            "D" | " D" => "deleted",
-            "R" | " R" => "renamed",
-            "C" | " C" => "copied",
-            "??" => "untracked",
-            _ => "unknown",
+        // extrair extensão (se existir)
+        let extension = Path::new(&file_path)
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        // Caso especial: diretório untracked
+        if code == "??" && file_path.ends_with('/') {
+            let list_output = Command::new("git")
+                .arg("-C")
+                .arg(&path)
+                .arg("ls-files")
+                .arg("--others")
+                .arg("--exclude-standard")
+                .arg("--")
+                .arg(&file_path)
+                .output()
+                .map_err(|e| e.to_string())?;
+
+            if list_output.status.success() {
+                let list_stdout = String::from_utf8_lossy(&list_output.stdout);
+                for f in list_stdout.lines() {
+                    if f.trim().is_empty() {
+                        continue;
+                    }
+
+                    let ext = Path::new(f)
+                        .extension()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+
+                    changes.push(json!({
+                        "path": f.to_string(),
+                        "status": "untracked",
+                        "staged": false,
+                        "extension": ext
+                    }));
+                }
+            } else {
+                changes.push(json!({
+                    "path": file_path.clone(),
+                    "status": "untracked",
+                    "staged": false,
+                    "extension": extension
+                }));
+            }
+            continue;
+        }
+
+        let (status, staged_flag) = match code {
+            " M" | "MM" | "M " => ("modified", code.starts_with('M')),
+            "A " | " A" => ("added", code.starts_with('A')),
+            "D " | " D" => ("deleted", code.starts_with('D')),
+            "R " | " R" => ("renamed", code.starts_with('R')),
+            "C " | " C" => ("copied", code.starts_with('C')),
+            "??" => ("untracked", false),
+            _ => ("unknown", code.chars().next().map(|c| c != ' ').unwrap_or(false)),
         };
 
-        changes.push(serde_json::json!({
+        changes.push(json!({
             "path": file_path,
             "status": status,
-            "staged": staged_flag
+            "staged": staged_flag,
+            "extension": extension
         }));
     }
 

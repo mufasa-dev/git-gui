@@ -5,3 +5,5 @@ pub mod stage;
 pub mod terminal;
 pub mod vs_code;
 pub mod image;
+pub mod merge;
+pub mod pull_request;

@@ -220,10 +220,10 @@ export function LocalChanges(props: { repo: Repo; }) {
           </div>
         </div>
         <div class="border-t border-gray-300 p-4 dark:border-gray-900">
-          <input type="text" class="w-full border rounded border-gray-300 py-1 px-2 dark:bg-gray-700 dark:border-gray-900" placeholder="Mensagem do commit"
+          <input type="text" class="w-full input-text" placeholder="Mensagem do commit"
             value={commitMessage()}
             onInput={(e) => setCommitMessage(e.currentTarget.value)} />
-          <input type="text" class="w-full border rounded border-gray-300 py-1 px-2 mt-2 dark:bg-gray-700 dark:border-gray-900" placeholder="Descrição"
+          <input type="text" class="w-full mt-2 input-text" placeholder="Descrição"
             value={commitDescription()}
             onInput={(e) => setCommitDescription(e.currentTarget.value)} />
           <div class="flex mt-2">

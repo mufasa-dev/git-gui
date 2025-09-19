@@ -18,6 +18,7 @@ export type TreeViewProps = {
   selectedBranch?: string;
   onSelectBranch?: (branch: string) => void;
   onActivateBranch?: (branch: string) => void;
+  openContextMenu?: (e: MouseEvent, branch: string) => void;
 };
 
 export function buildTree(branches: Branch[]): TreeNodeMap {
@@ -85,7 +86,12 @@ export default function TreeView(props: TreeViewProps) {
                       props.onActivateBranch?.(node.original);
                     }
                   }}
-
+                  onContextMenu={(e: MouseEvent) => {
+                    e.stopPropagation();
+                    if (!node.children) {
+                      props.openContextMenu?.(e, node.original);
+                    }
+                  }}
                 >
                   {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[node.name], "fa-caret-right" : !open()[node.name]}}></i>} 
                   {!isLeaf && <i class="fa-solid mr-1 text-yellow-600" classList={{"fa-folder-open" : open()[node.name], "fa-folder" : !open()[node.name]}}></i>} 
@@ -103,6 +109,7 @@ export default function TreeView(props: TreeViewProps) {
                         selectedBranch={props.selectedBranch}
                         onSelectBranch={props.onSelectBranch}
                         onActivateBranch={props.onActivateBranch}
+                        openContextMenu={props.openContextMenu}
                     />
                 )}
           </li>
