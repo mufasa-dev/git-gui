@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::process::Command;
+use crate::models::pull::GitPullResult;
 use tauri::command;
 
 #[tauri::command]
@@ -35,18 +36,39 @@ pub fn push_repo(
 }
 
 #[command]
-pub fn git_pull(repo_path: String, branch: String) -> Result<String, String> {
+pub fn git_pull(repo_path: String, branch: String) -> Result<GitPullResult, String> {
+    use std::process::Command;
+
     let output = Command::new("git")
         .args(["pull", "origin", &branch])
         .current_dir(&repo_path)
         .output()
-        .map_err(|e| format!("Failed to execute git pull: {}", e))?;
+        .map_err(|e| format!("Falha ao executar git pull: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
 
     if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+        return Ok(GitPullResult {
+            success: true,
+            message: stdout.to_string(),
+            needs_resolution: false,
+        });
     }
+
+    // ⚠️ Detecta erro de divergência (padrão do Git)
+    if stderr.contains("divergent branches")
+        || stderr.contains("Need to specify how to reconcile divergent branches")
+    {
+        return Ok(GitPullResult {
+            success: false,
+            message: stderr.to_string(),
+            needs_resolution: true,
+        });
+    }
+
+    // ❌ Outros erros
+    Err(stderr.to_string())
 }
 
 #[tauri::command]
@@ -62,6 +84,28 @@ pub fn fetch_repo(repo_path: String, remote: String) -> Result<String, String> {
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[command]
+pub fn git_config_pull(repo_path: String, mode: String) -> Result<(), String> {
+    let value = match mode.as_str() {
+        "merge" => "false",
+        "rebase" => "true",
+        "ff" => "only",
+        _ => return Err("Modo inválido. Use merge, rebase ou ff.".into()),
+    };
+
+    let output = Command::new("git")
+        .args(["config", "pull.rebase", value])
+        .current_dir(&repo_path)
+        .output()
+        .map_err(|e| format!("Falha ao configurar git: {}", e))?;
+
+    if output.status.success() {
+        Ok(())
     } else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
