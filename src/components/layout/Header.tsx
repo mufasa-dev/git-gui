@@ -4,7 +4,7 @@ import { openBash, openConsole, openFileManager, openRepositoryBrowser, openVsCo
 import Button from "../ui/Button";
 import DropdownButton from "../ui/DropdownButton";
 import NewBranchModal from "../branch/NewBranchModal";
-import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch } from "../../services/gitService";
+import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch, configPullMode } from "../../services/gitService";
 import { saveRepos } from "../../services/storeService";
 import folderIcon from "../../assets/folder.png";
 import fetchIcon from "../../assets/fetch.png";
@@ -89,17 +89,47 @@ export default function Header(props: Props) {
     const doPull = async () => {
       if (!props.active) return;
       setPulling(true);
+
       try {
         const branch = await getCurrentBranch(props.active!);
-        await pull(props.active!, branch);
-        alert("Pull realizado com sucesso!");
+        const result = await pull(props.active!, branch);
+
+        if (result.needs_resolution) {
+          const choice = window.prompt(
+            "O Git detectou branches divergentes.\nEscolha o modo de resolução:\n- merge\n- rebase\n- ff\n\nDigite uma das opções:"
+          );
+
+          if (!choice) throw new Error("Operação cancelada pelo usuário.");
+
+          const mode = choice.trim().toLowerCase();
+          if (!["merge", "rebase", "ff"].includes(mode)) {
+            throw new Error("Modo inválido. Use merge, rebase ou ff.");
+          }
+
+          await configPullMode(props.active!, mode as "merge" | "rebase" | "ff");
+
+          // tenta novamente
+          const retryResult = await pull(props.active!, branch);
+
+          if (retryResult.success) {
+            alert("Pull realizado com sucesso após ajuste!");
+          } else {
+            alert("Erro ao repetir o pull: " + retryResult.message);
+          }
+        } else if (result.success) {
+          alert("Pull realizado com sucesso!");
+        } else {
+          alert("Erro no pull: " + result.message);
+        }
+
         await props.refreshBranches(props.active!);
-      } catch (err) {
-        alert("Erro no pull: " + err);
+      } catch (err: any) {
+        alert("Erro no pull: " + err.message);
       } finally {
         setPulling(false);
       }
-    }
+    };
+
 
     const doFetch = async () => {
       if (!props.active) return;
