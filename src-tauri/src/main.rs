@@ -1,4 +1,5 @@
 mod commands;
+mod models;
 
 fn main() {
     tauri::Builder::default()
@@ -28,6 +29,7 @@ fn main() {
             commands::stage::reset_hard,
             commands::repo::push_repo,
             commands::repo::git_pull,
+            commands::repo::git_config_pull,
             commands::repo::fetch_repo,
             commands::terminal::open_console,
             commands::terminal::open_file_manager,
