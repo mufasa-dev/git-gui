@@ -3,8 +3,6 @@ use tauri::command;
 
 #[command]
 pub async fn open_pull_request(path: String, branch: String) -> Result<(), String> {
-    use std::process::Command;
-
     // 1️⃣ Pega a URL remota
     let output = Command::new("git")
         .arg("-C")
