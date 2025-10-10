@@ -5,7 +5,7 @@ A **cross-platform desktop app** for managing **Git repositories**, built with *
 
 It provides a **modern and intuitive interface** to work with **branches, commits, staging, and remote operations** (fetch, pull, push), all without touching the terminal! ⚡
 
-[![My Skills](https://skillicons.dev/icons?i=tauri,rust,solidjs,ts,tailwind)](https://skillicons.dev)
+[![My Skills](https://skillicons.dev/icons?i=tauri,rust,solidjs,ts,tailwind,vscode)](https://skillicons.dev)
 
 ---
 
