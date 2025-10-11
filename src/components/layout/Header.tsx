@@ -16,6 +16,7 @@ import newWindowIcon from "../../assets/new-window.png";
 import branchIcon from "../../assets/branch.png";
 import { open } from "@tauri-apps/plugin-dialog";
 import { path } from "@tauri-apps/api";
+import Dialog from "../ui/Dialog";
 
 type Props = {
     repos: Repo[];
@@ -33,6 +34,12 @@ export default function Header(props: Props) {
     const [dark, setDark] = createSignal(localStorage.getItem("theme") == "dark");
     
     const [platform, setPlatform] = createSignal("");
+    const [showModalPullOpts, setShowModalPullOpts] = createSignal(false);
+    const [modalInfo, setModalInfo] = createSignal<{
+      repoPath: string;
+      branch: string;
+      message: string;
+    } | null>(null);
 
     const toggleDark = () => {
         setDark(!dark());
@@ -95,28 +102,18 @@ export default function Header(props: Props) {
         const result = await pull(props.active!, branch);
 
         if (result.needs_resolution) {
-          const choice = window.prompt(
-            "O Git detectou branches divergentes.\nEscolha o modo de resolução:\n- merge\n- rebase\n- ff\n\nDigite uma das opções:"
-          );
+          // abre o modal com as informações
+          setModalInfo({
+            repoPath: props.active!,
+            branch,
+            message:
+              "O Git detectou branches divergentes.\nEscolha como reconciliar as diferenças:",
+          });
+          setShowModalPullOpts(true);
+          return; // aguarda interação do usuário
+        }
 
-          if (!choice) throw new Error("Operação cancelada pelo usuário.");
-
-          const mode = choice.trim().toLowerCase();
-          if (!["merge", "rebase", "ff"].includes(mode)) {
-            throw new Error("Modo inválido. Use merge, rebase ou ff.");
-          }
-
-          await configPullMode(props.active!, mode as "merge" | "rebase" | "ff");
-
-          // tenta novamente
-          const retryResult = await pull(props.active!, branch);
-
-          if (retryResult.success) {
-            alert("Pull realizado com sucesso após ajuste!");
-          } else {
-            alert("Erro ao repetir o pull: " + retryResult.message);
-          }
-        } else if (result.success) {
+        if (result.success) {
           alert("Pull realizado com sucesso!");
         } else {
           alert("Erro no pull: " + result.message);
@@ -130,6 +127,30 @@ export default function Header(props: Props) {
       }
     };
 
+    // 🔧 handler do modal
+    const handlePullModeChoice = async (mode: "merge" | "rebase" | "ff") => {
+      const info = modalInfo();
+      if (!info) return;
+
+      try {
+        await configPullMode(info.repoPath, mode);
+
+        const retryResult = await pull(info.repoPath, info.branch);
+        if (retryResult.success) {
+          alert("Pull realizado com sucesso após ajuste!");
+        } else {
+          alert("Erro ao repetir o pull: " + retryResult.message);
+        }
+
+        await props.refreshBranches(info.repoPath);
+      } catch (err: any) {
+        alert("Erro ao configurar o modo de pull: " + err.message);
+      } finally {
+        setShowModalPullOpts(false);
+        setModalInfo(null);
+        setPulling(false);
+      }
+    };
 
     const doFetch = async () => {
       if (!props.active) return;
@@ -247,6 +268,40 @@ export default function Header(props: Props) {
             onCreate={(branchName: string, branchType: string, checkout: boolean, baseBranch: string) => doCreateBranch(branchName, branchType, checkout, baseBranch)}
             repoPath={props.active!} branches={props.active ? props.repos.find(r => r.path === props.active!)?.branches.map(b => b.name) || [] : []}
             refreshBranches={props.refreshBranches} />
+
+            <Dialog
+              open={showModalPullOpts()}
+              title="Branches divergentes detectadas"
+              onClose={() => setShowModalPullOpts(false)}
+            >
+              <div class="space-y-4 text-gray-700 dark:text-gray-200">
+                <p>{modalInfo()?.message}</p>
+
+                <div class="space-y-2 mt-4">
+                  <button
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
+                    onClick={() => handlePullModeChoice("merge")}
+                  >
+                    🔀 Merge — combina as alterações das duas branches em um commit
+                  </button>
+
+                  <button
+                    class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition"
+                    onClick={() => handlePullModeChoice("rebase")}
+                  >
+                    ♻️ Rebase — reaplica seus commits sobre a branch remota
+                  </button>
+
+                  <button
+                    class="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded-lg transition"
+                    onClick={() => handlePullModeChoice("ff")}
+                  >
+                    ⚡ Fast-forward — apenas avança se não houver divergência real
+                  </button>
+                </div>
+              </div>
+            </Dialog>
+
         </div>
     )
 }
