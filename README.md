@@ -69,28 +69,6 @@ npm run tauri build
 
 ---
 
-## 📂 Project Structure
-
-```
-src/
- ├── components/    # UI components 🎨
- ├── services/      # Services for Tauri integration ⚡
- ├── models/        # Frontend data models 📦
- ├── pages/         # Main screens 🖥️
- └── App.tsx        # Main entry point 🚀
-
-src-tauri/
- ├── src/
- │   ├── git/
- │   │   ├── commit.rs   # Commits 📝
- │   │   ├── staging.rs  # Stage / Unstage ⚡
- │   │   ├── status.rs   # File and branch status 📊
- │   │   └── remote.rs   # Remote operations 🌍
- │   └── main.rs         # Tauri setup 🦀
-```
-
----
-
 ## 🖼️ Preview (mock)
 
 > *(Em breve)* 📸
