@@ -7,9 +7,10 @@ use serde_json::json;
 
 #[tauri::command]
 pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
+    use std::fs;
+    use std::path::Path;
     use std::process::Command;
     use serde_json::json;
-    use std::path::Path;
 
     let output = Command::new("git")
         .arg("-C")
@@ -34,14 +35,13 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
         let code = if line.len() >= 2 { &line[0..2] } else { line };
         let file_path = if line.len() > 3 { line[3..].to_string() } else { "".to_string() };
 
-        // extrair extensão (se existir)
         let extension = Path::new(&file_path)
             .extension()
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_string();
 
-        // Caso especial: diretório untracked
+            // Caso especial: diretório untracked
         if code == "??" && file_path.ends_with('/') {
             let list_output = Command::new("git")
                 .arg("-C")
@@ -85,6 +85,17 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
             continue;
         }
 
+        // Verifica se o arquivo está em conflito
+        let is_conflicted = matches!(code, "UU" | "AA" | "DD");
+
+        // Lê o conteúdo do arquivo se houver conflito
+        let old_value = if is_conflicted {
+            let abs_path = Path::new(&path).join(&file_path);
+            fs::read_to_string(&abs_path).unwrap_or_default()
+        } else {
+            String::new()
+        };
+
         let (status, staged_flag) = match code {
             " M" | "MM" | "M " => ("modified", code.starts_with('M')),
             "A " | " A" => ("added", code.starts_with('A')),
@@ -92,6 +103,7 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
             "R " | " R" => ("renamed", code.starts_with('R')),
             "C " | " C" => ("copied", code.starts_with('C')),
             "??" => ("untracked", false),
+            "UU" | "AA" | "DD" => ("conflicted", false),
             _ => ("unknown", code.chars().next().map(|c| c != ' ').unwrap_or(false)),
         };
 
@@ -99,7 +111,8 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
             "path": file_path,
             "status": status,
             "staged": staged_flag,
-            "extension": extension
+            "extension": extension,
+            "oldValue": old_value
         }));
     }
 
@@ -154,9 +167,15 @@ pub fn discard_changes(path: String, files: Vec<String>) -> Result<String, Strin
 
 #[tauri::command]
 pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_json::Value, String> {
+    use std::fs;
+    use std::path::Path;
+    use std::process::Command;
+    use std::env::temp_dir;
+    use serde_json::json;
+
     let file_path = Path::new(&repo_path).join(&file);
 
-    // Verifica se é untracked
+    // 1️⃣ Verifica se é untracked
     let status_output = Command::new("git")
         .arg("-C")
         .arg(&repo_path)
@@ -183,7 +202,20 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_j
         }));
     }
 
-    // Se não for untracked → usa git diff normal
+    // 2️⃣ Verifica se o arquivo tem conflito de merge
+    if let Ok(content) = fs::read_to_string(&file_path) {
+        if content.contains("<<<<<<<") && content.contains("=======") && content.contains(">>>>>>>") {
+            // Arquivo em conflito → retorna conteúdo atual como "diff"
+            return Ok(json!({
+                "diff": content,
+                "oldFile": null,
+                "newFile": file_path.to_string_lossy().to_string(),
+                "hasConflict": true
+            }));
+        }
+    }
+
+    // 3️⃣ Caso normal → usa git diff
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(&repo_path);
 
@@ -196,9 +228,8 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_j
     let output = cmd.output().map_err(|e| e.to_string())?;
     let diff_str = String::from_utf8_lossy(&output.stdout).to_string();
 
-    // ⚡ Detecta binário (git diff retorna "Binary files ... differ")
+    // 4️⃣ Detecta binário
     if diff_str.contains("Binary files") {
-        // cria arquivo temporário para versão antiga
         let mut show_cmd = Command::new("git");
         show_cmd.arg("-C").arg(&repo_path);
         if staged {
@@ -220,7 +251,7 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_j
         }
     }
 
-    // Caso normal (texto)
+    // 5️⃣ Caso padrão
     Ok(json!({
         "diff": diff_str,
         "oldFile": null,
