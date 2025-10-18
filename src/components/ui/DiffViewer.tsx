@@ -1,6 +1,8 @@
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { Diff } from "../../models/Diff.model";
 import { loadImage } from "../../services/imageService";
+import Dialog from "./Dialog";
+import MergeResolver from "../repo/MergeResolver";
 
 type Props = {
   diff: Diff;
@@ -51,8 +53,10 @@ function parseDiff(diff: string): DiffLine[] {
   return result;
 }
 
+
 export default function DiffViewer(props: Props) {
   const diffLines = () => parseDiff(props.diff.diff);
+  const [showMergeResolver, setShowMergeResolver] = createSignal(false);
 
   const isBinary = createMemo(() => {
     const d = props.diff.diff || "";
@@ -80,9 +84,15 @@ export default function DiffViewer(props: Props) {
     }
   });
 
+  const hasConflict = createMemo(() => {
+    const diff = props.diff.diff || "";
+    return diff.includes("<<<<<<<") && diff.includes("=======") && diff.includes(">>>>>>>");
+  });
+  console.log("hasConflict", props);
+
   return (
     <>
-      <Show when={isBinary()}>
+      <Show when={isBinary() && !hasConflict()}>
         <div class="flex gap-4 p-4 border border-gray-300 dark:border-gray-700 rounded-md my-1">
           <div class="flex-1 text-center"> 
             <p class="text-sm text-gray-500">Versão antiga</p>
@@ -98,7 +108,7 @@ export default function DiffViewer(props: Props) {
           </div>
         </div>
       </Show>
-      <Show when={!isBinary()}>
+      <Show when={!isBinary() && !hasConflict()}>
         <div class="font-mono text-sm border border-gray-300 dark:border-gray-700 rounded-md overflow-hidden my-1">
           <table class="w-full border-collapse">
             <tbody>
@@ -133,6 +143,23 @@ export default function DiffViewer(props: Props) {
           </table>
         </div>
      </Show>
+     <Show when={hasConflict()}>
+        <div class="bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 p-4 rounded-md m-2 border border-yellow-400 flex justify-between items-center">
+          <div>
+            <strong>⚠️ Conflito detectado:</strong> Este arquivo possui partes conflitantes que precisam ser resolvidas manualmente.
+          </div>
+          <button
+            class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm"
+            onClick={() => setShowMergeResolver(true)}
+          >
+            Resolver agora
+          </button>
+        </div>
+      </Show>
+      <Dialog open={showMergeResolver()} title="Resolver Conflitos" onClose={() => setShowMergeResolver(false)} width="1200px">
+        <MergeResolver diffContent={props.diff.diff} onClose={() => setShowMergeResolver(false)} onSave={() => {}} />
+      </Dialog>
+
     </>
   );
 }
