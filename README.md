@@ -17,7 +17,7 @@ It provides a **modern and intuitive interface** to work with **branches, commit
 * ⚡ **Stage / Unstage files** individually or in bulk
 * 🗑️ **Discard changes** easily
 * ✅ **Create commits** with message, description, and *amend* option
-* 🌍 **Remote operations**: fetch, pull, push
+* 🌍 **Remote operations**: fetch, pull, push and merge
 * 🎨 **Beautiful responsive UI** with custom animations and icons ✨
 
 ---
