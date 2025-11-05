@@ -18,7 +18,7 @@ It provides a **modern and intuitive interface** to work with **branches, commit
 * 🗑️ **Discard changes** easily
 * ✅ **Create commits** with message, description, and *amend* option
 * 🌍 **Remote operations**: fetch, pull, push, merge
-* 🎨 **Beautiful responsive UI** with custom animations and icons ✨
+* 🎨 **Beautiful responsive UI* with custom animations and icons ✨
 
 ---
 
