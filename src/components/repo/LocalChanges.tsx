@@ -8,6 +8,7 @@ import { LocalChange } from "../../models/LocalChanges.model";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
 import { openVsCodeDiff } from "../../services/openService";
 import { Diff } from "../../models/Diff.model";
+import { notify } from "../../utils/notifications";
 
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
@@ -161,7 +162,7 @@ export function LocalChanges(props: { repo: Repo; }) {
 
   const handleCommit = async () => {
     if (!commitMessage().trim()) {
-      alert("Digite uma mensagem de commit!");
+      notify.error('Ops!', "Digite uma mensagem de commit!");
       return;
     }
     try {
@@ -174,7 +175,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       await refreshBranches(props.repo.path);
     } catch (err) {
       console.error("Erro no commit:", err);
-      alert("Erro no commit: " + err);
+      notify.error('Erro no Commit', `Erro ao realizar o commit: ${err}`);
     }
   };
 

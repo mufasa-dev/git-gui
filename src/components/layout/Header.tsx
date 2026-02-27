@@ -17,6 +17,7 @@ import branchIcon from "../../assets/branch.png";
 import { open } from "@tauri-apps/plugin-dialog";
 import { path } from "@tauri-apps/api";
 import Dialog from "../ui/Dialog";
+import { notify } from "../../utils/notifications";
 
 type Props = {
     repos: Repo[];
@@ -57,23 +58,22 @@ export default function Header(props: Props) {
 
         if (typeof selected === "string") {
             try {
-                await validateRepo(selected);
-                const branches = await getBranchStatus(selected);
-                const remoteBranches = await getRemoteBranches(selected);
-                const name = await path.basename(selected);
-                const activeBranch = await getCurrentBranch(selected!);
-                const localChanges = await getLocalChanges(selected);
-                const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges };
+              await validateRepo(selected);
+              const branches = await getBranchStatus(selected);
+              const remoteBranches = await getRemoteBranches(selected);
+              const name = await path.basename(selected);
+              const activeBranch = await getCurrentBranch(selected!);
+              const localChanges = await getLocalChanges(selected);
+              const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges };
 
-                // Evita duplicar se já estiver aberto
-                if (!props.repos.some(r => r.path === selected)) {
-                props.setRepos([...props.repos, newRepo]);
-                await saveRepos([...props.repos, newRepo]);
-                }
-                props.setActive(selected);
-
+              // Evita duplicar se já estiver aberto
+              if (!props.repos.some(r => r.path === selected)) {
+              props.setRepos([...props.repos, newRepo]);
+              await saveRepos([...props.repos, newRepo]);
+              }
+              props.setActive(selected);
             } catch (err) {
-                alert("Erro: " + err);
+              notify.error('Erro ao abrir repositório', `Erro ao abrir o repositório: ${err}`);
             }
         }
     }
@@ -84,10 +84,10 @@ export default function Header(props: Props) {
       try {
         const branch = await getCurrentBranch(props.active!);
         await pushRepo(props.active!, "origin", branch);
-        alert("Push realizado com sucesso!");
+        notify.success('Git Push', `Push realizado com sucesso!`);
         await props.refreshBranches(props.active!);
       } catch (err) {
-        alert("Erro no push: " + err);
+        notify.error('Erro no Push', `Erro ao realizar o push: ${err}`);
       } finally {
         setPushing(false);
         }
@@ -114,14 +114,14 @@ export default function Header(props: Props) {
         }
 
         if (result.success) {
-          alert("Pull realizado com sucesso!");
+          notify.success('Git Pull', `Pull realizado com sucesso!`);
         } else {
-          alert("Erro no pull: " + result.message);
+          notify.error('Erro no Pull', `Erro ao realizar o pull: ${result.message}`);
         }
 
         await props.refreshBranches(props.active!);
       } catch (err: any) {
-        alert("Erro no pull: " + err.message);
+        notify.error('Erro no Pull', `Erro ao realizar o pull: ${err.message}`);
       } finally {
         setPulling(false);
       }
@@ -137,14 +137,14 @@ export default function Header(props: Props) {
 
         const retryResult = await pull(info.repoPath, info.branch);
         if (retryResult.success) {
-          alert("Pull realizado com sucesso após ajuste!");
+          notify.success('Git Pull', `Pull realizado com sucesso após ajuste!`);
         } else {
-          alert("Erro ao repetir o pull: " + retryResult.message);
+          notify.error('Erro no Pull', `Erro ao repetir o pull: ${retryResult.message}`);
         }
 
         await props.refreshBranches(info.repoPath);
       } catch (err: any) {
-        alert("Erro ao configurar o modo de pull: " + err.message);
+        notify.error('Erro ao configurar o modo de pull', `Erro ao configurar o modo de pull: ${err.message}`);
       } finally {
         setShowModalPullOpts(false);
         setModalInfo(null);
@@ -157,10 +157,10 @@ export default function Header(props: Props) {
         setFetching(true);
       try {
         await fetchRepo(props.active!, "origin");
-        alert("Fetch realizado com sucesso!");
+        notify.success('Git Fetch', `Fetch realizado com sucesso!`);
         await props.refreshBranches(props.active!);
       } catch (err) {
-        alert("Erro no fetch: " + err);
+        notify.error('Erro no Fetch', `Erro ao realizar o fetch: ${err}`);
       } finally {
         setFetching(false);
       }
@@ -170,11 +170,11 @@ export default function Header(props: Props) {
       if (!props.active) return;
       try {
         await createBranch(branchName, branchType, checkout, baseBranch, props.active!);
-        alert(`Branch ${branchName} criada com sucesso!`);
+        notify.success('Nova Branch', `Branch ${branchName} criada com sucesso!`);
         setOpenModalNewBranch(false);
         await props.refreshBranches(props.active!);
       } catch (err) {
-        alert("Erro ao criar branch: " + err);
+        notify.error('Erro ao criar branch', `Erro ao criar branch: ${err}`);
       }
     }
 
