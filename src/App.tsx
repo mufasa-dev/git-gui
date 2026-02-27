@@ -1,5 +1,6 @@
 import RepositoryPage from "./pages/RepositoryPage";
 import "./index.css";
+import { Toaster } from "solid-toast";
 
 export default function App() {
 
@@ -11,6 +12,7 @@ export default function App() {
 
   return (
     <div class="h-screen w-screen flex flex-col">
+      <Toaster position="bottom-right" gutter={8} />
       <RepositoryPage />
     </div>
   );

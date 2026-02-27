@@ -7,7 +7,7 @@ import CommitsList from "../commits/CommitsList";
 import { LocalChanges } from "./LocalChanges";
 import { checkoutBranch, getLocalChanges, resetHard, stashChanges, stashPop } from "../../services/gitService";
 import BranchSwitchModal from "../branch/BranchSwitchModal";
-import { sendNotification } from '@tauri-apps/plugin-notification';
+import { notify } from "../../utils/notifications";
 
 export default function RepoView(props: { repo: Repo , refreshBranches: (path: string) => Promise<void> }) {
   const minWidth = 200;
@@ -66,14 +66,10 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
       } else {
         await checkoutBranch(path, branch);
         await props.refreshBranches(path);
-        sendNotification({ 
-          title: 'Git Client', 
-          body: `✅ Mudou para a branch: ${branch}`,
-          icon: 'icon-success' // opcional
-        });
+        notify.success('Git Checkout', `✅ Mudou para a branch: ${branch}`);
       }
     } catch (err) {
-      alert("Erro ao trocar de branch: " + err);
+      notify.error('Erro', `Erro ao trocar de branch`);
     }
   };
 
