@@ -62,6 +62,10 @@ export async function unstageFiles(repoPath: string, paths: string[]) {
   return await invoke("unstage_files", { path: repoPath, files: paths });
 }
 
+export async function discard_changes(repoPath: string, paths: string[]) {
+  return await invoke("discard_changes", { path: repoPath, files: paths });
+}
+
 export async function getDiff(
   repoPath: string,
   file: string,
