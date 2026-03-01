@@ -60,7 +60,7 @@ npm run tauri build
 
 ## 🚀 How to use
 
-1. Open the app 🖱️
+1. Launch the application 🚀
 2. Click **"Open Repository"** and select a folder containing `.git` 📂
 3. Browse **branches** and check commit history and remote status 🌿
 4. Use the **Local Changes** tab to stage/unstage files ⚡
