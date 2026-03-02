@@ -3,6 +3,15 @@ import { Repo } from "../../models/Repo.model";
 import { getCommitDetails, getCommits } from "../../services/gitService";
 import { formatDate } from "../../utils/date";
 import { CommitDetails } from "./CommitDetails";
+import { datepicker } from "../../directives/datepicker";
+
+declare module "solid-js" {
+  namespace JSX {
+    interface Directives {
+      datepicker: any;
+    }
+  }
+}
 
 export default function CommitsList(props: { repo: Repo; branch?: string, class?: string }) {
   const [commits, setCommits] = createSignal<any[]>([]);
@@ -106,23 +115,15 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
           {/* Filtro de Data */}
           <div class="flex items-center gap-1">
             <input 
-              type="date"
-              class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none"
-              value={startDate()}
-              onChange={(e) => {
-                setStartDate(e.currentTarget.value);
-                e.currentTarget.blur();
-              }}
+              use:datepicker={{ value: startDate, onChange: setStartDate }}
+              placeholder="Início"
+              class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-24"
             />
             <span class="text-gray-400">até</span>
             <input 
-              type="date"
-              class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none"
-              value={endDate()}
-              onChange={(e) => {
-                setEndDate(e.currentTarget.value);
-                e.currentTarget.blur();
-              }}
+              use:datepicker={{ value: endDate, onChange: setEndDate }}
+              placeholder="Fim"
+              class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-24"
             />
             
             {/* Botão de Limpar (Opcional mas útil) */}

@@ -1,0 +1,69 @@
+/* 1. O container principal (o fundo total) */
+.flatpickr-calendar.dark {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 2. O cabeçalho (mês e ano) */
+.flatpickr-calendar.dark .flatpickr-months,
+.flatpickr-calendar.dark .flatpickr-month,
+.flatpickr-calendar.dark .flatpickr-current-month {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  fill: #f8fafc !important;
+}
+
+/* 3. O SELECT de meses */
+.flatpickr-calendar.dark .flatpickr-monthDropdown-months {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border: none !important;
+  outline: none !important;
+  appearance: none;
+  margin-top: 2px;
+}
+
+/* 4. As opções dentro do select */
+.flatpickr-calendar.dark .flatpickr-monthDropdown-month {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+/* 5. Setas de navegação */
+.flatpickr-calendar.dark .flatpickr-prev-month, 
+.flatpickr-calendar.dark .flatpickr-next-month {
+  color: #f8fafc !important;
+  fill: #f8fafc !important;
+}
+
+.flatpickr-calendar.dark .flatpickr-prev-month:hover, 
+.flatpickr-calendar.dark .flatpickr-next-month:hover {
+  background: #334155 !important;
+}
+
+/* 6. Dias da semana */
+.flatpickr-calendar.dark span.flatpickr-weekday {
+  background: #0f172a !important;
+  color: #94a3b8 !important;
+}
+
+/* 7. Ajuste nos números dos dias para garantir contraste */
+.flatpickr-calendar.dark .flatpickr-day {
+  color: #cbd5e1 !important;
+}
+
+.flatpickr-calendar.dark .flatpickr-day.nextMonthDay,
+.flatpickr-calendar.dark .flatpickr-day.prevMonthDay {
+  color: #475569 !important; /* Dias de outros meses mais apagados */
+}
+
+.flatpickr-calendar.dark .flatpickr-day.today {
+    border-color: #3b82f6 !important;
+}
+
+.flatpickr-calendar.dark .flatpickr-day.selected {
+    background: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+    color: white !important;
+}
