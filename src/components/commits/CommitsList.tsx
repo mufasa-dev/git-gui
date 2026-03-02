@@ -117,13 +117,13 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
             <input 
               use:datepicker={{ value: startDate, onChange: setStartDate }}
               placeholder="Início"
-              class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-24"
+              class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
             />
             <span class="text-gray-400">até</span>
             <input 
               use:datepicker={{ value: endDate, onChange: setEndDate }}
               placeholder="Fim"
-              class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-24"
+              class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
             />
             
             {/* Botão de Limpar (Opcional mas útil) */}

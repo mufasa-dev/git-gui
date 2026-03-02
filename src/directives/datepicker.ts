@@ -8,12 +8,11 @@ export function datepicker(el: HTMLElement, accessor: () => any) {
   const instance = flatpickr(el, {
     defaultDate: value(),
     onOpen: (selectedDates, dateStr, instance) => {
-      // Garante que o calendário tenha a classe dark para o nosso CSS funcionar
       instance.calendarContainer.classList.add("dark");
     },
     onChange: (_, dateStr) => onChange(dateStr),
     onClose: () => el.blur(),
-    dateFormat: "Y-m-d",
+    dateFormat: "d-m-Y",
     allowInput: true,
     locale: "pt", 
   });
