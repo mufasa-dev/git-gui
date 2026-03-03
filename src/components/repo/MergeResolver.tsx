@@ -71,7 +71,7 @@ export default function MergeResolver(props: Props) {
   }
 
   return (
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-4 max-h-[calc(100vh-100px)]">
       {/* Header */}
       <div class="text-gray-600 dark:text-gray-300 mb-2">
         <p>
@@ -81,15 +81,15 @@ export default function MergeResolver(props: Props) {
       </div>
 
       {/* Painéis de comparação */}
-      <div class="grid grid-cols-2 gap-2 border rounded overflow-hidden">
-        <div class="border-r border-gray-300 dark:border-gray-700">
-          <div class="bg-gray-200 dark:bg-gray-700 px-3 py-2 font-bold text-gray-800 dark:text-gray-200">
+      <div class="grid grid-cols-2 gap-2 border rounded overflow-auto">
+        <div class="border-r border-gray-300 dark:border-gray-700 relative">
+          <div class="sticky top-0 bg-gray-200 dark:bg-gray-700 px-3 py-2 font-bold text-gray-800 dark:text-gray-200">
             🧩 Current (Local)
           </div>
           <For each={blocks()}>
             {(block, i) => (
               <div
-                class={`p-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800 ${
+                class={`p-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800 overflow-auto ${
                   selectedBlock() === i() ? "bg-blue-50 dark:bg-blue-900" : ""
                 }`}
                 onClick={() => applySide(i(), "local")}
@@ -102,8 +102,8 @@ export default function MergeResolver(props: Props) {
           </For>
         </div>
 
-        <div>
-          <div class="bg-gray-200 dark:bg-gray-700 px-3 py-2 font-bold text-gray-800 dark:text-gray-200">
+        <div class="relative">
+          <div class="sticky top-0 bg-gray-200 dark:bg-gray-700 px-3 py-2 font-bold text-gray-800 dark:text-gray-200">
             🌍 Incoming (Remoto)
           </div>
           <For each={blocks()}>
