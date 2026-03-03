@@ -90,7 +90,7 @@ export default function Header(props: Props) {
         notify.error('Erro no Push', `Erro ao realizar o push: ${err}`);
       } finally {
         setPushing(false);
-        }
+      }
     };
 
     const doPull = async () => {
