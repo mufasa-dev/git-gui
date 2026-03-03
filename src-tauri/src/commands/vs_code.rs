@@ -1,4 +1,6 @@
 use std::process::Command;
+use std::fs;
+use std::env::temp_dir;
 
 #[tauri::command]
 pub fn open_vscode(path: String) {
@@ -20,9 +22,6 @@ pub fn open_vscode_diff(file1: String, file2: String) {
 
 #[tauri::command]
 pub fn open_vscode_git_diff(repo_path: String, file_path: String) {
-    use std::{fs, process::Command};
-    use std::env::temp_dir;
-
     // Recupera conteúdo da versão em HEAD
     let output = Command::new("git")
         .args(&["show", &format!("HEAD:{}", file_path)])

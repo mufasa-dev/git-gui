@@ -163,11 +163,6 @@ pub fn discard_changes(path: String, files: Vec<String>) -> Result<String, Strin
 
 #[tauri::command]
 pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_json::Value, String> {
-    use std::fs;
-    use std::path::Path;
-    use std::process::Command;
-    use std::env::temp_dir;
-    use serde_json::json;
 
     let file_path = Path::new(&repo_path).join(&file);
 
