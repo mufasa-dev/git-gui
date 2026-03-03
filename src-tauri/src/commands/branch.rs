@@ -197,3 +197,51 @@ pub fn create_branch(
 
     Ok(full_branch_name)
 }
+
+#[tauri::command]
+pub fn delete_branch(
+    repo_path: String,
+    branch_name: String,
+    force: bool
+) -> Result<String, String> {
+    let delete_arg = if force { "-D" } else { "-d" };
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&repo_path)
+        .arg("branch")
+        .arg(delete_arg)
+        .arg(&branch_name)
+        .output()
+        .map_err(|e| format!("Erro ao executar comando: {}", e))?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        let err = String::from_utf8_lossy(&output.stderr).to_string();
+        Err(err)
+    }
+}
+
+#[tauri::command]
+pub fn delete_remote_branch(
+    repo_path: String,
+    remote: String,
+    branch_name: String
+) -> Result<String, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&repo_path)
+        .arg("push")
+        .arg(&remote)
+        .arg("--delete")
+        .arg(&branch_name)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok("Branch remota removida com sucesso".into())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
