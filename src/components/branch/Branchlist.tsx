@@ -79,7 +79,31 @@ export default function BranchList(props: Props) {
     let isNotActiveBranch = branch != props.activeBranch;
 
     if (isNotActiveBranch) {
-      items.push({ label: "Apagar Branch", action: () => deleteRemoteBranch(props.repoPath, branch) });
+      items.push({ 
+        label: "Deletar Branch Remota (Origin)", 
+        action: async () => {
+          const confirmed = confirm(
+            `Tem certeza que deseja apagar a branch '${branch}' no servidor remoto (origin)?\n\nEsta ação não pode ser desfeita.`
+          );
+
+          if (!confirmed) return;
+
+          try {
+            await deleteRemoteBranch(props.repoPath!, branch, "origin");
+            
+            notify.success('Git Remote', `Branch '${branch}' removida do servidor com sucesso!`);
+            
+            await props.refreshBranches(props.repoPath!);
+            
+          } catch (err: unknown) {
+            const errorMessage = typeof err === 'string' ? err : String(err);
+            
+            // Erros comuns aqui: Falha de autenticação ou branch protegida (main/master)
+            notify.error('Erro ao deletar remota', errorMessage);
+            console.error("Erro Git Remote:", errorMessage);
+          }
+        } 
+      });
     }
 
     setMenuItems(items);
