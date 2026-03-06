@@ -80,18 +80,8 @@ export default function BranchList(props: Props) {
 
     if (isNotActiveBranch) {
       items.push({ 
-          label: "Checkout Branch Remota", 
-          action: async () => {
-          try {
-            await checkoutRemoteBranch(props.repoPath, branch);
-            notify.success('Git Remote', `Mudou para Branch '${branch}'`);
-            props.refreshBranches(props.repoPath!);
-          } catch (err: unknown) {
-            const errorMessage = typeof err === 'string' ? err : String(err);
-            notify.error('Erro ao mudar para branch remota', errorMessage);
-            console.error("Erro Git Remote:", errorMessage);
-          }
-        }
+        label: "Checkout Branch Remota", 
+        action: () => checkoutRemote(branch)
       });
       items.push({ 
         label: "Deletar Branch Remota (Origin)", 
@@ -125,6 +115,18 @@ export default function BranchList(props: Props) {
     setMenuVisible(true);
   }
 
+  const checkoutRemote = async (branch: string) => {
+    try {
+      await checkoutRemoteBranch(props.repoPath, branch);
+      notify.success('Git Remote', `Mudou para Branch '${branch}'`);
+      props.refreshBranches(props.repoPath!);
+    } catch (err: unknown) {
+      const errorMessage = typeof err === 'string' ? err : String(err);
+      notify.error('Erro ao mudar para branch remota', errorMessage);
+      console.error("Erro Git Remote:", errorMessage);
+    }
+  }
+
   const hideContextMenu = () => setMenuVisible(false);
   
   document.addEventListener("click", hideContextMenu);
@@ -150,6 +152,7 @@ export default function BranchList(props: Props) {
       </b>
       {openRemote() && <TreeView tree={props.remoteTree}
         activeBranch={props.activeBranch}
+        onActivateBranch={checkoutRemote}
         selectedBranch={props.selectedBranch}
         onSelectBranch={props.onSelectBranch} 
         openContextMenu={openRemoteContextMenu}
