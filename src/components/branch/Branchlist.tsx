@@ -3,6 +3,7 @@ import TreeView, { TreeNodeMap }  from "../ui/TreeView";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
 import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, mergeBranch, openPullRequestUrl } from "../../services/gitService";
 import { notify } from "../../utils/notifications";
+import { useLoading } from "../ui/LoadingContext";
 
 type Props = {
   localTree: TreeNodeMap;
@@ -21,6 +22,7 @@ export default function BranchList(props: Props) {
   const [menuVisible, setMenuVisible] = createSignal(false);
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
+  const { showLoading, hideLoading } = useLoading();
 
   const openContextMenu = (e: MouseEvent, branch: string) => {
     e.preventDefault();
@@ -29,42 +31,63 @@ export default function BranchList(props: Props) {
     let isNotActiveBranch = branch != props.activeBranch;
 
     if (isNotActiveBranch) {
-      items.push({ label: "Merge em " + props.activeBranch, action: () => mergeBranch(props.repoPath, branch, props.activeBranch!) });
+      items.push({ 
+        label: "Merge em " + props.activeBranch, 
+        action: async () => {
+          try {
+            showLoading(`Mesclando ${branch} em ${props.activeBranch}...`);
+            await mergeBranch(props.repoPath, branch, props.activeBranch!);
+            notify.success('Git Merge', `Branch '${branch}' mesclada com sucesso em '${props.activeBranch}'!`);
+            await props.refreshBranches(props.repoPath!);
+          } catch (err: unknown) {
+            const errorMessage = typeof err === 'string' ? err : String(err);
+            notify.error('Erro ao mesclar branches', errorMessage);
+            console.error("Erro Git Merge:", errorMessage);
+          } finally {
+            hideLoading();
+          }
+        }
+      });
     }
 
     items.push({ label: "Criar pull request", action: () => openPullRequestUrl(props.repoPath, branch) });
 
     if (isNotActiveBranch) {
       items.push({ 
-      label: "Deletar Branch", 
-      action: async () => {
-        try {
-          await deleteBranch(props.repoPath, branch, false);
-          
-          notify.success('Git Delete Branch', `Branch ${branch} apagada com sucesso!`);
-          await props.refreshBranches(props.repoPath!);
-          
-        } catch (error: any) {
-          if (error.includes("not fully merged")) {
-            const confirmForce = confirm(
-              `A branch '${branch}' não foi mesclada. Deseja forçar a exclusão (perder alterações)?`
-            );
+        label: "Deletar Branch", 
+        action: async () => {
+          try {
+            showLoading("Deletando branch...");
+            await deleteBranch(props.repoPath, branch, false);
             
-            if (confirmForce) {
-              try {
-                await deleteBranch(props.repoPath, branch, true);
-                notify.success('Git Delete Branch', `Branch ${branch} apagada à força!`);
-                await props.refreshBranches(props.repoPath!);
-              } catch (forceError: any) {
-                notify.error('Erro ao deletar', forceError);
+            notify.success('Git Delete Branch', `Branch ${branch} apagada com sucesso!`);
+            await props.refreshBranches(props.repoPath!);
+            
+          } catch (error: any) {
+            hideLoading();
+            if (error.includes("not fully merged")) {
+              const confirmForce = confirm(
+                `A branch '${branch}' não foi mesclada. Deseja forçar a exclusão (perder alterações)?`
+              );
+              
+              if (confirmForce) {
+                try {
+                  showLoading("Forçando exclusão da branch...");
+                  await deleteBranch(props.repoPath, branch, true);
+                  notify.success('Git Delete Branch', `Branch ${branch} apagada à força!`);
+                  await props.refreshBranches(props.repoPath!);
+                } catch (forceError: any) {
+                  notify.error('Erro ao deletar', forceError);
+                }
               }
+            } else {
+              notify.error('Erro ao deletar branch', error);
             }
-          } else {
-            notify.error('Erro ao deletar branch', error);
+          } finally {
+            hideLoading();
           }
-        }
-      } 
-    });
+        } 
+      });
     }
 
     setMenuItems(items);
@@ -93,8 +116,10 @@ export default function BranchList(props: Props) {
           if (!confirmed) return;
 
           try {
+            showLoading("Deletando branch remota...");
             await deleteRemoteBranch(props.repoPath!, branch, "origin");
             
+            hideLoading();
             notify.success('Git Remote', `Branch '${branch}' removida do servidor com sucesso!`);
             
             await props.refreshBranches(props.repoPath!);
@@ -105,6 +130,8 @@ export default function BranchList(props: Props) {
             // Erros comuns aqui: Falha de autenticação ou branch protegida (main/master)
             notify.error('Erro ao deletar remota', errorMessage);
             console.error("Erro Git Remote:", errorMessage);
+          } finally {
+            hideLoading();
           }
         } 
       });
@@ -117,6 +144,7 @@ export default function BranchList(props: Props) {
 
   const checkoutRemote = async (branch: string) => {
     try {
+      showLoading("Checkout branch remota...");
       await checkoutRemoteBranch(props.repoPath, branch);
       notify.success('Git Remote', `Mudou para Branch '${branch}'`);
       props.refreshBranches(props.repoPath!);
@@ -124,6 +152,8 @@ export default function BranchList(props: Props) {
       const errorMessage = typeof err === 'string' ? err : String(err);
       notify.error('Erro ao mudar para branch remota', errorMessage);
       console.error("Erro Git Remote:", errorMessage);
+    } finally {
+      hideLoading();
     }
   }
 
