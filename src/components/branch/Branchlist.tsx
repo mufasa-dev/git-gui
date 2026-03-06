@@ -1,7 +1,7 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import TreeView, { TreeNodeMap }  from "../ui/TreeView";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
-import { deleteBranch, deleteRemoteBranch, mergeBranch, openPullRequestUrl } from "../../services/gitService";
+import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, mergeBranch, openPullRequestUrl } from "../../services/gitService";
 import { notify } from "../../utils/notifications";
 
 type Props = {
@@ -79,6 +79,20 @@ export default function BranchList(props: Props) {
     let isNotActiveBranch = branch != props.activeBranch;
 
     if (isNotActiveBranch) {
+      items.push({ 
+          label: "Checkout Branch Remota", 
+          action: async () => {
+          try {
+            await checkoutRemoteBranch(props.repoPath, branch);
+            notify.success('Git Remote', `Mudou para Branch '${branch}'`);
+            props.refreshBranches(props.repoPath!);
+          } catch (err: unknown) {
+            const errorMessage = typeof err === 'string' ? err : String(err);
+            notify.error('Erro ao mudar para branch remota', errorMessage);
+            console.error("Erro Git Remote:", errorMessage);
+          }
+        }
+      });
       items.push({ 
         label: "Deletar Branch Remota (Origin)", 
         action: async () => {
