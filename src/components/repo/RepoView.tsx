@@ -8,6 +8,7 @@ import { LocalChanges } from "./LocalChanges";
 import { checkoutBranch, getLocalChanges, resetHard, stashChanges, stashPop } from "../../services/gitService";
 import BranchSwitchModal from "../branch/BranchSwitchModal";
 import { notify } from "../../utils/notifications";
+import { useLoading } from "../ui/LoadingContext";
 
 export default function RepoView(props: { repo: Repo , refreshBranches: (path: string) => Promise<void> }) {
   const minWidth = 200;
@@ -18,9 +19,9 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
   const [selectedBranch, setSelectedBranch] = createSignal(props.repo.activeBranch);
-  const [activeBranch, setActiveBranch] = createSignal(props.repo.branches[0].name);
   const [modalSwtBranchOpen, setModalSwtBranchOpen] = createSignal(false);
   const [targetBranch, setTargetBranch] = createSignal<string | null>(null);
+  const { showLoading, hideLoading } = useLoading();
 
   const startResize = () => setIsResizing(true);
   const stopResize = () => setIsResizing(false);
@@ -64,12 +65,15 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
         setModalSwtBranchOpen(true);
         setTargetBranch(branch);
       } else {
+        showLoading(`Trocando para a branch ${branch}...`);
         await checkoutBranch(path, branch);
         await props.refreshBranches(path);
         notify.success('Git Checkout', `✅ Mudou para a branch: ${branch}`);
       }
     } catch (err) {
       notify.error('Erro', `Erro ao trocar de branch`);
+    } finally {
+      hideLoading();
     }
   };
 
