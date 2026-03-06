@@ -166,3 +166,13 @@ export async function deleteBranch(repoPath: string, branch: string, force: bool
 export async function deleteRemoteBranch(repoPath: string, branch: string, remote: string = "origin") {
   return await invoke("delete_remote_branch", { path: repoPath, branch, remote });
 }
+
+export async function getGitConfig(path: string, key: string): Promise<string> {
+  // Exemplo chamando um comando tauri que executa: git config --get <key>
+  return await invoke("get_git_config", { path, key });
+}
+
+export async function setGitConfig(path: string, key: string, value: string): Promise<void> {
+  // Executa: git config --local <key> <value>
+  await invoke("set_git_config", { path, key, value });
+}
