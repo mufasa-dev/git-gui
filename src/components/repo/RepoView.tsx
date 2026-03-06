@@ -7,6 +7,7 @@ import CommitsList from "../commits/CommitsList";
 import { LocalChanges } from "./LocalChanges";
 import { checkoutBranch, getLocalChanges, resetHard, stashChanges, stashPop } from "../../services/gitService";
 import BranchSwitchModal from "../branch/BranchSwitchModal";
+import { notify } from "../../utils/notifications";
 
 export default function RepoView(props: { repo: Repo , refreshBranches: (path: string) => Promise<void> }) {
   const minWidth = 200;
@@ -65,10 +66,10 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
       } else {
         await checkoutBranch(path, branch);
         await props.refreshBranches(path);
-        alert(`✅ Mudou para a branch: ${branch}`);
+        notify.success('Git Checkout', `✅ Mudou para a branch: ${branch}`);
       }
     } catch (err) {
-      alert("Erro ao trocar de branch: " + err);
+      notify.error('Erro', `Erro ao trocar de branch`);
     }
   };
 
@@ -153,6 +154,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
           repoPath={props.repo.path}
           selectedBranch={selectedBranch()}
           onSelectBranch={selectBranch}
+          refreshBranches={props.refreshBranches}
           onActivateBranch={(branch: string) => handleActiveBranch(props.repo.path, branch)}  
           />
       </div>

@@ -4,7 +4,7 @@ import { openBash, openConsole, openFileManager, openRepositoryBrowser, openVsCo
 import Button from "../ui/Button";
 import DropdownButton from "../ui/DropdownButton";
 import NewBranchModal from "../branch/NewBranchModal";
-import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch } from "../../services/gitService";
+import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch, configPullMode } from "../../services/gitService";
 import { saveRepos } from "../../services/storeService";
 import folderIcon from "../../assets/folder.png";
 import fetchIcon from "../../assets/fetch.png";
@@ -16,6 +16,8 @@ import newWindowIcon from "../../assets/new-window.png";
 import branchIcon from "../../assets/branch.png";
 import { open } from "@tauri-apps/plugin-dialog";
 import { path } from "@tauri-apps/api";
+import Dialog from "../ui/Dialog";
+import { notify } from "../../utils/notifications";
 
 type Props = {
     repos: Repo[];
@@ -33,6 +35,12 @@ export default function Header(props: Props) {
     const [dark, setDark] = createSignal(localStorage.getItem("theme") == "dark");
     
     const [platform, setPlatform] = createSignal("");
+    const [showModalPullOpts, setShowModalPullOpts] = createSignal(false);
+    const [modalInfo, setModalInfo] = createSignal<{
+      repoPath: string;
+      branch: string;
+      message: string;
+    } | null>(null);
 
     const toggleDark = () => {
         setDark(!dark());
@@ -50,23 +58,22 @@ export default function Header(props: Props) {
 
         if (typeof selected === "string") {
             try {
-                await validateRepo(selected);
-                const branches = await getBranchStatus(selected);
-                const remoteBranches = await getRemoteBranches(selected);
-                const name = await path.basename(selected);
-                const activeBranch = await getCurrentBranch(selected!);
-                const localChanges = await getLocalChanges(selected);
-                const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges };
+              await validateRepo(selected);
+              const branches = await getBranchStatus(selected);
+              const remoteBranches = await getRemoteBranches(selected);
+              const name = await path.basename(selected);
+              const activeBranch = await getCurrentBranch(selected!);
+              const localChanges = await getLocalChanges(selected);
+              const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges };
 
-                // Evita duplicar se já estiver aberto
-                if (!props.repos.some(r => r.path === selected)) {
-                props.setRepos([...props.repos, newRepo]);
-                await saveRepos([...props.repos, newRepo]);
-                }
-                props.setActive(selected);
-
+              // Evita duplicar se já estiver aberto
+              if (!props.repos.some(r => r.path === selected)) {
+              props.setRepos([...props.repos, newRepo]);
+              await saveRepos([...props.repos, newRepo]);
+              }
+              props.setActive(selected);
             } catch (err) {
-                alert("Erro: " + err);
+              notify.error('Erro ao abrir repositório', `Erro ao abrir o repositório: ${err}`);
             }
         }
     }
@@ -77,39 +84,83 @@ export default function Header(props: Props) {
       try {
         const branch = await getCurrentBranch(props.active!);
         await pushRepo(props.active!, "origin", branch);
-        alert("Push realizado com sucesso!");
+        notify.success('Git Push', `Push realizado com sucesso!`);
         await props.refreshBranches(props.active!);
       } catch (err) {
-        alert("Erro no push: " + err);
+        notify.error('Erro no Push', `Erro ao realizar o push: ${err}`);
       } finally {
         setPushing(false);
-        }
+      }
     };
 
     const doPull = async () => {
       if (!props.active) return;
       setPulling(true);
+
       try {
         const branch = await getCurrentBranch(props.active!);
-        await pull(props.active!, branch);
-        alert("Pull realizado com sucesso!");
+        const result = await pull(props.active!, branch);
+
+        if (result.needs_resolution) {
+          // abre o modal com as informações
+          setModalInfo({
+            repoPath: props.active!,
+            branch,
+            message:
+              "O Git detectou branches divergentes.\nEscolha como reconciliar as diferenças:",
+          });
+          setShowModalPullOpts(true);
+          return; // aguarda interação do usuário
+        }
+
+        if (result.success) {
+          notify.success('Git Pull', `Pull realizado com sucesso!`);
+        } else {
+          notify.error('Erro no Pull', `Erro ao realizar o pull: ${result.message}`);
+        }
+
         await props.refreshBranches(props.active!);
-      } catch (err) {
-        alert("Erro no pull: " + err);
+      } catch (err: any) {
+        notify.error('Erro no Pull', `Erro ao realizar o pull: ${err.message}`);
       } finally {
         setPulling(false);
       }
-    }
+    };
+
+    // 🔧 handler do modal
+    const handlePullModeChoice = async (mode: "merge" | "rebase" | "ff") => {
+      const info = modalInfo();
+      if (!info) return;
+
+      try {
+        await configPullMode(info.repoPath, mode);
+
+        const retryResult = await pull(info.repoPath, info.branch);
+        if (retryResult.success) {
+          notify.success('Git Pull', `Pull realizado com sucesso após ajuste!`);
+        } else {
+          notify.error('Erro no Pull', `Erro ao repetir o pull: ${retryResult.message}`);
+        }
+
+        await props.refreshBranches(info.repoPath);
+      } catch (err: any) {
+        notify.error('Erro ao configurar o modo de pull', `Erro ao configurar o modo de pull: ${err.message}`);
+      } finally {
+        setShowModalPullOpts(false);
+        setModalInfo(null);
+        setPulling(false);
+      }
+    };
 
     const doFetch = async () => {
       if (!props.active) return;
         setFetching(true);
       try {
         await fetchRepo(props.active!, "origin");
-        alert("Fetch realizado com sucesso!");
+        notify.success('Git Fetch', `Fetch realizado com sucesso!`);
         await props.refreshBranches(props.active!);
       } catch (err) {
-        alert("Erro no fetch: " + err);
+        notify.error('Erro no Fetch', `Erro ao realizar o fetch: ${err}`);
       } finally {
         setFetching(false);
       }
@@ -119,11 +170,11 @@ export default function Header(props: Props) {
       if (!props.active) return;
       try {
         await createBranch(branchName, branchType, checkout, baseBranch, props.active!);
-        alert(`Branch ${branchName} criada com sucesso!`);
+        notify.success('Nova Branch', `Branch ${branchName} criada com sucesso!`);
         setOpenModalNewBranch(false);
         await props.refreshBranches(props.active!);
       } catch (err) {
-        alert("Erro ao criar branch: " + err);
+        notify.error('Erro ao criar branch', `Erro ao criar branch: ${err}`);
       }
     }
 
@@ -217,6 +268,40 @@ export default function Header(props: Props) {
             onCreate={(branchName: string, branchType: string, checkout: boolean, baseBranch: string) => doCreateBranch(branchName, branchType, checkout, baseBranch)}
             repoPath={props.active!} branches={props.active ? props.repos.find(r => r.path === props.active!)?.branches.map(b => b.name) || [] : []}
             refreshBranches={props.refreshBranches} />
+
+            <Dialog
+              open={showModalPullOpts()}
+              title="Branches divergentes detectadas"
+              onClose={() => setShowModalPullOpts(false)}
+            >
+              <div class="space-y-4 text-gray-700 dark:text-gray-200">
+                <p>{modalInfo()?.message}</p>
+
+                <div class="space-y-2 mt-4">
+                  <button
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
+                    onClick={() => handlePullModeChoice("merge")}
+                  >
+                    🔀 Merge — combina as alterações das duas branches em um commit
+                  </button>
+
+                  <button
+                    class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition"
+                    onClick={() => handlePullModeChoice("rebase")}
+                  >
+                    ♻️ Rebase — reaplica seus commits sobre a branch remota
+                  </button>
+
+                  <button
+                    class="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded-lg transition"
+                    onClick={() => handlePullModeChoice("ff")}
+                  >
+                    ⚡ Fast-forward — apenas avança se não houver divergência real
+                  </button>
+                </div>
+              </div>
+            </Dialog>
+
         </div>
     )
 }

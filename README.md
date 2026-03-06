@@ -1,11 +1,10 @@
-
 # 🖥️ Git GUI Tauri
 
 A **cross-platform desktop app** for managing **Git repositories**, built with **[Tauri](https://tauri.app/)** and **[SolidJS](https://www.solidjs.com/)**, styled using **TailwindCSS**.
 
 It provides a **modern and intuitive interface** to work with **branches, commits, staging, and remote operations** (fetch, pull, push), all without touching the terminal! ⚡
 
-[![My Skills](https://skillicons.dev/icons?i=tauri,rust,solidjs,ts,tailwind)](https://skillicons.dev)
+[![My Skills](https://skillicons.dev/icons?i=tauri,rust,solidjs,ts,tailwind,vscode)](https://skillicons.dev)
 
 ---
 
@@ -18,8 +17,8 @@ It provides a **modern and intuitive interface** to work with **branches, commit
 * ⚡ **Stage / Unstage files** individually or in bulk
 * 🗑️ **Discard changes** easily
 * ✅ **Create commits** with message, description, and *amend* option
-* 🌍 **Remote operations**: fetch, pull, push
-* 🎨 **Responsive UI** with TailwindCSS and intuitive icons
+* 🌍 **Remote operations**: fetch, pull, push and merge
+* 🎨 **Beautiful responsive UI** with custom animations and icons ✨
 
 ---
 
@@ -61,34 +60,12 @@ npm run tauri build
 
 ## 🚀 How to use
 
-1. Open the app 🖱️
+1. Launch the application 🚀
 2. Click **"Open Repository"** and select a folder containing `.git` 📂
 3. Browse **branches** and check commit history and remote status 🌿
 4. Use the **Local Changes** tab to stage/unstage files ⚡
 5. Write your **commit message** and confirm ✅
 6. Use **fetch, pull, and push** buttons to sync with remote 🌍
-
----
-
-## 📂 Project Structure
-
-```
-src/
- ├── components/    # UI components 🎨
- ├── services/      # Services for Tauri integration ⚡
- ├── models/        # Frontend data models 📦
- ├── pages/         # Main screens 🖥️
- └── App.tsx        # Main entry point 🚀
-
-src-tauri/
- ├── src/
- │   ├── git/
- │   │   ├── commit.rs   # Commits 📝
- │   │   ├── staging.rs  # Stage / Unstage ⚡
- │   │   ├── status.rs   # File and branch status 📊
- │   │   └── remote.rs   # Remote operations 🌍
- │   └── main.rs         # Tauri setup 🦀
-```
 
 ---
 

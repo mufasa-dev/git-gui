@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Branch } from "../models/Banch.model";
 import { Diff } from "../models/Diff.model";
+import { GitPullResult } from "../models/Pull.model";
 
 export async function validateRepo(path: string): Promise<string> {
   return await invoke("open_repo", { path });
@@ -61,6 +62,10 @@ export async function unstageFiles(repoPath: string, paths: string[]) {
   return await invoke("unstage_files", { path: repoPath, files: paths });
 }
 
+export async function discard_changes(repoPath: string, paths: string[]) {
+  return await invoke("discard_changes", { path: repoPath, files: paths });
+}
+
 export async function getDiff(
   repoPath: string,
   file: string,
@@ -99,10 +104,18 @@ export async function pushRepo(
   return await invoke("push_repo", { path: repoPath, remote, branch });
 }
 
-export async function pull(repoPath: string, branch: string): Promise<string> {
+export async function pull(repoPath: string, branch: string): Promise<GitPullResult> {
   try {
-    const result = await invoke<string>("git_pull", { repoPath, branch });
+    const result = await invoke<GitPullResult>("git_pull", { repoPath, branch });
     return result;
+  } catch (err: any) {
+    throw new Error(err);
+  }
+}
+
+export async function configPullMode(repoPath: string, mode: "merge" | "rebase" | "ff"): Promise<void> {
+  try {
+    await invoke("git_config_pull", { repoPath, mode });
   } catch (err: any) {
     throw new Error(err);
   }
@@ -142,8 +155,12 @@ export async function mergeBranch(repoPath: string, fromBranch: string, toBranch
   return await invoke("merge_branch", { repoPath, fromBranch, toBranch });
 }
 
-export async function deleteBranch(repoPath: string, branch: string) {
-  return await invoke("delete_branch", { path: repoPath, branch });
+export async function checkoutRemoteBranch(repoPath: string, branchName: string) {
+  return await invoke("checkout_remote_branch", { repoPath, branchName });
+}
+
+export async function deleteBranch(repoPath: string, branch: string, force: boolean = false) {
+  return await invoke("delete_branch", { path: repoPath, branch: branch, force: force });
 }
 
 export async function deleteRemoteBranch(repoPath: string, branch: string, remote: string = "origin") {

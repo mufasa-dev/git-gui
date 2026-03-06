@@ -3,11 +3,14 @@ import { JSX, Show } from "solid-js";
 type Props = {
   open: boolean;
   title?: string;
+  width?: string | number;
   onClose?: () => void;
   children: JSX.Element;
 };
 
 export default function Dialog(props: Props) {
+  const width = typeof props.width === "number" ? `${props.width}px` : props.width || "400px";
+
   return (
     <Show when={props.open}>
       <div
@@ -15,7 +18,8 @@ export default function Dialog(props: Props) {
         onClick={props.onClose}
       >
         <div
-          class="bg-white dark:bg-gray-800 rounded shadow-xl w-[400px] relative"
+          class="bg-white dark:bg-gray-800 rounded shadow-xl relative"
+          style={{ width }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

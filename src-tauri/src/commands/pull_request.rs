@@ -3,7 +3,7 @@ use tauri::command;
 
 #[command]
 pub async fn open_pull_request(path: String, branch: String) -> Result<(), String> {
-    // pega a URL remota
+    // 1️⃣ Pega a URL remota
     let output = Command::new("git")
         .arg("-C")
         .arg(&path)
@@ -20,7 +20,7 @@ pub async fn open_pull_request(path: String, branch: String) -> Result<(), Strin
         return Err("Nenhuma URL encontrada para remote.origin.url".into());
     }
 
-    // converte SSH → HTTPS
+    // 2️⃣ Converte SSH → HTTPS
     let mut web_url = if url.starts_with("git@") {
         url.replace("git@", "https://").replace(":", "/")
     } else {
@@ -31,10 +31,25 @@ pub async fn open_pull_request(path: String, branch: String) -> Result<(), Strin
         web_url = web_url.trim_end_matches(".git").to_string();
     }
 
-    // branch alvo padrão (pode depois buscar dinamicamente com git symbolic-ref refs/remotes/origin/HEAD)
-    let target_branch = "main";
+    // 3️⃣ Detecta branch padrão dinamicamente
+    let head_output = Command::new("git")
+        .arg("-C")
+        .arg(&path)
+        .args(["symbolic-ref", "refs/remotes/origin/HEAD"])
+        .output();
 
-    // monta a URL do PR
+    let target_branch = if let Ok(output) = head_output {
+        if output.status.success() {
+            let ref_str = String::from_utf8_lossy(&output.stdout);
+            ref_str.trim().split('/').last().unwrap_or("main").to_string()
+        } else {
+            "main".to_string()
+        }
+    } else {
+        "main".to_string()
+    };
+
+    // 4️⃣ Monta a URL do PR conforme o serviço
     let pr_url = if web_url.contains("github.com") {
         format!("{}/compare/{}...{}?expand=1", web_url, target_branch, branch)
     } else if web_url.contains("gitlab.com") {
@@ -51,7 +66,7 @@ pub async fn open_pull_request(path: String, branch: String) -> Result<(), Strin
         return Err(format!("Serviço Git desconhecido: {}", web_url));
     };
 
-    // abre no navegador
+    // 5️⃣ Abre no navegador
     open::that(pr_url).map_err(|e| format!("Falha ao abrir navegador: {}", e))?;
 
     Ok(())

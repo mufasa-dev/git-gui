@@ -1,6 +1,6 @@
 import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { commit, getDiff, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
+import { commit, discard_changes, getDiff, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
 import { useRepoContext } from "../../context/RepoContext";
 import DiffViewer from "../ui/DiffViewer";
@@ -8,6 +8,7 @@ import { LocalChange } from "../../models/LocalChanges.model";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
 import { openVsCodeDiff } from "../../services/openService";
 import { Diff } from "../../models/Diff.model";
+import { notify } from "../../utils/notifications";
 
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
@@ -118,7 +119,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     items.push({ label: "Preparar tudo", action: () => prepareAll() });
     items.push({
       label: "Descartar alterações",
-      action: () => alert("TODO: implementar discard"),
+      action: () => discard(selected()),
     });
 
     setMenuItems(items);
@@ -159,9 +160,16 @@ export function LocalChanges(props: { repo: Repo; }) {
     await loadChanges();
   }
 
+  const discard = async (paths: string[]) => {
+    await discard_changes(props.repo.path, paths);
+    setSelected([]);
+    clearDiff();
+    await loadChanges();
+  }
+
   const handleCommit = async () => {
     if (!commitMessage().trim()) {
-      alert("Digite uma mensagem de commit!");
+      notify.error('Ops!', "Digite uma mensagem de commit!");
       return;
     }
     try {
@@ -174,7 +182,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       await refreshBranches(props.repo.path);
     } catch (err) {
       console.error("Erro no commit:", err);
-      alert("Erro no commit: " + err);
+      notify.error('Erro no Commit', `Erro ao realizar o commit: ${err}`);
     }
   };
 

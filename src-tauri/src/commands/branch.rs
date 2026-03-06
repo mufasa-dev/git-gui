@@ -199,6 +199,38 @@ pub fn create_branch(
 }
 
 #[tauri::command]
+pub fn checkout_remote_branch(repo_path: String, branch_name: String) -> Result<String, String> {
+
+    let local_name = branch_name.replace("origin/", "");
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&repo_path)
+        .args(["checkout", "-b", &local_name, "--track", &format!("origin/{}", local_name)])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(format!("Sucesso: Branch {} criada a partir do remoto.", local_name))
+    } else {
+        let err = String::from_utf8_lossy(&output.stderr).to_string();
+        if err.contains("already exists") {
+            let retry = Command::new("git")
+                .arg("-C")
+                .arg(&repo_path)
+                .args(["checkout", &local_name])
+                .output()
+                .map_err(|e| e.to_string())?;
+            
+            if retry.status.success() {
+                return Ok(format!("Alternado para branch local existente: {}", local_name));
+            }
+        }
+        Err(err)
+    }
+}
+
+#[tauri::command]
 pub fn delete_branch(path: String, branch: String, force: bool) -> Result<(), String> {
     let flag = if force { "-D" } else { "-d" };
 
