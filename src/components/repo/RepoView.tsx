@@ -9,6 +9,7 @@ import { checkoutBranch, getLocalChanges, resetHard, stashChanges, stashPop } fr
 import BranchSwitchModal from "../branch/BranchSwitchModal";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
+import UserConfigModal from "../Config/UserConfig";
 
 export default function RepoView(props: { repo: Repo , refreshBranches: (path: string) => Promise<void> }) {
   const minWidth = 200;
@@ -22,6 +23,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   const [modalSwtBranchOpen, setModalSwtBranchOpen] = createSignal(false);
   const [targetBranch, setTargetBranch] = createSignal<string | null>(null);
   const { showLoading, hideLoading } = useLoading();
+  const [isUserConfigOpen, setIsUserConfigOpen] = createSignal(false);
 
   const startResize = () => setIsResizing(true);
   const stopResize = () => setIsResizing(false);
@@ -111,7 +113,12 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
     >
       {/* Painel esquerdo */}
       <div class="flex flex-col border-r overflow-auto border-gray-300 p-4 dark:border-gray-900 " style={{ width: `${sidebarWidth()}px` }}>
-        <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>
+        <div class="flex">
+          <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>
+          <button onClick={() => setIsUserConfigOpen(true)} class="ml-auto text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+            <i class="fa-solid fa-user-gear"></i>
+          </button>
+        </div>
 
         <div class="mb-4 flex flex-col space-y-2">
           <button
@@ -181,6 +188,12 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
         onCancel={() => setModalSwtBranchOpen(false)}
         onDiscard={doDiscard}
         onStashAndApply={doStashAndApply}
+      />
+
+      <UserConfigModal 
+        repoPath={props.repo.path} 
+        isOpen={isUserConfigOpen()} 
+        onClose={() => setIsUserConfigOpen(false)} 
       />
     </div>
   );
