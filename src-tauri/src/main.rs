@@ -14,6 +14,7 @@ fn main() {
             commands::branch::get_current_branch,
             commands::branch::checkout_branch,
             commands::branch::create_branch,
+            commands::branch::checkout_remote_branch,
             commands::branch::delete_branch,
             commands::branch::delete_remote_branch,
             commands::commit::list_commits,
