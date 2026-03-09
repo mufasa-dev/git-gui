@@ -3,6 +3,7 @@ import { useLoading } from "../ui/LoadingContext";
 import { getGitConfig, setGitConfig } from "../../services/gitService"; 
 import Dialog from "../ui/Dialog"; // Ajuste o path conforme sua estrutura
 import { getGravatarUrl } from "../../services/gravatarService";
+import { openBrowser } from "../../services/openService";
 
 interface UserConfigModalProps {
   repoPath: string;
@@ -50,12 +51,28 @@ export default function UserConfigModal(props: UserConfigModalProps) {
       width={550}
     >
       <div class="flex">
-        <div class="pr-4 pt-2">
-          <img
-            src={getGravatarUrl(email(), 80)}
-            alt={name()}
-            class="w-[100px] h-[100px] rounded flex-2"
-          />
+        <div class="flex flex-col items-center pr-6 pt-2">
+          <div class="relative group">
+            <img
+              src={getGravatarUrl(email(), 100)}
+              alt={name()}
+              class="w-[100px] h-[100px] rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
+            />
+            <button
+              onClick={() => openBrowser("https://pt.gravatar.com/")} 
+              class="absolute inset-0 flex items-center justify-center bg-black/40 text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+            >
+              Alterar Foto
+            </button>
+          </div>
+          
+          <button
+            onClick={() => openBrowser("https://pt.gravatar.com/")}
+            class="mt-2 text-[10px] text-blue-500 hover:underline flex items-center gap-1"
+          >
+            <span>via Gravatar</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          </button>
         </div>
         <div class="space-y-4 flex-1">
           <div>
