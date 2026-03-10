@@ -9,6 +9,7 @@ import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
 import { openVsCodeDiff } from "../../services/openService";
 import { Diff } from "../../models/Diff.model";
 import { notify } from "../../utils/notifications";
+import { useLoading } from "../ui/LoadingContext";
 
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
@@ -29,6 +30,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [diff, setDiff] = createSignal<Diff>({diff: ""});
   const [menuVisible, setMenuVisible] = createSignal(false);
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
+  const { showLoading, hideLoading } = useLoading();
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
 
   const loadChanges = async () => {
@@ -173,6 +175,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       return;
     }
     try {
+      showLoading("Realizando commit...");
       const res = await commit(props.repo.path, commitMessage(), commitDescription(), commitAmend());
       setCommitMessage("");
       setCommitDescription("");
@@ -183,6 +186,8 @@ export function LocalChanges(props: { repo: Repo; }) {
     } catch (err) {
       console.error("Erro no commit:", err);
       notify.error('Erro no Commit', `Erro ao realizar o commit: ${err}`);
+    } finally {
+      hideLoading();
     }
   };
 

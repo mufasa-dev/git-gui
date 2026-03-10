@@ -18,6 +18,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { path } from "@tauri-apps/api";
 import Dialog from "../ui/Dialog";
 import { notify } from "../../utils/notifications";
+import { hide } from "@tauri-apps/api/app";
+import { useLoading } from "../ui/LoadingContext";
 
 type Props = {
     repos: Repo[];
@@ -31,6 +33,7 @@ export default function Header(props: Props) {
     const [pushing, setPushing] = createSignal(false);
     const [pulling, setPulling] = createSignal(false);
     const [fetching, setFetching] = createSignal(false);
+    const { showLoading, hideLoading } = useLoading();
     const [openModalNewBranch, setOpenModalNewBranch] = createSignal(false);
     const [dark, setDark] = createSignal(localStorage.getItem("theme") == "dark");
     
@@ -43,14 +46,14 @@ export default function Header(props: Props) {
     } | null>(null);
 
     const toggleDark = () => {
-        setDark(!dark());
-        if (dark()) {
+      setDark(!dark());
+      if (dark()) {
         document.documentElement.classList.add("dark");
         localStorage.setItem("theme", "dark");
-        } else {
+      } else {
         document.documentElement.classList.remove("dark");
         localStorage.setItem("theme", "light");
-        }
+      }
     };
 
     async function openRepo() {
@@ -81,6 +84,7 @@ export default function Header(props: Props) {
     const doPush = async () => {
       if (!props.active) return;
       setPushing(true);
+      showLoading("Realizando push...");
       try {
         const branch = await getCurrentBranch(props.active!);
         await pushRepo(props.active!, "origin", branch);
@@ -90,13 +94,14 @@ export default function Header(props: Props) {
         notify.error('Erro no Push', `Erro ao realizar o push: ${err}`);
       } finally {
         setPushing(false);
+        hideLoading();
       }
     };
 
     const doPull = async () => {
       if (!props.active) return;
       setPulling(true);
-
+      showLoading("Realizando pull...");
       try {
         const branch = await getCurrentBranch(props.active!);
         const result = await pull(props.active!, branch);
@@ -124,6 +129,7 @@ export default function Header(props: Props) {
         notify.error('Erro no Pull', `Erro ao realizar o pull: ${err.message}`);
       } finally {
         setPulling(false);
+        hideLoading();
       }
     };
 
@@ -154,7 +160,9 @@ export default function Header(props: Props) {
 
     const doFetch = async () => {
       if (!props.active) return;
-        setFetching(true);
+      showLoading("Realizando fetch...");
+      setFetching(true);
+
       try {
         await fetchRepo(props.active!, "origin");
         notify.success('Git Fetch', `Fetch realizado com sucesso!`);
@@ -162,6 +170,7 @@ export default function Header(props: Props) {
       } catch (err) {
         notify.error('Erro no Fetch', `Erro ao realizar o fetch: ${err}`);
       } finally {
+        hideLoading();
         setFetching(false);
       }
     };
@@ -169,22 +178,25 @@ export default function Header(props: Props) {
     const doCreateBranch = async (branchName: string, branchType: string, checkout: boolean, baseBranch: string) => {
       if (!props.active) return;
       try {
+        showLoading("Criando branch...");
         await createBranch(branchName, branchType, checkout, baseBranch, props.active!);
         notify.success('Nova Branch', `Branch ${branchName} criada com sucesso!`);
         setOpenModalNewBranch(false);
         await props.refreshBranches(props.active!);
       } catch (err) {
         notify.error('Erro ao criar branch', `Erro ao criar branch: ${err}`);
+      } finally {
+        hideLoading();
       }
     }
 
     const disabledButton = () => {
-        return pushing() || pulling() || fetching();
+      return pushing() || pulling() || fetching();
     }
 
     onMount(async () => {
-        const plat = platform();
-        setPlatform(plat); // "windows", "macos", "linux", etc.
+      const plat = platform();
+      setPlatform(plat); // "windows", "macos", "linux", etc.
     });
     
     return (
