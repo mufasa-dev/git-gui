@@ -238,7 +238,12 @@ export function LocalChanges(props: { repo: Repo; }) {
       <div  class="flex-1 flex flex-col h-full overflow-hidden">
         <div class="flex-1 overflow-auto px-2">
           <div style={{"height": "100px"}}>
-            <DiffViewer diff={diff()} class="h-full" onMergeStatusChange={(open) => setIsMerging(open)} />
+            <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
+              onMergeStatusChange={(open) => setIsMerging(open)} 
+              onSaveSuccess={() => {
+                setIsMerging(false); // Libera a trava
+                loadChanges();       // Recarrega a lista para sumir o aviso de conflito
+              }} />
           </div>
         </div>
         <div class="border-t border-gray-300 p-4 dark:border-gray-900">

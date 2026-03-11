@@ -3,10 +3,14 @@ import { Diff } from "../../models/Diff.model";
 import { loadImage } from "../../services/imageService";
 import Dialog from "./Dialog";
 import MergeResolver from "../repo/MergeResolver";
+import { notify } from "../../utils/notifications";
+import { saveFile } from "../../services/gitService";
 
 type Props = {
   diff: Diff;
   class: string;
+  file: string;
+  onSaveSuccess?: () => void;
   onMergeStatusChange?: (active: boolean) => void;
 };
 
@@ -54,7 +58,6 @@ function parseDiff(diff: string): DiffLine[] {
   return result;
 }
 
-
 export default function DiffViewer(props: Props) {
   const diffLines = () => parseDiff(props.diff.diff);
   const [showMergeResolver, setShowMergeResolver] = createSignal(false);
@@ -77,7 +80,7 @@ export default function DiffViewer(props: Props) {
   createEffect(() => {
     props.onMergeStatusChange?.(showMergeResolver());
   });
-  
+
   createEffect(async () => {
     if (props.diff.oldFile) {
       const base64 = await loadImage(props.diff.oldFile);
@@ -93,6 +96,20 @@ export default function DiffViewer(props: Props) {
     const diff = props.diff.diff || "";
     return diff.includes("<<<<<<<") && diff.includes("=======") && diff.includes(">>>>>>>");
   });
+
+  const saveFileOnSave = async (resolvedContent: string) => {
+    console.log('diff', props.diff);
+    console.log('file', props.file);
+    debugger;
+    try {
+      await saveFile(props.diff.newFile, resolvedContent);
+      notify.success("Sucesso", "Conflitos resolvidos e salvos!");
+      setShowMergeResolver(false);
+      props.onSaveSuccess?.(); // Avisa o LocalChanges para recarregar
+    } catch (err) {
+      notify.error("Erro ao salvar", String(err));
+    }
+  }
   console.log("hasConflict", props);
 
   return (
@@ -162,9 +179,8 @@ export default function DiffViewer(props: Props) {
         </div>
       </Show>
       <Dialog open={showMergeResolver()} title="Resolver Conflitos" onClose={() => setShowMergeResolver(false)} width="1200px">
-        <MergeResolver diffContent={props.diff.diff} onClose={() => setShowMergeResolver(false)} onSave={() => {}} />
+        <MergeResolver diffContent={props.diff.diff} onClose={() => setShowMergeResolver(false)} onSave={(resolvedContent) => saveFileOnSave(resolvedContent)} />
       </Dialog>
-
     </>
   );
 }

@@ -155,6 +155,10 @@ export async function mergeBranch(repoPath: string, fromBranch: string, toBranch
   return await invoke("merge_branch", { repoPath, fromBranch, toBranch });
 }
 
+export async function saveFile(path: string = '', content: string) {
+  return await invoke("save_file", { path, content });
+}
+
 export async function checkoutRemoteBranch(repoPath: string, branchName: string) {
   return await invoke("checkout_remote_branch", { repoPath, branchName });
 }
