@@ -1,4 +1,4 @@
-import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { commit, discard_changes, getDiff, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
@@ -36,17 +36,28 @@ export function LocalChanges(props: { repo: Repo; }) {
   const loadChanges = async () => {
     if (!props.repo.path) return;
     const res = await getLocalChanges(props.repo.path);
+    
+    // O Solid JS faz diff por referência. 
+    // Se a lista mudou mas o arquivo selecionado continua lá, não mude o fileSelected.
     setChanges(res);
+
+    // Se havia um arquivo selecionado, recarregue o diff dele para manter atualizado
+    // mas sem limpar o estado atual antes da hora.
+    if (fileSelected()) {
+      // Verificamos se o arquivo ainda existe nas mudanças
+      const aindaExiste = res.find(c => c.path === fileSelected());
+      if (aindaExiste) {
+        loadDiff(aindaExiste.staged); 
+      }
+    }
   };
 
-  createEffect(() => {
-    const path = props.repo.path;
+  createEffect(on(() => props.repo.path, (path: string) => {
     if (!path) return;
-
     clearDiff();
     setSelected([]);
     loadChanges();
-  });
+  }, { defer: true }));
 
   const handleVisibilityChange = () => {
     if (document.visibilityState === "visible") {
