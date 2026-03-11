@@ -36,18 +36,13 @@ export function LocalChanges(props: { repo: Repo; }) {
   const loadChanges = async () => {
     if (!props.repo.path) return;
     const res = await getLocalChanges(props.repo.path);
-    
-    // O Solid JS faz diff por referência. 
-    // Se a lista mudou mas o arquivo selecionado continua lá, não mude o fileSelected.
+
     setChanges(res);
 
-    // Se havia um arquivo selecionado, recarregue o diff dele para manter atualizado
-    // mas sem limpar o estado atual antes da hora.
     if (fileSelected()) {
-      // Verificamos se o arquivo ainda existe nas mudanças
-      const aindaExiste = res.find(c => c.path === fileSelected());
-      if (aindaExiste) {
-        loadDiff(aindaExiste.staged); 
+      const alreadyExists = res.find(c => c.path === fileSelected());
+      if (alreadyExists) {
+        loadDiff(alreadyExists.staged);
       }
     }
   };
@@ -57,7 +52,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     clearDiff();
     setSelected([]);
     loadChanges();
-  }, { defer: true }));
+  }));
 
   const handleVisibilityChange = () => {
     if (document.visibilityState === "visible") {
