@@ -22,12 +22,13 @@ export default function VSMergeEditor(props: Props) {
   let rightRef: HTMLDivElement | undefined;
   let lastProcessedContent = "";
 
-  // Lógica de Parsing: Só roda se o conteúdo bruto do arquivo mudar (props.diffContent)
-  createEffect(on(() => props.diffContent, (newContent) => {
-    if (newContent === lastProcessedContent) return;
-    const rawLines = newContent.split("\n");
+  createEffect(on(() => props.diffContent, (newContent, prevContent) => {
+    // 1. Verificação de segurança para não resetar se o conteúdo for idêntico
+    if (newContent === lastProcessedContent && lines().length > 0) return;
+
+    const rawLines = (newContent || "").split("\n");
     const processed: Line[] = [];
-    const initialResolutions: Record<number, null> = {};
+    const initialResolutions: Record<number, any> = {};
     let conflictCounter = 0;
     let currentType: Line["type"] = "normal";
 
@@ -50,32 +51,44 @@ export default function VSMergeEditor(props: Props) {
           conflictId: currentType !== "normal" ? conflictCounter : undefined 
         });
       }
-      lastProcessedContent = newContent;
     });
 
+    lastProcessedContent = newContent; // Atualiza a ref
     setLines(processed);
     setResolutions(initialResolutions);
-    setManualResult(null); // Reseta a edição manual apenas se o arquivo mudar
+    setManualResult(null); 
   }));
 
   // Calcula o resultado mesclado baseado nas escolhas do usuário
   const autoResult = createMemo(() => {
     const res = resolutions();
     const final: string[] = [];
-    let skipUntilNextNormal = false;
+    const linesArr = lines();
 
-    lines().forEach((line) => {
+    for (let i = 0; i < linesArr.length; i++) {
+      const line = linesArr[i];
+
       if (line.type === "normal") {
         final.push(line.content);
-        skipUntilNextNormal = false;
-      } else if (line.conflictId && !skipUntilNextNormal) {
-        const choice = res[line.conflictId];
-        if (choice === "current" && line.type === "current") final.push(line.content);
-        if (choice === "incoming" && line.type === "incoming") final.push(line.content);
-        if (choice === "both" && (line.type === "current" || line.type === "incoming")) final.push(line.content);
-        if (line.content.startsWith(">>>>>>>")) skipUntilNextNormal = true;
+        continue;
       }
-    });
+
+      if (line.conflictId) {
+        const choice = res[line.conflictId];
+
+        // Se não houver escolha (null), mantém o conteúdo original (incluindo headers/separators)
+        if (choice === null) {
+          final.push(line.content);
+        } 
+        // Se houver escolha, filtra apenas o que foi selecionado
+        else {
+          if (choice === "current" && line.type === "current") final.push(line.content);
+          if (choice === "incoming" && line.type === "incoming") final.push(line.content);
+          if (choice === "both" && (line.type === "current" || line.type === "incoming")) final.push(line.content);
+          // Note: Headers (<<<<) e Separators (====) são ignorados quando há uma escolha feita
+        }
+      }
+    }
     return final.join("\n");
   });
 
@@ -103,9 +116,18 @@ export default function VSMergeEditor(props: Props) {
             <For each={lines()}>{(line) => (
               <div class={`min-h-[1.5em] ${line.type === 'current' ? 'opacity-20 grayscale' : ''} ${line.type === 'incoming' ? 'bg-blue-900/30' : ''}`}>
                 <Show when={line.content.startsWith("<<<<<<<")}>
-                  <button onClick={() => setResolutions(p => ({...p, [line.conflictId!]: 'incoming'}))} 
-                          class="text-blue-400 hover:bg-blue-400/20 px-1 rounded block border border-blue-400/50 mb-1">
-                    Accept Incoming
+                  <button 
+                    onClick={() => {
+                      setResolutions(p => ({
+                        ...p, 
+                        [line.conflictId!]: p[line.conflictId!] === 'incoming' ? null : 'incoming'
+                      }));
+                    }} 
+                    class={`text-blue-400 hover:bg-blue-400/20 px-1 rounded block border border-blue-400/50 mb-1 ${
+                      resolutions()[line.conflictId!] === 'incoming' ? 'bg-blue-400/30' : ''
+                    }`}
+                  >
+                    {resolutions()[line.conflictId!] === 'incoming' ? '✓ Incoming Accepted' : 'Accept Incoming'}
                   </button>
                 </Show>
                 <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : ''}>{line.content}</pre>
@@ -123,9 +145,18 @@ export default function VSMergeEditor(props: Props) {
             <For each={lines()}>{(line) => (
               <div class={`min-h-[1.5em] ${line.type === 'incoming' ? 'opacity-20 grayscale' : ''} ${line.type === 'current' ? 'bg-green-900/30' : ''}`}>
                 <Show when={line.content.startsWith("<<<<<<<")}>
-                  <button onClick={() => setResolutions(p => ({...p, [line.conflictId!]: 'current'}))}
-                          class="text-green-400 hover:bg-green-400/20 px-1 rounded block border border-green-400/50 mb-1 ml-auto">
-                    Accept Current
+                  <button 
+                    onClick={() => {
+                      setResolutions(p => ({
+                        ...p, 
+                        [line.conflictId!]: p[line.conflictId!] === 'current' ? null : 'current'
+                      }));
+                    }}
+                    class={`text-green-400 hover:bg-green-400/20 px-1 rounded block border border-green-400/50 mb-1 ml-auto ${
+                      resolutions()[line.conflictId!] === 'current' ? 'bg-green-400/30' : ''
+                    }`}
+                  >
+                    {resolutions()[line.conflictId!] === 'current' ? '✓ Current Accepted' : 'Accept Current'}
                   </button>
                 </Show>
                 <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : ''}>{line.content}</pre>
