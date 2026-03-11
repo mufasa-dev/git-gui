@@ -42,6 +42,7 @@ fn main() {
             commands::vs_code::open_vscode_git_diff,
             commands::image::load_image_base64,
             commands::merge::merge_branch,
+            commands::merge::save_file,
             commands::pull_request::open_pull_request,
             commands::git_config::get_git_config,
             commands::git_config::set_git_config

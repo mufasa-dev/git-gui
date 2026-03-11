@@ -1,3 +1,5 @@
+use std::fs;
+
 #[tauri::command]
 pub fn merge_branch(repo_path: String, from_branch: String, to_branch: String) -> Result<String, String> {
     use std::process::Command;
@@ -29,4 +31,9 @@ pub fn merge_branch(repo_path: String, from_branch: String, to_branch: String) -
     }
 
     Ok(String::from_utf8_lossy(&merge_output.stdout).to_string())
+}
+
+#[tauri::command]
+pub async fn save_file(path: String, content: String) -> Result<(), String> {
+    fs::write(&path, content).map_err(|e| e.to_string())
 }
