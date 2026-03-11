@@ -31,10 +31,11 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [menuVisible, setMenuVisible] = createSignal(false);
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
   const { showLoading, hideLoading } = useLoading();
+  const [isMerging, setIsMerging] = createSignal(false);
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
 
   const loadChanges = async () => {
-    if (!props.repo.path) return;
+    if (!props.repo.path || isMerging()) return;
     const res = await getLocalChanges(props.repo.path);
 
     setChanges(res);
@@ -48,7 +49,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   };
 
   createEffect(on(() => props.repo.path, (path: string) => {
-    if (!path) return;
+    if (!path || isMerging()) return;
     clearDiff();
     setSelected([]);
     loadChanges();
@@ -62,7 +63,9 @@ export function LocalChanges(props: { repo: Repo; }) {
 
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
-  const handleFocus = () => loadChanges();
+  const handleFocus = () => {
+    if (!isMerging()) loadChanges();
+  };
   window.addEventListener("focus", handleFocus);
 
   onCleanup(() => {
@@ -235,7 +238,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       <div  class="flex-1 flex flex-col h-full overflow-hidden">
         <div class="flex-1 overflow-auto px-2">
           <div style={{"height": "100px"}}>
-            <DiffViewer diff={diff()} class="h-full" />
+            <DiffViewer diff={diff()} class="h-full" onMergeStatusChange={(open) => setIsMerging(open)} />
           </div>
         </div>
         <div class="border-t border-gray-300 p-4 dark:border-gray-900">

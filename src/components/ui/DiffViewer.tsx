@@ -7,6 +7,7 @@ import MergeResolver from "../repo/MergeResolver";
 type Props = {
   diff: Diff;
   class: string;
+  onMergeStatusChange?: (active: boolean) => void;
 };
 
 type DiffLine = {
@@ -73,6 +74,10 @@ export default function DiffViewer(props: Props) {
   const [oldImg, setOldImg] = createSignal<string>();
   const [newImg, setNewImg] = createSignal<string>();
 
+  createEffect(() => {
+    props.onMergeStatusChange?.(showMergeResolver());
+  });
+  
   createEffect(async () => {
     if (props.diff.oldFile) {
       const base64 = await loadImage(props.diff.oldFile);
