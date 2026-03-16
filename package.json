@@ -13,9 +13,9 @@
   "license": "MIT",
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.0.0",
-    "@tauri-apps/plugin-dialog": "^2.3.2",
+    "@tauri-apps/plugin-dialog": "2.6.0",
     "@tauri-apps/plugin-notification": "^2.3.3",
-    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-opener": "2.5.3",
     "@tauri-apps/plugin-os": "^2.3.1",
     "@tauri-apps/plugin-store": "^2.4.0",
     "flatpickr": "^4.6.13",
