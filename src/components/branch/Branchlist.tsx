@@ -50,7 +50,16 @@ export default function BranchList(props: Props) {
       });
     }
 
-    items.push({ label: "Criar pull request", action: () => openPullRequestUrl(props.repoPath, branch) });
+    items.push({ 
+      label: "Criar pull request", action: async () => {
+        try {
+          await openPullRequestUrl(props.repoPath, branch)
+        } catch (error: unknown) {
+          const errorMessage = typeof error === 'string' ? error : String(error);
+          notify.error('Erro ao criar pull request', errorMessage);
+        }
+      } 
+    });
 
     if (isNotActiveBranch) {
       items.push({ 
