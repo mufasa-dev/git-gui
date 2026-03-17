@@ -96,7 +96,7 @@ export default function TreeView(props: TreeViewProps) {
                   {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[node.name], "fa-caret-right" : !open()[node.name]}}></i>} 
                   {!isLeaf && <i class="fa-solid mr-1 text-yellow-600" classList={{"fa-folder-open" : open()[node.name], "fa-folder" : !open()[node.name]}}></i>} 
                   {isLeaf && <i class="fa-solid" classList={{"fa-code-branch" : !isActive, "fa-check" : isActive}}></i>}
-                  { node.name }
+                  <div class="truncate ml-1">{ node.name }</div>
                   <div class="ml-auto">
                     {node.ahead > 0 && <span class="text-green-600">↑{node.ahead}</span>}
                     {node.behind > 0 && <span class="text-red-600">↓{node.behind}</span>}
