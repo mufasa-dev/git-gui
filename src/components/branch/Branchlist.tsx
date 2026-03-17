@@ -22,6 +22,7 @@ export default function BranchList(props: Props) {
   const [menuVisible, setMenuVisible] = createSignal(false);
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
+  const [itemName, setItemName] = createSignal<string>("");
   const { showLoading, hideLoading } = useLoading();
 
   const openContextMenu = (e: MouseEvent, branch: string) => {
@@ -99,6 +100,7 @@ export default function BranchList(props: Props) {
       });
     }
 
+    setItemName(getBranchName(branch));
     setMenuItems(items);
     setMenuPos({ x: e.clientX, y: e.clientY });
     setMenuVisible(true);
@@ -146,9 +148,14 @@ export default function BranchList(props: Props) {
       });
     }
 
+    setItemName(getBranchName(branch));
     setMenuItems(items);
     setMenuPos({ x: e.clientX, y: e.clientY });
     setMenuVisible(true);
+  }
+
+  function getBranchName(fullBranchPath: string): string {
+    return fullBranchPath.split('/').pop() || '';
   }
 
   const checkoutRemote = async (branch: string) => {
@@ -198,6 +205,7 @@ export default function BranchList(props: Props) {
       />}
       <Show when={menuVisible()}>
         <ContextMenu
+          name={itemName()}
           items={menuItems()}
           position={menuPos()}
           onClose={() => setMenuVisible(false)}

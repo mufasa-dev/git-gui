@@ -1,4 +1,4 @@
-import { For, JSX } from "solid-js";
+import { For, JSX, Show } from "solid-js";
 
 export type ContextMenuItem = {
   label: string;
@@ -7,6 +7,7 @@ export type ContextMenuItem = {
 };
 
 type ContextMenuProps = {
+  name: string;
   items: ContextMenuItem[];
   position: { x: number; y: number };
   onClose: () => void;
@@ -18,7 +19,12 @@ export default function ContextMenu(props: ContextMenuProps) {
       class="absolute bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded shadow-md z-50"
       style={{ top: `${props.position.y}px`, left: `${props.position.x}px` }}
     >
-      <ul class="py-1 text-sm">
+      <ul class="text-sm">
+        <Show when={props.name}>
+          <li class="px-4 py-1 text-gray-500 dark:text-gray-400 text-xs font-semibold border-b border-gray-300 dark:border-gray-600">
+            {props.name}
+          </li>
+        </Show>
         <For each={props.items}>
           {(item) => (
             <li>
