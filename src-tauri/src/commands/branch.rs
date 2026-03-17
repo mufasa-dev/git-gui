@@ -47,57 +47,51 @@ pub async fn list_remote_branches(path: String) -> Result<Vec<String>, String> {
 
 #[tauri::command]
 pub async fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Value>, String> {
-    let branches_output = Command::new("git")
-        .args(["for-each-ref", "--format=%(refname:short)", "refs/heads/"])
+    // Retorna: "nome| [ahead X, behind Y]" ou "nome|"
+    let output = Command::new("git")
+        .args([
+            "for-each-ref",
+            "--format=%(refname:short)|%(upstream:track)",
+            "refs/heads/",
+        ])
         .current_dir(&repo_path)
         .output()
         .await
         .map_err(|e| e.to_string())?;
 
-    let branches_str = String::from_utf8_lossy(&branches_output.stdout);
+    let stdout = String::from_utf8_lossy(&output.stdout);
     let mut branches = Vec::new();
 
-    for branch in branches_str.lines() {
-        let upstream_check = Command::new("git")
-            .args(["rev-parse", "--abbrev-ref", &format!("{}@{{u}}", branch)])
-            .current_dir(&repo_path)
-            .output()
-            .await;
+    for line in stdout.lines() {
+        let parts: Vec<&str> = line.split('|').collect();
+        if parts.len() < 2 { continue; }
 
-        if let Ok(up) = upstream_check {
-            if up.status.success() {
-                let ahead = Command::new("git")
-                    .args(["rev-list", "--count", &format!("{}@{{u}}..{}", branch, branch)])
-                    .current_dir(&repo_path)
-                    .output()
-                    .await;
+        let name = parts[0];
+        let track = parts[1]; // Ex: "[ahead 1, behind 2]"
 
-                let behind = Command::new("git")
-                    .args(["rev-list", "--count", &format!("{}..{}@{{u}}", branch, branch)])
-                    .current_dir(&repo_path)
-                    .output()
-                    .await;
+        let mut ahead = 0;
+        let mut behind = 0;
+        let has_upstream = !track.is_empty();
 
-                let ahead_count = ahead.ok()
-                    .and_then(|o| String::from_utf8(o.stdout).ok())
-                    .and_then(|s| s.trim().parse::<u32>().ok())
-                    .unwrap_or(0);
-
-                let behind_count = behind.ok()
-                    .and_then(|o| String::from_utf8(o.stdout).ok())
-                    .and_then(|s| s.trim().parse::<u32>().ok())
-                    .unwrap_or(0);
-
-                branches.push(json!({
-                    "name": branch, "ahead": ahead_count, "behind": behind_count, "hasUpstream": true
-                }));
-            } else {
-                branches.push(json!({
-                    "name": branch, "ahead": 0, "behind": 0, "hasUpstream": false
-                }));
+        if has_upstream {
+            for segment in track.trim_matches(|c| c == '[' || c == ']').split(',') {
+                let s = segment.trim();
+                if s.starts_with("ahead ") {
+                    ahead = s["ahead ".len()..].parse::<u32>().unwrap_or(0);
+                } else if s.starts_with("behind ") {
+                    behind = s["behind ".len()..].parse::<u32>().unwrap_or(0);
+                }
             }
         }
+
+        branches.push(json!({
+            "name": name,
+            "ahead": ahead,
+            "behind": behind,
+            "hasUpstream": has_upstream
+        }));
     }
+
     Ok(branches)
 }
 
