@@ -113,26 +113,36 @@ export default function VSMergeEditor(props: Props) {
             <span class="text-blue-400">← Incoming (Remote)</span>
           </div>
           <div ref={leftRef} onScroll={handleScroll} class="overflow-auto flex-1 p-2">
-            <For each={lines()}>{(line) => (
-              <div class={`min-h-[1.5em] ${line.type === 'current' ? 'opacity-20 grayscale' : ''} ${line.type === 'incoming' ? 'bg-blue-900/30' : ''}`}>
-                <Show when={line.content.startsWith("<<<<<<<")}>
-                  <button 
-                    onClick={() => {
-                      setResolutions(p => ({
-                        ...p, 
-                        [line.conflictId!]: p[line.conflictId!] === 'incoming' ? null : 'incoming'
-                      }));
-                    }} 
-                    class={`text-blue-400 hover:bg-blue-400/20 px-1 rounded block border border-blue-400/50 mb-1 ${
-                      resolutions()[line.conflictId!] === 'incoming' ? 'bg-blue-400/30' : ''
-                    }`}
-                  >
-                    {resolutions()[line.conflictId!] === 'incoming' ? '✓ Incoming Accepted' : 'Accept Incoming'}
-                  </button>
-                </Show>
-                <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : ''}>{line.content}</pre>
-              </div>
-            )}</For>
+            <For each={lines()}>{(line) => {
+              const isSelected = () => resolutions()[line.conflictId!] === 'incoming' || resolutions()[line.conflictId!] === 'both';
+              const isOtherSelected = () => resolutions()[line.conflictId!] === 'current';
+
+              return (
+                <div 
+                  onClick={() => {
+                    if (!line.conflictId) return;
+                    setResolutions(p => {
+                      const res = p[line.conflictId!];
+                      let next: any = null;
+                      if (res === 'incoming') next = null;
+                      else if (res === 'current') next = 'both';
+                      else if (res === 'both') next = 'current';
+                      else next = 'incoming';
+                      return { ...p, [line.conflictId!]: next };
+                    });
+                  }}
+                  class={`min-h-[1.5em] px-1  ${
+                    line.type === 'incoming' 
+                      ? isSelected() ? 'bg-blue-600/40 border-blue-700' : 'bg-blue-400/40 border-transparent '
+                      : line.type === 'current' ? 'opacity-10 grayscale pointer-events-none border-transparent ' : 'border-transparent '
+                  } ${line.conflictId && 'cursor-pointer transition-colors border-l-4 p-1'}`}
+                >
+                  <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre'}>
+                    {line.content}
+                  </pre>
+                </div>
+              )
+            }}</For>
           </div>
         </div>
 
@@ -142,26 +152,35 @@ export default function VSMergeEditor(props: Props) {
             <span class="text-green-400 font-bold">Current (Local) →</span>
           </div>
           <div ref={rightRef} onScroll={handleScroll} class="overflow-auto flex-1 p-2">
-            <For each={lines()}>{(line) => (
-              <div class={`min-h-[1.5em] ${line.type === 'incoming' ? 'opacity-20 grayscale' : ''} ${line.type === 'current' ? 'bg-green-900/30' : ''}`}>
-                <Show when={line.content.startsWith("<<<<<<<")}>
-                  <button 
-                    onClick={() => {
-                      setResolutions(p => ({
-                        ...p, 
-                        [line.conflictId!]: p[line.conflictId!] === 'current' ? null : 'current'
-                      }));
-                    }}
-                    class={`text-green-400 hover:bg-green-400/20 px-1 rounded block border border-green-400/50 mb-1 ml-auto ${
-                      resolutions()[line.conflictId!] === 'current' ? 'bg-green-400/30' : ''
-                    }`}
-                  >
-                    {resolutions()[line.conflictId!] === 'current' ? '✓ Current Accepted' : 'Accept Current'}
-                  </button>
-                </Show>
-                <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : ''}>{line.content}</pre>
-              </div>
-            )}</For>
+            <For each={lines()}>{(line) => {
+              const isSelected = () => resolutions()[line.conflictId!] === 'current' || resolutions()[line.conflictId!] === 'both';
+
+              return (
+                <div 
+                  onClick={() => {
+                    if (!line.conflictId) return;
+                    setResolutions(p => {
+                      const res = p[line.conflictId!];
+                      let next: any = null;
+                      if (res === 'current') next = null;
+                      else if (res === 'incoming') next = 'both';
+                      else if (res === 'both') next = 'incoming';
+                      else next = 'current';
+                      return { ...p, [line.conflictId!]: next };
+                    });
+                  }}
+                  class={`min-h-[1.5em] px-1  ${
+                    line.type === 'current' 
+                      ? isSelected() ? 'bg-green-600/40 border-green-700' : 'bg-green-400/40 border-transparent '
+                      : line.type === 'incoming' ? 'opacity-10 grayscale pointer-events-none border-transparent ' : 'border-transparent '
+                  } ${line.conflictId && 'cursor-pointer transition-colors border-l-4 p-1'}`}
+                >
+                  <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre'}>
+                    {line.content}
+                  </pre>
+                </div>
+              )
+            }}</For>
           </div>
         </div>
       </div>
