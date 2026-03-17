@@ -11,6 +11,7 @@ export function FolderTreeView(props: {
     staged: boolean;
     onToggle: (path: string, selected: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
+    onDbClick?: (items: string[]) => void;
  }) {
   const buildTree = (files: ChangeItem[]) => {
     const root: any = {};
@@ -40,7 +41,11 @@ export function FolderTreeView(props: {
     <ul class="ml-2 space-y-1">
       <For each={Object.entries(tree())}>
         {([name, child]: any) => (
-            <TreeNode node={child} name={name} path={name} selected={props.selected} staged={props.staged} onToggle={props.onToggle} onContextMenu={props.onContextMenu} />
+            <TreeNode node={child} name={name} path={name} 
+              selected={props.selected} staged={props.staged} 
+              onToggle={props.onToggle} onContextMenu={props.onContextMenu} 
+              onDbClick={props.onDbClick} 
+            />
         )}
       </For>
     </ul>
@@ -54,8 +59,9 @@ function TreeNode(props: {
     staged: boolean
     selected: string[]; 
     onToggle: (path: string, selected: boolean) => void;
-    onContextMenu?: (e: MouseEvent, item: any) => void }
-  ) {
+    onContextMenu?: (e: MouseEvent, item: any) => void;
+    onDbClick?: (items: string[]) => void;
+  } ) {
   const [open, setOpen] = createSignal(true);
 
   const entries = () =>
@@ -68,21 +74,22 @@ function TreeNode(props: {
       const currentlySelected = props.selected.includes(props.path);
       props.onToggle(props.path, !currentlySelected);
     } else {
-      // Se for pasta, toggle todos os arquivos filhos
-      const collectPaths = (node: any, base: string): string[] => {
-        let paths: string[] = [];
-        if (node.__isFile) paths.push(base);
-        else {
-          for (const [childName, childNode] of Object.entries(node.__children)) {
-            paths = paths.concat(collectPaths(childNode, base + "/" + childName));
-          }
-        }
-        return paths;
-      };
+      // Se for pasta, seleciona todos os arquivos filhos
       const allPaths = collectPaths(props.node, props.path);
       const allSelected = allPaths.every((p) => props.selected.includes(p));
       allPaths.forEach((p) => props.onToggle(p, !allSelected));
     }
+  };
+
+  const collectPaths = (node: any, base: string): string[] => {
+    let paths: string[] = [];
+    if (node.__isFile) paths.push(base);
+    else {
+      for (const [childName, childNode] of Object.entries(node.__children)) {
+        paths = paths.concat(collectPaths(childNode, base + "/" + childName));
+      }
+    }
+    return paths;
   };
 
   const getStatusStyle = (status: string) => {
@@ -113,7 +120,14 @@ function TreeNode(props: {
       <div
         class="cursor-pointer select-none flex items-center"
         classList={{ "text-blue-500": props.selected.includes(props.path) }}
-        onClick={toggle}
+        onClick={toggle} onDblClick={() => {
+          if (props.node.__isFile && props.onDbClick) {
+            props.onDbClick([props.path]);
+          }  else if (props.onDbClick) {
+            const allPaths = collectPaths(props.node, props.path);
+            props.onDbClick(allPaths);
+          }
+        }}
       >
         {props.node.__isFile ? (
           <span title={props.name} class="pl-4 text-sm truncate">
@@ -146,6 +160,7 @@ function TreeNode(props: {
                 staged={props.staged}
                 onToggle={props.onToggle}
                 onContextMenu={props.onContextMenu}
+                onDbClick={props.onDbClick}
               />
             )}
           </For>
