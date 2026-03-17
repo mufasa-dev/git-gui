@@ -13,13 +13,13 @@ pub struct Commit {
 #[tauri::command]
 pub fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String> {
     let output = Command::new("git")
-        .args(&["log", "--pretty=format:%H|%an|%ad|%s", &branch])
+        .args(&["log", "--pretty=format:%H|%an|%ad|%s", &branch, "--"])
         .current_dir(&path)
         .output()
         .map_err(|e| e.to_string())?;
 
     if !output.status.success() {
-        return Err("Erro ao listar commits".into());
+        return Ok(Vec::new());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);

@@ -1,9 +1,10 @@
-import { createEffect, createSignal, createMemo, For, Show } from "solid-js";
+import { createEffect, createSignal, createMemo, For, Show, on, onCleanup } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { getCommitDetails, getCommits } from "../../services/gitService";
 import { formatDate } from "../../utils/date";
 import { CommitDetails } from "./CommitDetails";
 import { datepicker } from "../../directives/datepicker";
+import { notify } from "../../utils/notifications";
 
 declare module "solid-js" {
   namespace JSX {
@@ -12,6 +13,7 @@ declare module "solid-js" {
     }
   }
 }
+let isFetchingCommits = false;
 
 export default function CommitsList(props: { repo: Repo; branch?: string, class?: string }) {
   const [commits, setCommits] = createSignal<any[]>([]);
@@ -57,6 +59,35 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
     });
   });
 
+  const loadCommits = async (isNewBranch: boolean) => {
+    if (!props.repo.path || !props.branch || isFetchingCommits) return;
+    
+    isFetchingCommits = true;
+    if (isNewBranch) setLoading(true);
+
+    try {
+      const branchName = props.branch.replace("* ", "");
+      const res = await getCommits(props.repo.path, branchName);
+      
+      if (JSON.stringify(res) !== JSON.stringify(commits())) {
+        setCommits(res);
+      }
+
+      if (selectedCommit()) {
+        const exists = res.find(c => c.hash === selectedCommit().hash);
+        if (!exists && isNewBranch) {
+          setSelectedCommit(null);
+        }
+      }
+    } catch(e) {
+      const errorMessage = typeof e === 'string' ? e : String(e);
+      notify.error('Erro ao carregar commits', errorMessage);
+    } finally {
+      setLoading(false);
+      isFetchingCommits = false;
+    }
+  };
+
   const paginatedCommits = createMemo(() => {
     const start = (currentPage() - 1) * itemsPerPage;
     return filteredCommits().slice(start, start + itemsPerPage);
@@ -64,32 +95,32 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
 
   const totalPages = createMemo(() => Math.ceil(filteredCommits().length / itemsPerPage));
 
-  // Reset de página ao pesquisar
-  createEffect(() => {
-    searchTerm(); 
-    setCurrentPage(1);
-  });
-
   async function selectCommit(hash: string) {
     const details = await getCommitDetails(props.repo.path, hash);
     setSelectedCommit({ ...details, _ts: Date.now() });
   }
 
-  createEffect(() => {
-    if (!props.repo.path || !props.branch) return;
-    const branchName = props.branch.replace("* ", "");
+  createEffect(on(() => [props.repo.path, props.branch], ([path, branch], prev) => {
+    const isNewRepoOrBranch = !prev || path !== prev[0] || branch !== prev[1];
     
-    setLoading(true);
-    getCommits(props.repo.path, branchName)
-      .then(res => {
-        setCommits(res);
-        setSelectedCommit(null);
-        setCurrentPage(1);
-      })
-      .finally(() => setLoading(false));
-  });
+    if (isNewRepoOrBranch) {
+       setCurrentPage(1);
+       setSelectedCommit(null);
+       loadCommits(true);
+    } else {
+       loadCommits(false);
+    }
+  }));
 
-  // Handlers de redimensionamento (mantidos)
+  const handleFocus = () => {
+    if (document.visibilityState === "visible") {
+      loadCommits(false);
+    }
+  };
+
+  window.addEventListener("focus", handleFocus);
+  onCleanup(() => window.removeEventListener("focus", handleFocus));
+
   function onMouseMove(e: MouseEvent) {
     if (resizing()) {
       const newHeight = window.innerHeight - e.clientY - 20;
