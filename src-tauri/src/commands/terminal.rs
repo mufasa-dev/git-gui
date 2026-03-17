@@ -2,32 +2,32 @@ use open;
 use std::process::Command;
 
 #[tauri::command]
-pub fn open_console(path: String) {
+pub fn open_console(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd")
-            .current_dir(path)
+        std::process::Command::new("cmd")
+            .args(&["/c", "start", "cmd", "/k", "cd", "/d", &path])
             .spawn()
-            .expect("Falha ao abrir Console");
+            .map_err(|e| e.to_string())?;
     }
 
     #[cfg(target_os = "linux")]
     {
-        Command::new("gnome-terminal")
-            .current_dir(path)
+        std::process::Command::new("gnome-terminal")
+            .arg(format!("--working-directory={}", path))
             .spawn()
-            .expect("Falha ao abrir terminal");
+            .map_err(|e| e.to_string())?;
     }
 
     #[cfg(target_os = "macos")]
     {
-        Command::new("open")
-            .arg("-a")
-            .arg("Terminal")
-            .current_dir(path)
+        std::process::Command::new("open")
+            .args(&["-a", "Terminal", &path])
             .spawn()
-            .expect("Falha ao abrir Terminal");
+            .map_err(|e| e.to_string())?;
     }
+
+    Ok(())
 }
 
 #[tauri::command]

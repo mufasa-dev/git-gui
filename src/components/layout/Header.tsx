@@ -251,7 +251,15 @@ export default function Header(props: Props) {
               {
                 img: commandIcon,
                 label: "Abrir Console",
-                action: () => openConsole(props.active!)
+                action: () => {
+                  try {
+                    console.log("Abrindo console...", props);
+                    openConsole(props.active!)
+                  } catch (error) {
+                    const errorMessage = typeof error === 'string' ? error : String(error);
+                    notify.error('Erro ao abrir console', errorMessage);
+                  }
+                }
               },
               {
                 img: bashIcon,
