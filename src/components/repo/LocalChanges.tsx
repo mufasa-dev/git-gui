@@ -11,6 +11,8 @@ import { Diff } from "../../models/Diff.model";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 
+let isRefreshing = false;
+
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
   const maxWidth = 600;
@@ -35,23 +37,51 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
 
   const loadChanges = async () => {
-    if (!props.repo.path || isMerging()) return;
-    const res = await getLocalChanges(props.repo.path);
-
-    setChanges(res);
-
-    if (fileSelected()) {
-      const alreadyExists = res.find(c => c.path === fileSelected());
-      if (alreadyExists) {
-        loadDiff(alreadyExists.staged);
+    if (!props.repo.path || isMerging() || isRefreshing) return;
+    
+    isRefreshing = true;
+    
+    try {
+      const res = await getLocalChanges(props.repo.path);
+      
+      if (JSON.stringify(res) !== JSON.stringify(changes())) {
+        setChanges(res);
       }
+
+      const currentPaths = res.map(c => c.path);
+      setSelected(prev => prev.filter(p => currentPaths.includes(p)));
+      setStagedPreparedSelected(prev => prev.filter(p => currentPaths.includes(p)));
+
+      if (fileSelected()) {
+        const fileExists = res.find(c => c.path === fileSelected());
+        if (fileExists) {
+          const newDiff = await getDiff(props.repo.path, fileSelected(), fileExists.staged);
+          if (newDiff.diff !== diff().diff) {
+            setDiff(newDiff);
+          }
+        } else {
+          setFileSelected("");
+          setDiff({diff: ""});
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao carregar mudanças:", e);
+    } finally {
+      isRefreshing = false;
     }
   };
 
-  createEffect(on(() => props.repo.path, (path: string) => {
-    if (!path || isMerging()) return;
-    clearDiff();
-    setSelected([]);
+  createEffect(on(() => props.repo.path, (newPath, oldPath) => {
+    if (!newPath) return;
+    
+    if (newPath !== oldPath) {
+      setChanges([]);
+      setSelected([]);
+      setStagedPreparedSelected([]);
+      setFileSelected("");
+      setDiff({diff: ""});
+    }
+    
     loadChanges();
   }));
 
@@ -64,7 +94,9 @@ export function LocalChanges(props: { repo: Repo; }) {
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
   const handleFocus = () => {
-    if (!isMerging()) loadChanges();
+    if (!isMerging() && !isRefreshing) {
+      loadChanges();
+    }
   };
   window.addEventListener("focus", handleFocus);
 
