@@ -79,17 +79,36 @@ export default function RepoTabsPage() {
     window.removeEventListener("focus", handleFocus);
   });
 
-  async function refreshBranches(repoPath: string) {
-    const branches = await getBranchStatus(repoPath);
-    const remoteBranches = await getRemoteBranches(repoPath);
-    const activeBranch = await getCurrentBranch(repoPath!);
-    const localChanges = await getLocalChanges(repoPath);
+  let isRefreshing = false;
 
-    setRepos(prev =>
-      prev.map(r =>
-        r.path === repoPath ? { ...r, branches, remoteBranches, activeBranch, localChanges } : r
-      )
-    );
+  async function refreshBranches(repoPath: string) {
+    if (isRefreshing) return;
+    isRefreshing = true;
+
+    try {
+      const [branches, activeBranch, localChanges] = await Promise.all([
+        getBranchStatus(repoPath),
+        getCurrentBranch(repoPath),
+        getLocalChanges(repoPath)
+      ]);
+
+      setRepos(prev =>
+        prev.map(r =>
+          r.path === repoPath ? { ...r, branches, activeBranch, localChanges } : r
+        )
+      );
+
+      getRemoteBranches(repoPath).then(remoteBranches => {
+        setRepos(prev =>
+          prev.map(r =>
+            r.path === repoPath ? { ...r, remoteBranches } : r
+          )
+        );
+      }).catch(console.error);
+
+    } finally {
+      isRefreshing = false;
+    }
   }
 
   return (
