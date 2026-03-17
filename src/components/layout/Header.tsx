@@ -19,6 +19,10 @@ import { path } from "@tauri-apps/api";
 import Dialog from "../ui/Dialog";
 import { notify } from "../../utils/notifications";
 import { hide } from "@tauri-apps/api/app";
+import vsCodeIcon from "../../assets/vscode.png";
+import bashIcon from "../../assets/bash.png";
+import commandIcon from "../../assets/command.png";
+import internetIcon from "../../assets/worldwide.png";
 import { useLoading } from "../ui/LoadingContext";
 
 type Props = {
@@ -245,23 +249,28 @@ export default function Header(props: Props) {
             img={newWindowIcon}
             options={[
               {
+                img: commandIcon,
                 label: "Abrir Console",
                 action: () => openConsole(props.active!)
               },
               {
+                img: bashIcon,
                 label: "Abrir no Git Bash",
                 hide: platform() != "windows",
                 action: () => openBash(props.active!)
               },
               {
+                img: folderIcon,
                 label: "Gerenciador de Arquivos",
                 action: () => openFileManager(props.active!)
               },
               {
+                img: internetIcon,
                 label: "Navegador",
                 action: () => openRepositoryBrowser(props.active!)
               },
               {
+                img: vsCodeIcon,
                 label: "Abrir no VSCode",
                 action: () => openVsCode(props.active!)
               },
