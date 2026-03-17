@@ -1,6 +1,7 @@
 import { createSignal, createMemo, For, Show, createEffect, on } from "solid-js";
 
 interface Line {
+  lineNumber?: number;
   content: string;
   type: "normal" | "current" | "incoming" | "separator" | "header";
   conflictId?: number;
@@ -22,15 +23,18 @@ export default function VSMergeEditor(props: Props) {
   let rightRef: HTMLDivElement | undefined;
   let lastProcessedContent = "";
 
-  createEffect(on(() => props.diffContent, (newContent, prevContent) => {
-    // 1. Verificação de segurança para não resetar se o conteúdo for idêntico
+  createEffect(on(() => props.diffContent, (newContent) => {
     if (newContent === lastProcessedContent && lines().length > 0) return;
 
     const rawLines = (newContent || "").split("\n");
     const processed: Line[] = [];
     const initialResolutions: Record<number, any> = {};
+    
     let conflictCounter = 0;
     let currentType: Line["type"] = "normal";
+    
+    let countIncoming = 1;
+    let countCurrent = 1;
 
     rawLines.forEach((lineContent) => {
       if (lineContent.startsWith("<<<<<<<")) {
@@ -42,18 +46,32 @@ export default function VSMergeEditor(props: Props) {
         currentType = "incoming";
         processed.push({ content: lineContent, type: "separator", conflictId: conflictCounter });
       } else if (lineContent.startsWith(">>>>>>>")) {
-        processed.push({ content: lineContent, type: "header", conflictId: conflictCounter });
         currentType = "normal";
+        processed.push({ content: lineContent, type: "header", conflictId: conflictCounter });
       } else {
+        const isNormal = currentType === "normal";
+        const isCurrent = currentType === "current";
+        const isIncoming = currentType === "incoming";
+
         processed.push({ 
           content: lineContent, 
           type: currentType, 
-          conflictId: currentType !== "normal" ? conflictCounter : undefined 
+          conflictId: !isNormal ? conflictCounter : undefined,
+          lineNumber: isNormal ? countCurrent : (isCurrent ? countCurrent : countIncoming)
         });
+
+        if (isNormal) {
+          countCurrent++;
+          countIncoming++;
+        } else if (isCurrent) {
+          countCurrent++;
+        } else if (isIncoming) {
+          countIncoming++;
+        }
       }
     });
 
-    lastProcessedContent = newContent; // Atualiza a ref
+    lastProcessedContent = newContent;
     setLines(processed);
     setResolutions(initialResolutions);
     setManualResult(null); 
@@ -115,7 +133,6 @@ export default function VSMergeEditor(props: Props) {
           <div ref={leftRef} onScroll={handleScroll} class="overflow-auto flex-1 p-2">
             <For each={lines()}>{(line) => {
               const isSelected = () => resolutions()[line.conflictId!] === 'incoming' || resolutions()[line.conflictId!] === 'both';
-              const isOtherSelected = () => resolutions()[line.conflictId!] === 'current';
 
               return (
                 <div 
@@ -131,12 +148,16 @@ export default function VSMergeEditor(props: Props) {
                       return { ...p, [line.conflictId!]: next };
                     });
                   }}
-                  class={`min-h-[1.5em] px-1  ${
+                  class={`flex min-h-[1.5em] items-center border-l-4 border-transparent ${
                     line.type === 'incoming' 
-                      ? isSelected() ? 'bg-blue-600/40 border-blue-700' : 'bg-blue-400/40 border-transparent '
-                      : line.type === 'current' ? 'opacity-10 grayscale pointer-events-none border-transparent ' : 'border-transparent '
-                  } ${line.conflictId && 'cursor-pointer transition-colors border-l-4 p-1'}`}
+                      ? isSelected() ? 'bg-blue-600/40 border-blue-700 py-1' : 'bg-blue-400/20 opacity-60  py-1'
+                      : line.type === 'current' ? 'opacity-10 grayscale pointer-events-none' : ''
+                  } ${line.conflictId && 'cursor-pointer transition-colors'}`}
                 >
+                  <span class="w-10 text-right pr-2 text-gray-500 select-none border-r border-gray-300/20 mr-2 flex-shrink-0">
+                    {line.type === 'incoming' || line.type === 'normal' ? line.lineNumber : ''}
+                  </span>
+                  
                   <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre'}>
                     {line.content}
                   </pre>
@@ -152,7 +173,7 @@ export default function VSMergeEditor(props: Props) {
             <span class="text-green-400 font-bold">Current (Local) →</span>
           </div>
           <div ref={rightRef} onScroll={handleScroll} class="overflow-auto flex-1 p-2">
-            <For each={lines()}>{(line) => {
+            <For each={lines()}>{(line, index) => {
               const isSelected = () => resolutions()[line.conflictId!] === 'current' || resolutions()[line.conflictId!] === 'both';
 
               return (
@@ -169,12 +190,16 @@ export default function VSMergeEditor(props: Props) {
                       return { ...p, [line.conflictId!]: next };
                     });
                   }}
-                  class={`min-h-[1.5em] px-1  ${
+                  class={`flex min-h-[1.5em] items-center border-l-4 border-transparent ${
                     line.type === 'current' 
-                      ? isSelected() ? 'bg-green-600/40 border-green-700' : 'bg-green-400/40 border-transparent '
-                      : line.type === 'incoming' ? 'opacity-10 grayscale pointer-events-none border-transparent ' : 'border-transparent '
-                  } ${line.conflictId && 'cursor-pointer transition-colors border-l-4 p-1'}`}
+                      ? isSelected() ? 'bg-green-600/40 border-green-700 py-1' : 'bg-green-400/20 opacity-60 py-1'
+                      : line.type === 'incoming' ? 'opacity-10 grayscale pointer-events-none' : ''
+                  } ${line.conflictId && 'cursor-pointer transition-colors '}`}
                 >
+                  <span class="w-10 text-right pr-2 text-gray-500 select-none border-r border-gray-300/20 mr-2 flex-shrink-0">
+                    {line.type === 'current' || line.type === 'normal' ? line.lineNumber : ''}
+                  </span>
+
                   <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre'}>
                     {line.content}
                   </pre>
