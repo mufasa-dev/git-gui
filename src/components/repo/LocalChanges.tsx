@@ -209,23 +209,31 @@ export function LocalChanges(props: { repo: Repo; }) {
       onMouseLeave={stopResize}>
       <div class="overflow-auto border-r border-gray-300 dark:border-gray-900 py-2" style={{ width: `${sidebarWidth()}px` }}>
         <div style={{"height": "40px"}} class="flex flex-col">
-          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center" onContextMenu={showContextMenu}>
+          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 mb-3 flex items-center" onContextMenu={showContextMenu}>
             <b>Alterações</b>
             <button class="ml-auto px-2 py-1 text-sm bg-blue-500 text-white rounded" onClick={() => prepare(selected())}>
               Preparar
             </button>
           </div>
-          {unstaged().length === 0 && <div class="px-4 pt-4 text-center text-gray-400">Nenhuma alteração local</div>}
-          <FolderTreeView items={unstaged()} selected={selected()} staged={false} onToggle={toggleItem} onContextMenu={showContextMenu} />
+          {unstaged().length === 0 && <div class="px-4 text-center text-gray-400">Nenhuma alteração local</div>}
+          <FolderTreeView items={unstaged()} 
+            selected={selected()} staged={false} 
+            onToggle={toggleItem} onContextMenu={showContextMenu}
+            onDbClick={(items: string[]) => prepare(items)}
+          />
 
-          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center mt-4">
+          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center mt-4 mb-3">
             <b class="mr-1">Preparadas</b>
             <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded" onclick={() => unstage(stagedPreparedSelected())}>
               Desfazer
             </button>
           </div>
           
-          <FolderTreeView items={staged()} selected={stagedPreparedSelected()} staged={true} onToggle={toggleStagedItem} onContextMenu={showContextMenu} />
+          <FolderTreeView items={staged()} 
+            selected={stagedPreparedSelected()} staged={true} 
+            onToggle={toggleStagedItem} onContextMenu={showContextMenu}
+            onDbClick={(items: string[]) => unstage(items)}
+          />
         </div>
       </div>
 
@@ -237,14 +245,13 @@ export function LocalChanges(props: { repo: Repo; }) {
 
       <div  class="flex-1 flex flex-col h-full overflow-hidden">
         <div class="flex-1 overflow-auto px-2">
-          <div style={{"height": "100px"}}>
-            <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
-              onMergeStatusChange={(open) => setIsMerging(open)} 
-              onSaveSuccess={() => {
-                setIsMerging(false); // Libera a trava
-                loadChanges();       // Recarrega a lista para sumir o aviso de conflito
-              }} />
-          </div>
+          <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
+            path={props.repo.path}
+            onMergeStatusChange={(open) => setIsMerging(open)}
+            onSaveSuccess={() => {
+              setIsMerging(false); // Libera a trava
+              loadChanges();       // Recarrega a lista para sumir o aviso de conflito
+            }} />
         </div>
         <div class="border-t border-gray-300 p-4 dark:border-gray-900">
           <input type="text" class="w-full input-text" placeholder="Mensagem do commit"
@@ -270,6 +277,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       </div>
       <Show when={menuVisible()}>
         <ContextMenu
+          name={''}
           items={menuItems()}
           position={menuPos()}
           onClose={hideContextMenu}
