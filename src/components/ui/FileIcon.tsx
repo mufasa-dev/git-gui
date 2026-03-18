@@ -36,6 +36,10 @@ import svelteIcon from "../../assets/svelte.png";
 import astroIcon from "../../assets/astro.png";
 import luaIcon from "../../assets/lua.png";
 import juliaIcon from "../../assets/julia.png";
+import delphiIcon from "../../assets/delphi.png";
+import pascalIcon from "../../assets/pascal.png";
+import dllIcon from "../../assets/dll.png";
+import rpgMakerIcon from "../../assets/rpg_maker.png";
 import dockerIcon from "../../assets/docker.png";
 import blenderIcon from "../../assets/blender.png";
 import databaseIcon from "../../assets/database.png";
@@ -143,6 +147,19 @@ export default function FileIcon(props: FileIconProps) {
       otf: fontIcon,
       woff: fontIcon,
       woff2: fontIcon,
+      dll: dllIcon,
+      dts: dllIcon,
+      delphi: delphiIcon,
+      dpr: delphiIcon,
+      dproj: delphiIcon,
+      dpk: packageIcon,
+      pascal: pascalIcon,
+      pas: pascalIcon,
+      rpgmaker: rpgMakerIcon,
+      rvdata2: databaseIcon,
+      rxdata: databaseIcon,
+      rpgproject: rpgMakerIcon,
+      rmpro: rpgMakerIcon
     };
 
     return mapping[ext!] || defaultIcon;
