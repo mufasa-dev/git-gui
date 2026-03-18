@@ -1,4 +1,5 @@
 import { createSignal, For, Show } from "solid-js";
+import FileIcon from "./FileIcon";
 
 type ChangeItem = {
   path: string;
@@ -130,11 +131,11 @@ function TreeNode(props: {
         }}
       >
         {props.node.__isFile ? (
-          <span title={props.name} class="pl-4 text-sm truncate">
-            <span class={'px-1 rounded text-white ' + getStatusStyle(props.node.__status || '')}>
+          <span title={props.name} class="pl-4 text-sm truncate flex items-center">
+            <span class={'px-1 rounded text-white mr-2 ' + getStatusStyle(props.node.__status || '')}>
               {getStatusLetter(props.node.__status)}
             </span>{" "}
-            <i class="fa-regular fa-file"></i> {props.name}
+              <FileIcon fileName={props.name} /> <span class="ml-2">{props.name}</span>
           </span>
         ) : (
           <>
