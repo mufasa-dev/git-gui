@@ -19,7 +19,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   const [commits, setCommits] = createSignal<any[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
-  const [commitDetailsHeight, setCommitDetailsHeight] = createSignal(250);
+  const [commitDetailsHeight, setCommitDetailsHeight] = createSignal(300);
   const [resizing, setResizing] = createSignal(false);
   const [startDate, setStartDate] = createSignal("");
   const [endDate, setEndDate] = createSignal("");
@@ -214,7 +214,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       
       {/* Detalhes */}
       <div style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px" }} class="overflow-auto">
-        <CommitDetails commit={selectedCommit()} />
+        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} />
       </div>
     </div>
   );

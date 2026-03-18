@@ -1,63 +1,153 @@
+import { createSignal, Show, For, createEffect } from "solid-js";
 import { getGravatarUrl } from "../../services/gravatarService";
 import { formatDate } from "../../utils/date";
+import { getCommitFileDiff } from "../../services/gitService";
+import DiffViewer from "../ui/DiffViewer";
+import { notify } from "../../utils/notifications";
+import FileIcon from "../ui/FileIcon";
 
-export function CommitDetails(props: { commit: any}) {
+export function CommitDetails(props: { commit: any; repoPath: string }) {
+  const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
+  const [selectedFile, setSelectedFile] = createSignal<any>(null);
+  const [fileDiff, setFileDiff] = createSignal<any>(null);
+  const [loadingDiff, setLoadingDiff] = createSignal(false);
+
+  const fetchFileDiff = async (file: any) => {
+    setSelectedFile(file);
+    setLoadingDiff(true);
+    try {
+      const res = await getCommitFileDiff(props.repoPath, props.commit.hash, file.file);
+      setFileDiff(res);
+    } catch (e) {
+      console.error(e);
+      notify.error("Erro ao carregar diff", String(e));
+    } finally {
+      setLoadingDiff(false);
+    }
+  };
+
+  createEffect(() => {
+    const files = props.commit?.files;
+    if (files && files.length > 0) {
+      fetchFileDiff(files[0]);
+    } else {
+      setSelectedFile(null);
+      setFileDiff(null);
+    }
+  });
 
   return (
-    <div class="p-4 space-y-2">
-      {!props.commit ? (
-        <div class="text-gray-400">Selecione um commit</div>
-      ) : (
+    <div class="flex flex-col h-full bg-white dark:bg-gray-800">
+      <Show when={!props.commit} fallback={
         <>
-          <div class="flex">
-            <img
-              src={getGravatarUrl(props.commit.authorEmail, 80)}
-              alt={props.commit.authorName}
-              class="w-[60px] h-[60px] rounded flex-2"
-            />
-            <div class="flex-1 ml-4">
-              <b>{props.commit.authorName}</b> 
-              <span class="text-gray-500 dark:text-gray-200 text-sm ml-2">{props.commit.authorEmail}</span> <br />
-              <span class="text-gray-500 dark:text-gray-400 text-sm">{formatDate(props.commit.authorDate)}</span>
-            </div>
+          {/* Navegação de Abas */}
+          <div class="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4">
+            <button
+              onClick={() => setActiveTab("geral")}
+              class={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab() === "geral" 
+                ? "border-blue-500 text-blue-600 dark:text-blue-500" 
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:dark:text-gray-300"
+              }`}
+            >
+              Geral
+            </button>
+            <button
+              onClick={() => setActiveTab("arquivos")}
+              class={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab() === "arquivos" 
+                ? "border-blue-500 text-blue-600 dark:text-blue-500" 
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:dark:text-gray-300"
+              }`}
+            >
+              Arquivos ({props.commit?.files?.length || 0})
+            </button>
           </div>
 
-          <div class="flex items-center">
-            <div class="w-[60px] text-right">SHA</div>
-            <div class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">{props.commit.hash}</div>
-          </div>
+          <div class="flex-1 overflow-auto">
+            {/* CONTEÚDO: ABA GERAL */}
+            <Show when={activeTab() === "geral"}>
+              <div class="space-y-4 p-4">
+                <div class="flex items-start">
+                  <img
+                    src={getGravatarUrl(props.commit.authorEmail, 80)}
+                    alt={props.commit.authorName}
+                    class="w-[60px] h-[60px] rounded shadow-sm"
+                  />
+                  <div class="ml-4">
+                    <div class="font-bold text-gray-900 dark:text-gray-100">{props.commit.authorName}</div>
+                    <div class="text-gray-500 dark:text-gray-200 text-sm">{props.commit.authorEmail}</div>
+                    <div class="text-gray-500 dark:text-gray-400 text-sm">{formatDate(props.commit.authorDate)}</div>
+                  </div>
+                </div>
 
-          {
-            props.commit?.parents?.length > 0 && <div class="flex items-center">
-              <div class="w-[60px] text-right">Parents</div>
-              <div class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">{props.commit.parents}</div>
+                <div class="grid grid-cols-[80px_1fr] gap-2 text-sm items-center">
+                  <span class="w-[60px] text-right">SHA:</span>
+                  <span class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">
+                    {props.commit.hash}
+                  </span>
+                  
+                  <Show when={props.commit?.parents?.length > 0}>
+                    <span class="w-[60px] text-right">Parents:</span>
+                    <span class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">{props.commit.parents}</span>
+                  </Show>
+                </div>
+
+                <hr />
+
+                 <div class="flex">
+                  <div class="w-[60px]"></div>
+                  <div class="ml-4">
+                    <b>{props.commit.subject}</b> <br />
+                    <p class="whitespace-pre-wrap mt-2 text-sm text-gray-500 dark:text-gray-400">{props.commit.body}</p>
+                  </div>
+                </div>
+
+                <hr />
+
+              </div>
+            </Show>
+
+            {/* CONTEÚDO: ABA ARQUIVOS */}
+            <Show when={activeTab() === "arquivos"}>
+            <div class="flex h-full">
+              {/* Sidebar de arquivos */}
+              <div class="w-1/3 border-r dark:border-gray-800 overflow-y-auto">
+                <For each={props.commit.files}>
+                  {(f) => (
+                    <div 
+                      onClick={() => fetchFileDiff(f)}
+                      class={`flex items-center p-2 text-xs cursor-pointer border-b dark:border-gray-900 hover:bg-blue-500/10 ${selectedFile()?.file === f.file ? 'bg-blue-500/20' : ''}`}
+                    >
+                      <FileIcon fileName={f.file} /> <span class="ml-2">{f.file}</span>
+                    </div>
+                  )}
+                </For>
+              </div>
+
+              {/* Área do Diff */}
+              <div class="w-2/3 overflow-y-auto bg-white dark:bg-gray-800">
+                <Show when={selectedFile()} fallback={<div class="p-10 text-center text-gray-500 text-sm">Selecione um arquivo para ver o diff</div>}>
+                  <Show when={!loadingDiff()} fallback={<div class="p-10 text-center">Carregando diff...</div>}>
+                    <DiffViewer 
+                      path={props.repoPath}
+                      file={selectedFile().file}
+                      diff={fileDiff()}
+                      class="text-xs"
+                      isStaged={true}
+                    />
+                  </Show>
+                </Show>
+              </div>
             </div>
-          }
-
-          <hr />
-
-          <div class="flex">
-            <div class="w-[60px]"></div>
-            <div class="ml-4">
-              <b>{props.commit.subject}</b> <br />
-              <p class="whitespace-pre-wrap mt-2 text-sm text-gray-500 dark:text-gray-400">{props.commit.body}</p>
-            </div>
-          </div>
-
-          <hr />
-
-          <div class="mt-2">
-            <b>Arquivos alterados:</b>
-            <ul class="ml-4 list-disc text-sm">
-                {props.commit.files?.map((f: any) => (
-                    <li>
-                    {f.file} <span class="text-gray-400">{f.changes}</span>
-                    </li>
-                ))}
-            </ul>
+          </Show>
           </div>
         </>
-        )}
+      }>
+        <div class="h-full flex items-center justify-center text-gray-400 italic">
+          Selecione um commit para ver os detalhes
+        </div>
+      </Show>
     </div>
   );
 }
