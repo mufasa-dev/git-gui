@@ -25,7 +25,7 @@ type Props = {
 
 export default function VSMergeEditor(props: Props) {
   const [lines, setLines] = createSignal<Line[]>([]);
-  const [resolutions, setResolutions] = createSignal<Record<number, "current" | "incoming" | "both" | "none" | null>>({});
+  const [resolutions, setResolutions] = createSignal<Record<number, ("current" | "incoming")[]>>({});
   const [manualResult, setManualResult] = createSignal<string | null>(null);
   const [isDark, setIsDark] = createSignal(localStorage.getItem("theme") === "dark");
 
@@ -33,7 +33,6 @@ export default function VSMergeEditor(props: Props) {
   let rightRef: HTMLDivElement | undefined;
   let lastProcessedContent = "";
 
-  // 1. Lógica de cálculo (Memos) - PRECISA VIR ANTES DO HOOK
   const autoResult = createMemo(() => {
     const res = resolutions();
     const final: string[] = [];
@@ -41,18 +40,30 @@ export default function VSMergeEditor(props: Props) {
 
     for (let i = 0; i < linesArr.length; i++) {
       const line = linesArr[i];
+
       if (line.type === "normal") {
         final.push(line.content);
         continue;
       }
+
       if (line.conflictId) {
-        const choice = res[line.conflictId];
-        if (choice === null) {
+        const id = line.conflictId;
+        const choices = res[id] || [];
+
+        if (choices.length === 0) {
           final.push(line.content);
         } else {
-          if (choice === "current" && line.type === "current") final.push(line.content);
-          if (choice === "incoming" && line.type === "incoming") final.push(line.content);
-          if (choice === "both" && (line.type === "current" || line.type === "incoming")) final.push(line.content);
+          const conflictLines = linesArr.filter(l => l.conflictId === id);
+          
+          choices.forEach(side => {
+            conflictLines
+              .filter(l => l.type === side)
+              .forEach(l => final.push(l.content));
+          });
+
+          while (i + 1 < linesArr.length && linesArr[i + 1].conflictId === id) {
+            i++;
+          }
         }
       }
     }
@@ -61,7 +72,7 @@ export default function VSMergeEditor(props: Props) {
 
   const displayResult = () => manualResult() ?? autoResult();
 
-  // 2. Configuração do CodeMirror
+  // Configuração do CodeMirror
   const { ref: codeMirrorRef, editorView: view, createExtension } = createCodeMirror({
     value: displayResult()
   });
@@ -69,20 +80,16 @@ export default function VSMergeEditor(props: Props) {
   createExtension(() => {
     const dark = isDark();
 
-    // 1. Criamos um array de extensões base
     const extensions = [
       javascript(),
       EditorView.lineWrapping,
     ];
-
-    // 2. Só adicionamos o OneDark se for realmente DARK
     if (dark) {
       extensions.push(oneDark);
     } else {
       extensions.push(githubLight);
     }
 
-    // 3. Adicionamos o ajuste de tema POR ÚLTIMO para tentar sobrescrever
     extensions.push(
       EditorView.theme({
         "&": {
@@ -97,7 +104,6 @@ export default function VSMergeEditor(props: Props) {
           backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#f5f5f5",
           border: "none"
         },
-        // Isso aqui é importante para o modo claro ter letras pretas
         ".cm-content": {
           color: dark ? "#abb2bf" : "#000000",
         }
@@ -110,10 +116,10 @@ export default function VSMergeEditor(props: Props) {
   const handleCompleteMerge = () => {
     const currentResolutions = resolutions();
     const conflictIds = Object.keys(currentResolutions);
-    const hasUnresolved = conflictIds.some(id => currentResolutions[Number(id)] === null);
+    const hasUnresolved = conflictIds.some(id => currentResolutions[Number(id)].length === 0);
 
     if (hasUnresolved) {
-      notify.error("Merge incompleto", "Existem conflitos não resolvidos. O arquivo será salvo com os marcadores originais.");
+      notify.error("Merge incompleto", "Existem conflitos não resolvidos.");
     } else {
       props.onSave(displayResult());
     }
@@ -132,7 +138,6 @@ export default function VSMergeEditor(props: Props) {
     }
   });
 
-  // 3. Sua lógica original de processamento de Diff (RESTAURADA)
   createEffect(on(() => props.diffContent, (newContent) => {
     if (newContent === lastProcessedContent && lines().length > 0) return;
     const rawLines = (newContent || "").split("\n");
@@ -175,6 +180,22 @@ export default function VSMergeEditor(props: Props) {
     setManualResult(null); 
   }));
 
+  const toggleResolution = (id: number, side: "current" | "incoming") => {
+    setResolutions(p => {
+      const currentList = p[id] || [];
+      const isAlreadySelected = currentList.includes(side);
+      
+      let newList;
+      if (isAlreadySelected) {
+        newList = currentList.filter(s => s !== side);
+      } else {
+        newList = [...currentList, side];
+      }
+      
+      return { ...p, [id]: newList };
+    });
+  };
+
   const handleScroll = (e: Event) => {
     const target = e.currentTarget as HTMLDivElement;
     [leftRef, rightRef].forEach(ref => {
@@ -190,20 +211,10 @@ export default function VSMergeEditor(props: Props) {
           <div class="bg-blue-300 dark:bg-blue-900 px-4 py-1 text-[11px] uppercase text-blue-700 dark:text-blue-400 font-bold border-b border-blue-500/30">← Incoming</div>
           <div ref={leftRef} onScroll={handleScroll} class="overflow-auto flex-1 p-2 custom-scrollbar">
             <For each={lines()}>{(line) => {
-              const isSelected = () => resolutions()[line.conflictId!] === 'incoming' || resolutions()[line.conflictId!] === 'both';
+              const isSelected = () => resolutions()[line.conflictId!]?.includes('incoming');
               return (
-                <div onClick={() => {
-                    if (!line.conflictId) return;
-                    setResolutions(p => {
-                      const res = p[line.conflictId!];
-                      let next: any = null;
-                      if (res === 'incoming') next = null;
-                      else if (res === 'current') next = 'both';
-                      else if (res === 'both') next = 'current';
-                      else next = 'incoming';
-                      return { ...p, [line.conflictId!]: next };
-                    });
-                  }} class={`flex min-h-[1.5em] w-fit items-center border-l-2 border-transparent 
+                <div onClick={() => toggleResolution(line.conflictId!, 'incoming')} 
+                  class={`flex min-h-[1.5em] w-fit items-center border-l-2 border-transparent 
                     ${line.type === 'incoming' ? (isSelected() ? 'bg-blue-600/30 border-blue-500 py-2' : 'bg-blue-300/30 py-2') : line.type === 'current' ? 'opacity-10 grayscale pointer-events-none' : ''} 
                     ${line.conflictId && 'cursor-pointer w-[100%] text-black dark:text-white'}`}>
                   <span class="w-8 text-right pr-2 text-black dark:text-gray-500 text-[10px]">{line.type === 'incoming' || line.type === 'normal' ? line.lineNumber : ''}</span>
@@ -222,20 +233,10 @@ export default function VSMergeEditor(props: Props) {
           <div class="bg-green-300 dark:bg-green-900 px-4 py-1 text-[11px] uppercase text-green-700 dark:text-green-400 font-bold border-b border-green-500/30">Current →</div>
           <div ref={rightRef} onScroll={handleScroll} class="overflow-auto flex-1 p-2 custom-scrollbar">
             <For each={lines()}>{(line) => {
-              const isSelected = () => resolutions()[line.conflictId!] === 'current' || resolutions()[line.conflictId!] === 'both';
+              const isSelected = () => resolutions()[line.conflictId!]?.includes('current');
               return (
-                <div onClick={() => {
-                    if (!line.conflictId) return;
-                    setResolutions(p => {
-                      const res = p[line.conflictId!];
-                      let next: any = null;
-                      if (res === 'current') next = null;
-                      else if (res === 'incoming') next = 'both';
-                      else if (res === 'both') next = 'incoming';
-                      else next = 'current';
-                      return { ...p, [line.conflictId!]: next };
-                    });
-                  }} class={`flex min-h-[1.5em] w-fit items-center border-l-2 border-transparent 
+                <div onClick={() => toggleResolution(line.conflictId!, 'current')} 
+                  class={`flex min-h-[1.5em] w-fit items-center border-l-2 border-transparent 
                     ${line.type === 'current' ? (isSelected() ? 'bg-green-600/30 border-green-500 py-2' : 'bg-green-300/30 py-2') : line.type === 'incoming' ? 'opacity-10 grayscale pointer-events-none' : ''} 
                     ${line.conflictId && 'cursor-pointer w-[100%] text-black dark:text-white'}`}>
                   <span class="w-8 text-right pr-2 text-gray-500 text-[10px]">{line.type === 'current' || line.type === 'normal' ? line.lineNumber : ''}</span>
@@ -263,7 +264,7 @@ export default function VSMergeEditor(props: Props) {
           </div>
         </div>
         
-        {/* O CodeMirror é montado aqui através do ref */}
+        {/* CodeMirror */}
         <div class="flex-1 overflow-hidden" ref={codeMirrorRef} />
       </div>
     </div>

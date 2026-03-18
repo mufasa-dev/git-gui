@@ -280,9 +280,10 @@ export function LocalChanges(props: { repo: Repo; }) {
           <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
             path={props.repo.path}
             onMergeStatusChange={(open) => setIsMerging(open)}
-            onSaveSuccess={() => {
-              setIsMerging(false); // Libera a trava
-              loadChanges();       // Recarrega a lista para sumir o aviso de conflito
+            onSaveSuccess={(filePath: string) => {
+              setIsMerging(false);
+              prepare([filePath]);
+              loadChanges();
             }} />
         </div>
         <div class="border-t border-gray-300 p-4 dark:border-gray-900">

@@ -15,7 +15,7 @@ type Props = {
   diff: Diff;
   class: string;
   file: string;
-  onSaveSuccess?: () => void;
+  onSaveSuccess?: (file: string) => void;
   onMergeStatusChange?: (active: boolean) => void;
 };
 
@@ -114,14 +114,13 @@ export default function DiffViewer(props: Props) {
   });
 
   const saveFileOnSave = async (resolvedContent: string) => {
-    console.log('diff', props.diff);
-    console.log('file', props.file);
-    debugger;
     try {
       await saveFile(props.diff.newFile, resolvedContent);
       notify.success("Sucesso", "Conflitos resolvidos e salvos!");
       setShowMergeResolver(false);
-      props.onSaveSuccess?.(); // Avisa o LocalChanges para recarregar
+      if (props.diff.newFile) {
+        props.onSaveSuccess?.(props.diff.newFile);
+      }
     } catch (err) {
       notify.error("Erro ao salvar", String(err));
     }
@@ -224,7 +223,10 @@ export default function DiffViewer(props: Props) {
         </div>
       </Show>
       <Dialog open={showMergeResolver()} title="Resolver Conflitos" onClose={() => setShowMergeResolver(false)} width="1200px">
-        <MergeResolver diffContent={props.diff.diff} onClose={() => setShowMergeResolver(false)} onSave={(resolvedContent) => saveFileOnSave(resolvedContent)} />
+        <MergeResolver diffContent={props.diff.diff} 
+          onClose={() => setShowMergeResolver(false)} 
+          onSave={(resolvedContent) => saveFileOnSave(resolvedContent)} 
+        />
       </Dialog>
     </>
   );
