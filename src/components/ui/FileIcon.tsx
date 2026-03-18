@@ -4,7 +4,14 @@ import { createMemo } from "solid-js";
 import mdIcon from "../../assets/md.png";
 import cSharpIcon from "../../assets/cs.png";
 import cppIcon from "../../assets/cpp.png";
+import rIcon from "../../assets/r.png";
+import bIcon from "../../assets/b.png";
+import asmIcon from "../../assets/asm.png";
 import aspIcon from "../../assets/asp.png";
+import batIcon from "../../assets/bat.png";
+import elixirIcon from "../../assets/elixir.png";
+import lispIcon from "../../assets/lisp.png";
+import pearlIcon from "../../assets/pearl.png";
 import imageIcon from "../../assets/image.png";
 import fontIcon from "../../assets/font.png";
 import pdfIcon from "../../assets/pdf.png";
@@ -32,6 +39,7 @@ import javaIcon from "../../assets/java.png";
 import kotlinIcon from "../../assets/kotlin.png";
 import phpIcon from "../../assets/php.png";
 import vueIcon from "../../assets/vue.png";
+import vimIcon from "../../assets/vim.png";
 import svelteIcon from "../../assets/svelte.png";
 import astroIcon from "../../assets/astro.png";
 import luaIcon from "../../assets/lua.png";
@@ -40,15 +48,18 @@ import delphiIcon from "../../assets/delphi.png";
 import pascalIcon from "../../assets/pascal.png";
 import dllIcon from "../../assets/dll.png";
 import rpgMakerIcon from "../../assets/rpg_maker.png";
+import androidIcon from "../../assets/android.png";
 import dockerIcon from "../../assets/docker.png";
 import blenderIcon from "../../assets/blender.png";
+import excelIcon from "../../assets/excel.png";
 import databaseIcon from "../../assets/database.png";
+import configIcon from "../../assets/config.png";
 import packageIcon from "../../assets/package.png";
 import defaultIcon from "../../assets/file.png";
 
 type FileIconProps = {
   fileName: string;
-  size?: number; // Permite personalizar o tamanho
+  size?: number;
   class?: string;
 };
 
@@ -63,6 +74,7 @@ export default function FileIcon(props: FileIconProps) {
     if (name === '.gitignore') return gitIcon;
     if (name === 'license') return mdIcon;
     if (name.includes('package.json')) return packageIcon;
+    if (name.includes('package-lock.json')) return packageIcon;
 
     const mapping: Record<string, string> = {
       js: jsIcon,
@@ -78,6 +90,8 @@ export default function FileIcon(props: FileIconProps) {
       scss: scssIcon,
       less: lessIcon,
       html: htmlIcon,
+      htm: htmlIcon,
+      htmlx: htmlIcon,
       png: imageIcon,
       jpg: imageIcon,
       jpeg: imageIcon,
@@ -91,6 +105,21 @@ export default function FileIcon(props: FileIconProps) {
       asp: aspIcon,
       razor: aspIcon,
       resx: aspIcon,
+      asa: configIcon,
+      r: rIcon,
+      b: bIcon,
+      asm: asmIcon,
+      elixir: elixirIcon,
+      ex: elixirIcon,
+      exs: elixirIcon,
+      heex: elixirIcon,
+      pl: pearlIcon,
+      pm: pearlIcon,
+      p6: pearlIcon,
+      pl6: pearlIcon,
+      bat: batIcon,
+      lisp: lispIcon,
+      el: lispIcon,
       php: phpIcon,
       md: mdIcon,
       bash: gitIcon,
@@ -120,6 +149,8 @@ export default function FileIcon(props: FileIconProps) {
       dart: flutterIcon,
       kt: kotlinIcon,
       kts: kotlinIcon,
+      vim: vimIcon,
+      vimrc: vimIcon,
       cpp: cppIcon,
       h: cppIcon,
       c: cppIcon,
@@ -155,11 +186,17 @@ export default function FileIcon(props: FileIconProps) {
       dpk: packageIcon,
       pascal: pascalIcon,
       pas: pascalIcon,
+      apk: androidIcon,
       rpgmaker: rpgMakerIcon,
       rvdata2: databaseIcon,
       rxdata: databaseIcon,
       rpgproject: rpgMakerIcon,
-      rmpro: rpgMakerIcon
+      rmpro: rpgMakerIcon,
+      xlsx: excelIcon,
+      xls: excelIcon,
+      zip: packageIcon,
+      rar: packageIcon,
+      config: configIcon
     };
 
     return mapping[ext!] || defaultIcon;
