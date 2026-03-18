@@ -96,6 +96,18 @@ export async function commit(
   });
 }
 
+export async function getCommitFileDiff(
+  repoPath: string,
+  commitSha: string,
+  filePath: string
+): Promise<any> {
+  return await invoke("get_commit_file_diff", {
+    repoPath,
+    commitSha,
+    filePath
+  });
+}
+
 export async function pushRepo(
   repoPath: string,
   remote: string = "origin",

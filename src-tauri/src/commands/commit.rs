@@ -1,6 +1,7 @@
 use serde::Serialize;
 use std::process::Command;
 use tauri::command;
+use git2::{DiffFormat, DiffOptions, Repository};
 
 #[derive(Serialize)]
 pub struct Commit {
@@ -144,4 +145,48 @@ pub fn git_commit(
     } else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
+}
+
+#[tauri::command]
+pub async fn get_commit_file_diff(repo_path: String, commit_sha: String, file_path: String) -> Result<serde_json::Value, String> {
+    let repo = Repository::open(&repo_path).map_err(|e| e.to_string())?;
+    let commit = repo.revparse_single(&commit_sha).map_err(|e| e.to_string())?
+        .peel_to_commit().map_err(|e| e.to_string())?;
+    
+    let tree = commit.tree().map_err(|e| e.to_string())?;
+    let parent_tree = if commit.parent_count() > 0 {
+        Some(commit.parent(0).map_err(|e| e.to_string())?.tree().map_err(|e| e.to_string())?)
+    } else {
+        None
+    };
+
+    let mut opts = DiffOptions::new();
+    opts.pathspec(&file_path);
+
+    let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut opts))
+        .map_err(|e| e.to_string())?;
+
+    let mut diff_text = String::new();
+    
+    diff.print(DiffFormat::Patch, |_delta, _hunk, line| {
+        let origin = line.origin();
+        match origin {
+            '+' | '-' | ' ' | 'H' => { // 'H' é o header do hunk (@@)
+                if let Ok(s) = std::str::from_utf8(line.content()) {
+                    if origin != 'H' {
+                        diff_text.push(origin);
+                    }
+                    diff_text.push_str(s);
+                }
+            }
+            _ => {}
+        }
+        true
+    }).map_err(|e| e.to_string())?;
+
+    Ok(serde_json::json!({
+        "diff": diff_text,
+        "oldFile": file_path,
+        "newFile": file_path
+    }))
 }

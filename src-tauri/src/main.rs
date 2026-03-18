@@ -20,6 +20,7 @@ fn main() {
             commands::commit::list_commits,
             commands::commit::get_commit_details,
             commands::commit::git_commit,
+            commands::commit::get_commit_file_diff,
             commands::stage::list_local_changes,
             commands::stage::stage_files,
             commands::stage::unstage_files,
