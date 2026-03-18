@@ -15,6 +15,7 @@ type Props = {
   diff: Diff;
   class: string;
   file: string;
+  isStaged?: boolean;
   onSaveSuccess?: (file: string) => void;
   onMergeStatusChange?: (active: boolean) => void;
 };
@@ -147,7 +148,7 @@ export default function DiffViewer(props: Props) {
           </div>
         </div>
       </Show>
-      <Show when={!isBinary() && !hasConflict()}>
+      <Show when={!isBinary() && (!hasConflict() || (hasConflict() && props.isStaged))}>
         <div class="h-[100px] py-2">
           <div class="font-mono text-sm border border-gray-300 dark:border-gray-700 rounded-md overflow-hidden">
             <table class="w-full border-collapse">
@@ -184,7 +185,7 @@ export default function DiffViewer(props: Props) {
           </div>
         </div>
      </Show>
-     <Show when={hasConflict()}>
+     <Show when={hasConflict() && !props.isStaged}>
         <div class="flex flex-col items-center justify-center h-full w-full h-100 p-8 text-center rounded-lg">
           {/* Ícone Hero Centralizado */}
           <div class="relative flex items-center justify-center w-32 h-32 mb-8 rounded-full bg-gradient-to-br shadow-2xl">

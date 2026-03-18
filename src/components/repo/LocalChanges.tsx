@@ -1,4 +1,4 @@
-import { createEffect, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { commit, discard_changes, getDiff, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
@@ -91,6 +91,10 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   };
 
+  const currentFileChange = createMemo(() => {
+    return changes().find(c => c.path === fileSelected())
+  });
+  
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
   const handleFocus = () => {
@@ -186,6 +190,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     await stageFiles(props.repo.path, paths);
     setSelected([]);
     clearDiff();
+    setFileSelected("");
     await loadChanges();
   }
 
@@ -193,6 +198,8 @@ export function LocalChanges(props: { repo: Repo; }) {
     const allPaths = changes().map(c => c.path);
     await stageFiles(props.repo.path, allPaths);
     setSelected(allPaths);
+    clearDiff();
+    setFileSelected("");
     await loadChanges();
   };
 
@@ -200,6 +207,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     await unstageFiles(props.repo.path, paths);
     setSelected([]);
     clearDiff();
+    setFileSelected("");
     await loadChanges();
   }
 
@@ -278,7 +286,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       <div  class="flex-1 flex flex-col h-full overflow-hidden">
         <div class="flex-1 overflow-auto px-2">
           <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
-            path={props.repo.path}
+            path={props.repo.path} isStaged={currentFileChange()?.staged}
             onMergeStatusChange={(open) => setIsMerging(open)}
             onSaveSuccess={(filePath: string) => {
               setIsMerging(false);
