@@ -34,6 +34,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
   const { showLoading, hideLoading } = useLoading();
   const [isMerging, setIsMerging] = createSignal(false);
+  const [isVisualizingStaged, setIsVisualizingStaged] = createSignal(false);
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
 
   const loadChanges = async () => {
@@ -92,7 +93,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   };
 
   const currentFileChange = createMemo(() => {
-    return changes().find(c => c.path === fileSelected())
+    return changes().find(c => c.path === fileSelected() && c.staged === isVisualizingStaged());
   });
   
   document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -128,21 +129,37 @@ export function LocalChanges(props: { repo: Repo; }) {
   const unstaged = () => changes().filter((c) => !c.staged || c.status == "untracked");
 
   const toggleItem = (path: string, select: boolean) => {
-    setFileSelected(path);
-    loadDiff(false);
-    setSelected((prev) => {
-      if (select) return [...prev, path];
-      else return prev.filter((p) => p !== path);
-    });
+    if (path === fileSelected()) {
+      clearDiff();
+      setFileSelected("");
+      setIsVisualizingStaged(false);
+      setSelected((prev) => prev.filter((p) => p !== path));
+    } else {
+      setFileSelected(path);
+      loadDiff(false);
+      setIsVisualizingStaged(false);
+      setSelected((prev) => {
+        if (select) return [...prev, path];
+        else return prev.filter((p) => p !== path);
+      });
+    }
   };
 
   const toggleStagedItem = (path: string, select: boolean) => {
-    setFileSelected(path);
-    loadDiff(true);
-    setStagedPreparedSelected((prev) => {
-      if (select) return [...prev, path];
-      else return prev.filter((p) => p !== path);
-    });
+    if (path === fileSelected()) {
+      clearDiff();
+      setFileSelected("");
+      setIsVisualizingStaged(false);
+      setSelected((prev) => prev.filter((p) => p !== path));
+    } else {
+      setFileSelected(path);
+      loadDiff(true);
+      setIsVisualizingStaged(true);
+      setStagedPreparedSelected((prev) => {
+        if (select) return [...prev, path];
+        else return prev.filter((p) => p !== path);
+      });
+    }
   };
 
   const showContextMenu = (e: MouseEvent, item: any = null) => {
@@ -286,7 +303,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       <div  class="flex-1 flex flex-col h-full overflow-hidden">
         <div class="flex-1 overflow-auto px-2">
           <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
-            path={props.repo.path} isStaged={currentFileChange()?.staged}
+            path={props.repo.path} isStaged={isVisualizingStaged()}
             onMergeStatusChange={(open) => setIsMerging(open)}
             onSaveSuccess={(filePath: string) => {
               setIsMerging(false);
