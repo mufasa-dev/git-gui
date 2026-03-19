@@ -184,7 +184,6 @@ export async function deleteRemoteBranch(repoPath: string, branch: string, remot
 }
 
 export async function getGitConfig(path: string, key: string): Promise<string> {
-  // Exemplo chamando um comando tauri que executa: git config --get <key>
   return await invoke("get_git_config", { path, key });
 }
 
