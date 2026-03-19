@@ -214,12 +214,14 @@ export default function VSMergeEditor(props: Props) {
               const isSelected = () => resolutions()[line.conflictId!]?.includes('incoming');
               return (
                 <div onClick={() => toggleResolution(line.conflictId!, 'incoming')} 
-                  class={`flex min-h-[1.5em] w-fit items-center border-l-2 border-transparent 
-                    ${line.type === 'incoming' ? (isSelected() ? 'bg-blue-600/30 border-blue-500 py-2' : 'bg-blue-300/30 py-2') : line.type === 'current' ? 'opacity-10 grayscale pointer-events-none' : ''} 
-                    ${line.conflictId && 'cursor-pointer w-[100%] text-black dark:text-white'}`}>
-                  <span class="w-8 text-right pr-2 text-black dark:text-gray-500 text-[10px]">{line.type === 'incoming' || line.type === 'normal' ? line.lineNumber : ''}</span>
-                  <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre font-mono'}>
-                    {isSelected() && line.type === 'incoming' && <span class="mr-2">✅</span>}
+                  class={`flex min-h-[1.5em] items-center border-l-2 border-transparent 
+                    ${line.type === 'incoming' ? (isSelected() ? 'bg-blue-600/30 border-blue-500 py-2' : 'bg-blue-300/30 py-2') : line.type === 'current' ? 'opacity-30 grayscale pointer-events-none' : ''} 
+                    ${line.conflictId ? 'cursor-pointer text-black dark:text-white' : 'w-fit '}`}>
+                  <span class="w-8 text-right pr-2 text-black dark:text-gray-400 text-[10px]">
+                    {line.type === 'current' || line.type === 'normal' ? line.lineNumber : ''}
+                    {isSelected() && line.type === 'incoming' && <span>✅</span>}
+                  </span>
+                  <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre font-mono select-text'}>
                     {line.content}
                   </pre>
                 </div>
@@ -236,12 +238,14 @@ export default function VSMergeEditor(props: Props) {
               const isSelected = () => resolutions()[line.conflictId!]?.includes('current');
               return (
                 <div onClick={() => toggleResolution(line.conflictId!, 'current')} 
-                  class={`flex min-h-[1.5em] w-fit items-center border-l-2 border-transparent 
-                    ${line.type === 'current' ? (isSelected() ? 'bg-green-600/30 border-green-500 py-2' : 'bg-green-300/30 py-2') : line.type === 'incoming' ? 'opacity-10 grayscale pointer-events-none' : ''} 
-                    ${line.conflictId && 'cursor-pointer w-[100%] text-black dark:text-white'}`}>
-                  <span class="w-8 text-right pr-2 text-gray-500 text-[10px]">{line.type === 'current' || line.type === 'normal' ? line.lineNumber : ''}</span>
-                  <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre font-mono'}>
-                    {isSelected() && line.type === 'current' && <span class="mr-2">✅</span>}
+                  class={`flex min-h-[1.5em] items-center border-l-2 border-transparent 
+                    ${line.type === 'current' ? (isSelected() ? 'bg-green-600/30 border-green-500 py-2' : 'bg-green-300/30 py-2') : line.type === 'incoming' ? 'opacity-30 grayscale pointer-events-none' : ''} 
+                    ${line.conflictId ? 'cursor-pointer text-black dark:text-white' : 'w-fit'}`}>
+                  <span class="w-8 text-right pr-2 text-gray-500 dark:text-gray-400 mr-2 text-[10px]">
+                    {line.type === 'incoming' || line.type === 'normal' ? line.lineNumber : ''}
+                    {isSelected() && line.type === 'current' && <span>✅</span>}
+                  </span>
+                  <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre font-mono select-text'}>
                     {line.content}
                   </pre>
                 </div>
