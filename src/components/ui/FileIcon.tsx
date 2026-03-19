@@ -52,6 +52,8 @@ import androidIcon from "../../assets/android.png";
 import dockerIcon from "../../assets/docker.png";
 import blenderIcon from "../../assets/blender.png";
 import excelIcon from "../../assets/excel.png";
+import musicIcon from "../../assets/music.png";
+import videoIcon from "../../assets/video.png";
 import databaseIcon from "../../assets/database.png";
 import configIcon from "../../assets/config.png";
 import packageIcon from "../../assets/package.png";
@@ -196,6 +198,14 @@ export default function FileIcon(props: FileIconProps) {
       xls: excelIcon,
       zip: packageIcon,
       rar: packageIcon,
+      mp3: musicIcon,
+      wav: musicIcon,
+      flac: musicIcon,
+      mp4: videoIcon,
+      mkv: videoIcon,
+      avi: videoIcon,
+      mov: videoIcon,
+      wmv: videoIcon,
       config: configIcon
     };
 
