@@ -1,5 +1,6 @@
 import { createSignal, For, Show } from "solid-js";
 import FileIcon from "./FileIcon";
+import alertIcon from '../../assets/alert.png';
 
 type ChangeItem = {
   path: string;
@@ -135,7 +136,13 @@ function TreeNode(props: {
             <span class={'px-1 rounded text-white mr-2 ' + getStatusStyle(props.node.__status || '')}>
               {getStatusLetter(props.node.__status)}
             </span>{" "}
-              <FileIcon fileName={props.name} /> <span class="ml-2">{props.name}</span>
+              <FileIcon fileName={props.name} /> 
+              <span class="ml-2">{props.name}</span>
+              <Show when={props.node.__status === "conflicted"}>
+                <span title="Este arquivo possui conflitos de merge" class="text-red-500">
+                  <img src={alertIcon} alt="Conflito" class="w-6 h-6 inline-block ml-2" />
+                </span>
+              </Show>
           </span>
         ) : (
           <>
