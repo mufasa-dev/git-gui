@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::process::Command;
 use tauri::command;
-use git2::{DiffFormat, DiffOptions, Repository};
+use serde_json::{json, Value};
 
 #[derive(Serialize)]
 pub struct Commit {
@@ -40,15 +40,14 @@ pub fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String>
     Ok(commits)
 }
 
-#[tauri::command]
-pub fn get_commit_details(path: String, hash: String) -> Result<serde_json::Value, String> {
-    use std::process::Command;
-
+#[command]
+pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
+    // 1. Executa o comando com --name-status (caminhos completos, sem abreviação)
     let output = Command::new("git")
         .arg("-C")
         .arg(&path)
         .arg("show")
-        .arg("--stat")
+        .arg("--name-status") 
         .arg("--pretty=format:%H%n%an%n%ae%n%ad%n%s%n%b%n%P")
         .arg(&hash)
         .output()
@@ -61,49 +60,54 @@ pub fn get_commit_details(path: String, hash: String) -> Result<serde_json::Valu
     let stdout = String::from_utf8_lossy(&output.stdout);
     let lines: Vec<&str> = stdout.split('\n').collect();
 
+    // 2. Parse dos metadados (fixos no topo devido ao format do pretty)
     let commit_hash = lines.get(0).unwrap_or(&"").to_string();
     let author_name = lines.get(1).unwrap_or(&"").to_string();
     let author_email = lines.get(2).unwrap_or(&"").to_string();
     let author_date = lines.get(3).unwrap_or(&"").to_string();
     let subject = lines.get(4).unwrap_or(&"").to_string();
 
-    // O body pode ter múltiplas linhas, então pegamos até antes dos parents
+    // 3. Captura o Body e identifica onde começam os Parents/Arquivos
     let mut body_lines = Vec::new();
     let mut idx = 5;
     while idx < lines.len() {
-        if lines[idx].len() == 40 || lines[idx].split_whitespace().all(|h| h.len() == 40) {
-            break; // chegamos nos parents
+        let line = lines[idx];
+        // Se a linha tem 40 caracteres (SHA) ou múltiplos SHAs, são os parents
+        if line.len() == 40 || (line.contains(' ') && line.split_whitespace().all(|h| h.len() == 40)) {
+            break; 
         }
-        if !lines[idx].contains('|') && !lines[idx].contains("changed") {
-            body_lines.push(lines[idx]);
-        }
+        body_lines.push(line);
         idx += 1;
     }
-    let body = body_lines.join("\n");
+    let body = body_lines.join("\n").trim().to_string();
 
-    // Parents ficam na última linha antes da lista de arquivos
+    // 4. Parents
     let parents_line = lines.get(idx).unwrap_or(&"");
     let parents: Vec<String> = parents_line
         .split_whitespace()
         .map(|p| p.to_string())
         .collect();
 
-    // Agora capturamos os arquivos (restante das linhas depois dos pais)
-    let mut files: Vec<serde_json::Value> = Vec::new();
+    // 5. Arquivos (Usando a lógica do --name-status)
+    let mut files: Vec<Value> = Vec::new();
+    // Pulamos a linha dos parents para começar a lista de arquivos
     for line in lines.iter().skip(idx + 1) {
-        if line.trim().is_empty() || line.contains("files changed") {
-            continue;
-        }
-        let parts: Vec<&str> = line.split('|').collect();
+        let trimmed = line.trim();
+        if trimmed.is_empty() { continue; }
+
+        // O --name-status retorna: "M\tpath/to/file.txt" ou "A  file.txt"
+        // O split_whitespace lida com tabs ou espaços
+        let parts: Vec<&str> = trimmed.split_whitespace().collect();
         if parts.len() >= 2 {
-            files.push(serde_json::json!({
-                "file": parts[0].trim(),
-                "changes": parts[1].trim(),
+            files.push(json!({
+                "file": parts[1].trim(),   // Caminho real completo
+                "status": parts[0].trim(), // M, A, D, R...
+                "changes": ""              // Mantido para não quebrar o front
             }));
         }
     }
 
-    Ok(serde_json::json!({
+    Ok(json!({
         "hash": commit_hash,
         "authorName": author_name,
         "authorEmail": author_email,
@@ -149,40 +153,17 @@ pub fn git_commit(
 
 #[tauri::command]
 pub async fn get_commit_file_diff(repo_path: String, commit_sha: String, file_path: String) -> Result<serde_json::Value, String> {
-    let repo = Repository::open(&repo_path).map_err(|e| e.to_string())?;
-    let commit = repo.revparse_single(&commit_sha).map_err(|e| e.to_string())?
-        .peel_to_commit().map_err(|e| e.to_string())?;
-    
-    let tree = commit.tree().map_err(|e| e.to_string())?;
-    let parent_tree = if commit.parent_count() > 0 {
-        Some(commit.parent(0).map_err(|e| e.to_string())?.tree().map_err(|e| e.to_string())?)
-    } else {
-        None
-    };
-
-    let mut opts = DiffOptions::new();
-    opts.pathspec(&file_path);
-
-    let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut opts))
+    let diff_output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&repo_path)
+        .arg("diff")
+        .arg(format!("{}^!", commit_sha)) 
+        .arg("--")
+        .arg(&file_path)
+        .output()
         .map_err(|e| e.to_string())?;
 
-    let mut diff_text = String::new();
-    
-    diff.print(DiffFormat::Patch, |_delta, _hunk, line| {
-        let origin = line.origin();
-        match origin {
-            '+' | '-' | ' ' | 'H' => { // 'H' é o header do hunk (@@)
-                if let Ok(s) = std::str::from_utf8(line.content()) {
-                    if origin != 'H' {
-                        diff_text.push(origin);
-                    }
-                    diff_text.push_str(s);
-                }
-            }
-            _ => {}
-        }
-        true
-    }).map_err(|e| e.to_string())?;
+    let diff_text = String::from_utf8_lossy(&diff_output.stdout).to_string();
 
     Ok(serde_json::json!({
         "diff": diff_text,
