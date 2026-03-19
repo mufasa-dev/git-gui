@@ -174,7 +174,7 @@ export default function DiffViewer(props: Props) {
                       <td class="w-12 text-right px-2 text-gray-500 select-none border-r border-gray-300 dark:border-gray-600">
                         <Show when={line.newLine !== undefined}>{line.newLine}</Show>
                       </td>
-                      <td class="px-2 whitespace-pre-wrap">
+                      <td class="px-2 whitespace-pre-wrap select-text">
                         {line.content}
                       </td>
                     </tr>
