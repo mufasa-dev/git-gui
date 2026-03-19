@@ -83,14 +83,14 @@ export function CommitDetails(props: { commit: any; repoPath: string }) {
                     alt={props.commit.authorName}
                     class="w-[60px] h-[60px] rounded shadow-sm"
                   />
-                  <div class="ml-4">
+                  <div class="ml-4 select-text">
                     <div class="font-bold text-gray-900 dark:text-gray-100">{props.commit.authorName}</div>
                     <div class="text-gray-500 dark:text-gray-200 text-sm">{props.commit.authorEmail}</div>
                     <div class="text-gray-500 dark:text-gray-400 text-sm">{formatDate(props.commit.authorDate)}</div>
                   </div>
                 </div>
 
-                <div class="flex text-sm items-center">
+                <div class="flex text-sm items-center select-text">
                   <b class="w-[60px] text-right">SHA:</b>
                   <span class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">
                     {props.commit.hash}
@@ -98,15 +98,17 @@ export function CommitDetails(props: { commit: any; repoPath: string }) {
                 </div>
 
                 <Show when={props.commit?.parents?.length > 0}>
-                  <div class="flex text-sm items-center">
+                  <div class="flex text-sm items-center select-text">
                     <b class="w-[60px] text-right">Parents:</b>
-                    <span class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">{props.commit.parents}</span>
+                    <span class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">
+                      {props.commit.parents}
+                    </span>
                   </div>
                 </Show>
 
                 <hr />
 
-                 <div class="flex mt-0">
+                 <div class="flex mt-0 select-text">
                   <div class="w-[60px] text-right">{props.commit.hash.slice(0, 7)}:</div>
                   <div class="ml-4">
                     <b>{props.commit.subject}</b> <br />
