@@ -168,9 +168,12 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
           </div>
         </div>
         
-        <div class="flex justify-between items-center text-xs">
-          <span class="text-gray-500">Mostrando {paginatedCommits().length} de {filteredCommits().length}</span>
-          <div class="flex gap-2 items-center">
+        <div class="flex items-center text-xs">
+          <b class="text-green-600">
+            <i class="fas fa-code-branch" />{props.branch}:
+          </b>
+          <span class="text-gray-500 ml-2">Mostrando {paginatedCommits().length} de {filteredCommits().length}</span>
+          <div class="flex gap-2 items-center ml-auto">
             <button 
               disabled={currentPage() === 1}
               onClick={() => setCurrentPage(p => p - 1)}
@@ -198,9 +201,9 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                   }`}
                   onClick={() => selectCommit(c.hash)}
                 >
-                  <div class="text-sm font-mono text-gray-500">{c.hash.slice(0, 7)}</div>
+                  <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
                   <div class="font-semibold px-2 flex-1 truncate">{c.message}</div>
-                  <div class="text-xs text-gray-500 ml-auto whitespace-nowrap">{c.author}</div>
+                  <div class="text-xs opacity-50 ml-auto whitespace-nowrap">{c.author}</div>
                   <div class="px-2 text-xs">{formatDate(c.date)}</div>
                 </div>
               )}

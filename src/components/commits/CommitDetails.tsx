@@ -17,6 +17,7 @@ export function CommitDetails(props: { commit: any; repoPath: string }) {
     setLoadingDiff(true);
     try {
       const res = await getCommitFileDiff(props.repoPath, props.commit.hash, file.file);
+      console.log("Diff recebido:", res);
       setFileDiff(res);
     } catch (e) {
       console.error(e);
@@ -25,6 +26,14 @@ export function CommitDetails(props: { commit: any; repoPath: string }) {
       setLoadingDiff(false);
     }
   };
+
+  const getFileNameFromPath = (path: string): string => {
+    if (!path) {
+      return "";
+    }
+    const parts = path.split(/[\\/]/);
+    return parts[parts.length - 1];
+  }
 
   createEffect(() => {
     const files = props.commit?.files;
@@ -81,22 +90,24 @@ export function CommitDetails(props: { commit: any; repoPath: string }) {
                   </div>
                 </div>
 
-                <div class="grid grid-cols-[80px_1fr] gap-2 text-sm items-center">
-                  <span class="w-[60px] text-right">SHA:</span>
+                <div class="flex text-sm items-center">
+                  <b class="w-[60px] text-right">SHA:</b>
                   <span class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">
                     {props.commit.hash}
                   </span>
-                  
-                  <Show when={props.commit?.parents?.length > 0}>
-                    <span class="w-[60px] text-right">Parents:</span>
-                    <span class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">{props.commit.parents}</span>
-                  </Show>
                 </div>
+
+                <Show when={props.commit?.parents?.length > 0}>
+                  <div class="flex text-sm items-center">
+                    <b class="w-[60px] text-right">Parents:</b>
+                    <span class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">{props.commit.parents}</span>
+                  </div>
+                </Show>
 
                 <hr />
 
-                 <div class="flex">
-                  <div class="w-[60px]"></div>
+                 <div class="flex mt-0">
+                  <div class="w-[60px] text-right">{props.commit.hash.slice(0, 7)}:</div>
                   <div class="ml-4">
                     <b>{props.commit.subject}</b> <br />
                     <p class="whitespace-pre-wrap mt-2 text-sm text-gray-500 dark:text-gray-400">{props.commit.body}</p>
@@ -112,14 +123,14 @@ export function CommitDetails(props: { commit: any; repoPath: string }) {
             <Show when={activeTab() === "arquivos"}>
             <div class="flex h-full">
               {/* Sidebar de arquivos */}
-              <div class="w-1/3 border-r dark:border-gray-800 overflow-y-auto">
+              <div class="w-1/3 border-r dark:border-gray-900 overflow-y-auto">
                 <For each={props.commit.files}>
                   {(f) => (
                     <div 
                       onClick={() => fetchFileDiff(f)}
                       class={`flex items-center p-2 text-xs cursor-pointer border-b dark:border-gray-900 hover:bg-blue-500/10 ${selectedFile()?.file === f.file ? 'bg-blue-500/20' : ''}`}
                     >
-                      <FileIcon fileName={f.file} /> <span class="ml-2">{f.file}</span>
+                      <FileIcon fileName={getFileNameFromPath(f.file)} /> <span class="ml-2">{getFileNameFromPath(f.file)}</span>
                     </div>
                   )}
                 </For>
@@ -128,7 +139,7 @@ export function CommitDetails(props: { commit: any; repoPath: string }) {
               {/* Área do Diff */}
               <div class="w-2/3 overflow-y-auto bg-white dark:bg-gray-800">
                 <Show when={selectedFile()} fallback={<div class="p-10 text-center text-gray-500 text-sm">Selecione um arquivo para ver o diff</div>}>
-                  <Show when={!loadingDiff()} fallback={<div class="p-10 text-center">Carregando diff...</div>}>
+                  <Show when={!loadingDiff()}>
                     <DiffViewer 
                       path={props.repoPath}
                       file={selectedFile().file}
