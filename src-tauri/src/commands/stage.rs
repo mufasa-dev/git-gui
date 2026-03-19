@@ -7,7 +7,6 @@ use serde_json::json;
 
 #[tauri::command]
 pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
-
     let output = Command::new("git")
         .arg("-C")
         .arg(&path)
@@ -28,8 +27,9 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
             continue;
         }
 
-        let code = if line.len() >= 2 { &line[0..2] } else { line };
-        let file_path = if line.len() > 3 { line[3..].to_string() } else { "".to_string() };
+        // Git porcelain: 2 caracteres de status + 1 espaço + path
+        let code = if line.len() >= 2 { &line[0..2] } else { "  " };
+        let file_path = if line.len() > 3 { line[3..].trim_matches('"').to_string() } else { "".to_string() };
 
         let extension = Path::new(&file_path)
             .extension()
@@ -37,79 +37,90 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
             .unwrap_or("")
             .to_string();
 
-            // Caso especial: diretório untracked
-        if code == "??" && file_path.ends_with('/') {
-            let list_output = Command::new("git")
-                .arg("-C")
-                .arg(&path)
-                .arg("ls-files")
-                .arg("--others")
-                .arg("--exclude-standard")
-                .arg("--")
-                .arg(&file_path)
-                .output()
-                .map_err(|e| e.to_string())?;
+        let index_status = code.chars().next().unwrap_or(' ');
+        let worktree_status = code.chars().nth(1).unwrap_or(' ');
 
-            if list_output.status.success() {
-                let list_stdout = String::from_utf8_lossy(&list_output.stdout);
-                for f in list_stdout.lines() {
-                    if f.trim().is_empty() {
-                        continue;
-                    }
+        if index_status != ' ' && index_status != '?' {
+            let status_msg = match index_status {
+                'M' => "modified",
+                'A' => "added",
+                'D' => "deleted",
+                'R' => "renamed",
+                'C' => "copied",
+                _ => "staged",
+            };
 
-                    let ext = Path::new(f)
-                        .extension()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("")
-                        .to_string();
-
-                    changes.push(json!({
-                        "path": f.to_string(),
-                        "status": "untracked",
-                        "staged": false,
-                        "extension": ext
-                    }));
-                }
-            } else {
-                changes.push(json!({
-                    "path": file_path.clone(),
-                    "status": "untracked",
-                    "staged": false,
-                    "extension": extension
-                }));
-            }
-            continue;
+            changes.push(json!({
+                "path": file_path.clone(),
+                "status": status_msg,
+                "staged": true,
+                "extension": extension.clone(),
+                "oldValue": "" 
+            }));
         }
 
-        // Verifica se o arquivo está em conflito
-        let is_conflicted = matches!(code, "UU" | "AA" | "DD");
+        if worktree_status != ' ' {
+            // Caso especial: Diretórios inteiros untracked (?? folder/)
+            if index_status == '?' && worktree_status == '?' && file_path.ends_with('/') {
+                let list_output = Command::new("git")
+                    .arg("-C")
+                    .arg(&path)
+                    .arg("ls-files")
+                    .arg("--others")
+                    .arg("--exclude-standard")
+                    .arg("--")
+                    .arg(&file_path)
+                    .output()
+                    .map_err(|e| e.to_string())?;
 
-        // Lê o conteúdo do arquivo se houver conflito
-        let old_value = if is_conflicted {
-            let abs_path = Path::new(&path).join(&file_path);
-            fs::read_to_string(&abs_path).unwrap_or_default()
-        } else {
-            String::new()
-        };
+                if list_output.status.success() {
+                    let list_stdout = String::from_utf8_lossy(&list_output.stdout);
+                    for f in list_stdout.lines() {
+                        let ext = Path::new(f).extension().and_then(|s| s.to_str()).unwrap_or("").to_string();
+                        changes.push(json!({
+                            "path": f.to_string(),
+                            "status": "untracked",
+                            "staged": false,
+                            "extension": ext,
+                            "oldValue": ""
+                        }));
+                    }
+                    continue; 
+                }
+            }
 
-        let (status, staged_flag) = match code {
-            " M" | "MM" | "M " => ("modified", code.starts_with('M')),
-            "A " | " A" => ("added", code.starts_with('A')),
-            "D " | " D" => ("deleted", code.starts_with('D')),
-            "R " | " R" => ("renamed", code.starts_with('R')),
-            "C " | " C" => ("copied", code.starts_with('C')),
-            "??" => ("untracked", false),
-            "UU" | "AA" | "DD" => ("conflicted", false),
-            _ => ("unknown", code.chars().next().map(|c| c != ' ').unwrap_or(false)),
-        };
+            let mut status_msg = if (index_status == 'U' || index_status == 'A' || index_status == 'D') 
+                && (worktree_status == 'U' || worktree_status == 'A' || worktree_status == 'D') {
+                "conflicted"
+            } else {
+                match worktree_status {
+                    'M' => "modified",
+                    'D' => "deleted",
+                    '?' => "untracked",
+                    _ => "modified",
+                }
+            };
+            let mut file_content = String::new();
+            // Só tentamos ler se o arquivo não foi deletado
+            if status_msg != "deleted" {
+                let abs_path = Path::new(&path).join(&file_path);
+                if let Ok(content) = fs::read_to_string(&abs_path) {
+                    // Se encontrar os marcadores, forçamos o status para "conflicted"
+                    if content.contains("<<<<<<<") && content.contains("=======") && content.contains(">>>>>>>") {
+                        status_msg = "conflicted";
+                    }
+                    file_content = content;
+                }
+            }
 
-        changes.push(json!({
-            "path": file_path,
-            "status": status,
-            "staged": staged_flag,
-            "extension": extension,
-            "oldValue": old_value
-        }));
+            changes.push(json!({
+                "path": file_path,
+                "status": status_msg,
+                "staged": false,
+                "extension": extension,
+                "oldValue": file_content
+            }));
+        }
     }
 
     Ok(changes)
