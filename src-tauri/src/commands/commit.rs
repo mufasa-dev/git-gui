@@ -1,7 +1,7 @@
 use serde::Serialize;
-use std::process::Command;
 use tauri::command;
 use serde_json::{json, Value};
+use crate::utils::git_command;
 
 #[derive(Serialize)]
 pub struct Commit {
@@ -13,9 +13,8 @@ pub struct Commit {
 
 #[tauri::command]
 pub fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String> {
-    let output = Command::new("git")
+    let output = git_command(&path)
         .args(&["log", "--pretty=format:%H|%an|%ad|%s", &branch, "--"])
-        .current_dir(&path)
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -43,9 +42,7 @@ pub fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String>
 #[command]
 pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
     // 1. Executa o comando com --name-status (caminhos completos, sem abreviação)
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(&path)
+    let output = git_command(&path)
         .arg("show")
         .arg("--name-status") 
         .arg("--pretty=format:%H%n%an%n%ae%n%ad%n%s%n%b%n%P")
@@ -138,9 +135,8 @@ pub fn git_commit(
         args.push("--amend");
     }
 
-    let output = Command::new("git")
+    let output = git_command(&repo_path)
         .args(&args)
-        .current_dir(&repo_path)
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -153,9 +149,7 @@ pub fn git_commit(
 
 #[tauri::command]
 pub async fn get_commit_file_diff(repo_path: String, commit_sha: String, file_path: String) -> Result<serde_json::Value, String> {
-    let diff_output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(&repo_path)
+    let diff_output = git_command(&repo_path)
         .arg("diff")
         .arg(format!("{}^!", commit_sha)) 
         .arg("--")

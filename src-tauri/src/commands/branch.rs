@@ -1,12 +1,11 @@
 use serde_json::json;
 use std::process::Stdio;
-use tokio::process::Command; // Usaremos o do Tokio para tudo
+use crate::utils::git_command_async;
 
 #[tauri::command]
 pub async fn list_branches(path: String) -> Result<Vec<String>, String> {
-    let output = Command::new("git")
+    let output = git_command_async(&path)
         .arg("branch")
-        .current_dir(path)
         .output()
         .await
         .map_err(|e| e.to_string())?;
@@ -23,10 +22,9 @@ pub async fn list_branches(path: String) -> Result<Vec<String>, String> {
 
 #[tauri::command]
 pub async fn list_remote_branches(path: String) -> Result<Vec<String>, String> {
-    let output = Command::new("git")
+    let output = git_command_async(&path)
         .arg("branch")
         .arg("-r")
-        .current_dir(&path)
         .stdout(Stdio::piped())
         .output()
         .await 
@@ -48,13 +46,12 @@ pub async fn list_remote_branches(path: String) -> Result<Vec<String>, String> {
 #[tauri::command]
 pub async fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Value>, String> {
     // Retorna: "nome| [ahead X, behind Y]" ou "nome|"
-    let output = Command::new("git")
+    let output = git_command_async(&repo_path)
         .args([
             "for-each-ref",
             "--format=%(refname:short)|%(upstream:track)",
             "refs/heads/",
         ])
-        .current_dir(&repo_path)
         .output()
         .await
         .map_err(|e| e.to_string())?;
@@ -97,8 +94,8 @@ pub async fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Valu
 
 #[tauri::command]
 pub async fn get_current_branch(path: String) -> Result<String, String> {
-    let output = Command::new("git")
-        .args(["-C", &path, "rev-parse", "--abbrev-ref", "HEAD"])
+    let output = git_command_async(&path)
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .output()
         .await
         .map_err(|e| e.to_string())?;
@@ -112,8 +109,9 @@ pub async fn get_current_branch(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn checkout_branch(repo_path: String, branch: String) -> Result<String, String> {
-    let output = Command::new("git")
-        .arg("-C").arg(&repo_path).arg("checkout").arg(&branch)
+    let output = git_command_async(&repo_path)
+        .arg("checkout")
+        .arg(&branch)
         .output()
         .await
         .map_err(|e| e.to_string())?;
@@ -140,8 +138,7 @@ pub async fn create_branch(
         _ => branch_name.clone(),
     };
 
-    let mut create_cmd = Command::new("git");
-    create_cmd.arg("-C").arg(&repo_path);
+    let mut create_cmd = git_command_async(&repo_path);
 
     if checkout {
         create_cmd.args(["checkout", "-b", &full_branch_name, &base_branch]);
@@ -160,8 +157,7 @@ pub async fn create_branch(
 #[tauri::command]
 pub async fn checkout_remote_branch(repo_path: String, branch_name: String) -> Result<String, String> {
     let local_name = branch_name.replace("origin/", "");
-    let output = Command::new("git")
-        .arg("-C").arg(&repo_path)
+    let output = git_command_async(&repo_path)
         .args(["checkout", "-b", &local_name, "--track", &format!("origin/{}", local_name)])
         .output()
         .await
@@ -172,8 +168,8 @@ pub async fn checkout_remote_branch(repo_path: String, branch_name: String) -> R
     } else {
         let err = String::from_utf8_lossy(&output.stderr).to_string();
         if err.contains("already exists") {
-            let retry = Command::new("git")
-                .arg("-C").arg(&repo_path).args(["checkout", &local_name])
+            let retry = git_command_async(&repo_path)
+                .args(["checkout", &local_name])
                 .output().await.map_err(|e| e.to_string())?;
             if retry.status.success() {
                 return Ok(format!("Alternado para branch local: {}", local_name));
@@ -186,8 +182,8 @@ pub async fn checkout_remote_branch(repo_path: String, branch_name: String) -> R
 #[tauri::command]
 pub async fn delete_branch(path: String, branch: String, force: bool) -> Result<(), String> {
     let flag = if force { "-D" } else { "-d" };
-    let output = Command::new("git")
-        .arg("-C").arg(&path).args(["branch", flag, &branch])
+    let output = git_command_async(&path)
+        .args(["branch", flag, &branch])
         .output().await.map_err(|e| e.to_string())?;
 
     if !output.status.success() {
@@ -199,8 +195,8 @@ pub async fn delete_branch(path: String, branch: String, force: bool) -> Result<
 #[tauri::command]
 pub async fn delete_remote_branch(path: String, branch: String, remote: Option<String>) -> Result<(), String> {
     let remote_name = remote.unwrap_or_else(|| "origin".to_string());
-    let output = Command::new("git")
-        .arg("-C").arg(&path).args(["push", &remote_name, "--delete", &branch])
+    let output = git_command_async(&path)
+        .args(["push", &remote_name, "--delete", &branch])
         .output().await.map_err(|e| e.to_string())?;
 
     if !output.status.success() {

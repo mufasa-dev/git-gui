@@ -2,6 +2,7 @@
 
 mod commands;
 mod models;
+mod utils;
 
 fn main() {
     tauri::Builder::default()

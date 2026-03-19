@@ -1,13 +1,10 @@
 use std::fs;
+use crate::utils::git_command;
 
 #[tauri::command]
 pub fn merge_branch(repo_path: String, from_branch: String, to_branch: String) -> Result<String, String> {
-    use std::process::Command;
-
     // Primeiro: garantir que estamos na branch destino
-    let checkout_output = Command::new("git")
-        .arg("-C")
-        .arg(&repo_path)
+    let checkout_output = git_command(&repo_path)
         .arg("checkout")
         .arg(&to_branch)
         .output()
@@ -18,9 +15,7 @@ pub fn merge_branch(repo_path: String, from_branch: String, to_branch: String) -
     }
 
     // Agora: fazer o merge da origem na destino
-    let merge_output = Command::new("git")
-        .arg("-C")
-        .arg(&repo_path)
+    let merge_output = git_command(&repo_path)
         .arg("merge")
         .arg(&from_branch)
         .output()

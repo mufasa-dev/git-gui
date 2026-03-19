@@ -1,9 +1,8 @@
-use std::process::Command;
+use crate::utils::git_command;
 
 #[tauri::command]
 pub fn get_git_config(path: String, key: String) -> Result<String, String> {
-    let output = Command::new("git")
-        .current_dir(&path)
+    let output = git_command(&path)
         .args(["config", "--get", &key])
         .output()
         .map_err(|e| e.to_string())?;
@@ -19,8 +18,7 @@ pub fn get_git_config(path: String, key: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn set_git_config(path: String, key: String, value: String) -> Result<(), String> {
-    let output = Command::new("git")
-        .current_dir(&path)
+    let output = git_command(&path)
         .args(["config", "--local", &key, &value])
         .output()
         .map_err(|e| e.to_string())?;

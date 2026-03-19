@@ -1,7 +1,7 @@
 use std::path::Path;
-use std::process::Command;
 use crate::models::pull::GitPullResult;
 use tauri::command;
+use crate::utils::git_command;
 
 #[tauri::command]
 pub fn open_repo(path: String) -> Result<String, String> {
@@ -18,13 +18,12 @@ pub fn push_repo(
     remote: Option<String>,
     branch: Option<String>,
 ) -> Result<String, String> {
-    use std::process::Command;
 
     let remote_name = remote.unwrap_or("origin".to_string());
     let branch_name = branch.unwrap_or("HEAD".to_string());
 
-    let output = Command::new("git")
-        .args(["-C", &path, "push", &remote_name, &branch_name])
+    let output = git_command(&path)
+        .args(["push", &remote_name, &branch_name])
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -37,11 +36,9 @@ pub fn push_repo(
 
 #[command]
 pub fn git_pull(repo_path: String, branch: String) -> Result<GitPullResult, String> {
-    use std::process::Command;
 
-    let output = Command::new("git")
+    let output = git_command(&repo_path)
         .args(["pull", "origin", &branch])
-        .current_dir(&repo_path)
         .output()
         .map_err(|e| format!("Falha ao executar git pull: {}", e))?;
 
@@ -73,12 +70,10 @@ pub fn git_pull(repo_path: String, branch: String) -> Result<GitPullResult, Stri
 
 #[tauri::command]
 pub fn fetch_repo(repo_path: String, remote: String) -> Result<String, String> {
-    use std::process::Command;
 
-    let output = Command::new("git")
+    let output = git_command(&repo_path)
         .arg("fetch")
         .arg(&remote)
-        .current_dir(&repo_path)
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -98,9 +93,8 @@ pub fn git_config_pull(repo_path: String, mode: String) -> Result<(), String> {
         _ => return Err("Modo inválido. Use merge, rebase ou ff.".into()),
     };
 
-    let output = Command::new("git")
+    let output = git_command(&repo_path)
         .args(["config", "pull.rebase", value])
-        .current_dir(&repo_path)
         .output()
         .map_err(|e| format!("Falha ao configurar git: {}", e))?;
 

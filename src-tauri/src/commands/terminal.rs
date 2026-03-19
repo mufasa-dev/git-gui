@@ -1,5 +1,6 @@
 use open;
 use std::process::Command;
+use crate::utils::git_command;
 
 #[tauri::command]
 pub fn open_console(path: String) -> Result<(), String> {
@@ -81,9 +82,7 @@ pub fn open_git_bash(_path: String) {
 #[tauri::command]
 pub async fn open_repo_in_browser(path: String) -> Result<(), String> {
     // roda git config pra pegar a URL remota
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(&path)
+    let output = git_command(&path)
         .args(["config", "--get", "remote.origin.url"])
         .output()
         .map_err(|e| format!("Erro ao executar git: {}", e))?;

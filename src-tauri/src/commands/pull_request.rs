@@ -1,12 +1,10 @@
-use std::process::Command;
 use tauri::command;
+use crate::utils::git_command;
 
 #[command]
 pub async fn open_pull_request(path: String, branch: String) -> Result<(), String> {
     // 1️⃣ Pega a URL remota
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(&path)
+    let output = git_command(&path)
         .args(["config", "--get", "remote.origin.url"])
         .output()
         .map_err(|e| format!("Erro ao executar git: {}", e))?;
@@ -32,9 +30,7 @@ pub async fn open_pull_request(path: String, branch: String) -> Result<(), Strin
     }
 
     // 3️⃣ Detecta branch padrão dinamicamente
-    let head_output = Command::new("git")
-        .arg("-C")
-        .arg(&path)
+    let head_output = git_command(&path)
         .args(["symbolic-ref", "refs/remotes/origin/HEAD"])
         .output();
 

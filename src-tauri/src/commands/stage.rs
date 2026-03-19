@@ -1,15 +1,13 @@
 use std::path::Path;
-use std::process::Command;
 use tauri::command;
 use std::fs;
 use std::env::temp_dir;
 use serde_json::json;
+use crate::utils::git_command;
 
 #[tauri::command]
 pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(&path)
+    let output = git_command(&path)
         .arg("status")
         .arg("--porcelain")
         .output()
@@ -62,9 +60,7 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
         if worktree_status != ' ' {
             // Caso especial: Diretórios inteiros untracked (?? folder/)
             if index_status == '?' && worktree_status == '?' && file_path.ends_with('/') {
-                let list_output = Command::new("git")
-                    .arg("-C")
-                    .arg(&path)
+                let list_output = git_command(&path)
                     .arg("ls-files")
                     .arg("--others")
                     .arg("--exclude-standard")
@@ -129,8 +125,8 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
 /// Stage arquivos (git add)
 #[command]
 pub fn stage_files(path: String, files: Vec<String>) -> Result<(), String> {
-    let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(&path).arg("add").args(&files);
+    let mut cmd = git_command(&path);
+    cmd.arg("add").args(&files);
 
     let output = cmd.output().map_err(|e| e.to_string())?;
 
@@ -144,8 +140,8 @@ pub fn stage_files(path: String, files: Vec<String>) -> Result<(), String> {
 /// Unstage arquivos (git reset)
 #[command]
 pub fn unstage_files(path: String, files: Vec<String>) -> Result<(), String> {
-    let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(&path).arg("reset").args(&files);
+    let mut cmd = git_command(&path);
+    cmd.arg("reset").args(&files);
 
     let output = cmd.output().map_err(|e| e.to_string())?;
 
@@ -158,8 +154,8 @@ pub fn unstage_files(path: String, files: Vec<String>) -> Result<(), String> {
 
 #[command]
 pub fn discard_changes(path: String, files: Vec<String>) -> Result<String, String> {
-    let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(&path).arg("checkout").arg("--");
+    let mut cmd = git_command(&path);
+    cmd.arg("checkout").arg("--");
     for f in files {
         cmd.arg(f);
     }
@@ -178,9 +174,7 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_j
     let file_path = Path::new(&repo_path).join(&file);
 
     // 1️⃣ Verifica se é untracked
-    let status_output = Command::new("git")
-        .arg("-C")
-        .arg(&repo_path)
+    let status_output = git_command(&repo_path)
         .arg("ls-files")
         .arg("--others")
         .arg("--exclude-standard")
@@ -218,8 +212,7 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_j
     }
 
     // 3️⃣ Caso normal → usa git diff
-    let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(&repo_path);
+    let mut cmd = git_command(&repo_path);
 
     if staged {
         cmd.args(["diff", "--cached", "--"]).arg(&file);
@@ -232,8 +225,7 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_j
 
     // 4️⃣ Detecta binário
     if diff_str.contains("Binary files") {
-        let mut show_cmd = Command::new("git");
-        show_cmd.arg("-C").arg(&repo_path);
+        let mut show_cmd = git_command(&repo_path);
         if staged {
             show_cmd.args(["show", &format!(":{}", file)]);
         } else {
@@ -262,9 +254,7 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_j
 }
 
 fn run_git(repo_path: &str, args: &[&str]) -> Result<String, String> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(repo_path)
+    let output = git_command(&repo_path)
         .args(args)
         .output()
         .map_err(|e| e.to_string())?;
