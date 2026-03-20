@@ -1,6 +1,6 @@
 import { createSignal, createMemo, For, Show, createEffect, on } from "solid-js";
 import { createCodeMirror } from "solid-codemirror";
-import { EditorView } from "@codemirror/view";
+import { EditorView, lineNumbers } from "@codemirror/view";
 import { javascript } from "@codemirror/lang-javascript";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { githubLight } from '@uiw/codemirror-theme-github';
@@ -82,6 +82,7 @@ export default function VSMergeEditor(props: Props) {
 
     const extensions = [
       javascript(),
+      lineNumbers(),
       EditorView.lineWrapping,
     ];
     if (dark) {
