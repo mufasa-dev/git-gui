@@ -180,9 +180,11 @@ export default function BranchList(props: Props) {
 
   return (
     <div class="h-[100px]">
-      <b onClick={() => setOpenBranch(!openBranch())} class="cursor-pointer">
-        <i class="fa-solid" classList={{"fa-caret-down" : openBranch(), "fa-caret-right" : !openBranch()}}></i>
-         Branchs
+      <b onClick={() => setOpenBranch(!openBranch())} class="collapse-btn">
+        <b>
+          <i class="fa fa-code-branch"></i> Branchs
+        </b>
+        <i class="fa-solid ml-auto" classList={{"fa-angle-down" : openBranch(), "fa-angle-right" : !openBranch()}}></i>
       </b>
       {openBranch() && <TreeView tree={props.localTree} 
         activeBranch={props.activeBranch}
@@ -192,9 +194,11 @@ export default function BranchList(props: Props) {
         openContextMenu={openContextMenu}
       />}
 
-      <b onClick={() => setOpenRemote(!openRemote())} class="cursor-pointer mt-4 block">
-        <i class="fa-solid" classList={{"fa-caret-down" : openRemote(), "fa-caret-right" : !openRemote()}}></i>
-        Remotes
+      <b onClick={() => setOpenRemote(!openRemote())} class="collapse-btn mt-2">
+        <b>
+          <i class="fa fa-earth-americas"></i> Remotes
+        </b>
+        <i class="fa-solid ml-auto" classList={{"fa-angle-down" : openRemote(), "fa-angle-right" : !openRemote()}}></i>
       </b>
       {openRemote() && <TreeView tree={props.remoteTree}
         activeBranch={props.activeBranch}

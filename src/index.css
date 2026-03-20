@@ -27,6 +27,9 @@ html {
     @apply appearance-none bg-white dark:bg-gray-700; /* garante que respeite o tema */
   }
 
+  .collapse-btn {
+    @apply cursor-pointer w-[100%] border-y border-gray-300 p-1 mb-2 hover:bg-gray-200 dark:hover:bg-gray-700/50 flex items-center;
+  }
 }
 
 /* Estilização da scrollbar */
