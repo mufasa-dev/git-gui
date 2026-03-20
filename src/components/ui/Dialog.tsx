@@ -4,6 +4,7 @@ type Props = {
   open: boolean;
   title?: string;
   width?: string | number;
+  bodyClass?: string;
   onClose?: () => void;
   children: JSX.Element;
 };
@@ -34,7 +35,7 @@ export default function Dialog(props: Props) {
           </div>
 
           {/* Conteúdo */}
-          <div class="p-6">
+          <div class={`${props.bodyClass ?? 'p-6'}`}>
             {props.children}
           </div>
         </div>

@@ -99,26 +99,27 @@ export default function UserConfigModal(props: UserConfigModalProps) {
       open={props.isOpen} 
       onClose={props.onClose} 
       title="Configurações do Repositório"
+      bodyClass="p-0"
       width={600}
     >
       {/* HEADER DAS ABAS */}
-      <div class="flex border-b border-gray-200 dark:border-gray-700 mb-4">
+      <div class="flex bg-gray-200 dark:bg-gray-900 px-1 pt-1">
         <button 
           onClick={() => setActiveTab("user")}
-          class={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+          class={`px-4 py-2 text-sm font-medium transition-colors ${
             activeTab() === "user" 
-            ? "border-blue-500 text-blue-600" 
-            : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            ? "dark:text-white dark:bg-gray-800" 
+            : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
           }`}
         >
           👤 Perfil do Usuário
         </button>
         <button 
           onClick={() => setActiveTab("merge")}
-          class={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+          class={`px-4 py-2 text-sm font-medium transition-colors ${
             activeTab() === "merge" 
-            ? "border-blue-500 text-blue-600" 
-            : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            ? "dark:text-white dark:bg-gray-800" 
+            : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
           }`}
         >
           🔀 Estratégia de Merge
@@ -128,7 +129,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
       <div>
         {/* CONTEÚDO: USUÁRIO */}
         <Show when={activeTab() === "user"}>
-          <div class="flex animate-in fade-in duration-200">
+          <div class="flex animate-in fade-in duration-200 p-4">
             <div class="flex flex-col items-center pr-8 pt-2">
               <div class="relative group">
                 <img
@@ -184,7 +185,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
 
         {/* CONTEÚDO: MERGE */}
         <Show when={activeTab() === "merge"}>
-          <div class="space-y-4 animate-in slide-in-from-right-2 duration-200">
+          <div class="space-y-4 animate-in slide-in-from-right-2 duration-200 p-4">
             <div class="">
                 <p>
                     Escolha como o Git deve se comportar ao fazer um <strong>Pull</strong> quando houver divergências.
