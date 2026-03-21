@@ -64,3 +64,16 @@ html {
 .dark ::-webkit-scrollbar-thumb:hover {
   background-color: theme('colors.gray.500');
 }
+
+/* Codemirror overrides */
+.cm-conflict-marker {
+  background-color: rgba(255, 165, 0, 0.2) !important;
+}
+
+.cm-conflict-current {
+  background-color: rgb(134 239 172 / 0.3);
+}
+
+.cm-conflict-incoming {
+  background-color: rgba(147, 197, 253, 0.3);
+}

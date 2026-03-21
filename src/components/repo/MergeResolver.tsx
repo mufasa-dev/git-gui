@@ -6,6 +6,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { githubLight } from '@uiw/codemirror-theme-github';
 import { Transaction, Annotation } from "@codemirror/state";
 import { notify } from "../../utils/notifications";
+import { conflictHighlightPlugin } from "../../utils/conflictHighlight";
 
 // Helper para identificar mudanças programáticas vs manuais
 const ExternalChange = Annotation.define<boolean>();
@@ -84,6 +85,7 @@ export default function VSMergeEditor(props: Props) {
       javascript(),
       lineNumbers(),
       EditorView.lineWrapping,
+      conflictHighlightPlugin
     ];
     if (dark) {
       extensions.push(oneDark);
@@ -117,7 +119,10 @@ export default function VSMergeEditor(props: Props) {
   const handleCompleteMerge = () => {
     const currentResolutions = resolutions();
     const conflictIds = Object.keys(currentResolutions);
-    const hasUnresolved = conflictIds.some(id => currentResolutions[Number(id)].length === 0);
+    
+    const hasUnresolved = conflictIds.some(id => 
+      (currentResolutions[Number(id)]?.length ?? 0) === 0
+    );
 
     if (hasUnresolved) {
       notify.error("Merge incompleto", "Existem conflitos não resolvidos.");
