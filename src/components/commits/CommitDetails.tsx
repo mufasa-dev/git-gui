@@ -6,7 +6,7 @@ import DiffViewer from "../ui/DiffViewer";
 import { notify } from "../../utils/notifications";
 import FileIcon from "../ui/FileIcon";
 
-export function CommitDetails(props: { commit: any; repoPath: string }) {
+export function CommitDetails(props: { commit: any; repoPath: string, selectCommit: (hash: string) => void }) {
   const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
   const [selectedFile, setSelectedFile] = createSignal<any>(null);
   const [fileDiff, setFileDiff] = createSignal<any>(null);
@@ -98,11 +98,22 @@ export function CommitDetails(props: { commit: any; repoPath: string }) {
                 </div>
 
                 <Show when={props.commit?.parents?.length > 0}>
-                  <div class="flex text-sm items-center select-text">
-                    <b class="w-[60px] text-right">Parents:</b>
-                    <span class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">
-                      {props.commit.parents}
-                    </span>
+                  <div class="flex text-sm items-start select-text mb-2">
+                    <b class="w-[60px] text-right mt-1">Parents:</b>
+                    <div class="flex flex-wrap gap-2 ml-4">
+                      <For each={props.commit.parents}>
+                        {(parentHash) => (
+                          <span 
+                            onClick={() => props.selectCommit(parentHash)}
+                            class="font-mono text-xs bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-gray-900 
+                                  text-blue-600 dark:text-white px-2 py-1 rounded cursor-pointer transition-colors border border-gray-300 dark:border-gray-600"
+                            title={parentHash}
+                          >
+                            {parentHash.substring(0, 8)}
+                          </span>
+                        )}
+                      </For>
+                    </div>
                   </div>
                 </Show>
 

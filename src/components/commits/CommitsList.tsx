@@ -217,7 +217,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       
       {/* Detalhes */}
       <div style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px" }} class="overflow-auto">
-        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} />
+        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} selectCommit={selectCommit} />
       </div>
     </div>
   );
