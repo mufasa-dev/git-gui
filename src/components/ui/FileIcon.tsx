@@ -18,6 +18,8 @@ import pdfIcon from "../../assets/pdf.png";
 import svgIcon from "../../assets/svg.png";
 import jsIcon from "../../assets/js.png";
 import tsIcon from "../../assets/ts.png";
+import nodeIcon from "../../assets/node-js.png";
+import njkIcon from "../../assets/njk.png";
 import reactIcon from "../../assets/react.png";
 import cssIcon from "../../assets/css.png";
 import scssIcon from "../../assets/sass.png";
@@ -86,6 +88,11 @@ export default function FileIcon(props: FileIconProps) {
       jsx: reactIcon,
       rs: rustIcon,
       json: jsonIcon,
+      node: nodeIcon,
+      ejs: nodeIcon,
+      jade: nodeIcon,
+      njk: njkIcon,
+      pug: nodeIcon,
       arb: jsonIcon,
       xml: xmlIcon,
       css: cssIcon,
