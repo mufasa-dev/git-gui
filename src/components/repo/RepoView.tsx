@@ -105,23 +105,22 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   }));
 
   return (
-    <div class="flex h-full w-full select-none"
+    <div class="flex h-full w-full select-none bg-gray-200 dark:bg-gray-900"
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}
     >
       {/* Painel esquerdo */}
-      <div class="flex flex-col border-r overflow-auto border-gray-300 p-4 dark:border-gray-900 " style={{ width: `${sidebarWidth()}px` }}>
-        <div class="flex">
-          <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>
-          <button onClick={() => setIsUserConfigOpen(true)} class="ml-auto text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-            <i class="fa-solid fa-user-gear"></i>
-          </button>
-        </div>
-
-        <div class="mb-4 flex flex-col space-y-2">
+      <div class="flex flex-col border-r overflow-auto border-gray-300 py-4 pl-2 pr-1 dark:border-gray-900 " style={{ width: `${sidebarWidth()}px` }}>
+        <div class="container-branch-list mb-4">
+          <div class="flex">
+            <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>
+            <button onClick={() => setIsUserConfigOpen(true)} class="ml-auto text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+              <i class="fa-solid fa-user-gear"></i>
+            </button>
+          </div>
           <button
-            class={`px-2 py-1 rounded flex items-center ${
+            class={`px-2 py-1 flex items-center rounded-xl ${
               viewMode() === "changes" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700"
             }`}
             onClick={() => setViewMode("changes")}
@@ -134,7 +133,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
             )}
           </button>
           <button
-            class={`px-2 py-1 rounded text-left ${
+            class={`px-2 py-1 text-left rounded-xl ${
               viewMode() === "commits" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700"
             }`}
             onClick={() => setViewMode("commits")}
@@ -143,30 +142,32 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
           </button>
         </div>
 
-        <div class="relative w-full mb-4">
-          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-white">
-            <i class="fas fa-search"></i>
-          </span>
- 
-          <input
-            type="text"
-            placeholder="Pesquisar branches..."
-            value={search()}
-            onInput={(e) => setSearch(e.currentTarget.value)}
-            class="w-full pl-10 pr-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-900"
-          />
-        </div>
+        <div class="container-branch-list h-[100%]">
+          <div class="relative w-full mb-2">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-white">
+              <i class="fas fa-search"></i>
+            </span>
+  
+            <input
+              type="text"
+              placeholder="Pesquisar branches..."
+              value={search()}
+              onInput={(e) => setSearch(e.currentTarget.value)}
+              class="w-full pl-10 pr-2 py-1 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-900"
+            />
+          </div>
 
-        <BranchList 
-          localTree={localTree()} 
-          remoteTree={remoteTree()} 
-          activeBranch={props.repo.activeBranch}
-          repoPath={props.repo.path}
-          selectedBranch={selectedBranch()}
-          onSelectBranch={selectBranch}
-          refreshBranches={props.refreshBranches}
-          onActivateBranch={(branch: string) => handleActiveBranch(props.repo.path, branch)}  
-          />
+          <BranchList 
+            localTree={localTree()} 
+            remoteTree={remoteTree()} 
+            activeBranch={props.repo.activeBranch}
+            repoPath={props.repo.path}
+            selectedBranch={selectedBranch()}
+            onSelectBranch={selectBranch}
+            refreshBranches={props.refreshBranches}
+            onActivateBranch={(branch: string) => handleActiveBranch(props.repo.path, branch)}  
+            />
+        </div>
       </div>
 
       {/* Barra de resize */}

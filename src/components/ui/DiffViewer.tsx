@@ -197,7 +197,7 @@ export default function DiffViewer(props: Props) {
           </div>
 
           {/* Título e Descrição */}
-          <h2 class="text-3xl font-bold text-white mb-3">Conflito Detectado em README.md</h2>
+          <h2 class="text-3xl font-bold text-black dark:text-white mb-3">Conflito Detectado em README.md</h2>
           <p class="text-slate-400 text-lg max-w-xl mb-10">
             As alterações na branch atual e na branch remota entram em conflito. Escolha como prosseguir.
           </p>
