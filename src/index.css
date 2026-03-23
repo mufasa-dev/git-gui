@@ -10,7 +10,7 @@ html {
 
 @layer components {
   .top-btn {
-    @apply flex flex-col justify-items-center items-center bg-transparent hover:bg-black/10 rounded-md border-0 px-3 py-1 cursor-pointer transition;
+    @apply flex flex-col justify-items-center items-center bg-transparent hover:bg-gray-300 dark:hover:bg-gray-900 rounded-md border-0 px-3 py-1 cursor-pointer transition;
   }
 
   .btn-primary {
@@ -29,6 +29,23 @@ html {
 
   .collapse-btn {
     @apply cursor-pointer w-[100%] border-y border-gray-300 p-1 mb-2 hover:bg-gray-200 dark:hover:bg-gray-700/50 flex items-center;
+  }
+
+  .cm-commit-item {
+    @apply flex items-center border-b border-gray-200 p-2 cursor-pointer dark:bg-gray-700 dark:border-gray-900 rounded-full mb-2;
+  }
+  .cm-commit-item:hover {
+    @apply bg-gray-100 dark:bg-gray-600/50; 
+  }
+  .cm-commit-item.selected {
+    @apply bg-blue-400 dark:text-black;
+  }
+  .cm-commit-item.selected:hover {
+    @apply bg-blue-400 dark:text-black; 
+  }
+
+  .container-branch-list {
+    @apply flex flex-col space-y-2 bg-gray-100 dark:bg-gray-800 p-2 rounded-2xl border border-gray-300 dark:border-gray-700;
   }
 }
 
