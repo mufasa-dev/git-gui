@@ -7,13 +7,13 @@ export default function TabBar(props: {
   onClose: (id: string) => void; 
 }) {
   return (
-    <div class="flex border-b bg-gray-200 dark:bg-gray-900 dark:border-gray-900">
+    <div class="flex border-b bg-white dark:bg-gray-800 dark:border-gray-900">
       {props.repos.map(repo => (
         <div
-          class={`px-4 py-2 cursor-pointer ${
+          class={`px-4 py-2 cursor-pointer rounded-t-xl ${
             props.active === repo.path
-              ? "bg-white border-t border-l border-r -mb-px dark:bg-gray-800 dark:border-gray-900"
-              : "bg-gray-200 hover:bg-gray-300 dark:bg-gray-900 dark:hover:bg-gray-800"
+              ? "border dark:border-gray-700 dark:border-b-gray-900 bg-gray-200 dark:bg-gray-900"
+              : "bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800"
           }`}
           onClick={() => props.onChangeActive(repo.path)}
         >

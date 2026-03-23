@@ -106,7 +106,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
       <div class="flex bg-gray-200 dark:bg-gray-900 px-1 pt-1">
         <button 
           onClick={() => setActiveTab("user")}
-          class={`px-4 py-2 text-sm font-medium transition-colors ${
+          class={`px-4 py-2 text-sm font-medium transition-colors rounded-t-xl ${
             activeTab() === "user" 
             ? "dark:text-white dark:bg-gray-800" 
             : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -116,7 +116,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
         </button>
         <button 
           onClick={() => setActiveTab("merge")}
-          class={`px-4 py-2 text-sm font-medium transition-colors ${
+          class={`px-4 py-2 text-sm font-medium transition-colors rounded-t-xl ${
             activeTab() === "merge" 
             ? "dark:text-white dark:bg-gray-800" 
             : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -177,7 +177,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
               </p>
               <div class="pt-4 flex justify-end gap-2">
                  <button onClick={props.onClose} class="px-4 py-1.5 text-sm text-gray-500">Fechar</button>
-                 <button onClick={handleSaveUser} class="px-6 py-1.5 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors">Salvar Perfil</button>
+                 <button onClick={handleSaveUser} class="px-6 py-1.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">Salvar Perfil</button>
               </div>
             </div>
           </div>
