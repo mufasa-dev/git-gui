@@ -129,86 +129,87 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   }
 
   return (
-    <div class="flex-1 flex flex-col h-full overflow-hidden" 
+    <div class="flex-1 flex flex-col h-full overflow-hidden py-4 pr-2 pl-1" 
          onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
-      
-      {/* Header com Busca e Paginação */}
-      <div class="p-2 border-b border-gray-200 dark:border-gray-800 flex flex-col gap-2 bg-gray-50 dark:bg-gray-950">
-        <div class="flex gap-2 items-center">
-          <input 
-            type="text"
-            placeholder="Filtrar commits (mensagem, hash, autor)..."
-            class="w-full p-2 text-sm rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none focus:ring-1 ring-blue-500"
-            value={searchTerm()}
-            onInput={(e) => setSearchTerm(e.currentTarget.value)}
-          />
+      <div class="container-branch-list flex-1 overflow-auto mb-1" style={{"height": "100px"}}>
+        {/* Header com Busca e Paginação */}
+        <div class="p-1 flex flex-col gap-2">
+          <div class="flex gap-2 items-center">
+            <input 
+              type="text"
+              placeholder="Filtrar commits (mensagem, hash, autor)..."
+              class="w-full p-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none focus:ring-1 ring-blue-500"
+              value={searchTerm()}
+              onInput={(e) => setSearchTerm(e.currentTarget.value)}
+            />
 
-          {/* Filtro de Data */}
-          <div class="flex items-center gap-1">
-            <input 
-              use:datepicker={{ value: startDate, onChange: setStartDate }}
-              placeholder="Início"
-              class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
-            />
-            <span class="text-gray-400">até</span>
-            <input 
-              use:datepicker={{ value: endDate, onChange: setEndDate }}
-              placeholder="Fim"
-              class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
-            />
-            
-            {/* Botão de Limpar (Opcional mas útil) */}
-            <Show when={startDate() || endDate()}>
+            {/* Filtro de Data */}
+            <div class="flex items-center gap-1">
+              <input 
+                use:datepicker={{ value: startDate, onChange: setStartDate }}
+                placeholder="Início"
+                class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
+              />
+              <span class="text-gray-400">até</span>
+              <input 
+                use:datepicker={{ value: endDate, onChange: setEndDate }}
+                placeholder="Fim"
+                class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
+              />
+              
+              {/* Botão de Limpar (Opcional mas útil) */}
+              <Show when={startDate() || endDate()}>
+                <button 
+                  onClick={() => { setStartDate(""); setEndDate(""); }}
+                  class="p-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950 rounded"
+                  title="Limpar datas"
+                > ✕ </button>
+              </Show>
+            </div>
+          </div>
+          
+          <div class="flex items-center text-xs">
+            <b class="text-green-600">
+              <i class="fas fa-code-branch" />{props.branch}:
+            </b>
+            <span class="text-gray-500 ml-2">Mostrando {paginatedCommits().length} de {filteredCommits().length}</span>
+            <div class="flex gap-2 items-center ml-auto">
               <button 
-                onClick={() => { setStartDate(""); setEndDate(""); }}
-                class="p-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950 rounded"
-                title="Limpar datas"
-              > ✕ </button>
+                disabled={currentPage() === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+                class="px-2 py-1 bg-gray-200 dark:bg-gray-800 rounded disabled:opacity-30"
+              > Anterior </button>
+              <span>{currentPage()} / {totalPages() || 1}</span>
+              <button 
+                disabled={currentPage() >= totalPages()}
+                onClick={() => setCurrentPage(p => p + 1)}
+                class="px-2 py-1 bg-gray-200 dark:bg-gray-800 rounded disabled:opacity-30"
+              > Próximo </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Lista de Commits */}
+        <div class="flex-1 overflow-auto">
+          <div>
+            <Show when={!loading()} fallback={<div class="p-4 text-center">Carregando...</div>}>
+              <For each={paginatedCommits()}>
+                {(c) => (
+                  <div
+                    class={`cm-commit-item ${
+                      selectedCommit()?.hash === c.hash ? "selected" : ""
+                    }`}
+                    onClick={() => selectCommit(c.hash)}
+                  >
+                    <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
+                    <div class="font-semibold px-2 flex-1 truncate">{c.message}</div>
+                    <div class="text-xs opacity-50 ml-auto whitespace-nowrap">{c.author}</div>
+                    <div class="px-2 text-xs">{formatDate(c.date)}</div>
+                  </div>
+                )}
+              </For>
             </Show>
           </div>
-        </div>
-        
-        <div class="flex items-center text-xs">
-          <b class="text-green-600">
-            <i class="fas fa-code-branch" />{props.branch}:
-          </b>
-          <span class="text-gray-500 ml-2">Mostrando {paginatedCommits().length} de {filteredCommits().length}</span>
-          <div class="flex gap-2 items-center ml-auto">
-            <button 
-              disabled={currentPage() === 1}
-              onClick={() => setCurrentPage(p => p - 1)}
-              class="px-2 py-1 bg-gray-200 dark:bg-gray-800 rounded disabled:opacity-30"
-            > Anterior </button>
-            <span>{currentPage()} / {totalPages() || 1}</span>
-            <button 
-              disabled={currentPage() >= totalPages()}
-              onClick={() => setCurrentPage(p => p + 1)}
-              class="px-2 py-1 bg-gray-200 dark:bg-gray-800 rounded disabled:opacity-30"
-            > Próximo </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Lista de Commits */}
-      <div class="flex-1 overflow-auto">
-        <div style={{"height": "100px"}}>
-          <Show when={!loading()} fallback={<div class="p-4 text-center">Carregando...</div>}>
-            <For each={paginatedCommits()}>
-              {(c) => (
-                <div
-                  class={`flex items-center border-b border-gray-200 p-2 cursor-pointer dark:border-gray-900  ${
-                    selectedCommit()?.hash === c.hash ? "bg-blue-400 dark:text-black" : ""
-                  }`}
-                  onClick={() => selectCommit(c.hash)}
-                >
-                  <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
-                  <div class="font-semibold px-2 flex-1 truncate">{c.message}</div>
-                  <div class="text-xs opacity-50 ml-auto whitespace-nowrap">{c.author}</div>
-                  <div class="px-2 text-xs">{formatDate(c.date)}</div>
-                </div>
-              )}
-            </For>
-          </Show>
         </div>
       </div>
 
@@ -216,7 +217,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       <div class="h-1 cursor-row-resize bg-gray-200 hover:bg-gray-400 dark:bg-gray-900" onMouseDown={(e) => { e.preventDefault(); setResizing(true); }}></div>
       
       {/* Detalhes */}
-      <div style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px" }} class="overflow-auto">
+      <div style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px" }} class="overflow-auto container-branch-list p-0 mt-1">
         <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} selectCommit={selectCommit} />
       </div>
     </div>

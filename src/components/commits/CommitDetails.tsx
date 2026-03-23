@@ -50,12 +50,12 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
       <Show when={!props.commit} fallback={
         <>
           {/* Navegação de Abas */}
-          <div class="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4">
+          <div class="flex border-b border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 px-4">
             <button
               onClick={() => setActiveTab("geral")}
-              class={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              class={`px-4 py-2 text-sm font-medium transition-colors rounded-t-xl ${
                 activeTab() === "geral" 
-                ? "border-blue-500 text-blue-600 dark:text-blue-500" 
+                ? "bg-white dark:bg-gray-800" 
                 : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:dark:text-gray-300"
               }`}
             >
@@ -63,9 +63,9 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
             </button>
             <button
               onClick={() => setActiveTab("arquivos")}
-              class={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              class={`px-4 py-2 text-sm font-medium transition-colors rounded-t-xl ${
                 activeTab() === "arquivos" 
-                ? "border-blue-500 text-blue-600 dark:text-blue-500" 
+                ? "bg-white dark:bg-gray-800" 
                 : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:dark:text-gray-300"
               }`}
             >
@@ -105,8 +105,8 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
                         {(parentHash) => (
                           <span 
                             onClick={() => props.selectCommit(parentHash)}
-                            class="font-mono text-xs bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-gray-900 
-                                  text-blue-600 dark:text-white px-2 py-1 rounded cursor-pointer transition-colors border border-gray-300 dark:border-gray-600"
+                            class="font-mono text-xs bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-gray-900 rounded-xl
+                                  text-blue-600 dark:text-white px-2 py-1 cursor-pointer transition-colors border border-gray-300 dark:border-gray-600"
                             title={parentHash}
                           >
                             {parentHash.substring(0, 8)}
@@ -136,12 +136,14 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
             <Show when={activeTab() === "arquivos"}>
             <div class="flex h-full">
               {/* Sidebar de arquivos */}
-              <div class="w-1/3 border-r dark:border-gray-900 overflow-y-auto">
+              <div class="w-1/3 overflow-y-auto p-1">
                 <For each={props.commit.files}>
                   {(f) => (
                     <div 
                       onClick={() => fetchFileDiff(f)}
-                      class={`flex items-center p-2 text-xs cursor-pointer border-b dark:border-gray-900 hover:bg-blue-500/10 ${selectedFile()?.file === f.file ? 'bg-blue-500/20' : ''}`}
+                      class={`flex items-center p-2 text-xs cursor-pointer border-b dark:border-gray-900 
+                        rounded-xl my-1 hover:bg-blue-500/10 
+                        ${selectedFile()?.file === f.file ? 'bg-blue-500/20 dark:bg-blue-400/30' : 'bg-gray-100 dark:bg-gray-700'}`}
                     >
                       <FileIcon fileName={getFileNameFromPath(f.file)} /> <span class="ml-2">{getFileNameFromPath(f.file)}</span>
                     </div>
