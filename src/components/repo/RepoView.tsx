@@ -112,7 +112,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
     >
       {/* Painel esquerdo */}
       <div class="flex flex-col border-r overflow-auto border-gray-300 py-4 pl-2 pr-1 dark:border-gray-900 " style={{ width: `${sidebarWidth()}px` }}>
-        <div class="container-branch-list mb-4">
+        <div class="container-branch-list mb-2">
           <div class="flex">
             <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>
             <button onClick={() => setIsUserConfigOpen(true)} class="ml-auto text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
@@ -142,7 +142,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
           </button>
         </div>
 
-        <div class="container-branch-list h-[100%]">
+        <div class="container-branch-list overflow-auto h-[100%]">
           <div class="relative w-full mb-2">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-white">
               <i class="fas fa-search"></i>
