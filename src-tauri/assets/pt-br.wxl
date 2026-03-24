@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="pt-br" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="LaunchApp">Iniciar Git Trident</String>
+  <String Id="WelcomeDlgTitle">{\WixUI_Font_Title}Bem-vindo ao Assistente de Instalação do Git Trident</String>
+  <String Id="WelcomeDlgDescription">O Assistente de Instalação vai instalar o Git Trident Core v1.17 no seu computador. Clique em Avançar para continuar ou em Cancelar para sair.</String>
+  
+  <String Id="InstallDlgTitle">{\WixUI_Font_Title}Instalando Git Trident</String>
+  <String Id="ExitDialogTitle">{\WixUI_Font_Title}Instalação Concluída</String>
+
+  
+  <String Id="InstallDirDlgTitle">{\WixUI_Font_Title}Local da Instalação</String>
+  <String Id="InstallDirDlgDescription">Escolha a pasta para o Git Trident.</String>
+</WixLocalization>
