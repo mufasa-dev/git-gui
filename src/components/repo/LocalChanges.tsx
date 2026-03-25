@@ -260,7 +260,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const clearDiff = () => setDiff({diff: ""});  
 
   return (
-    <div class="flex h-full w-full select-none pt-2 mx-1"
+    <div class="flex h-full w-full select-none pt-2 mr-1"
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}>
@@ -299,11 +299,11 @@ export function LocalChanges(props: { repo: Repo; }) {
 
       {/* Barra de resize */}
       <div
-        class="w-1 cursor-col-resize bg-gray-200 hover:bg-gray-400 dark:bg-gray-900 dark:hover:bg-gray-700"
+        class="resize-bar-vertical"
         onMouseDown={startResize}
       ></div>
 
-      <div  class="flex-1 flex flex-col h-full overflow-hidden ml-1">
+      <div  class="flex-1 flex flex-col h-full overflow-hidden">
         <div class="flex-1 overflow-auto px-2 container-branch-list">
           <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
             path={props.repo.path} isStaged={isVisualizingStaged()}

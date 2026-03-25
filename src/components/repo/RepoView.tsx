@@ -172,7 +172,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
 
       {/* Barra de resize */}
       <div
-        class="w-1 cursor-col-resize bg-gray-200 hover:bg-gray-400 dark:bg-gray-900 dark:hover:bg-gray-700"
+        class="resize-bar-vertical"
         onMouseDown={startResize}
       ></div>
 

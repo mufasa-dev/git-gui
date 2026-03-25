@@ -129,7 +129,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   }
 
   return (
-    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-4 pr-2 pl-1"  style={{"height": "calc(100vh - 101px)"}} 
+    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-4 pr-2"  style={{"height": "calc(100vh - 101px)"}} 
          onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
       <div class="container-branch-list flex-1 overflow-auto mb-1" style={{"height": "100px"}}>
         {/* Header com Busca e Paginação */}
@@ -214,7 +214,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       </div>
 
       {/* Barra de resize */}
-      <div class="h-1 cursor-row-resize bg-gray-200 hover:bg-gray-400 dark:bg-gray-900" onMouseDown={(e) => { e.preventDefault(); setResizing(true); }}></div>
+      <div class="resize-bar-horizontal" onMouseDown={(e) => { e.preventDefault(); setResizing(true); }}></div>
       
       {/* Detalhes */}
       <div style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px" }} class="overflow-auto container-branch-list p-0 mt-1">
