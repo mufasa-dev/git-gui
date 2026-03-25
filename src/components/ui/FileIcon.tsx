@@ -58,6 +58,14 @@ import musicIcon from "../../assets/music.png";
 import videoIcon from "../../assets/video.png";
 import databaseIcon from "../../assets/database.png";
 import configIcon from "../../assets/config.png";
+import brIcon from "../../assets/flags/br.png";
+import esIcon from "../../assets/flags/es.png";
+import enIcon from "../../assets/flags/us.png";
+import itIcon from "../../assets/flags/it.png";
+import frIcon from "../../assets/flags/fr.png";
+import seIcon from "../../assets/flags/se.png";
+import cnIcon from "../../assets/flags/cn.png";
+import jpIcon from "../../assets/flags/jp.png";
 import packageIcon from "../../assets/package.png";
 import defaultIcon from "../../assets/file.png";
 
@@ -79,6 +87,16 @@ export default function FileIcon(props: FileIconProps) {
     if (name === 'license') return mdIcon;
     if (name.includes('package.json')) return packageIcon;
     if (name.includes('package-lock.json')) return packageIcon;
+
+    // Checagem por arquivos de tradução
+    if (['pt.ts', 'pt.json', 'pt-br.ts', 'pt-br.json', 'pt_br.json'].includes(name.toLowerCase())) return brIcon;
+    if (['es.ts', 'es.json', 'es-es.ts', 'es-es.json', 'es_es.json'].includes(name.toLowerCase())) return esIcon;
+    if (['en.ts', 'en.json', 'en-us.ts', 'en-us.json', 'en_us.json'].includes(name.toLowerCase())) return enIcon;
+    if (['it.ts', 'it.json', 'it-it.ts', 'it-it.json', 'it_it.json'].includes(name.toLowerCase())) return itIcon;
+    if (['fr.ts', 'fr.json', 'fr-fr.ts', 'fr-fr.json', 'fr_fr.json'].includes(name.toLowerCase())) return frIcon;
+    if (['se.ts', 'se.json', 'se-se.ts', 'se-se.json', 'se_se.json'].includes(name.toLowerCase())) return seIcon;
+    if (['cn.ts', 'cn.json', 'cn-cn.ts', 'cn-cn.json', 'cn_cn.json'].includes(name.toLowerCase())) return cnIcon;
+    if (['jp.ts', 'jp.json', 'jp-jp.ts', 'jp-jp.json', 'jp_jp.json'].includes(name.toLowerCase())) return jpIcon;
 
     const mapping: Record<string, string> = {
       js: jsIcon,
