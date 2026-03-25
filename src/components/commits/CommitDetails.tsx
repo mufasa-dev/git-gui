@@ -10,6 +10,7 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
   const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
   const [selectedFile, setSelectedFile] = createSignal<any>(null);
   const [fileDiff, setFileDiff] = createSignal<any>(null);
+  const [lastProcessedHash, setLastProcessedHash] = createSignal<string | null>(null);
   const [loadingDiff, setLoadingDiff] = createSignal(false);
 
   const fetchFileDiff = async (file: any) => {
@@ -36,12 +37,32 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
   }
 
   createEffect(() => {
-    const files = props.commit?.files;
-    if (files && files.length > 0) {
-      fetchFileDiff(files[0]);
-    } else {
+    const currentCommit = props.commit;
+    
+    if (!currentCommit) {
       setSelectedFile(null);
       setFileDiff(null);
+      setLastProcessedHash(null);
+      return;
+    }
+
+    const files = currentCommit.files;
+    const currentHash = currentCommit.hash;
+
+    if (currentHash !== lastProcessedHash()) {
+      setLastProcessedHash(currentHash);
+      
+      if (files && files.length > 0) {
+        fetchFileDiff(files[0]);
+      } else {
+        setSelectedFile(null);
+        setFileDiff(null);
+      }
+    } else {
+      const currentFile = selectedFile();
+      if (currentFile) {
+        fetchFileDiff(currentFile);
+      }
     }
   });
 
@@ -59,7 +80,7 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
                 : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:dark:text-gray-300"
               }`}
             >
-              Geral
+              <i class="fa fa-code-commit"></i> Geral
             </button>
             <button
               onClick={() => setActiveTab("arquivos")}
@@ -69,7 +90,7 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
                 : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:dark:text-gray-300"
               }`}
             >
-              Arquivos ({props.commit?.files?.length || 0})
+              <i class="fa fa-copy"></i> Arquivos ({props.commit?.files?.length || 0})
             </button>
           </div>
 

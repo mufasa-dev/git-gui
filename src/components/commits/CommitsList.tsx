@@ -177,13 +177,13 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
               <button 
                 disabled={currentPage() === 1}
                 onClick={() => setCurrentPage(p => p - 1)}
-                class="px-2 py-1 bg-gray-300 dark:bg-gray-900 rounded disabled:opacity-30"
+                class="px-4 py-1 bg-gray-300 dark:bg-gray-900 rounded-full disabled:opacity-30"
               > Anterior </button>
               <span>{currentPage()} / {totalPages() || 1}</span>
               <button 
                 disabled={currentPage() >= totalPages()}
                 onClick={() => setCurrentPage(p => p + 1)}
-                class="px-2 py-1 bg-gray-300 dark:bg-gray-900 rounded disabled:opacity-30"
+                class="px-4 py-1 bg-gray-300 dark:bg-gray-900 rounded-full disabled:opacity-30"
               > Próximo </button>
             </div>
           </div>
