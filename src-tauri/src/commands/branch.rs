@@ -204,3 +204,43 @@ pub async fn delete_remote_branch(path: String, branch: String, remote: Option<S
     }
     Ok(())
 }
+
+#[tauri::command]
+pub async fn list_branch_files(path: String, branch: String) -> Result<Vec<String>, String> {
+    let output = git_command_async(&path)
+        .args(["ls-tree", "-r", "--name-only", &branch])
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let raw = String::from_utf8_lossy(&output.stdout);
+    let files: Vec<String> = raw
+        .lines()
+        .map(|line| line.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    Ok(files)
+}
+
+#[tauri::command]
+pub async fn get_branch_file_content(path: String, branch: String, file_path: String) -> Result<String, String> {
+    let target = format!("{}:{}", branch, file_path);
+
+    let output = git_command_async(&path)
+        .args(["show", &target])
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Erro ao ler arquivo: {}", err));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}

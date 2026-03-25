@@ -20,6 +20,8 @@ fn main() {
             commands::branch::checkout_remote_branch,
             commands::branch::delete_branch,
             commands::branch::delete_remote_branch,
+            commands::branch::list_branch_files,
+            commands::branch::get_branch_file_content,
             commands::commit::list_commits,
             commands::commit::get_commit_details,
             commands::commit::git_commit,
