@@ -266,9 +266,11 @@ export function LocalChanges(props: { repo: Repo; }) {
       onMouseLeave={stopResize}>
       <div class="container-branch-list mb-4 overflow-auto border-r py-3 px-0" style={{ width: `${sidebarWidth()}px` }}>
         <div style={{"height": "40px"}} class="flex flex-col">
-          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 mb-3 flex items-center" onContextMenu={showContextMenu}>
+          <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 mb-3 flex items-center" onContextMenu={showContextMenu}>
             <b>Alterações</b>
-            <button class="ml-auto px-2 py-1 text-sm bg-blue-500 text-white rounded" onClick={() => prepare(selected())}>
+            <button class="ml-auto px-3 py-1 text-sm bg-blue-500 text-white rounded-lg disabled:opacity-50" 
+              disabled={selected().length === 0}
+              onClick={() => prepare(selected())}>
               Preparar
             </button>
           </div>
@@ -279,9 +281,10 @@ export function LocalChanges(props: { repo: Repo; }) {
             onDbClick={(items: string[]) => prepare(items)}
           />
 
-          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center mt-2 mb-3">
+          <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 flex items-center mt-2 mb-3">
             <b class="mr-1">Preparadas</b>
-            <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded" onclick={() => unstage(stagedPreparedSelected())}>
+            <button class="ml-auto px-3 py-1 text-sm bg-green-500 text-white rounded-lg disabled:opacity-50" 
+              disabled={staged().length === 0} onclick={() => unstage(stagedPreparedSelected())}>
               Desfazer
             </button>
           </div>

@@ -12,7 +12,7 @@ export function FolderTreeView(props: {
     selected: string[];
     staged: boolean;
     defaultOpen?: boolean;
-    showStatus?: boolean;
+    showStatus: boolean;
     onToggle: (path: string, selected: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
     onDbClick?: (items: string[]) => void;
@@ -78,7 +78,7 @@ function TreeNode(props: {
     staged: boolean
     selected: string[];
     defaultOpen?: boolean;
-    showStatus?: boolean;
+    showStatus: boolean;
     onToggle: (path: string, selected: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
     onDbClick?: (items: string[]) => void;
@@ -161,7 +161,7 @@ function TreeNode(props: {
               </span>{" "}
             </Show>
               <FileIcon fileName={props.name} /> 
-              <span class="ml-2">{props.name}</span>
+              <span class="ml-2">{props.name} {props.showStatus}</span>
               <Show when={props.node.__status === "conflicted"}>
                 <span title="Este arquivo possui conflitos de merge" class="text-red-500">
                   <img src={alertIcon} alt="Conflito" class="w-6 h-6 inline-block ml-2" />
@@ -195,6 +195,7 @@ function TreeNode(props: {
                 onContextMenu={props.onContextMenu}
                 onDbClick={props.onDbClick}
                 sortFn={props.sortFn}
+                showStatus={props.showStatus}
               />
             )}
           </For>
