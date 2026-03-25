@@ -142,8 +142,8 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
           </button>
         </div>
 
-        <div class="container-branch-list overflow-auto h-[100%]">
-          <div class="relative w-full mb-2">
+        <div class="container-branch-list px-0 overflow-auto h-[100%]">
+          <div class="relative w-full mb-2 px-2">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-white">
               <i class="fas fa-search"></i>
             </span>

@@ -186,13 +186,15 @@ export default function BranchList(props: Props) {
         </b>
         <i class="fa-solid ml-auto" classList={{"fa-angle-down" : openBranch(), "fa-angle-right" : !openBranch()}}></i>
       </b>
-      {openBranch() && <TreeView tree={props.localTree} 
-        activeBranch={props.activeBranch}
-        selectedBranch={props.selectedBranch}
-        onSelectBranch={props.onSelectBranch}
-        onActivateBranch={props.onActivateBranch}
-        openContextMenu={openContextMenu}
-      />}
+      <div class="pr-2">
+        {openBranch() && <TreeView tree={props.localTree} 
+          activeBranch={props.activeBranch}
+          selectedBranch={props.selectedBranch}
+          onSelectBranch={props.onSelectBranch}
+          onActivateBranch={props.onActivateBranch}
+          openContextMenu={openContextMenu}
+        />}
+      </div>
 
       <b onClick={() => setOpenRemote(!openRemote())} class="collapse-btn mt-2">
         <b>

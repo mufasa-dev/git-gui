@@ -274,7 +274,7 @@ export function LocalChanges(props: { repo: Repo; }) {
           </div>
           {unstaged().length === 0 && <div class="px-4 text-center text-gray-400">Nenhuma alteração local</div>}
           <FolderTreeView items={unstaged()} 
-            selected={selected()} staged={false} 
+            selected={selected()} staged={false} showStatus={true}
             onToggle={toggleItem} onContextMenu={showContextMenu}
             onDbClick={(items: string[]) => prepare(items)}
           />
@@ -286,7 +286,7 @@ export function LocalChanges(props: { repo: Repo; }) {
             </button>
           </div>
           
-          <FolderTreeView items={staged()} 
+          <FolderTreeView items={staged()} showStatus={true}
             selected={stagedPreparedSelected()} staged={true} 
             onToggle={toggleStagedItem} onContextMenu={showContextMenu}
             onDbClick={(items: string[]) => unstage(items)}
