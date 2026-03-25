@@ -32,6 +32,24 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "language": {
+          "pt-BR": {
+            "localePath": "assets/pt-br.wxl"
+          }
+        },
+        "bannerPath": "assets/banner.bmp",
+        "dialogImagePath": "assets/side.bmp"
+      },
+      "nsis": {
+        "languages": ["PortugueseBR", "English"],
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "assets/banner_nsi.bmp",
+        "sidebarImage": "assets/side_nsi.bmp",
+        "installMode": "currentUser"
+      }
+    }
   }
 }

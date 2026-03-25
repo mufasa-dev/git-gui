@@ -122,6 +122,7 @@ export default function FileIcon(props: FileIconProps) {
       png: imageIcon,
       jpg: imageIcon,
       jpeg: imageIcon,
+      bmp: imageIcon,
       gif: imageIcon,
       ico: imageIcon,
       svg: svgIcon,
