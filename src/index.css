@@ -37,7 +37,8 @@ html {
   }
 
   .collapse-btn {
-    @apply cursor-pointer w-[100%] border-y border-gray-300 p-1 mb-2 hover:bg-gray-200 dark:hover:bg-gray-700/50 flex items-center;
+    @apply cursor-pointer w-[100%] border-y border-gray-300 dark:border-gray-700 
+           py-1 px-2 mb-2 hover:bg-gray-200 dark:hover:bg-gray-700/50 flex items-center;
   }
 
   .cm-commit-item {

@@ -11,13 +11,14 @@ export function FolderTreeView(props: {
     items: ChangeItem[],
     selected: string[];
     staged: boolean;
+    defaultOpen?: boolean;
+    showStatus?: boolean;
     onToggle: (path: string, selected: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
     onDbClick?: (items: string[]) => void;
  }) {
   const buildTree = (files: ChangeItem[]) => {
     const root: any = {};
-
     for (const f of files) {
       const parts = f.path.split("/");
       let current = root;
@@ -37,16 +38,32 @@ export function FolderTreeView(props: {
     return root;
   };
 
+  const sortEntries = (entries: [string, any][]) => {
+    return [...entries].sort(([nameA, nodeA], [nameB, nodeB]) => {
+      // Se um é arquivo e o outro pasta, a pasta (isFile = false) vem primeiro
+      if (nodeA.__isFile !== nodeB.__isFile) {
+        return nodeA.__isFile ? 1 : -1;
+      }
+      // Se ambos são do mesmo tipo, ordena por nome
+      return nameA.localeCompare(nameB);
+    });
+  };
+
   const tree = () => buildTree(props.items);
+  const sortedRoot = () => sortEntries(Object.entries(tree()));
 
   return (
     <ul class="ml-2 space-y-1">
-      <For each={Object.entries(tree())}>
+      <For each={sortedRoot()}>
         {([name, child]: any) => (
-            <TreeNode node={child} name={name} path={name} 
+            <TreeNode 
+              node={child} name={name} path={name} 
               selected={props.selected} staged={props.staged} 
+              defaultOpen={props.defaultOpen}
               onToggle={props.onToggle} onContextMenu={props.onContextMenu} 
-              onDbClick={props.onDbClick} 
+              onDbClick={props.onDbClick}
+              showStatus={props.showStatus}
+              sortFn={sortEntries}
             />
         )}
       </For>
@@ -59,12 +76,17 @@ function TreeNode(props: {
     name: string; 
     path: string; 
     staged: boolean
-    selected: string[]; 
+    selected: string[];
+    defaultOpen?: boolean;
+    showStatus?: boolean;
     onToggle: (path: string, selected: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
     onDbClick?: (items: string[]) => void;
+    sortFn: (entries: [string, any][]) => [string, any][];
   } ) {
-  const [open, setOpen] = createSignal(true);
+  const [open, setOpen] = createSignal(props.defaultOpen ?? true);
+
+  const sortedChildren = () => props.sortFn(Object.entries(props.node.__children || {}));
 
   const entries = () =>
     Object.entries(props.node.__children || {}).concat(
@@ -133,9 +155,11 @@ function TreeNode(props: {
       >
         {props.node.__isFile ? (
           <span title={props.name} class="pl-4 text-sm truncate flex items-center">
-            <span class={'px-1 rounded text-white mr-2 ' + getStatusStyle(props.node.__status || '')}>
-              {getStatusLetter(props.node.__status)}
-            </span>{" "}
+            <Show when={props.showStatus}>
+              <span class={'px-1 rounded text-white mr-2 ' + getStatusStyle(props.node.__status || '')}>
+                {getStatusLetter(props.node.__status)}
+              </span>{" "}
+            </Show>
               <FileIcon fileName={props.name} /> 
               <span class="ml-2">{props.name}</span>
               <Show when={props.node.__status === "conflicted"}>
@@ -166,9 +190,11 @@ function TreeNode(props: {
                 path={props.path + "/" + name}
                 selected={props.selected}
                 staged={props.staged}
+                defaultOpen={props.defaultOpen}
                 onToggle={props.onToggle}
                 onContextMenu={props.onContextMenu}
                 onDbClick={props.onDbClick}
+                sortFn={props.sortFn}
               />
             )}
           </For>
