@@ -9,10 +9,13 @@ import { path } from "@tauri-apps/api";
 import { loadRepos, saveRepos } from "../services/storeService";
 import { platform } from "@tauri-apps/plugin-os";
 import Header from "../components/layout/Header";
+import LateralBar from "../components/ui/LateralBar";
+import FilesList from "./FilesList";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
   const [active, setActive] = createSignal<string | null>(null);
+  const [activePage, setActivePage] = createSignal<string>('commits');
 
   const closeRepo = (id: string) => {
     setRepos(prev => {
@@ -121,9 +124,15 @@ export default function RepoTabsPage() {
         <div class="flex flex-col flex-1">
           <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
 
-          <div class="flex-1 overflow-auto">
+          <div class="flex flex-1 overflow-auto bg-gray-200 dark:bg-gray-900">
+            <LateralBar repos={repos()} active={activePage()} onChangeActive={setActivePage} />
             {active() ? (
-              <RepoView repo={repos().find(r => r.path === active())!} refreshBranches={refreshBranches} />
+              activePage() === 'commits' ? (
+                <RepoView repo={repos().find(r => r.path === active())!} refreshBranches={refreshBranches} />
+              ) :
+              activePage() === 'files' && (
+                <FilesList repo={repos().find(r => r.path === active())!} refreshBranches={refreshBranches} />
+              )
             ) : (
               <p class="text-gray-500 p-4">Nenhum repositório aberto</p>
             )}

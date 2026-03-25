@@ -260,7 +260,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const clearDiff = () => setDiff({diff: ""});  
 
   return (
-    <div class="flex h-full w-full select-none pt-4 mx-1"
+    <div class="flex h-full w-full select-none pt-2 mx-1"
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}>
@@ -279,7 +279,7 @@ export function LocalChanges(props: { repo: Repo; }) {
             onDbClick={(items: string[]) => prepare(items)}
           />
 
-          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center mt-4 mb-3">
+          <div class="border-y border-gray-300 bg-gray-200 dark:bg-gray-900 dark:border-gray-950 px-4 py-1 flex items-center mt-2 mb-3">
             <b class="mr-1">Preparadas</b>
             <button class="ml-auto px-2 py-1 text-sm bg-green-500 text-white rounded" onclick={() => unstage(stagedPreparedSelected())}>
               Desfazer
@@ -326,7 +326,7 @@ export function LocalChanges(props: { repo: Repo; }) {
               />
               <label for="amend" class="ml-1">Amend</label>
             </div>
-            <button class="pl-2 pr-4 py-1 bg-blue-600 ml-auto text-white rounded" onClick={handleCommit}
+            <button class="pl-2 pr-4 py-1 bg-blue-600 ml-auto text-white rounded-xl" onClick={handleCommit}
               disabled={staged().length === 0 || !commitMessage().trim()}>
               <i class="fa fa-check"></i> Commit
             </button>

@@ -188,7 +188,7 @@ export default function DiffViewer(props: Props) {
      <Show when={hasConflict() && !props.isStaged}>
         <div class="flex flex-col items-center justify-center h-full w-full h-100 p-8 text-center rounded-lg">
           {/* Ícone Hero Centralizado */}
-          <div class="relative flex items-center justify-center w-32 h-32 mb-8 rounded-full bg-gradient-to-br shadow-2xl">
+          <div class="relative flex items-center justify-center w-32 h-32 mb-8">
             <img src={forkIcon} class="inline h-100 w-100" />
             {/* Ponto de exclamação de alerta */}
             <div class="absolute -bottom-2 -right-2 p-2">

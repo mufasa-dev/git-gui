@@ -220,7 +220,7 @@ export default function VSMergeEditor(props: Props) {
               const isSelected = () => resolutions()[line.conflictId!]?.includes('incoming');
               return (
                 <div onClick={() => toggleResolution(line.conflictId!, 'incoming')} 
-                  class={`flex min-h-[1.5em] items-center border-l-2 border-transparent 
+                  class={`flex min-h-[1.5em] items-center border-l-2 border-transparent rounded-xl
                     ${line.type === 'incoming' ? (isSelected() ? 'bg-blue-600/30 border-blue-500 py-2' : 'bg-blue-300/30 py-2') : line.type === 'current' ? 'opacity-30 grayscale pointer-events-none' : ''} 
                     ${line.conflictId ? 'cursor-pointer text-black dark:text-white' : 'w-fit '}`}>
                   <span class="w-8 text-right pr-2 text-black dark:text-gray-400 text-[10px]">
@@ -244,7 +244,7 @@ export default function VSMergeEditor(props: Props) {
               const isSelected = () => resolutions()[line.conflictId!]?.includes('current');
               return (
                 <div onClick={() => toggleResolution(line.conflictId!, 'current')} 
-                  class={`flex min-h-[1.5em] items-center border-l-2 border-transparent 
+                  class={`flex min-h-[1.5em] items-center border-l-2 border-transparent rounded-xl
                     ${line.type === 'current' ? (isSelected() ? 'bg-green-600/30 border-green-500 py-2' : 'bg-green-300/30 py-2') : line.type === 'incoming' ? 'opacity-30 grayscale pointer-events-none' : ''} 
                     ${line.conflictId ? 'cursor-pointer text-black dark:text-white' : 'w-fit'}`}>
                   <span class="w-8 text-right pr-2 text-gray-500 dark:text-gray-400 mr-2 text-[10px]">
@@ -270,7 +270,7 @@ export default function VSMergeEditor(props: Props) {
               <button onClick={() => setManualResult(null)} class="text-gray-400 hover:text-white underline italic">Reset to Auto</button>
             </Show>
             <button onClick={props.onClose} class="hover:text-white text-gray-400">Cancelar</button>
-            <button onClick={handleCompleteMerge} class="px-3 py-1 bg-blue-600 text-white rounded font-bold">Completar Merge</button>
+            <button onClick={handleCompleteMerge} class="px-3 py-1 bg-blue-600 text-white rounded-xl font-bold">Completar Merge</button>
           </div>
         </div>
         
