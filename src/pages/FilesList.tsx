@@ -12,6 +12,8 @@ export default function FileList(props: { repo: Repo, refreshBranches: (path: st
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
   const [selectedBranch, setSelectedBranch] = createSignal<string | undefined>(props.repo.activeBranch);
+  const [lastProcessedBranch, setLastProcessedBranch] = createSignal<string | undefined>(undefined);
+  const [lastProcessedRepoPath, setLastProcessedRepoPath] = createSignal<string | undefined>(undefined);
   
   // Estados para os arquivos da branch
   const [branchFiles, setBranchFiles] = createSignal<{path: string, status: string}[]>([]);
@@ -30,22 +32,31 @@ export default function FileList(props: { repo: Repo, refreshBranches: (path: st
     }
   };
 
-  // 1. Efeito para buscar arquivos quando a branch no Select mudar
   createEffect(async () => {
     const branch = selectedBranch();
-    if (!branch || !props.repo.path) return;
+    const repoPath = props.repo.path;
 
-    showLoading();
-    try {
-      const files: string[] = await listBranchFiles(props.repo.path, branch);
-      // Mapeia string[] para o formato ChangeItem do seu TreeView
-      const mappedFiles = files.map(f => ({ path: f, status: "A" })); 
-      setBranchFiles(mappedFiles);
-      setFileContent(null); // Limpa o visualizador ao trocar de branch
-    } catch (e) {
-      console.error("Erro ao listar arquivos:", e);
-    } finally {
-      hideLoading();
+    if (!branch || !repoPath) return;
+
+    if (branch !== lastProcessedBranch() || repoPath !== lastProcessedRepoPath()) {
+      
+      setLastProcessedBranch(branch);
+      setLastProcessedRepoPath(repoPath);
+
+      showLoading();
+      try {
+        const files: string[] = await listBranchFiles(repoPath, branch);
+        const mappedFiles = files.map(f => ({ path: f, status: "A" })); 
+        
+        setBranchFiles(mappedFiles);
+        
+        setFileContent(null); 
+        setSelectedFilePath([]);
+      } catch (e) {
+        console.error("Erro ao listar arquivos:", e);
+      } finally {
+        hideLoading();
+      }
     }
   });
 
@@ -96,7 +107,8 @@ export default function FileList(props: { repo: Repo, refreshBranches: (path: st
           <FolderTreeView 
             items={branchFiles()} 
             selected={selectedFilePath()} 
-            staged={false}
+            staged={false} defaultOpen={false}
+            showStatus={false}
             onToggle={(path) => handleFileClick(path)}
           />
         </div>
@@ -110,6 +122,7 @@ export default function FileList(props: { repo: Repo, refreshBranches: (path: st
           fallback={<div class="flex-1 flex items-center justify-center opacity-30 italic">Selecione um arquivo para visualizar o conteúdo na branch {selectedBranch()}</div>}
         >
           <div class="flex-1 overflow-auto p-4 font-mono text-sm whitespace-pre">
+            <h5>{selectedFilePath()[0]}</h5>
             {/* Aqui você pode futuramente colocar um componente de Syntax Highlight como o Prism ou Monaco */}
             <code>{fileContent()}</code>
           </div>
