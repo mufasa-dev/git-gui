@@ -1,7 +1,7 @@
 import { createEffect, createSignal, createMemo, For, Show, on, onCleanup } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { getCommitDetails, getCommits } from "../../services/gitService";
-import { formatDate } from "../../utils/date";
+import { formatRelativeDate } from "../../utils/date";
 import { CommitDetails } from "./CommitDetails";
 import { datepicker } from "../../directives/datepicker";
 import { notify } from "../../utils/notifications";
@@ -204,7 +204,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                     <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
                     <div class="font-semibold px-2 flex-1 truncate">{c.message}</div>
                     <div class="text-xs opacity-50 ml-auto whitespace-nowrap">{c.author}</div>
-                    <div class="px-2 text-xs">{formatDate(c.date)}</div>
+                    <div class="px-2 text-xs">{formatRelativeDate(c.date)}</div>
                   </div>
                 )}
               </For>
