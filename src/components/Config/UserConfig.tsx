@@ -176,7 +176,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
                 * Configurações salvas apenas neste repositório (--local).
               </p>
               <div class="pt-4 flex justify-end gap-2">
-                 <button onClick={props.onClose} class="px-4 py-1.5 text-sm text-gray-500">Fechar</button>
+                 <button onClick={props.onClose} class="px-4 py-1.5 text-sm text-gray-500 hover:text-black dark:hover:text-white">Fechar</button>
                  <button onClick={handleSaveUser} class="px-6 py-1.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">Salvar Perfil</button>
               </div>
             </div>

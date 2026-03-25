@@ -129,7 +129,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   }
 
   return (
-    <div class="flex-1 flex flex-col overflow-hidden py-4 pr-2 pl-1"  style={{"height": "calc(100vh - 101px)"}} 
+    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-4 pr-2 pl-1"  style={{"height": "calc(100vh - 101px)"}} 
          onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
       <div class="container-branch-list flex-1 overflow-auto mb-1" style={{"height": "100px"}}>
         {/* Header com Busca e Paginação */}
@@ -177,13 +177,13 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
               <button 
                 disabled={currentPage() === 1}
                 onClick={() => setCurrentPage(p => p - 1)}
-                class="px-2 py-1 bg-gray-200 dark:bg-gray-800 rounded disabled:opacity-30"
+                class="px-2 py-1 bg-gray-300 dark:bg-gray-900 rounded disabled:opacity-30"
               > Anterior </button>
               <span>{currentPage()} / {totalPages() || 1}</span>
               <button 
                 disabled={currentPage() >= totalPages()}
                 onClick={() => setCurrentPage(p => p + 1)}
-                class="px-2 py-1 bg-gray-200 dark:bg-gray-800 rounded disabled:opacity-30"
+                class="px-2 py-1 bg-gray-300 dark:bg-gray-900 rounded disabled:opacity-30"
               > Próximo </button>
             </div>
           </div>

@@ -18,7 +18,6 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { path } from "@tauri-apps/api";
 import Dialog from "../ui/Dialog";
 import { notify } from "../../utils/notifications";
-import { hide } from "@tauri-apps/api/app";
 import vsCodeIcon from "../../assets/vscode.png";
 import bashIcon from "../../assets/bash.png";
 import commandIcon from "../../assets/command.png";
