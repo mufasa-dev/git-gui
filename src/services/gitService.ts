@@ -191,3 +191,11 @@ export async function setGitConfig(path: string, key: string, value: string): Pr
   // Executa: git config --local <key> <value>
   await invoke("set_git_config", { path, key, value });
 }
+
+export async function listBranchFiles(repoPath: string, branch: string): Promise<string[]> {
+  return await invoke("list_branch_files", { path: repoPath, branch });
+}
+
+export async function getBranchFileContent(repoPath: string, branch: string, filePath: string): Promise<string> {
+  return await invoke("get_branch_file_content", { path: repoPath, branch, filePath });
+}
