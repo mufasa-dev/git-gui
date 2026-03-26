@@ -54,7 +54,7 @@ export function FolderTreeView(props: {
   const sortedRoot = () => sortEntries(Object.entries(tree()));
 
   return (
-    <ul class="ml-2 space-y-1">
+    <ul class="space-y-1">
       <For each={sortedRoot()}>
         {([name, child]: any) => (
             <TreeNode 
@@ -64,6 +64,7 @@ export function FolderTreeView(props: {
               onToggle={props.onToggle} onContextMenu={props.onContextMenu} 
               onDbClick={props.onDbClick}
               showStatus={props.showStatus}
+              loopNumber={1}
               sortFn={sortEntries} selectMode={props.selectMode}
             />
         )}
@@ -80,7 +81,8 @@ function TreeNode(props: {
     selected: string[];
     defaultOpen?: boolean;
     showStatus: boolean;
-    selectMode?: "single" | "multi"
+    selectMode?: "single" | "multi";
+    loopNumber: number;
     onToggle: (path: string, selected: boolean, isFile: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
     onDbClick?: (items: string[]) => void;
@@ -149,7 +151,7 @@ function TreeNode(props: {
       props.onContextMenu && props.onContextMenu(e, props.node.__isFile ? { path: props.path, status: props.node.__status, staged: props.staged } : null);
     }}>
       <div
-        class="cursor-pointer select-none flex items-center"
+        class="cursor-pointer select-none flex items-center" style={{ "padding-left": `${props.loopNumber * 1}rem` }}
         classList={{ "text-blue-500 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400": props.selected.includes(props.path) }}
         onClick={toggle} onDblClick={() => {
           if (props.node.__isFile && props.onDbClick) {
@@ -163,7 +165,7 @@ function TreeNode(props: {
         {props.node.__isFile ? (
           <span title={props.name} class="pl-4 text-sm truncate flex items-center">
             <Show when={props.showStatus}>
-              <span class={'px-1 rounded text-white mr-2 ' + getStatusStyle(props.node.__status || '')}>
+              <span class={'px-1 rounded text-white mr-2 text-[12px] ' + getStatusStyle(props.node.__status || '')}>
                 {getStatusLetter(props.node.__status)}
               </span>{" "}
             </Show>
@@ -188,7 +190,7 @@ function TreeNode(props: {
       </div>
 
       <Show when={open() && !props.node.__isFile}>
-        <ul class="pl-4">
+        <ul>
           <For each={Object.entries(props.node.__children)}>
             {([name, child]: any) => (
               <TreeNode
@@ -204,6 +206,7 @@ function TreeNode(props: {
                 sortFn={props.sortFn}
                 showStatus={props.showStatus}
                 selectMode={props.selectMode}
+                loopNumber={(props.loopNumber ?? 1) + 1}
               />
             )}
           </For>
