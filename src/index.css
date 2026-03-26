@@ -14,12 +14,12 @@ html {
   }
 
   .left-btn {
-    @apply flex flex-col justify-items-center items-center mb-2
+    @apply flex flex-col justify-items-center items-center mb-2 text-gray-800 dark:text-gray-300
           bg-transparent hover:bg-gray-300 dark:hover:bg-gray-900/50
-          rounded-md border-0 py-1 cursor-pointer transition;
+          border-0 py-1 cursor-pointer transition border-l-4 border-transparent;
   }
   .left-btn.selected {
-    @apply bg-gray-300 dark:bg-gray-900;
+    @apply bg-gray-300 dark:bg-gray-900 border-blue-500 dark:border-blue-400;
   }
 
   .btn-primary {
@@ -33,7 +33,7 @@ html {
   .input-select {
     @apply border rounded border-gray-300 py-1 px-2 mt-2 dark:bg-gray-700 dark:border-gray-900;
     @apply focus:outline-none focus:ring-2 focus:ring-blue-500;
-    @apply appearance-none bg-white dark:bg-gray-700; /* garante que respeite o tema */
+    @apply appearance-none bg-white dark:bg-gray-700;
   }
 
   .collapse-btn {
@@ -118,4 +118,11 @@ html {
 
 .cm-conflict-incoming {
   background-color: rgba(147, 197, 253, 0.3);
+}
+
+.silver-icon {
+  filter: drop-shadow(1px 1px 0px #fff) 
+          drop-shadow(-1px -1px 1px #000) 
+          contrast(1.2) brightness(0.9);
+  color: #c0c0c0;
 }

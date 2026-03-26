@@ -1,7 +1,7 @@
 import { Repo } from "../../models/Repo.model";
 import Button from "./Button";
-import branchIcon from "../../assets/branch.png";
-import fileIcon from "../../assets/file.png";
+import branchIcon from "../../assets/commit_silver.png";
+import fileIcon from "../../assets/file_silver.png";
 import logo from "../../assets/fork.png";
 
 export default function LateralBar(props: {
@@ -10,8 +10,8 @@ export default function LateralBar(props: {
   onChangeActive: (id: string) => void;
 }) {
   return (
-    <div class="flex flex-col border rounded-r-xl px-1 mt-2 mb-4 bg-white dark:bg-gray-800 dark:border-gray-700" style={{"width": "56px"}}>
-      <img src={logo} class="px-1 h-10 mt-2 mb-4" />
+    <div class="flex flex-col border rounded-r-xl mt-2 mb-4 bg-white dark:bg-gray-800 dark:border-gray-700" style={{"width": "56px"}}>
+      <img src={logo} class="px-2 h-10 mt-2 mb-4" />
       <Button class={`left-btn ${props.active === "commits" ? "selected" : ""}`} onClick={() => props.onChangeActive("commits")}>
         <img src={branchIcon} class="h-10" />
       </Button>
