@@ -86,17 +86,21 @@ export default function FileList(props: { repo: Repo }) {
     }
   });
 
-  const handleFileClick = async (path: string) => {
-    if (!path.includes('.')) return; // Ignora pastas simplificadamente
-    showLoading();
-    try {
-      const content = await getBranchFileContent(props.repo.path, selectedBranch(), path);
-      setFileContent(content);
+  const handleFileClick = async (path: string, isFile: boolean) => {
+    if (isFile) {
+      showLoading();
+      try {
+        const content = await getBranchFileContent(props.repo.path, selectedBranch(), path);
+        setFileContent(content);
+        setSelectedFilePath([path]);
+      } catch (e) {
+        setFileContent("Erro ao carregar arquivo.");
+      } finally {
+        hideLoading();
+      }
+    } else {
+      setFileContent("");
       setSelectedFilePath([path]);
-    } catch (e) {
-      setFileContent("Erro ao carregar arquivo.");
-    } finally {
-      hideLoading();
     }
   };
 
@@ -126,8 +130,8 @@ export default function FileList(props: { repo: Repo }) {
             items={branchFiles()} 
             selected={selectedFilePath()} 
             staged={false} defaultOpen={false}
-            showStatus={false}
-            onToggle={(path) => handleFileClick(path)}
+            showStatus={false} selectMode="single"
+            onToggle={(path: string, _selected: boolean, isFile: boolean) => handleFileClick(path, isFile)}
           />        
           </div>
       </div>
@@ -142,7 +146,7 @@ export default function FileList(props: { repo: Repo }) {
             {selectedFilePath()[0]}
           </div>
           {/* Container do CodeMirror */}
-          <div class="flex-1 overflow-hidden" ref={codeMirrorRef} />
+          <div class="flex-1 overflow-auto" ref={codeMirrorRef} />
         </Show>
       </div>
     </div>
