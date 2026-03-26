@@ -13,7 +13,8 @@ export function FolderTreeView(props: {
     staged: boolean;
     defaultOpen?: boolean;
     showStatus: boolean;
-    onToggle: (path: string, selected: boolean) => void;
+    selectMode?: "single" | "multi";
+    onToggle: (path: string, selected: boolean, isFile: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
     onDbClick?: (items: string[]) => void;
  }) {
@@ -63,7 +64,7 @@ export function FolderTreeView(props: {
               onToggle={props.onToggle} onContextMenu={props.onContextMenu} 
               onDbClick={props.onDbClick}
               showStatus={props.showStatus}
-              sortFn={sortEntries}
+              sortFn={sortEntries} selectMode={props.selectMode}
             />
         )}
       </For>
@@ -79,7 +80,8 @@ function TreeNode(props: {
     selected: string[];
     defaultOpen?: boolean;
     showStatus: boolean;
-    onToggle: (path: string, selected: boolean) => void;
+    selectMode?: "single" | "multi"
+    onToggle: (path: string, selected: boolean, isFile: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
     onDbClick?: (items: string[]) => void;
     sortFn: (entries: [string, any][]) => [string, any][];
@@ -93,15 +95,20 @@ function TreeNode(props: {
       props.node.__isFile ? [[props.name, props.node]] : []
     );
 
-  const toggle = () => {
+  const toggle = (e: MouseEvent) => {
+    if (props.selectMode === "single") {
+      const currentlySelected = props.selected.includes(props.path);
+      props.onToggle(props.path, !currentlySelected, props.node.__isFile);
+      return;
+    }
+
     if (props.node.__isFile) {
       const currentlySelected = props.selected.includes(props.path);
-      props.onToggle(props.path, !currentlySelected);
+      props.onToggle(props.path, !currentlySelected, true);
     } else {
-      // Se for pasta, seleciona todos os arquivos filhos
       const allPaths = collectPaths(props.node, props.path);
       const allSelected = allPaths.every((p) => props.selected.includes(p));
-      allPaths.forEach((p) => props.onToggle(p, !allSelected));
+      allPaths.forEach((p) => props.onToggle(p, !allSelected, true));
     }
   };
 
@@ -143,7 +150,7 @@ function TreeNode(props: {
     }}>
       <div
         class="cursor-pointer select-none flex items-center"
-        classList={{ "text-blue-500": props.selected.includes(props.path) }}
+        classList={{ "text-blue-500 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400": props.selected.includes(props.path) }}
         onClick={toggle} onDblClick={() => {
           if (props.node.__isFile && props.onDbClick) {
             props.onDbClick([props.path]);
@@ -196,6 +203,7 @@ function TreeNode(props: {
                 onDbClick={props.onDbClick}
                 sortFn={props.sortFn}
                 showStatus={props.showStatus}
+                selectMode={props.selectMode}
               />
             )}
           </For>
