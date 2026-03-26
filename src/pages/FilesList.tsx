@@ -42,6 +42,26 @@ export default function FileList(props: { repo: Repo }) {
       javascript() 
     ];
 
+    extensions.push(
+      EditorView.theme({
+        "&": {
+          height: "100%",
+          backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#ffffff !important",
+        },
+        ".cm-scroller": { 
+          overflow: "auto",
+          backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#ffffff !important",
+        },
+        ".cm-gutters": {
+          backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#f5f5f5",
+          border: "none"
+        },
+        ".cm-content": {
+          color: dark ? "#abb2bf" : "#000000",
+        }
+      }, { dark: dark })
+    );
+
     view.dispatch({
       effects: StateEffect.reconfigure.of(extensions)
     });
