@@ -128,7 +128,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const staged = () => changes().filter((c) => c.staged && c.status !== "untracked");
   const unstaged = () => changes().filter((c) => !c.staged || c.status == "untracked");
 
-  const toggleItem = (path: string, select: boolean) => {
+  const toggleItem = (path: string, select: boolean, isFile: boolean) => {
     if (path === fileSelected()) {
       clearDiff();
       setFileSelected("");
@@ -145,20 +145,24 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   };
 
-  const toggleStagedItem = (path: string, select: boolean) => {
-    if (path === fileSelected()) {
-      clearDiff();
-      setFileSelected("");
-      setIsVisualizingStaged(false);
-      setSelected((prev) => prev.filter((p) => p !== path));
-    } else {
-      setFileSelected(path);
-      loadDiff(true);
-      setIsVisualizingStaged(true);
-      setStagedPreparedSelected((prev) => {
-        if (select) return [...prev, path];
-        else return prev.filter((p) => p !== path);
-      });
+  const toggleStagedItem = (path: string, select: boolean, isFile?: boolean) => {
+    setStagedPreparedSelected((prev) => {
+      if (select) {
+        return prev.includes(path) ? prev : [...prev, path];
+      } else {
+        return prev.filter((p) => p !== path);
+      }
+    });
+
+    if (isFile) {
+      if (path === fileSelected() && !select) {
+        setFileSelected("");
+        clearDiff();
+      } else if (select) {
+        setFileSelected(path);
+        setIsVisualizingStaged(true);
+        loadDiff(true);
+      }
     }
   };
 
@@ -275,7 +279,7 @@ export function LocalChanges(props: { repo: Repo; }) {
             </button>
           </div>
           {unstaged().length === 0 && <div class="px-4 text-center text-gray-400">Nenhuma alteração local</div>}
-          <FolderTreeView items={unstaged()} 
+          <FolderTreeView items={unstaged()} selectMode="multi"
             selected={selected()} staged={false} showStatus={true}
             onToggle={toggleItem} onContextMenu={showContextMenu}
             onDbClick={(items: string[]) => prepare(items)}
@@ -290,7 +294,7 @@ export function LocalChanges(props: { repo: Repo; }) {
           </div>
           
           <FolderTreeView items={staged()} showStatus={true}
-            selected={stagedPreparedSelected()} staged={true} 
+            selected={stagedPreparedSelected()} staged={true} selectMode="multi"
             onToggle={toggleStagedItem} onContextMenu={showContextMenu}
             onDbClick={(items: string[]) => unstage(items)}
           />
