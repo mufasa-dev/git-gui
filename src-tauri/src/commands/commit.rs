@@ -8,13 +8,14 @@ pub struct Commit {
     hash: String,
     message: String,
     author: String,
+    email: String,
     date: String,
 }
 
 #[tauri::command]
 pub fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String> {
     let output = git_command(&path)
-        .args(&["log", "--pretty=format:%H|%an|%ad|%s", &branch, "--"])
+        .args(&["log", "--pretty=format:%H|%an|%ae|%ad|%s", &branch, "--"])
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -26,12 +27,13 @@ pub fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String>
     let commits: Vec<Commit> = stdout
         .lines()
         .map(|line| {
-            let parts: Vec<&str> = line.splitn(4, '|').collect();
+            let parts: Vec<&str> = line.splitn(5, '|').collect();
             Commit {
                 hash: parts.get(0).unwrap_or(&"").to_string(),
                 author: parts.get(1).unwrap_or(&"").to_string(),
-                date: parts.get(2).unwrap_or(&"").to_string(),
-                message: parts.get(3).unwrap_or(&"").to_string(),
+                email: parts.get(2).unwrap_or(&"").to_string(),
+                date: parts.get(3).unwrap_or(&"").to_string(),
+                message: parts.get(4).unwrap_or(&"").to_string(),
             }
         })
         .collect();

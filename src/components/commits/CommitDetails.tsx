@@ -46,24 +46,23 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
       return;
     }
 
-    const files = currentCommit.files;
     const currentHash = currentCommit.hash;
 
+    // Só executa a lógica se o HASH do commit mudou
     if (currentHash !== lastProcessedHash()) {
       setLastProcessedHash(currentHash);
       
+      const files = currentCommit.files;
       if (files && files.length > 0) {
+        // Carrega o primeiro arquivo do novo commit automaticamente
         fetchFileDiff(files[0]);
       } else {
         setSelectedFile(null);
         setFileDiff(null);
       }
-    } else {
-      const currentFile = selectedFile();
-      if (currentFile) {
-        fetchFileDiff(currentFile);
-      }
     }
+    // Removi o "else", pois se o hash é o mesmo, 
+    // não queremos fazer nada (o usuário já selecionou o arquivo manualmente)
   });
 
   return (

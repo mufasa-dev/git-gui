@@ -5,6 +5,7 @@ import { formatRelativeDate } from "../../utils/date";
 import { CommitDetails } from "./CommitDetails";
 import { datepicker } from "../../directives/datepicker";
 import { notify } from "../../utils/notifications";
+import { getGravatarUrl } from "../../services/gravatarService";
 
 declare module "solid-js" {
   namespace JSX {
@@ -203,8 +204,15 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                   >
                     <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
                     <div class="font-semibold px-2 flex-1 truncate">{c.message}</div>
-                    <div class="text-xs opacity-50 ml-auto whitespace-nowrap">{c.author}</div>
-                    <div class="px-2 text-xs">{formatRelativeDate(c.date)}</div>
+                    <div class="text-xs ml-auto whitespace-nowrap flex items-center gap-2 w-[200px]">
+                      <img
+                        src={getGravatarUrl(c.email, 80)}
+                        alt={c.author}
+                        class="w-[18px] h-[18px] rounded shadow-sm"
+                      /> 
+                      <span class="opacity-50 truncate">{c.author}</span>
+                    </div>
+                    <div class="px-2 text-xs w-[182px] text-right truncate">{formatRelativeDate(c.date)}</div>
                   </div>
                 )}
               </For>

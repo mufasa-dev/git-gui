@@ -14,12 +14,13 @@ html {
   }
 
   .left-btn {
-    @apply flex flex-col justify-items-center items-center mb-2 text-gray-800 dark:text-gray-300
+    @apply flex flex-col justify-items-center items-center text-gray-800 dark:text-gray-300
           bg-transparent hover:bg-gray-300 dark:hover:bg-gray-900/50
-          border-0 py-1 cursor-pointer transition border-l-4 border-transparent;
+          grayscale hover:grayscale-[50%] transition-all duration-300
+          border-0 py-1 cursor-pointer border-l-4 border-transparent;
   }
   .left-btn.selected {
-    @apply bg-gray-300 dark:bg-gray-900 border-blue-500 dark:border-blue-400;
+    @apply bg-gray-300 dark:bg-gray-900 border-blue-500 dark:border-blue-400 grayscale-0;
   }
 
   .btn-primary {
