@@ -131,7 +131,7 @@ export default function RepoTabsPage() {
                 <RepoView repo={repos().find(r => r.path === active())!} refreshBranches={refreshBranches} />
               ) :
               activePage() === 'files' && (
-                <FilesList repo={repos().find(r => r.path === active())!} refreshBranches={refreshBranches} />
+                <FilesList repo={repos().find(r => r.path === active())!} />
               )
             ) : (
               <p class="text-gray-500 p-4">Nenhum repositório aberto</p>

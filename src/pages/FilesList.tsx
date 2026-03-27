@@ -20,13 +20,26 @@ export default function FileList(props: { repo: Repo }) {
   const [fileContent, setFileContent] = createSignal<string | null>(null);
   const [isDark] = createSignal(localStorage.getItem("theme") === "dark");
   const [lastProcessedBranch, setLastProcessedBranch] = createSignal<string | undefined>(undefined);
-  const [lastProcessedRepoPath, setLastProcessedRepoPath] = createSignal<string | undefined>(undefined)
+  const [lastProcessedRepoPath, setLastProcessedRepoPath] = createSignal<string | undefined>(undefined);
 
   const { showLoading, hideLoading } = useLoading();
 
   // --- Configuração CodeMirror ---
   const { ref: codeMirrorRef, editorView } = createCodeMirror({
     value: fileContent() ?? "",
+  });
+
+  let lastRepoPath = props.repo.path;
+  createEffect(() => {
+    const currentPath = props.repo.path;
+    const activeBranch = props.repo.activeBranch;
+
+    if (currentPath !== lastRepoPath) {
+      lastRepoPath = currentPath;
+      setSelectedBranch(activeBranch || "");
+      setFileContent(null);
+      setBranchFiles([]);
+    }
   });
 
   createEffect(() => {
@@ -134,15 +147,25 @@ export default function FileList(props: { repo: Repo }) {
         <div class="p-3 border-b border-gray-300 dark:border-gray-800">
           <select 
             class="w-full input-select"
-            value={selectedBranch()}
-            onChange={(e) => setSelectedBranch(e.currentTarget.value)}
+            value={selectedBranch()} 
+            onInput={(e) => {
+              // Usamos onInput para uma resposta mais imediata em alguns browsers
+              setSelectedBranch(e.currentTarget.value);
+            }}
           >
             <optgroup label="Locais">
-              {props.repo.branches.map(b => <option value={b.name}>{b.name}</option>)}
+              <For each={props.repo.branches}>
+                {(b) => <option value={b.name}>{b.name}</option>}
+              </For>
             </optgroup>
-            <optgroup label="Remotas">
-              {props.repo.remoteBranches?.map(rb => <option value={rb}>{rb}</option>)}
-            </optgroup>
+            
+            <Show when={props.repo.remoteBranches}>
+              <optgroup label="Remotas">
+                <For each={props.repo.remoteBranches}>
+                  {(rb) => <option value={rb}>{rb}</option>}
+                </For>
+              </optgroup>
+            </Show>
           </select>
         </div>
         <div class="flex-1 overflow-auto">
