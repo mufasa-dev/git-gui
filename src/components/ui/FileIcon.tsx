@@ -193,6 +193,7 @@ export default function FileIcon(props: FileIconProps) {
       lua: luaIcon,
       julia: juliaIcon,
       dockerfile: dockerIcon,
+      dockerignore: dockerIcon,
       toml: packageIcon,
       sql: databaseIcon,
       db: databaseIcon,

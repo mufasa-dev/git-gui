@@ -208,7 +208,7 @@ pub async fn delete_remote_branch(path: String, branch: String, remote: Option<S
 #[tauri::command]
 pub async fn list_branch_files(path: String, branch: String) -> Result<Vec<String>, String> {
     let output = git_command_async(&path)
-        .args(["ls-tree", "-r", "--name-only", &branch])
+        .args(["ls-tree", "-r", "-z", "--name-only", &branch])
         .output()
         .await
         .map_err(|e| e.to_string())?;
@@ -219,7 +219,7 @@ pub async fn list_branch_files(path: String, branch: String) -> Result<Vec<Strin
 
     let raw = String::from_utf8_lossy(&output.stdout);
     let files: Vec<String> = raw
-        .lines()
+        .split('\0')
         .map(|line| line.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
