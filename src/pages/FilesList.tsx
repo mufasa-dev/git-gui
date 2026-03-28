@@ -8,8 +8,13 @@ import { githubLight } from '@uiw/codemirror-theme-github';
 
 import { Repo } from "../models/Repo.model";
 import { FolderTreeView } from "../components/ui/FolderTreeview";
-import { listBranchFiles, getBranchFileContent } from "../services/gitService";
+import { listBranchFiles, getBranchFileContent, getLastCommitForPath, listDirectory, getPathHistory } from "../services/gitService";
 import { useLoading } from "../components/ui/LoadingContext";
+import { Commit, FileEntry } from "../models/Commit.model";
+import { getGravatarUrl } from "../services/gravatarService";
+import { formatRelativeDate } from "../utils/date";
+import FileIcon from "../components/ui/FileIcon";
+import { Breadcrumb } from "../components/ui/Breadcrumb";
 
 export default function FileList(props: { repo: Repo }) {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
@@ -19,6 +24,9 @@ export default function FileList(props: { repo: Repo }) {
   const [selectedFilePath, setSelectedFilePath] = createSignal<string[]>([]);
   const [fileContent, setFileContent] = createSignal<string | null>(null);
   const [isDark] = createSignal(localStorage.getItem("theme") === "dark");
+  const [lastCommit, setLastCommit] = createSignal<Commit | null>(null);
+  const [directoryContent, setDirectoryContent] = createSignal<FileEntry[] | null>(null);
+  const [pathHistory, setPathHistory] = createSignal<Commit[] | null>(null);
   const [lastProcessedBranch, setLastProcessedBranch] = createSignal<string | undefined>(undefined);
   const [lastProcessedRepoPath, setLastProcessedRepoPath] = createSignal<string | undefined>(undefined);
 
@@ -126,7 +134,9 @@ export default function FileList(props: { repo: Repo }) {
         const content = await getBranchFileContent(props.repo.path, selectedBranch(), path);
         setFileContent(content);
         setSelectedFilePath([path]);
+        setDirectoryContent(null);
       } catch (e) {
+        console.log("Erro ao carregar conteúdo do arquivo:", e);
         setFileContent("Erro ao carregar arquivo.");
       } finally {
         hideLoading();
@@ -134,6 +144,56 @@ export default function FileList(props: { repo: Repo }) {
     } else {
       setFileContent("");
       setSelectedFilePath([path]);
+      getDirectoryContent(path);
+    }
+    getLastCommit(path);
+  };
+
+  const handleGoBack = (currentPath: string) => {
+    if (!currentPath || currentPath === "." || currentPath === "") return;
+
+    const parts = currentPath.split('/');
+    parts.pop(); 
+    const parentPath = parts.join('/');
+
+    handleFileClick(parentPath, false);
+  };
+
+  const getLastCommit = async (path: string) => {
+    showLoading();
+    try {
+      const lastCommitForFile = await getLastCommitForPath(props.repo.path, selectedBranch(), path);
+      setLastCommit(lastCommitForFile);
+    } catch (e) {
+      setLastCommit(null);
+    } finally {
+      hideLoading();
+    }
+  };
+
+  const getPathHistoryAsync = async (path: string) => {
+    showLoading();
+    try {
+      const content = await getPathHistory(props.repo.path, selectedBranch(), path);
+      setPathHistory(content);
+    } catch (e) {
+      setLastCommit(null);
+    } finally {
+      hideLoading();
+    }
+  };
+
+  const getDirectoryContent = async (path: string) => {
+    showLoading();
+    try {
+      const content = await listDirectory(props.repo.path, selectedBranch(), path);
+      console.log('content', content);
+      setDirectoryContent(content);
+    } catch (e) {
+      console.log('error', e)
+      setLastCommit(null);
+    } finally {
+      hideLoading();
     }
   };
 
@@ -185,11 +245,84 @@ export default function FileList(props: { repo: Repo }) {
       {/* Viewer */}
       <div class="flex-1 flex flex-col container-branch-list overflow-auto"  style={{ height: `calc(100vh - 124px)` }}>
         <Show when={fileContent() !== null} fallback={<EmptyState branch={selectedBranch()} />}>
-          <div class="px-4 py-2 border-b border-gray-300 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs font-mono">
-            {selectedFilePath()[0]}
-          </div>
+          <Show when={selectedFilePath()[0]}>
+            <Breadcrumb 
+              path={selectedFilePath()[0]} 
+              repoName={props.repo.name} 
+              onNavigate={(path) => {
+                handleFileClick(path, false);
+              }} 
+            />
+          </Show>
+          {/* Exibe o último commit relacionado ao arquivo, se disponível */}
+          {lastCommit() && (
+            <div class="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl
+                      bg-gray-100 dark:bg-gray-900 text-xs font-mono flex items-center gap-2">
+              <img
+                src={getGravatarUrl(lastCommit()?.email || '', 80)}
+                alt={lastCommit()?.author}
+                class="w-[18px] h-[18px] rounded shadow-sm"
+              /> 
+              <b>{lastCommit()?.author}</b> 
+              <span class="truncate">{lastCommit()?.message}</span>
+              <span class="ml-auto">{lastCommit()?.hash.slice(0, 7)}</span>
+              <div class="text-xs w-[220px] text-right truncate">{formatRelativeDate(lastCommit()?.date || '')}</div>
+            </div>
+          )}
+          {/* Folder list */}
+          <Show when={directoryContent()}>
+            <div class="overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-gray-300 bg-gray-200 dark:border-gray-700 dark:bg-gray-900/50">
+                    <th class="p-2 font-semibold">Nome</th>
+                    <th class="p-2 font-semibold">Último Commit</th>
+                    <th class="p-2 font-semibold text-right">Data do Commit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <Show when={selectedFilePath()[0]}>
+                    <tr class="hover:bg-blue-500/10 transition-colors even:bg-gray-200 dark:even:bg-gray-900/30 odd:bg-transparent cursor-pointer"
+                      onClick={() => handleGoBack(selectedFilePath()[0])}>
+                      <td class="p-2" colspan={3}>
+                        <div class="flex items-center gap-2">
+                          <i class="fa text-yellow-600 fa-folder"></i>
+                          <span class="truncate max-w-[200px]">...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </Show>
+                  <For each={directoryContent()}>
+                    {(d) => (
+                      <tr class="hover:bg-blue-500/10 transition-colors cursor-pointer even:bg-gray-200 
+                              dark:hover:bg-blue-500/10 dark:even:bg-gray-900/30 odd:bg-transparent"
+                              onClick={() => handleFileClick(d.path, !d.isDir)}>
+                        <td class="p-2 flex items-center gap-2">
+                          <span>
+                            {d.isDir ? <i class="fa text-yellow-600 fa-folder"></i> : <FileIcon fileName={d.name} /> }
+                          </span>
+                          <span class="truncate max-w-[200px]">{d.name}</span>
+                        </td>
+                        <td class="p-2 text-gray-400 text-sm italic">
+                          {/* Uso do ?. para evitar o erro de undefined */}
+                          {d.lastCommit?.message || <span class="text-gray-600">Sem histórico</span>}
+                        </td>
+                        <td class="p-2 text-gray-500 text-xs text-right">
+                          {d.lastCommit?.date ? formatRelativeDate(d.lastCommit.date) : '--'}
+                        </td>
+                      </tr>
+                    )}
+                  </For>
+                </tbody>
+              </table>
+            </div>
+          </Show>
           {/* Container do CodeMirror */}
-          <div class="flex-1 overflow-auto" ref={codeMirrorRef} />
+          <Show when={fileContent()}>
+            <div class="border border-gray-200 dark:border-gray-700 rounded-xl p-2">
+              <div class="flex-1 overflow-auto" ref={codeMirrorRef} />
+            </div>
+          </Show>
         </Show>
       </div>
     </div>

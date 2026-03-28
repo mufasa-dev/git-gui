@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Branch } from "../models/Banch.model";
 import { Diff } from "../models/Diff.model";
 import { GitPullResult } from "../models/Pull.model";
+import { Commit, FileEntry } from "../models/Commit.model";
 
 export async function validateRepo(path: string): Promise<string> {
   return await invoke("open_repo", { path });
@@ -34,6 +35,27 @@ export async function getCommits(path: string, branch: string) {
   return await invoke<{ hash: string; message: string; author: string; date: string }[]>(
     "list_commits",
     { path, branch }
+  );
+}
+
+export async function getLastCommitForPath(path: string, branch: string, filePath: string) {
+  return await invoke<Commit>(
+    "get_last_commit_for_path",
+    { path, branch, filePath }
+  );
+}
+
+export async function getPathHistory(path: string, branch: string, filePath: string) {
+  return await invoke<Commit[]>(
+    "get_path_history",
+    { path, branch, filePath }
+  );
+}
+
+export async function listDirectory(repoPath: string, branch: string, folderPath: string) {
+  return await invoke<FileEntry[]>(
+    "list_directory_with_commits",
+    { repoPath, branch, folderPath }
   );
 }
 
