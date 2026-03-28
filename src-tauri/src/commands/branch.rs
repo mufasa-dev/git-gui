@@ -1,7 +1,17 @@
 use serde_json::{json, Value};
+use serde::Serialize;
 use std::process::Stdio;
 use crate::utils::{git_command_async};
 use base64::{Engine as _, engine::general_purpose};
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileContentResponse {
+    pub is_image: bool,
+    pub content: String,
+    pub size: usize,
+    pub line_count: Option<usize>,
+}
 
 #[tauri::command]
 pub async fn list_branches(path: String) -> Result<Vec<String>, String> {
@@ -233,10 +243,9 @@ pub async fn get_branch_file_content(
     path: String, 
     branch: String, 
     file_path: String
-) -> Result<Value, String> {
+) -> Result<FileContentResponse, String> {
     let target = format!("{}:{}", branch, file_path);
 
-    // Usando a sua função async com .await
     let output = git_command_async(&path)
         .args(["show", &target])
         .output()
@@ -244,25 +253,31 @@ pub async fn get_branch_file_content(
         .map_err(|e| e.to_string())?;
 
     if !output.status.success() {
-        let err = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Erro ao ler arquivo: {}", err));
+        return Err(format!("Erro ao ler arquivo: {}", String::from_utf8_lossy(&output.stderr)));
     }
 
+    let raw_bytes = &output.stdout;
+    let size = raw_bytes.len();
     let ext = file_path.split('.').last().unwrap_or("").to_lowercase();
     let is_image = matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "ico" | "gif" | "webp");
 
     if is_image {
-        let b64 = general_purpose::STANDARD.encode(&output.stdout);
-        let mime_type = if ext == "ico" { "x-icon" } else { &ext };
-        
-        Ok(json!({
-            "is_image": true,
-            "content": format!("data:image/{};base64,{}", mime_type, b64)
-        }))
+        let b64 = general_purpose::STANDARD.encode(raw_bytes);
+        Ok(FileContentResponse {
+            is_image: true,
+            content: format!("data:image/{};base64,{}", ext, b64),
+            size,
+            line_count: None,
+        })
     } else {
-        Ok(json!({
-            "is_image": false,
-            "content": String::from_utf8_lossy(&output.stdout).to_string()
-        }))
+        let content = String::from_utf8_lossy(raw_bytes).to_string();
+        let line_count = Some(content.lines().count());
+
+        Ok(FileContentResponse {
+            is_image: false,
+            content,
+            size,
+            line_count,
+        })
     }
 }

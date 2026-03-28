@@ -15,6 +15,7 @@ import { getGravatarUrl } from "../services/gravatarService";
 import { formatRelativeDate } from "../utils/date";
 import FileIcon from "../components/ui/FileIcon";
 import { Breadcrumb } from "../components/ui/Breadcrumb";
+import { formatSize } from "../utils/file";
 
 export default function FileList(props: { repo: Repo }) {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
@@ -28,6 +29,7 @@ export default function FileList(props: { repo: Repo }) {
   const [directoryContent, setDirectoryContent] = createSignal<FileEntry[] | null>(null);
   const [pathHistory, setPathHistory] = createSignal<Commit[] | null>(null);
   const [isImage, setIsImage] = createSignal(false);
+  const [fileMeta, setFileMeta] = createSignal<{size: number, lines: number | null} | null>(null);
   const [lastProcessedBranch, setLastProcessedBranch] = createSignal<string | undefined>(undefined);
   const [lastProcessedRepoPath, setLastProcessedRepoPath] = createSignal<string | undefined>(undefined);
 
@@ -146,8 +148,9 @@ export default function FileList(props: { repo: Repo }) {
         // Agora o serviço retorna um objeto { is_image: bool, content: string }
         const data = await getBranchFileContent(props.repo.path, selectedBranch(), path);
         
-        setIsImage(data.is_image);
+        setIsImage(data.isImage);
         setFileContent(data.content);
+        setFileMeta({size: data.size, lines: data.lineCount})
         setSelectedFilePath([path]);
         setDirectoryContent(null);
       } catch (e) {
@@ -210,6 +213,11 @@ export default function FileList(props: { repo: Repo }) {
       hideLoading();
     }
   };
+
+  const getSelectedFileName = () => {
+    console.log('selectedFile', selectedFilePath())
+    return selectedFilePath().length > 0 ? selectedFilePath()[0] : "text.png";
+  }
 
   return (
     <div class="flex h-full w-full select-none bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-2"
@@ -333,21 +341,29 @@ export default function FileList(props: { repo: Repo }) {
           </Show>
           {/* Container do Visualizador */}
           <Show when={fileContent()}>
-            <div class={`border border-gray-200 dark:border-gray-700 rounded-xl p-2 bg-white dark:bg-gray-800 
-                        flex flex-col min-h-[300px] ${isImage() ? "items-center justify-center" : ""}`}>
+            <div class={`border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 
+                        flex flex-col min-h-[300px] ${isImage() ? "items-center justify-center overflow-auto" : ""}`}>
+              <div class={`bg-gray-300 dark:bg-gray-700 p-2 w-full rounded-t-xl flex items-center gap-2 ${isImage() && 'mb-auto'}`}>
+                <FileIcon fileName={getSelectedFileName()} /> 
+                <Show when={!isImage()}>
+                  <b>{(fileMeta()?.lines || 0) + 1} linhas</b>
+                  <span>-</span>
+                </Show>
+                <span>{formatSize(fileMeta()?.size || 0)}</span>
+              </div>
               <Show when={isImage()} fallback={
-                <div class="w-full overflow-auto" ref={codeMirrorRef} />
+                <div class="w-full overflow-auto rounded-b-xl" ref={codeMirrorRef} />
               }>
                 {/* Imagem*/}
-                <div class="p-8 flex flex-col items-center gap-4">
-                  <div class="bg-checkered p-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-inner">
+                <div class="p-8 flex flex-col items-center gap-4 mb-auto">
+                  <div class="bg-checkered p-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg shadow-black/20">
                     <img 
                       src={fileContent()!} 
                       alt="Preview" 
-                      class="max-w-full max-h-[500px] object-contain shadow-lg shadow-black/20" 
+                      class="max-w-full max-h-[500px] object-contain" 
                     />
                   </div>
-                  <div class="text-[10px] text-gray-500 font-mono bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">
+                  <div class="text-[10px] text-gray-500 font-mono dark:text-white bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-xl">
                       {selectedFilePath()[0]}
                   </div>
                 </div>

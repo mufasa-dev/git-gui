@@ -127,3 +127,15 @@ html {
           contrast(1.2) brightness(0.9);
   color: #c0c0c0;
 }
+
+.bg-checkered {
+  background-color: #ffffff;
+  background-image: radial-gradient(#ccc 1px, transparent 0);
+  background-size: 10px 10px;
+  background-position: -5px -5px;
+}
+
+.dark .bg-checkered {
+  background-color: #1f2937;
+  background-image: radial-gradient(#374151 1px, transparent 0);
+}

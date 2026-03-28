@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Branch } from "../models/Banch.model";
+import { Branch, BranchFileContentResponse } from "../models/Banch.model";
 import { Diff } from "../models/Diff.model";
 import { GitPullResult } from "../models/Pull.model";
 import { Commit, FileEntry } from "../models/Commit.model";
@@ -218,6 +218,6 @@ export async function listBranchFiles(repoPath: string, branch: string): Promise
   return await invoke("list_branch_files", { path: repoPath, branch });
 }
 
-export async function getBranchFileContent(repoPath: string, branch: string, filePath: string): Promise<any> {
+export async function getBranchFileContent(repoPath: string, branch: string, filePath: string): Promise<BranchFileContentResponse> {
   return await invoke("get_branch_file_content", { path: repoPath, branch, filePath });
 }

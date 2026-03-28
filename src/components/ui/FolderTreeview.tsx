@@ -206,7 +206,7 @@ function TreeNode(props: {
 
       <Show when={open() && !props.node.__isFile}>
         <ul>
-          <For each={Object.entries(props.node.__children)}>
+          <For each={props.sortFn(Object.entries(props.node.__children))}>
             {([name, child]: any) => (
               <TreeNode
                 node={child}
