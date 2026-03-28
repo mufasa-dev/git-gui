@@ -49,14 +49,18 @@ export default function Header(props: Props) {
     } | null>(null);
 
     const toggleDark = () => {
-      setDark(!dark());
-      if (dark()) {
+      const newDark = !dark();
+      setDark(newDark);
+      
+      if (newDark) {
         document.documentElement.classList.add("dark");
         localStorage.setItem("theme", "dark");
       } else {
         document.documentElement.classList.remove("dark");
         localStorage.setItem("theme", "light");
       }
+
+      window.dispatchEvent(new CustomEvent("theme-changed", { detail: { theme: newDark ? "dark" : "light" } }));
     };
 
     async function openRepo() {

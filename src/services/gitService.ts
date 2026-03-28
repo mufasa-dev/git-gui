@@ -218,6 +218,6 @@ export async function listBranchFiles(repoPath: string, branch: string): Promise
   return await invoke("list_branch_files", { path: repoPath, branch });
 }
 
-export async function getBranchFileContent(repoPath: string, branch: string, filePath: string): Promise<string> {
+export async function getBranchFileContent(repoPath: string, branch: string, filePath: string): Promise<any> {
   return await invoke("get_branch_file_content", { path: repoPath, branch, filePath });
 }

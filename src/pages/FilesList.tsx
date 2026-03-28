@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on, Show, For } from "solid-js";
+import { createSignal, createEffect, on, Show, For, onMount, onCleanup } from "solid-js";
 import { createCodeMirror } from "solid-codemirror";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { EditorState, StateEffect } from "@codemirror/state";
@@ -23,10 +23,11 @@ export default function FileList(props: { repo: Repo }) {
   const [branchFiles, setBranchFiles] = createSignal<{path: string, status: string}[]>([]);
   const [selectedFilePath, setSelectedFilePath] = createSignal<string[]>([]);
   const [fileContent, setFileContent] = createSignal<string | null>(null);
-  const [isDark] = createSignal(localStorage.getItem("theme") === "dark");
+  const [isDark, setIsDark] = createSignal(localStorage.getItem("theme") === "dark");
   const [lastCommit, setLastCommit] = createSignal<Commit | null>(null);
   const [directoryContent, setDirectoryContent] = createSignal<FileEntry[] | null>(null);
   const [pathHistory, setPathHistory] = createSignal<Commit[] | null>(null);
+  const [isImage, setIsImage] = createSignal(false);
   const [lastProcessedBranch, setLastProcessedBranch] = createSignal<string | undefined>(undefined);
   const [lastProcessedRepoPath, setLastProcessedRepoPath] = createSignal<string | undefined>(undefined);
 
@@ -35,6 +36,16 @@ export default function FileList(props: { repo: Repo }) {
   // --- Configuração CodeMirror ---
   const { ref: codeMirrorRef, editorView } = createCodeMirror({
     value: fileContent() ?? "",
+  });
+
+
+  onMount(() => {
+    const handleThemeChange = (e: any) => {
+      setIsDark(e.detail.theme === "dark");
+    };
+
+    window.addEventListener("theme-changed", handleThemeChange);
+    onCleanup(() => window.removeEventListener("theme-changed", handleThemeChange));
   });
 
   let lastRepoPath = props.repo.path;
@@ -53,13 +64,14 @@ export default function FileList(props: { repo: Repo }) {
   createEffect(() => {
     const view = editorView();
     if (!view) return;
+    
     const dark = isDark();
 
     const extensions = [
       lineNumbers(),
       EditorView.lineWrapping,
       EditorState.readOnly.of(true),
-      isDark() ? oneDark : githubLight,
+      dark ? oneDark : githubLight,
       javascript() 
     ];
 
@@ -131,12 +143,14 @@ export default function FileList(props: { repo: Repo }) {
     if (isFile) {
       showLoading();
       try {
-        const content = await getBranchFileContent(props.repo.path, selectedBranch(), path);
-        setFileContent(content);
+        // Agora o serviço retorna um objeto { is_image: bool, content: string }
+        const data = await getBranchFileContent(props.repo.path, selectedBranch(), path);
+        
+        setIsImage(data.is_image);
+        setFileContent(data.content);
         setSelectedFilePath([path]);
         setDirectoryContent(null);
       } catch (e) {
-        console.log("Erro ao carregar conteúdo do arquivo:", e);
         setFileContent("Erro ao carregar arquivo.");
       } finally {
         hideLoading();
@@ -257,7 +271,7 @@ export default function FileList(props: { repo: Repo }) {
           {/* Exibe o último commit relacionado ao arquivo, se disponível */}
           {lastCommit() && (
             <div class="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl
-                      bg-gray-100 dark:bg-gray-900 text-xs font-mono flex items-center gap-2">
+                        text-xs font-mono flex items-center gap-2">
               <img
                 src={getGravatarUrl(lastCommit()?.email || '', 80)}
                 alt={lastCommit()?.author}
@@ -271,10 +285,10 @@ export default function FileList(props: { repo: Repo }) {
           )}
           {/* Folder list */}
           <Show when={directoryContent()}>
-            <div class="overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700">
+            <div class="overflow-auto rounded-lg border border-gray-300 dark:border-gray-700">
               <table class="w-full text-left border-collapse">
-                <thead>
-                  <tr class="border-b border-gray-300 bg-gray-200 dark:border-gray-700 dark:bg-gray-900/50">
+                <thead class="sticky top-0 left-0">
+                  <tr class="border-b border-gray-300 bg-gray-200 dark:border-gray-700 dark:bg-gray-700">
                     <th class="p-2 font-semibold">Nome</th>
                     <th class="p-2 font-semibold">Último Commit</th>
                     <th class="p-2 font-semibold text-right">Data do Commit</th>
@@ -317,10 +331,28 @@ export default function FileList(props: { repo: Repo }) {
               </table>
             </div>
           </Show>
-          {/* Container do CodeMirror */}
+          {/* Container do Visualizador */}
           <Show when={fileContent()}>
-            <div class="border border-gray-200 dark:border-gray-700 rounded-xl p-2">
-              <div class="flex-1 overflow-auto" ref={codeMirrorRef} />
+            <div class={`border border-gray-200 dark:border-gray-700 rounded-xl p-2 bg-white dark:bg-gray-800 
+                        flex flex-col min-h-[300px] ${isImage() ? "items-center justify-center" : ""}`}>
+              <Show when={isImage()} fallback={
+                <div class="w-full overflow-auto" ref={codeMirrorRef} />
+              }>
+                {/* Imagem*/}
+                <div class="p-8 flex flex-col items-center gap-4">
+                  <div class="bg-checkered p-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-inner">
+                    <img 
+                      src={fileContent()!} 
+                      alt="Preview" 
+                      class="max-w-full max-h-[500px] object-contain shadow-lg shadow-black/20" 
+                    />
+                  </div>
+                  <div class="text-[10px] text-gray-500 font-mono bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">
+                      {selectedFilePath()[0]}
+                  </div>
+                </div>
+              </Show>
+
             </div>
           </Show>
         </Show>
