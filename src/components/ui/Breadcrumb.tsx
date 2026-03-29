@@ -27,7 +27,7 @@ export function Breadcrumb(props: BreadcrumbProps) {
   };
 
   return (
-    <div class="flex items-center w-full px-4 py-2 border-b border-gray-300 dark:border-gray-800 group">
+    <div class="flex items-center w-full px-4 py-2 group">
       <div class="flex items-center flex-wrap gap-1 text-sm font-sans italic">
         
         {/* Raiz do Repositório */}
@@ -67,21 +67,20 @@ export function Breadcrumb(props: BreadcrumbProps) {
       </div>
 
       {/* Botão de Copiar com Feedback Visual */}
-      <Tooltip text="Copiar caminho relativo">
-        <button
-            onClick={copyToClipboard}
-            class="flex items-center gap-2 p-1.5 rounded transition-all active:scale-95 ml-1"
-            classList={{
-            "text-green-500": copied(),
-            "text-gray-400 hover:text-blue-500": !copied()
-            }}
-        >
-            <Show when={copied()} fallback={<i class="fa-regular fa-copy"></i>}>
-            <i class="fa-solid fa-check text-xs"></i>
-            <span class="text-[10px] font-bold uppercase">Copiado!</span>
-            </Show>
-        </button>
-      </Tooltip>
+      <button
+          title="Copiar caminho relativo"
+          onClick={copyToClipboard}
+          class="flex items-center gap-2 p-1.5 rounded transition-all active:scale-95 ml-1"
+          classList={{
+          "text-green-500": copied(),
+          "text-gray-400 hover:text-blue-500": !copied()
+          }}
+      >
+          <Show when={copied()} fallback={<i class="fa-regular fa-copy"></i>}>
+          <i class="fa-solid fa-check text-xs"></i>
+          <span class="text-[10px] font-bold uppercase">Copiado!</span>
+          </Show>
+      </button>
     </div>
   );
 }

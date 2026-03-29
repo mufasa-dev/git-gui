@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on, Show, For, onMount, onCleanup } from "solid-js";
+import { createSignal, createEffect, on, Show, For, onMount, onCleanup, createMemo } from "solid-js";
 import { createCodeMirror } from "solid-codemirror";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { EditorState, StateEffect } from "@codemirror/state";
@@ -8,7 +8,7 @@ import { githubLight } from '@uiw/codemirror-theme-github';
 
 import { Repo } from "../models/Repo.model";
 import { FolderTreeView } from "../components/ui/FolderTreeview";
-import { listBranchFiles, getBranchFileContent, getLastCommitForPath, listDirectory, getPathHistory } from "../services/gitService";
+import { listBranchFiles, getBranchFileContent, getLastCommitForPath, listDirectory, getPathHistory, getCommitDetails } from "../services/gitService";
 import { useLoading } from "../components/ui/LoadingContext";
 import { Commit, FileEntry } from "../models/Commit.model";
 import { getGravatarUrl } from "../services/gravatarService";
@@ -16,6 +16,9 @@ import { formatRelativeDate } from "../utils/date";
 import FileIcon from "../components/ui/FileIcon";
 import { Breadcrumb } from "../components/ui/Breadcrumb";
 import { formatSize } from "../utils/file";
+import Dialog from "../components/ui/Dialog";
+import { CommitDetails } from "../components/commits/CommitDetails";
+import CommitMessage from "../components/ui/CommitMessage";
 
 export default function FileList(props: { repo: Repo }) {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
@@ -32,6 +35,10 @@ export default function FileList(props: { repo: Repo }) {
   const [fileMeta, setFileMeta] = createSignal<{size: number, lines: number | null} | null>(null);
   const [lastProcessedBranch, setLastProcessedBranch] = createSignal<string | undefined>(undefined);
   const [lastProcessedRepoPath, setLastProcessedRepoPath] = createSignal<string | undefined>(undefined);
+  const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
+  const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
+  const [showHistory, setShowHistory] = createSignal(false);
+  const [searchTerm, setSearchTerm] = createSignal("");
 
   const { showLoading, hideLoading } = useLoading();
 
@@ -120,7 +127,6 @@ export default function FileList(props: { repo: Repo }) {
     if (!branch || !repoPath) return;
 
     if (branch !== lastProcessedBranch() || repoPath !== lastProcessedRepoPath()) {
-      
       setLastProcessedBranch(branch);
       setLastProcessedRepoPath(repoPath);
 
@@ -131,8 +137,14 @@ export default function FileList(props: { repo: Repo }) {
         
         setBranchFiles(mappedFiles);
         
-        setFileContent(null); 
-        setSelectedFilePath([]);
+        const rootPath = ""; 
+        setSelectedFilePath([rootPath]);
+        setFileContent("");
+        setShowHistory(false);
+        
+        await getDirectoryContent(rootPath);
+        await getLastCommit(rootPath);
+
       } catch (e) {
         console.error("Erro ao listar arquivos:", e);
       } finally {
@@ -145,7 +157,6 @@ export default function FileList(props: { repo: Repo }) {
     if (isFile) {
       showLoading();
       try {
-        // Agora o serviço retorna um objeto { is_image: bool, content: string }
         const data = await getBranchFileContent(props.repo.path, selectedBranch(), path);
         
         setIsImage(data.isImage);
@@ -162,6 +173,10 @@ export default function FileList(props: { repo: Repo }) {
       setFileContent("");
       setSelectedFilePath([path]);
       getDirectoryContent(path);
+    }
+    if (path == "") setShowHistory(false);
+    if (showHistory()) {
+       getPathHistoryAsync(path);
     }
     getLastCommit(path);
   };
@@ -214,8 +229,22 @@ export default function FileList(props: { repo: Repo }) {
     }
   };
 
+  const filteredFiles = createMemo(() => {
+    const term = searchTerm().toLowerCase();
+    if (!term) return branchFiles();
+
+    return branchFiles().filter((file) => 
+      file.path.toLowerCase().includes(term)
+    );
+  });
+
+  async function selectCommit(hash: string) {
+    const details = await getCommitDetails(props.repo.path, hash);
+    setSelectedCommit({ ...details, _ts: Date.now() });
+    setModalCommitDetails(true);
+  }
+
   const getSelectedFileName = () => {
-    console.log('selectedFile', selectedFilePath())
     return selectedFilePath().length > 0 ? selectedFilePath()[0] : "text.png";
   }
 
@@ -225,13 +254,12 @@ export default function FileList(props: { repo: Repo }) {
       onMouseUp={() => setIsResizing(false)}
     >
       {/* Sidebar */}
-      <div class="container-branch-list overflow-auto mb-2" style={{ width: `${sidebarWidth()}px`, height: `calc(100vh - 124px)` }}>
-        <div class="p-3 border-b border-gray-300 dark:border-gray-800">
+      <div class="container-branch-list p-0 overflow-auto mb-2" style={{ width: `${sidebarWidth()}px`, height: `calc(100vh - 124px)` }}>
+        <div class="p-3 border-b border-gray-300 dark:border-gray-700">
           <select 
-            class="w-full input-select"
+            class="w-full input-select mb-2"
             value={selectedBranch()} 
             onInput={(e) => {
-              // Usamos onInput para uma resposta mais imediata em alguns browsers
               setSelectedBranch(e.currentTarget.value);
             }}
           >
@@ -249,10 +277,29 @@ export default function FileList(props: { repo: Repo }) {
               </optgroup>
             </Show>
           </select>
+
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+            <input
+              type="text"
+              placeholder="Buscar arquivos..."
+              class="w-full pl-8 pr-2 py-1 text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={searchTerm()}
+              onInput={(e) => setSearchTerm(e.currentTarget.value)}
+            />
+            <Show when={searchTerm()}>
+              <button 
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                onClick={() => setSearchTerm("")}
+              >
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </Show>
+          </div>
         </div>
         <div class="flex-1 overflow-auto">
           <FolderTreeView 
-            items={branchFiles()} 
+            items={filteredFiles()} 
             selected={selectedFilePath()} 
             staged={false} defaultOpen={false}
             showStatus={false} selectMode="single"
@@ -267,17 +314,33 @@ export default function FileList(props: { repo: Repo }) {
       {/* Viewer */}
       <div class="flex-1 flex flex-col container-branch-list overflow-auto"  style={{ height: `calc(100vh - 124px)` }}>
         <Show when={fileContent() !== null} fallback={<EmptyState branch={selectedBranch()} />}>
-          <Show when={selectedFilePath()[0]}>
-            <Breadcrumb 
-              path={selectedFilePath()[0]} 
-              repoName={props.repo.name} 
-              onNavigate={(path) => {
-                handleFileClick(path, false);
-              }} 
-            />
-          </Show>
+          <div class="flex items-center pr-2">
+            <Show when={selectedFilePath()[0]}>
+              <Breadcrumb 
+                path={selectedFilePath()[0]} 
+                repoName={props.repo.name} 
+                onNavigate={(path) => {
+                  handleFileClick(path, false);
+                }} 
+              />
+              <Show when={!showHistory()}>
+                <button class="bg-transparent border-0 ml-auto flex items-center hover:text-blue-500" 
+                  onClick={() => {
+                    setShowHistory(!showHistory());
+                    getPathHistoryAsync(selectedFilePath()[0]);
+                  }}>
+                  <i class="fa-solid fa-clock-rotate-left mr-2" /> Histórico
+                </button>
+              </Show>
+              <Show when={showHistory()}>
+                <button class="bg-transparent border-0 ml-auto flex items-center hover:text-blue-500" onClick={() => setShowHistory(!showHistory())}>
+                  <i class="fa-solid fa-folder mr-2"></i> Arquivos
+                </button>
+              </Show>
+            </Show>
+          </div>
           {/* Exibe o último commit relacionado ao arquivo, se disponível */}
-          {lastCommit() && (
+          {lastCommit() && !showHistory() && (
             <div class="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl
                         text-xs font-mono flex items-center gap-2">
               <img
@@ -286,13 +349,17 @@ export default function FileList(props: { repo: Repo }) {
                 class="w-[18px] h-[18px] rounded shadow-sm"
               /> 
               <b>{lastCommit()?.author}</b> 
-              <span class="truncate">{lastCommit()?.message}</span>
-              <span class="ml-auto">{lastCommit()?.hash.slice(0, 7)}</span>
+              <span class="truncate clicked_label" onClick={() => selectCommit(lastCommit()?.hash || '')}>
+                <CommitMessage message={lastCommit()?.message || ''} />
+              </span>
+              <span class="ml-auto clicked_label"  onClick={() => selectCommit(lastCommit()?.hash || '')}>
+                {lastCommit()?.hash.slice(0, 7)}
+              </span>
               <div class="text-xs w-[220px] text-right truncate">{formatRelativeDate(lastCommit()?.date || '')}</div>
             </div>
           )}
           {/* Folder list */}
-          <Show when={directoryContent()}>
+          <Show when={directoryContent() && !showHistory()}>
             <div class="overflow-auto rounded-lg border border-gray-300 dark:border-gray-700">
               <table class="w-full text-left border-collapse">
                 <thead class="sticky top-0 left-0">
@@ -340,13 +407,13 @@ export default function FileList(props: { repo: Repo }) {
             </div>
           </Show>
           {/* Container do Visualizador */}
-          <Show when={fileContent()}>
+          <Show when={fileContent() && !showHistory()}>
             <div class={`border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 
                         flex flex-col min-h-[300px] ${isImage() ? "items-center justify-center overflow-auto" : ""}`}>
               <div class={`bg-gray-300 dark:bg-gray-700 p-2 w-full rounded-t-xl flex items-center gap-2 ${isImage() && 'mb-auto'}`}>
                 <FileIcon fileName={getSelectedFileName()} /> 
                 <Show when={!isImage()}>
-                  <b>{(fileMeta()?.lines || 0) + 1} linhas</b>
+                  <b>{(fileMeta()?.lines || 0)} linhas</b>
                   <span>-</span>
                 </Show>
                 <span>{formatSize(fileMeta()?.size || 0)}</span>
@@ -371,8 +438,49 @@ export default function FileList(props: { repo: Repo }) {
 
             </div>
           </Show>
+          {/* Histórico de Commits do arquivo */}
+          <Show when={showHistory() && pathHistory()}>
+            <div class="mt-4 border border-gray-300 dark:border-gray-700 rounded-xl overflow-auto">
+              <div class="flex items-center bg-gray-200 dark:bg-gray-700 rounded-t-xl p-2 mb-2">
+                <i class="fa-solid fa-clock-rotate-left mr-2" /> Histórico de Commits
+              </div>
+              <div class="p-2">
+                <For each={pathHistory()}>
+                  {(c) => (
+                    <div
+                      class={`cm-commit-item`}
+                      onClick={() => selectCommit(c.hash)}
+                    >
+                      <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
+                      <div class="font-semibold px-2 flex-1 truncate">
+                        <CommitMessage message={c.message} />
+                      </div>
+                      <div class="text-xs ml-auto whitespace-nowrap flex items-center gap-2 w-[200px]">
+                        <img
+                          src={getGravatarUrl(c.email, 80)}
+                          alt={c.author}
+                          class="w-[18px] h-[18px] rounded shadow-sm"
+                        /> 
+                        <span class="opacity-50 truncate">{c.author}</span>
+                      </div>
+                      <div class="px-2 text-xs w-[182px] text-right truncate">{formatRelativeDate(c.date)}</div>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </div>
+          </Show>
         </Show>
       </div>
+
+      <Dialog open={showModalCommitDetails()}
+              title="Detalhes co Commit"
+              onClose={() => setModalCommitDetails(false)}
+              bodyClass="p-0 h-full"
+              width={'calc(100vw - 40px)'}
+              height={'calc(100vh - 100px)'}>
+        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} selectCommit={selectCommit} />
+      </Dialog>
     </div>
   );
 }

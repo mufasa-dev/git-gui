@@ -4,13 +4,15 @@ type Props = {
   open: boolean;
   title?: string;
   width?: string | number;
+  height?: string | number;
   bodyClass?: string;
   onClose?: () => void;
   children: JSX.Element;
 };
 
 export default function Dialog(props: Props) {
-  const width = typeof props.width === "number" ? `${props.width}px` : props.width || "400px";
+  const width = typeof props.width === "number" ? `${props.width}` : props.width || "400px";
+  const height = typeof props.height === "number" ? `${props.height}` : props.height || "auto";
 
   return (
     <Show when={props.open}>
@@ -20,7 +22,7 @@ export default function Dialog(props: Props) {
       >
         <div
           class="bg-white dark:bg-gray-800 rounded shadow-xl relative"
-          style={{ width }}
+          style={{ width, height }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

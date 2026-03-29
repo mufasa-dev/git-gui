@@ -49,10 +49,10 @@ html {
     @apply bg-gray-100 dark:bg-gray-600/50; 
   }
   .cm-commit-item.selected {
-    @apply bg-blue-400 dark:text-black;
+    @apply bg-blue-500 dark:text-black;
   }
   .cm-commit-item.selected:hover {
-    @apply bg-blue-400 dark:text-black; 
+    @apply bg-blue-500 dark:text-black; 
   }
 
   .resize-bar-vertical { 
@@ -72,6 +72,13 @@ html {
 
   .container-branch-list {
     @apply flex flex-col space-y-2 bg-gray-100 dark:bg-gray-800 p-2 rounded-2xl border border-gray-300 dark:border-gray-700;
+  }
+
+  .clicked_label {
+    @apply cursor-pointer;
+  }
+  .clicked_label:hover {
+    @apply text-blue-500 dark:text-blue-400 font-bold underline;
   }
 }
 

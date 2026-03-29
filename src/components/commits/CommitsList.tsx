@@ -6,6 +6,7 @@ import { CommitDetails } from "./CommitDetails";
 import { datepicker } from "../../directives/datepicker";
 import { notify } from "../../utils/notifications";
 import { getGravatarUrl } from "../../services/gravatarService";
+import CommitMessage from "../ui/CommitMessage";
 
 declare module "solid-js" {
   namespace JSX {
@@ -203,7 +204,9 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                     onClick={() => selectCommit(c.hash)}
                   >
                     <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
-                    <div class="font-semibold px-2 flex-1 truncate">{c.message}</div>
+                    <div class="font-semibold px-2 flex-1 truncate">
+                      <CommitMessage message={c.message} />
+                    </div>
                     <div class="text-xs ml-auto whitespace-nowrap flex items-center gap-2 w-[200px]">
                       <img
                         src={getGravatarUrl(c.email, 80)}

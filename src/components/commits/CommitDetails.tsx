@@ -5,6 +5,8 @@ import { getCommitFileDiff } from "../../services/gitService";
 import DiffViewer from "../ui/DiffViewer";
 import { notify } from "../../utils/notifications";
 import FileIcon from "../ui/FileIcon";
+import CommitMessage from "../ui/CommitMessage";
+import { UserProfileDialog } from "../Config/UserProfile";
 
 export function CommitDetails(props: { commit: any; repoPath: string, selectCommit: (hash: string) => void }) {
   const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
@@ -12,6 +14,7 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
   const [fileDiff, setFileDiff] = createSignal<any>(null);
   const [lastProcessedHash, setLastProcessedHash] = createSignal<string | null>(null);
   const [loadingDiff, setLoadingDiff] = createSignal(false);
+  const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
 
   const fetchFileDiff = async (file: any) => {
     setSelectedFile(file);
@@ -48,21 +51,17 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
 
     const currentHash = currentCommit.hash;
 
-    // Só executa a lógica se o HASH do commit mudou
     if (currentHash !== lastProcessedHash()) {
       setLastProcessedHash(currentHash);
       
       const files = currentCommit.files;
       if (files && files.length > 0) {
-        // Carrega o primeiro arquivo do novo commit automaticamente
         fetchFileDiff(files[0]);
       } else {
         setSelectedFile(null);
         setFileDiff(null);
       }
     }
-    // Removi o "else", pois se o hash é o mesmo, 
-    // não queremos fazer nada (o usuário já selecionou o arquivo manualmente)
   });
 
   return (
@@ -97,58 +96,60 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
             {/* CONTEÚDO: ABA GERAL */}
             <Show when={activeTab() === "geral"}>
               <div class="space-y-4 p-4">
-                <div class="flex items-start">
+                <div class="container-branch-list flex flex-row items-center">
                   <img
                     src={getGravatarUrl(props.commit.authorEmail, 80)}
                     alt={props.commit.authorName}
-                    class="w-[60px] h-[60px] rounded shadow-sm"
+                    class="w-[60px] h-[60px] rounded-full shadow-sm"
                   />
-                  <div class="ml-4 select-text">
-                    <div class="font-bold text-gray-900 dark:text-gray-100">{props.commit.authorName}</div>
+                  <div class="ml-4 mt-0 select-text">
+                    <div class="font-bold text-gray-900 dark:text-gray-100" onClick={() => setModalUserProfileOpen(true)}>
+                      {props.commit.authorName}
+                    </div>
                     <div class="text-gray-500 dark:text-gray-200 text-sm">{props.commit.authorEmail}</div>
                     <div class="text-gray-500 dark:text-gray-400 text-sm">{formatDate(props.commit.authorDate)}</div>
                   </div>
                 </div>
 
-                <div class="flex text-sm items-center select-text">
-                  <b class="w-[60px] text-right">SHA:</b>
-                  <span class="font-mono text-sm text-gray-600 dark:text-gray-200 ml-4">
-                    {props.commit.hash}
-                  </span>
-                </div>
-
-                <Show when={props.commit?.parents?.length > 0}>
-                  <div class="flex text-sm items-start select-text mb-2">
-                    <b class="w-[60px] text-right mt-1">Parents:</b>
-                    <div class="flex flex-wrap gap-2 ml-4">
-                      <For each={props.commit.parents}>
-                        {(parentHash) => (
-                          <span 
-                            onClick={() => props.selectCommit(parentHash)}
-                            class="font-mono text-xs bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-gray-900 rounded-xl
-                                  text-blue-600 dark:text-white px-2 py-1 cursor-pointer transition-colors border border-gray-300 dark:border-gray-600"
-                            title={parentHash}
-                          >
-                            {parentHash.substring(0, 8)}
-                          </span>
-                        )}
-                      </For>
+                <div class="flex">
+                  <div class="container-branch-list flex-1 mr-2">
+                    <div class="flex mt-0 select-text">
+                      <div>
+                        <b class="text-2x1"><CommitMessage message={props.commit.subject} /></b> <br />
+                        <p class="whitespace-pre-wrap mt-2 text-sm text-gray-500 dark:text-gray-400">{props.commit.body}</p>
+                      </div>
                     </div>
                   </div>
-                </Show>
 
-                <hr />
+                  <div class="container-branch-list ml-auto">
+                    <div class="text-smselect-text">
+                      <b class="w-[60px] text-right">SHA:</b> <br />
+                      <span class="font-mono text-sm text-gray-600 dark:text-gray-200 select-text">
+                        {props.commit.hash}
+                      </span>
+                    </div>
 
-                 <div class="flex mt-0 select-text">
-                  <div class="w-[60px] text-right">{props.commit.hash.slice(0, 7)}:</div>
-                  <div class="ml-4">
-                    <b>{props.commit.subject}</b> <br />
-                    <p class="whitespace-pre-wrap mt-2 text-sm text-gray-500 dark:text-gray-400">{props.commit.body}</p>
+                    <Show when={props.commit?.parents?.length > 0}>
+                      <div class="text-sm select-text mb-2">
+                        <b class="w-[60px] text-right mt-1">Parents:</b> <br />
+                        <div class="flex flex-wrap gap-2">
+                          <For each={props.commit.parents}>
+                            {(parentHash) => (
+                              <span 
+                                onClick={() => props.selectCommit(parentHash)}
+                                class="font-mono text-xs bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-gray-900 rounded-xl
+                                      text-blue-600 dark:text-white px-2 py-1 cursor-pointer transition-colors border border-gray-300 dark:border-gray-600"
+                                title={parentHash}
+                              >
+                                {parentHash.substring(0, 8)}
+                              </span>
+                            )}
+                          </For>
+                        </div>
+                      </div>
+                    </Show>
                   </div>
                 </div>
-
-                <hr />
-
               </div>
             </Show>
 
@@ -194,6 +195,13 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
           Selecione um commit para ver os detalhes
         </div>
       </Show>
+      <UserProfileDialog 
+        repoPath={props.repoPath} 
+        email={props.commit?.authorEmail}
+        fallbackName={props.commit?.authorName} 
+        open={modalUserProfileOpen()}
+        onClose={() => setModalUserProfileOpen(false)}
+      />
     </div>
   );
 }
