@@ -475,7 +475,7 @@ export default function FileList(props: { repo: Repo }) {
               bodyClass="p-0 h-full"
               width={'calc(100vw - 40px)'}
               height={'calc(100vh - 100px)'}>
-        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} selectCommit={selectCommit} />
+        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={selectedBranch() || ""} selectCommit={selectCommit} />
       </Dialog>
     </div>
   );

@@ -1,139 +1,169 @@
-import { createSignal, createResource, Show, For } from "solid-js";
+import { createSignal, createResource, Show, For, createMemo } from "solid-js";
 import { getGravatarProfile, getGravatarUrl } from "../../services/gravatarService";
-import FileIcon from "../ui/FileIcon"; // Usando o FileIcon para ícones genéricos
 import Dialog from "../ui/Dialog";
+import { getUserCommits } from "../../services/gitService";
+import ContributionGraph from "../Dashboard/ContributionGraph";
+import ActivityChart from "../Dashboard/ActivityChart";
+import HourlyActivityChart from "../Dashboard/HourlyActivityChart";
+import CommitMessage from "../ui/CommitMessage";
+import { openBrowser } from "../../services/openService";
 
+// Helper para formatar data curta
+const formatShortDate = (dateStr: string) => {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+};
 
 interface UserProfileDialogProps {
   email: string;
   fallbackName: string;
   repoPath: string;
+  branch: string;
   open: boolean;
   onClose: () => void;
 }
 
 export function UserProfileDialog(props: UserProfileDialogProps) {
-  // Usamos createResource para buscar os dados de forma reativa quando o e-mail mudar
   const [profile] = createResource(() => props.email, getGravatarProfile);
+  
+  const [userCommits] = createResource(
+    () => ({ path: props.repoPath, branch: props.branch, email: props.email }),
+    async (params) => {
+      if (!params.path || !params.email) return [];
+      return await getUserCommits(params.path, params.branch, params.email);
+    }
+  );
 
-  // Função auxiliar para ícones de contas verificadas
+  // Memo para pegar apenas os 5 últimos commits
+  const recentCommits = createMemo(() => (userCommits() || []).slice(0, 5));
+
   const getAccountIcon = (shortname: string) => {
     switch (shortname) {
       case 'github': return 'fab fa-github';
-      case 'twitter': return 'fab fa-twitter';
-      case 'linkedin': return 'fab fa-linkedin';
-      case 'facebook': return 'fab fa-facebook';
-      case 'pinterest': return 'fab fa-pinterest';
-      case 'youtube': return 'fab fa-youtube';
+      case 'twitter': return 'fab fa-twitter text-blue-400';
+      case 'linkedin': return 'fab fa-linkedin text-blue-600';
+      case 'pinterest': return 'fab fa-pinterest text-red-600';
+      case 'youtube': return 'fab fa-youtube text-red-600';
+      case 'instagram': return 'fab fa-instagram text-pink-500';
+      case 'facebook': return 'fab fa-facebook text-blue-600';
       default: return 'fa fa-globe';
     }
   };
 
   return (
-    <Dialog open={props.open} onClose={props.onClose} title="Perfil do Usuário" width={"calc(100vw - 40px)"}>
-      <div class="flex flex-col md:flex-row gap-6">
-        {/* Coluna da Esquerda: Foto e Info Básica */}
-        <div class="container-branch-list items-center text-center">
+    <Dialog open={props.open} onClose={props.onClose} title="Perfil do Usuário" width={"90vw"}>
+      <div class="flex flex-col gap-6 overflow-y-auto max-h-[85vh] custom-scrollbar p-2">
+        
+        {/* CABEÇALHO */}
+        <div class="flex flex-col md:flex-row items-center gap-6 container-branch-list">
           <img
-            src={getGravatarUrl(props.email, 160)}
+            src={getGravatarUrl(props.email, 120)}
             alt={props.fallbackName}
-            class="w-32 h-32 md:w-40 md:h-40 rounded-full shadow-lg border-4 border-white dark:border-gray-700"
+            class="w-28 h-28 rounded-full shadow-md border-2 border-blue-500/20"
           />
-          <h3 class="mt-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {profile()?.displayName || props.fallbackName}
-          </h3>
-          <p class="text-gray-500 dark:text-gray-400 text-sm break-all">{props.email}</p>
-          
-          <Show when={profile()?.currentLocation}>
-            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              <i class="fa fa-map-marker-alt mr-1 text-red-500"></i>
-              {profile()?.currentLocation}
-            </p>
-          </Show>
-        </div>
-
-        {/* Coluna da Direita: Detalhes, Bio, Contas */}
-        <div class="flex-1 space-y-6">
-          <Show when={profile.loading}>
-            <div class="flex items-center justify-center h-full text-gray-500">
-              <i class="fa fa-spinner fa-spin mr-2"></i> Carregando perfil estendido...
-            </div>
-          </Show>
-
-          <Show when={profile.error}>
-            <div class="p-4 bg-red-100 text-red-800 rounded-lg text-sm">
-              <i class="fa fa-exclamation-triangle mr-2"></i>
-              Não foi possível carregar os dados públicos do Gravatar para este usuário.
-            </div>
-          </Show>
-
-          <Show when={profile() && !profile.loading}>
-            {/* Sobre Mim */}
+          <div class="flex-1 text-center md:text-left">
+            <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {profile()?.displayName || props.fallbackName}
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400 text-sm font-mono">{props.email}</p>
             <Show when={profile()?.aboutMe}>
-              <section>
-                <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Sobre Mim</h4>
-                <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl text-gray-800 dark:text-gray-200 text-sm whitespace-pre-wrap leading-relaxed">
-                  {profile()?.aboutMe}
-                </div>
-              </section>
+              <p class="text-sm text-gray-600 dark:text-gray-200">
+                {profile()?.aboutMe}
+              </p>
             </Show>
-
-            {/* Contas Verificadas (Redes Sociais) */}
-            <Show when={profile()?.accounts && profile()!.accounts.length > 0}>
-              <section>
-                <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Contas Verificadas</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <For each={profile()?.accounts}>
-                    {(account) => (
-                      <a 
-                        href={account.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        class="flex items-center gap-3 p-3 bg-white dark:bg-gray-700/50 border dark:border-gray-700 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-700 transition"
-                      >
-                        <i class={`${getAccountIcon(account.shortname)} text-2xl text-blue-600 dark:text-blue-400`}></i>
-                        <div>
-                          <div class="font-medium text-gray-900 dark:text-gray-100 text-sm">{account.display}</div>
-                          <div class="text-xs text-gray-500 dark:text-gray-400 capitalize">{account.shortname}</div>
-                        </div>
-                      </a>
-                    )}
-                  </For>
-                </div>
-              </section>
-            </Show>
-
-            {/* Links Pessoais */}
-            <Show when={profile()?.urls && profile()!.urls.length > 0}>
-              <section>
-                <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Links</h4>
-                <div class="space-y-2">
-                  <For each={profile()?.urls}>
-                    {(url) => (
-                      <a 
-                        href={url.value} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        <i class="fa fa-link text-xs text-gray-400"></i>
-                        {url.title || url.value}
-                      </a>
-                    )}
-                  </For>
-                </div>
-              </section>
-            </Show>
-          </Show>
-
-          {/* Contexto do Repositório (Dados que você já tinha) */}
-          <section class="pt-4 border-t dark:border-gray-700">
-            <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Contexto da GUI</h4>
-            <div class="text-xs text-gray-600 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-900 p-2 rounded">
-              <i class="fa fa-folder mr-1"></i> {props.repoPath}
+            <div class="mt-2 flex flex-wrap justify-center md:justify-start gap-4 items-center">
+              <Show when={profile()?.currentLocation}>
+                <span class="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                  <i class="fa fa-map-marker-alt text-red-500"></i>
+                  {profile()?.currentLocation}
+                </span>
+              </Show>
+              <div class="flex gap-3 border-l dark:border-gray-700 pl-4">
+                <For each={profile()?.accounts}>
+                  {(account) => (
+                    <div onClick={() => openBrowser(account.url)} class="text-gray-400 hover:text-blue-500 transition-colors cursor-pointer text-lg">
+                      <i class={getAccountIcon(account.shortname)}></i>
+                    </div>
+                  )}
+                </For>
+              </div>
             </div>
-          </section>
+          </div>
         </div>
+
+        {/* GRÁFICOS */}
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div class="lg:col-span-8 space-y-4">
+            <div class="container-branch-list h-64 overflow-hidden">
+               <ContributionGraph commits={userCommits() || []} />
+            </div>
+            <div class="container-branch-list p-4 h-64">
+               <ActivityChart commits={userCommits() || []} />
+            </div>
+          </div>
+
+          <div class="lg:col-span-4 space-y-4 flex flex-col">
+            <div class="container-branch-list p-4 h-64">
+                <HourlyActivityChart commits={userCommits() || []} />
+            </div>
+            <div class="container-branch-list p-4 flex-1">
+              <h4 class="text-[10px] font-bold text-gray-900 dark:text-gray-100 uppercase mb-3 tracking-widest text-center">Resumo</h4>
+              <div class="grid grid-cols-2 gap-2 text-center">
+                <div class="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border dark:border-gray-700">
+                    <span class="block text-xl font-bold text-blue-500">{userCommits()?.length || 0}</span>
+                    <span class="text-[10px] text-gray-900 dark:text-gray-100 uppercase">Commits</span>
+                </div>
+                <div class="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border dark:border-gray-700">
+                    <span class="block text-xl font-bold text-green-500">
+                        {new Set(userCommits()?.map(c => new Date(c.date).toISOString().split('T')[0])).size}
+                    </span>
+                    <span class="text-[10px] text-gray-900 dark:text-gray-100 uppercase">Dias Ativos</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* TABELA DE ÚLTIMOS COMMITS */}
+        <div class="container-branch-list p-4">
+          <h4 class="text-[10px] font-bold text-gray-900 dark:text-gray-100 uppercase mb-1 tracking-widest flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-blue-500"></i>
+            Atividades recentes
+          </h4>
+          <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700">
+            <table class="table-striped">
+              <thead>
+                <tr class="text-[10px] uppercase text-gray-500">
+                  <th class="p-2 w-[100px]">Hash</th>
+                  <th class="p-2">Mensagem</th>
+                  <th class="p-2 text-right">Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                <For each={recentCommits()} fallback={
+                  <tr>
+                    <td colspan="3" class="p-8 text-center text-xs text-gray-500 italic">Buscando histórico...</td>
+                  </tr>
+                }>
+                  {(commit) => (
+                    <tr class="group">
+                      <td class="p-2 font-mono text-[10px] text-blue-400 opacity-70 group-hover:opacity-100">
+                        {commit.hash.substring(0, 7)}
+                      </td>
+                      <td class="p-2 text-xs text-gray-900 dark:text-gray-100 truncate max-w-[400px]">
+                        <CommitMessage message={commit.message} />
+                      </td>
+                      <td class="p-2 text-[10px] text-gray-900 dark:text-gray-100 text-right whitespace-nowrap italic">
+                        {formatShortDate(commit.date)}
+                      </td>
+                    </tr>
+                  )}
+                </For>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </Dialog>
   );

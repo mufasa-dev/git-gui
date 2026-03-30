@@ -11,6 +11,7 @@ import CommitTypeDistribution from "../components/Dashboard/CommitDistributionBa
 import TestCoverageDonut from "../components/Dashboard/TestCoverageDonut";
 import HourlyActivityChart from "../components/Dashboard/HourlyActivityChart";
 import HotspotsTable from "../components/Dashboard/HotspotsTable";
+import { UserProfileDialog } from "../components/Config/UserProfile";
 
 declare module "solid-js" {
   namespace JSX {
@@ -30,6 +31,8 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   const [resizing, setResizing] = createSignal(false);
   const [startDate, setStartDate] = createSignal("");
   const [endDate, setEndDate] = createSignal("");
+  const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
+  const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
   
   // Estados para Paginação e Filtro
   const [searchTerm, setSearchTerm] = createSignal("");
@@ -205,7 +208,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         </div>
 
         <div class="container-branch-list">
-          <h4 class="font-bold mb-3 flex items-center gap-2">
+          <h4 class="font-bold mb-0 flex items-center gap-2">
             <i class="fa-solid fa-trophy text-yellow-500"></i>
             Top Contribuidores
           </h4>
@@ -213,6 +216,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
             <table class="w-full text-left text-xs table-striped">
               <thead class="sticky top-0 bg-white dark:bg-gray-800">
                 <tr class="border-b border-gray-200 dark:border-gray-700">
+                  <th class="pb-2 !w-5"></th>
                   <th class="pb-2">Autor</th>
                   <th class="pb-2 text-right">Commits</th>
                   <th class="pb-2 text-right text-gray-400">%</th>
@@ -220,8 +224,17 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
               </thead>
               <tbody>
                 <For each={topContributors()}>
-                  {(contributor) => (
-                    <tr class="border-b border-gray-100 dark:border-gray-800 last:border-0">
+                  {(contributor, i) => (
+                    <tr class="border-b border-gray-100 dark:border-gray-800 last:border-0" onClick={() => {
+                      setSelectedUser({ name: contributor.name, email: contributor.email });
+                      setModalUserProfileOpen(true);
+                    }}>
+                      <td class="py-2 !w-5">
+                        <span class={`w-5 h-5 flex items-center justify-center rounded-full text-white font-mono text-[10px] !mr-0
+                            ${i() === 0 ? "bg-yellow-400" : i() === 1 ? "bg-gray-400" : i() === 2 ? "bg-orange-400" : "bg-gray-500"}`}>
+                          {i() + 1}
+                        </span>
+                      </td>
                       <td class="py-2 flex items-center gap-2">
                         <div class="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center overflow-hidden">
                           <img
@@ -257,6 +270,19 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         </div>
 
       </div>
+      <Show when={modalUserProfileOpen()}>
+        <UserProfileDialog 
+          repoPath={props.repo.path || ""} 
+          branch={props.branch || ""}
+          email={selectedUser()?.email || ""}
+          fallbackName={selectedUser()?.name || "Usuário Desconhecido"} 
+          open={modalUserProfileOpen()}
+          onClose={() => {
+            setModalUserProfileOpen(false)
+            setSelectedUser({ name: "", email: "" });
+          }}
+        />
+      </Show>
     </div>
   );
 }

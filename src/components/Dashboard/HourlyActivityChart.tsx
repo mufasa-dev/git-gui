@@ -107,7 +107,7 @@ export default function HourlyActivityChart(props: { commits: any[] }) {
                       x={bar.x + bar.width / 2}
                       y={chartConfig.svgHeight - 5}
                       text-anchor="middle"
-                      class="fill-gray-500 text-[9px] font-medium"
+                      class="fill-gray-900 dark:fill-gray-200 text-[9px] font-medium"
                     >
                       {bar.label}
                     </text>
@@ -121,7 +121,7 @@ export default function HourlyActivityChart(props: { commits: any[] }) {
                x={chartConfig.paddings.left - 5} 
                y={chartConfig.paddings.top} 
                text-anchor="end" 
-               class="fill-gray-600 text-[8px]"
+               class="fill-gray-900 dark:fill-gray-200 text-[8px]"
             >
                 {processedData().maxVal}
             </text>
@@ -129,7 +129,7 @@ export default function HourlyActivityChart(props: { commits: any[] }) {
                x={chartConfig.paddings.left - 5} 
                y={chartConfig.svgHeight - chartConfig.paddings.bottom} 
                text-anchor="end" 
-               class="fill-gray-600 text-[8px]"
+               class="fill-gray-900 dark:fill-gray-200 text-[8px]"
             >
                 0
             </text>
@@ -137,7 +137,7 @@ export default function HourlyActivityChart(props: { commits: any[] }) {
         </Show>
       </div>
       
-      <div class="mt-2 text-[9px] text-gray-500 flex justify-between items-center">
+      <div class="mt-2 text-[9px] text-gray-900 dark:text-gray-200  flex justify-between items-center">
         <span>Horário local do sistema</span>
         <span class="text-blue-500/60 font-bold uppercase">Pico: {
             processedData().bars.sort((a,b) => b.value - a.value)[0]?.label

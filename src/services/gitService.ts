@@ -39,6 +39,13 @@ export async function getCommits(path: string, branch: string) {
   );
 }
 
+export async function getUserCommits(path: string, branch: string, email: string) {
+  return await invoke<{ hash: string; message: string; author: string; date: string }[]>(
+    "list_user_commits",
+    { path, branch, email }
+  );
+}
+
 export async function getLastCommitForPath(path: string, branch: string, filePath: string) {
   return await invoke<Commit>(
     "get_last_commit_for_path",

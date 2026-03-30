@@ -34,7 +34,7 @@ export default function LateralBar(props: {
           <img src={dashboardIcon} class="h-10" />
         </Button>
       </Tooltip>
-      <Tooltip text="Pull Requests" class="mb-2">
+      {/*<Tooltip text="Pull Requests" class="mb-2">
         <Button class={`left-btn w-full ${props.active === "pull-requests" ? "selected" : ""}`} onClick={() => props.onChangeActive("pull-requests")}>
           <img src={prIcon} class="h-10" />
         </Button>
@@ -58,7 +58,7 @@ export default function LateralBar(props: {
         <Button class={`left-btn w-full ${props.active === "config" ? "selected" : ""}`} onClick={() => props.onChangeActive("config")}>
           <img src={configIcon} class="h-10" />
         </Button>
-      </Tooltip>
+      </Tooltip>*/}
     </div> 
   );
 }

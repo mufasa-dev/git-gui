@@ -27,7 +27,7 @@ export default function TestCoverageDonut(props: Props) {
   return (
     <div class="p-2 h-full flex flex-col items-center justify-between min-h-[220px]">
       <div class="flex items-center justify-between w-full mb-2">
-        <h3 class="font-bold text-gray-500 dark:text-white tracking-widest">
+        <h3 class="font-bold text-black dark:text-white tracking-widest">
           <i class="fa-solid fa-flask text-purple-500 ml-2"></i> Cobertura de Testes
         </h3>
         <Show when={data.loading}>

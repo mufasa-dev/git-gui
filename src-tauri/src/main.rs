@@ -25,6 +25,7 @@ fn main() {
             commands::branch::list_branch_files_with_size,
             commands::branch::get_branch_file_content,
             commands::commit::list_commits,
+            commands::commit::list_user_commits,
             commands::commit::get_commit_details,
             commands::commit::git_commit,
             commands::commit::get_commit_file_diff,

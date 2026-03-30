@@ -75,39 +75,53 @@ export default function ActivityChart(props: { commits: any[] }) {
   });
 
   return (
-    <div class="flex flex-col h-full bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+    <div class="flex flex-col h-full relative"> {/* Adicionado relative aqui */}
       
-      {/* Cabeçalho com Título e FILTRO */}
+      {/* Cabeçalho igual */}
       <div class="flex items-center justify-between mb-4">
-        <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 ml-2">
+        <h4 class="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2 ml-2">
            <i class="fa-solid fa-chart-line text-green-500"></i>
            Atividade
         </h4>
-        
-        {/* Dropdown de Filtro */}
         <select 
           value={daysToView()} 
           onInput={(e) => setDaysToView(parseInt(e.currentTarget.value))}
           class="input-select"
         >
-          <option value={7}>Útimos 7 dias</option>
-          <option value={30}>Útimos 30 dias</option>
-          <option value={90}>Útimos 90 dias</option>
-          <option value={180}>Útimos 6 meses</option>
+          <option value={7}>Últimos 7 dias</option>
+          <option value={30}>Últimos 30 dias</option>
+          <option value={90}>Últimos 90 dias</option>
+          <option value={180}>Últimos 6 meses</option>
         </select>
       </div>
       
-      {/* Container do Gráfico */}
-      <div class="relative flex-1 min-h-[100px]">
+      <div class="relative flex-1 min-h-[150px]">
         <Show when={props.commits.length > 0} fallback={
-          <div class="flex items-center justify-center h-full text-xs opacity-50 italic">Sem atividades encontradas</div>
+          <div class="flex items-center justify-center h-full text-xs opacity-50 italic text-white">Sem atividades</div>
         }>
+          
+          {/* 1. LEGENDAS DO EIXO Y (HTML Absoluto - Não distorce) */}
+          <div class="absolute inset-0 pointer-events-none" style={{ 
+            padding: `${chartConfig.paddings.top}px ${chartConfig.paddings.right}px ${chartConfig.paddings.bottom}px ${chartConfig.paddings.left}px` 
+          }}>
+            <For each={processedData().yTicks}>
+              {(tick) => (
+                <div 
+                  class="absolute left-0 text-[10px] font-mono text-gray-500 flex items-center justify-end w-[35px]"
+                  style={{ top: `${(tick.y / chartConfig.svgHeight) * 100}%`, transform: 'translateY(-50%)' }}
+                >
+                  {tick.value}
+                </div>
+              )}
+            </For>
+          </div>
+
+          {/* 2. O GRÁFICO (SVG com preserveAspectRatio="none" - Deforma apenas o desenho) */}
           <svg 
             viewBox={`0 0 ${chartConfig.svgWidth} ${chartConfig.svgHeight}`} 
             preserveAspectRatio="none" 
-            class="w-full h-full overflow-visible"
+            class="w-full h-full block"
           >
-            {/* Definições (Gradiente) */}
             <defs>
               <linearGradient id="activityGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" style="stop-color:rgb(34, 197, 94);stop-opacity:0.3" />
@@ -115,68 +129,45 @@ export default function ActivityChart(props: { commits: any[] }) {
               </linearGradient>
             </defs>
 
-            {/* --- EIXO Y (Linhas de grade e legendas) --- */}
+            {/* Linhas de grade (também esticam, o que é ok) */}
             <For each={processedData().yTicks}>
               {(tick) => (
-                <g class="text-gray-400 dark:text-gray-500">
-                  {/* Linha de grade */}
-                  <line 
-                    x1={chartConfig.paddings.left} 
-                    y1={tick.y} 
-                    x2={chartConfig.svgWidth - chartConfig.paddings.right} 
-                    y2={tick.y} 
-                    stroke="currentColor" 
-                    stroke-width="0.5" 
-                    stroke-dasharray="2 2"
-                    class="opacity-50"
-                  />
-                  {/* Texto da legenda Y */}
-                  <text 
-                    x={chartConfig.paddings.left - 8} 
-                    y={tick.y} 
-                    text-anchor="end" 
-                    alignment-baseline="middle" 
-                    class="fill-current text-[10px] font-mono"
-                  >
-                    {tick.value}
-                  </text>
-                </g>
+                <line 
+                  x1={chartConfig.paddings.left} y1={tick.y} 
+                  x2={chartConfig.svgWidth - chartConfig.paddings.right} y2={tick.y} 
+                  stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 2" class="text-gray-700"
+                />
               )}
             </For>
 
-            {/* --- EIXO X (Legendas inferiores) --- */}
-            <For each={processedData().xTicks}>
-                {(tick, i) => (
-                    <text 
-                    x={tick.x} 
-                    y={chartConfig.svgHeight - 10} 
-                    text-anchor={
-                        i() === 0 ? "start" : 
-                        i() === processedData().xTicks.length - 1 ? "end" : "middle"
-                    }
-                    class="fill-current text-gray-500 dark:text-gray-400 text-[10px] font-medium"
-                    >
-                    {tick.label}
-                    </text>
-                )}
-            </For>
-
-            {/* --- O GRÁFICO (Área e Linha) --- */}
-            
-            {/* Área preenchida com gradiente */}
-            <path d={processedData().area} fill="url(#activityGrad)" class="transition-all duration-500" />
-
-            {/* Linha principal verde */}
+            <path d={processedData().area} fill="url(#activityGrad)" />
             <path 
-              d={processedData().line} 
-              fill="none" 
-              stroke="#22c55e" 
-              stroke-width="2" 
-              stroke-linecap="round" 
-              stroke-linejoin="round"
-              class="transition-all duration-500"
+              d={processedData().line} fill="none" stroke="#22c55e" stroke-width="2" 
+              stroke-linecap="round" stroke-linejoin="round"
+              style={{ "vector-effect": "non-scaling-stroke" }} // Mantém a espessura da linha constante
             />
           </svg>
+
+          {/* 3. LEGENDAS DO EIXO X (HTML Absoluto - Não distorce) */}
+          <div class="absolute bottom-0 left-0 right-0 h-[30px] pointer-events-none" style={{
+            "margin-left": `${chartConfig.paddings.left}px`,
+            "margin-right": `${chartConfig.paddings.right}px`
+          }}>
+             <For each={processedData().xTicks}>
+                {(tick, i) => (
+                    <div 
+                      class="absolute bottom-1 text-[10px] font-medium text-gray-400 whitespace-nowrap"
+                      style={{ 
+                        left: `${((tick.x - chartConfig.paddings.left) / (chartConfig.svgWidth - chartConfig.paddings.left - chartConfig.paddings.right)) * 100}%`,
+                        transform: i() === 0 ? 'none' : i() === processedData().xTicks.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)'
+                      }}
+                    >
+                      {tick.label}
+                    </div>
+                )}
+            </For>
+          </div>
+
         </Show>
       </div>
     </div>

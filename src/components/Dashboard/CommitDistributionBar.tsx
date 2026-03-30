@@ -97,7 +97,7 @@ const CommitTypeDistribution = (props: Props) => {
                   </span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <span class="text-gray-800 dark:text-gray-200 font-mono  px-1 rounded">
+                  <span class="text-gray-800 dark:text-gray-200 px-1 rounded">
                     {item.count}
                   </span>
                   <span class="text-gray-400 font-medium min-w-[35px] text-right">

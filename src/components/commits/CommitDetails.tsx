@@ -8,7 +8,7 @@ import FileIcon from "../ui/FileIcon";
 import CommitMessage from "../ui/CommitMessage";
 import { UserProfileDialog } from "../Config/UserProfile";
 
-export function CommitDetails(props: { commit: any; repoPath: string, selectCommit: (hash: string) => void }) {
+export function CommitDetails(props: { commit: any; repoPath: string, branch: string, selectCommit: (hash: string) => void }) {
   const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
   const [selectedFile, setSelectedFile] = createSignal<any>(null);
   const [fileDiff, setFileDiff] = createSignal<any>(null);
@@ -100,10 +100,11 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
                   <img
                     src={getGravatarUrl(props.commit.authorEmail, 80)}
                     alt={props.commit.authorName}
-                    class="w-[60px] h-[60px] rounded-full shadow-sm"
+                    onClick={() => setModalUserProfileOpen(true)}
+                    class="w-[60px] h-[60px] rounded-full shadow-sm CURSOR-POINTER"
                   />
-                  <div class="ml-4 mt-0 select-text">
-                    <div class="font-bold text-gray-900 dark:text-gray-100" onClick={() => setModalUserProfileOpen(true)}>
+                  <div class="ml-4 !mt-0 select-text">
+                    <div class="font-bold text-gray-900 dark:text-gray-100 clicked_label" onClick={() => setModalUserProfileOpen(true)}>
                       {props.commit.authorName}
                     </div>
                     <div class="text-gray-500 dark:text-gray-200 text-sm">{props.commit.authorEmail}</div>
@@ -195,13 +196,16 @@ export function CommitDetails(props: { commit: any; repoPath: string, selectComm
           Selecione um commit para ver os detalhes
         </div>
       </Show>
-      <UserProfileDialog 
-        repoPath={props.repoPath} 
-        email={props.commit?.authorEmail}
-        fallbackName={props.commit?.authorName} 
-        open={modalUserProfileOpen()}
-        onClose={() => setModalUserProfileOpen(false)}
-      />
+      <Show when={modalUserProfileOpen()}>
+        <UserProfileDialog 
+          repoPath={props.repoPath} 
+          branch={props.branch || ""}
+          email={props.commit?.authorEmail}
+          fallbackName={props.commit?.authorName} 
+          open={modalUserProfileOpen()}
+          onClose={() => setModalUserProfileOpen(false)}
+        />
+      </Show>
     </div>
   );
 }

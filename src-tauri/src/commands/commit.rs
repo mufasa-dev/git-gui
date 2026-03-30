@@ -51,6 +51,45 @@ pub fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String>
     Ok(commits)
 }
 
+#[tauri::command]
+pub fn list_user_commits(path: String, branch: String, email: String) -> Result<Vec<Commit>, String> {
+    let author_filter = format!("--author={}", email);
+
+    let output = git_command(&path)
+        .args(&[
+            "log", 
+            "--pretty=format:%H|%an|%ae|%ad|%s", 
+            &branch, 
+            &author_filter,
+            "--"
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Ok(Vec::new());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let commits: Vec<Commit> = stdout
+        .lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.splitn(5, '|').collect();
+            if parts.len() < 5 { return None; }
+            
+            Some(Commit {
+                hash: parts[0].to_string(),
+                author: parts[1].to_string(),
+                email: parts[2].to_string(),
+                date: parts[3].to_string(),
+                message: parts[4].to_string(),
+            })
+        })
+        .collect();
+
+    Ok(commits)
+}
+
 #[command]
 pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
     // 1. Executa o comando com --name-status (caminhos completos, sem abreviação)
