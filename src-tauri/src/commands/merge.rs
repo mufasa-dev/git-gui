@@ -1,5 +1,5 @@
-use std::fs;
 use crate::utils::git_command;
+use std::io::Write;
 
 #[tauri::command]
 pub fn merge_branch(repo_path: String, from_branch: String, to_branch: String) -> Result<String, String> {
@@ -30,5 +30,10 @@ pub fn merge_branch(repo_path: String, from_branch: String, to_branch: String) -
 
 #[tauri::command]
 pub async fn save_file(path: String, content: String) -> Result<(), String> {
-    fs::write(&path, content).map_err(|e| e.to_string())
+    let mut file = std::fs::File::create(&path).map_err(|e| e.to_string())?;
+    
+    file.write_all(&[0xEF, 0xBB, 0xBF]).map_err(|e| e.to_string())?;
+    file.write_all(content.as_bytes()).map_err(|e| e.to_string())?;
+    
+    Ok(())
 }
