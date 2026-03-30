@@ -7,7 +7,6 @@ interface Props {
 }
 
 export default function TestCoverageDonut(props: Props) {
-  // O createResource reage automaticamente quando o objeto retornado pela função muda
   const [data] = createResource(
     () => ({ path: props.path, branch: props.branch }),
     async (params) => {
@@ -16,7 +15,12 @@ export default function TestCoverageDonut(props: Props) {
     }
   );
 
-  const radius = 35;
+  // --- AJUSTES DE DIMENSÃO ---
+  const size = 100; 
+  const center = size / 2;
+  const strokeWidth = 6; // Diminuído de 8 para 6 para ficar mais fino/elegante
+  const padding = 10;    // Adicionado um respiro interno no SVG
+  const radius = (size / 2) - strokeWidth - padding; // Raio menor para não "gritar" na tela
   const circumference = 2 * Math.PI * radius;
   
   const offset = createMemo(() => {
@@ -26,70 +30,78 @@ export default function TestCoverageDonut(props: Props) {
 
   return (
     <div class="p-2 h-full flex flex-col items-center justify-between min-h-[220px]">
-      <div class="flex items-center justify-between w-full mb-2">
-        <h3 class="font-bold text-black dark:text-white tracking-widest">
-          <i class="fa-solid fa-flask text-purple-500 ml-2"></i> Cobertura de Testes
+      {/* Título */}
+      <div class="flex items-center justify-between w-full mb-1">
+        <h3 class="font-bold text-gray-800 dark:text-gray-100 tracking-widest">
+          <i class="fa-solid fa-flask text-purple-500 mr-2"></i> Cobertura de Testes
         </h3>
         <Show when={data.loading}>
           <div class="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
         </Show>
       </div>
 
-      <div class="relative flex items-center justify-center flex-1">
+      {/* Gráfico */}
+      <div class="relative flex-1 w-full max-h-[150px] aspect-square flex items-center justify-center">
         <Show when={!data.error} fallback={<span class="text-[10px] text-red-500">Erro ao carregar dados</span>}>
-          <svg class="w-32 h-32 transform -rotate-90">
-            {/* Fundo (Code/Logic) */}
+          <svg 
+            viewBox={`0 0 ${size} ${size}`} 
+            class="w-full h-full transform -rotate-90"
+          >
+            {/* Círculo de Fundo */}
             <circle
-              cx="64" cy="64" r={radius}
+              cx={center} cy={center} r={radius}
               fill="transparent"
               stroke="currentColor"
-              stroke-width="7"
-              class="text-gray-300 dark:text-gray-900/50"
+              stroke-width={strokeWidth}
+              class="text-gray-200 dark:text-gray-900/30"
             />
-            {/* Progresso (Tests) */}
+            {/* Círculo de Progresso */}
             <circle
-                cx="64"
-                cy="64"
-                r={radius}
-                fill="transparent"
-                stroke="currentColor"
-                stroke-width="7"
-                // Converta o número para string para satisfazer o TypeScript
-                stroke-dasharray={circumference.toString()} 
-                style={{ 
-                    "stroke-dashoffset": offset().toString(), 
-                    "transition": "stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)" 
-                }}
-                class="text-green-500 shadow-lg"
-                stroke-linecap="round"
+              cx={center} cy={center} r={radius}
+              fill="transparent"
+              stroke="currentColor"
+              stroke-width={strokeWidth}
+              stroke-dasharray={circumference.toString()} 
+              style={{ 
+                  "stroke-dashoffset": offset().toString(), 
+                  "transition": "stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)" 
+              }}
+              class="text-green-500"
+              stroke-linecap="round"
             />
           </svg>
 
+          {/* Info Central */}
           <div class="absolute inset-0 flex flex-col items-center justify-center">
-            <span class="text-2xl font-mono font-bold text-black dark:text-white leading-none">
+            <span class="text-2xl font-mono font-black text-gray-900 dark:text-white leading-none">
               {data() ? data()?.percent.toFixed(1) : "0.0"}%
             </span>
-            <span class="text-[8px] text-gray-500 uppercase mt-1 tracking-tighter">
-              {props.branch} branch
+            <span class="text-[8px] text-gray-500 uppercase mt-1 font-bold tracking-widest opacity-60">
+               {props.branch}
             </span>
           </div>
         </Show>
       </div>
 
-      <div class="w-full grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-300 dark:border-gray-700/50">
+      {/* Footer */}
+      <div class="w-full grid grid-cols-2 gap-2 pt-1">
         <div class="flex flex-col items-start">
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-1.5 text-gray-500 uppercase text-[9px] font-bold">
             <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-            <span class="text-[10px] text-gray-900 dark:text-gray-300 font-medium">Testes</span>
+            Testes
           </div>
-          <span class="text-[11px] text-gray-500 ml-3">{data()?.testFiles || 0} arquivos</span>
+          <span class="text-[11px] text-gray-800 dark:text-gray-200 font-mono mt-0.5 ml-3">
+            {data() ? data()?.testFiles : 0} arq.
+          </span>
         </div>
         <div class="flex flex-col items-end">
-          <div class="flex items-center gap-1.5">
-            <span class="text-[10px] text-gray-900 dark:text-gray-300 font-medium">Lógica</span>
-            <div class="w-1.5 h-1.5 rounded-full bg-gray-800"></div>
+          <div class="flex items-center gap-1.5 text-gray-500 uppercase text-[9px] font-bold">
+            Lógica
+            <div class="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-700"></div>
           </div>
-          <span class="text-[11px] text-gray-500 mr-3">{data()?.codeFiles || 0} arquivos</span>
+          <span class="text-[11px] text-gray-800 dark:text-gray-200 font-mono mt-0.5 mr-3">
+            {data() ? data()?.codeFiles : 0} arq.
+          </span>
         </div>
       </div>
     </div>

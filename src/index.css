@@ -43,10 +43,11 @@ html {
   }
 
   .cm-commit-item {
-    @apply flex items-center border-b border-gray-200 py-2 pl-4 pr-2 cursor-pointer dark:bg-gray-700 dark:border-gray-900 rounded-full mb-2;
+    @apply flex items-center border-b border-gray-200 py-2 pl-4 pr-2 cursor-pointer 
+          bg-gray-200 dark:bg-gray-700 dark:border-gray-900 rounded-full mb-2;
   }
   .cm-commit-item:hover {
-    @apply bg-gray-100 dark:bg-gray-600/50; 
+    @apply bg-gray-300 dark:bg-gray-600/50; 
   }
   .cm-commit-item.selected {
     @apply bg-blue-500 dark:text-black;

@@ -113,30 +113,42 @@ export default function VSMergeEditor(props: Props) {
       }, { dark: dark })
     );
 
+    extensions.push(
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged && !update.transactions.some(tr => tr.annotation(ExternalChange))) {
+          const newValue = update.state.doc.toString();
+          setManualResult(newValue);
+        }
+      })
+    );
+
     return extensions;
   });
 
   const handleCompleteMerge = () => {
-    const currentResolutions = resolutions();
-    const conflictIds = Object.keys(currentResolutions);
+    const v = view();
+    const finalContent = v ? v.state.doc.toString() : displayResult();
     
-    const hasUnresolved = conflictIds.some(id => 
-      (currentResolutions[Number(id)]?.length ?? 0) === 0
-    );
+    const hasMarkers = finalContent.includes("<<<<<<<") || finalContent.includes(">>>>>>>");
 
-    if (hasUnresolved) {
-      notify.error("Merge incompleto", "Existem conflitos não resolvidos.");
-    } else {
-      props.onSave(displayResult());
+    if (hasMarkers) {
+      notify.error("Merge incompleto", "Ainda existem marcadores de conflito no texto.");
+      return;
     }
+
+    props.onSave(finalContent);
   };
 
-  // Sincroniza o editor quando o autoResult muda (clique nos painéis)
   createEffect(() => {
     const v = view();
     if (!v) return;
-    const target = displayResult();
-    if (v.state.doc.toString() !== target) {
+
+    // Se o usuário limpou o manualResult (clicou em Reset), voltamos para o auto
+    const target = manualResult() ?? autoResult();
+    
+    const currentDoc = v.state.doc.toString();
+
+    if (currentDoc !== target) {
       v.dispatch({
         changes: { from: 0, to: v.state.doc.length, insert: target },
         annotations: ExternalChange.of(true)

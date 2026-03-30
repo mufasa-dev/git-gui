@@ -20,6 +20,7 @@ export const commitColors: Record<string, string> = {
   chore: "text-slate-500 dark:text-slate-400",
   ci: "text-indigo-500 dark:text-indigo-400",
   revert: "text-red-600 dark:text-red-500 line-through",
+  translate: "text-blue-600 dark:text-blue-400 font-bold",
   error: "text-green-600 dark:text-green-400 font-bold",
   start: "text-green-600 dark:text-green-400 font-bold",
   stop: "text-red-600 dark:text-red-500 font-bold",
@@ -40,6 +41,7 @@ export const tagBaseColors: Record<string, string> = {
   ci: "#6366f1",       // indigo-500
   merge: "#d946ef",    // fuchsia-500
   revert: "#dc2626",   // red-600
+  translate: "#2563eb",  // blue-600
   error: "#16a34a",    // green-600
   start: "#16a34a",    // green-600
   stop: "#dc2626",      // red-600

@@ -7,6 +7,7 @@ import ActivityChart from "../Dashboard/ActivityChart";
 import HourlyActivityChart from "../Dashboard/HourlyActivityChart";
 import CommitMessage from "../ui/CommitMessage";
 import { openBrowser } from "../../services/openService";
+import CommitTypeDistribution from "../Dashboard/CommitDistributionBar";
 
 // Helper para formatar data curta
 const formatShortDate = (dateStr: string) => {
@@ -124,43 +125,49 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
           </div>
         </div>
 
-        {/* TABELA DE ÚLTIMOS COMMITS */}
-        <div class="container-branch-list p-4">
-          <h4 class="text-[10px] font-bold text-gray-900 dark:text-gray-100 uppercase mb-1 tracking-widest flex items-center gap-2">
-            <i class="fa-solid fa-clock-rotate-left text-blue-500"></i>
-            Atividades recentes
-          </h4>
-          <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700">
-            <table class="table-striped">
-              <thead>
-                <tr class="text-[10px] uppercase text-gray-500">
-                  <th class="p-2 w-[100px]">Hash</th>
-                  <th class="p-2">Mensagem</th>
-                  <th class="p-2 text-right">Data</th>
-                </tr>
-              </thead>
-              <tbody>
-                <For each={recentCommits()} fallback={
-                  <tr>
-                    <td colspan="3" class="p-8 text-center text-xs text-gray-500 italic">Buscando histórico...</td>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* TABELA DE ÚLTIMOS COMMITS */}
+          <div class="lg:col-span-8 container-branch-list p-4">
+            <h4 class="text-[10px] font-bold text-gray-900 dark:text-gray-100 uppercase mb-1 tracking-widest flex items-center gap-2">
+              <i class="fa-solid fa-clock-rotate-left text-blue-500"></i>
+              Atividades recentes
+            </h4>
+            <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700">
+              <table class="table-striped">
+                <thead>
+                  <tr class="text-[10px] uppercase text-gray-500">
+                    <th class="p-2 w-[100px]">Hash</th>
+                    <th class="p-2">Mensagem</th>
+                    <th class="p-2 text-right">Data</th>
                   </tr>
-                }>
-                  {(commit) => (
-                    <tr class="group">
-                      <td class="p-2 font-mono text-[10px] text-blue-400 opacity-70 group-hover:opacity-100">
-                        {commit.hash.substring(0, 7)}
-                      </td>
-                      <td class="p-2 text-xs text-gray-900 dark:text-gray-100 truncate max-w-[400px]">
-                        <CommitMessage message={commit.message} />
-                      </td>
-                      <td class="p-2 text-[10px] text-gray-900 dark:text-gray-100 text-right whitespace-nowrap italic">
-                        {formatShortDate(commit.date)}
-                      </td>
+                </thead>
+                <tbody>
+                  <For each={recentCommits()} fallback={
+                    <tr>
+                      <td colspan="3" class="p-8 text-center text-xs text-gray-500 italic">Buscando histórico...</td>
                     </tr>
-                  )}
-                </For>
-              </tbody>
-            </table>
+                  }>
+                    {(commit) => (
+                      <tr class="group">
+                        <td class="p-2 font-mono text-[10px] text-blue-400 opacity-70 group-hover:opacity-100">
+                          {commit.hash.substring(0, 7)}
+                        </td>
+                        <td class="p-2 text-xs text-gray-900 dark:text-gray-100 truncate max-w-[400px]">
+                          <CommitMessage message={commit.message} />
+                        </td>
+                        <td class="p-2 text-[10px] text-gray-900 dark:text-gray-100 text-right whitespace-nowrap italic">
+                          {formatShortDate(commit.date)}
+                        </td>
+                      </tr>
+                    )}
+                  </For>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div class="lg:col-span-4 container-branch-list p-4 flex-1">
+              <CommitTypeDistribution commits={userCommits() || []} />
           </div>
         </div>
 

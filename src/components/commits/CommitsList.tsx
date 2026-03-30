@@ -103,14 +103,24 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   }
 
   createEffect(on(() => [props.repo.path, props.branch], ([path, branch], prev) => {
-    const isNewRepoOrBranch = !prev || path !== prev[0] || branch !== prev[1];
-    
-    if (isNewRepoOrBranch) {
-       setCurrentPage(1);
-       setSelectedCommit(null);
-       loadCommits(true);
+    const isNewRepo = !prev || path !== prev[0];
+    const isNewBranch = !prev || branch !== prev[1];
+
+    if (isNewRepo) {
+      setCommits([]);
+      setCurrentPage(1);
+      setSelectedCommit(null);
+    }
+
+    const branchExists = props.repo.branches.some(b => b.name === branch) || 
+                        props.repo.remoteBranches?.includes(branch ||  "");
+
+    if (isNewRepo || isNewBranch) {
+      if (branchExists) {
+        loadCommits(isNewRepo);
+      }
     } else {
-       loadCommits(false);
+      loadCommits(false);
     }
   }));
 

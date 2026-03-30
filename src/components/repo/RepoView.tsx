@@ -178,7 +178,12 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
 
       {/* Painel direito */}
       {viewMode() === "commits" && (
-        <CommitsList repo={props.repo} branch={selectedBranch()} />
+        <CommitsList 
+          repo={props.repo} 
+          branch={selectedBranch() && props.repo.branches.some(b => b.name === selectedBranch()) 
+            ? selectedBranch() 
+            : props.repo.activeBranch} 
+        />
       )}
       {viewMode() === "changes" && <LocalChanges repo={props.repo}/>}
 

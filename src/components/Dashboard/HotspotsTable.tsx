@@ -19,7 +19,7 @@ export default function HotspotsTable(props: Props) {
   return (
     <div class="p-2 h-full flex flex-col overflow-hidden">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-bold text-gray-900 dark:text-white tracking-widest flex items-center gap-2">
+        <h3 class="font-bold text-black dark:text-white tracking-widest flex items-center gap-2">
           <i class="fa-solid fa-fire text-orange-500"></i>
           Arquivos Mais Modificados (Hotspots)
         </h3>
