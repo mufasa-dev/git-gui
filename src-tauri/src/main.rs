@@ -22,6 +22,7 @@ fn main() {
             commands::branch::delete_branch,
             commands::branch::delete_remote_branch,
             commands::branch::list_branch_files,
+            commands::branch::list_branch_files_with_size,
             commands::branch::get_branch_file_content,
             commands::commit::list_commits,
             commands::commit::get_commit_details,
@@ -55,7 +56,9 @@ fn main() {
             commands::merge::save_file,
             commands::pull_request::open_pull_request,
             commands::git_config::get_git_config,
-            commands::git_config::set_git_config
+            commands::git_config::set_git_config,
+            commands::dashboard::get_code_coverage_ratio,
+            commands::dashboard::get_most_modified_files
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");

@@ -119,7 +119,6 @@ export default function FileList(props: { repo: Repo }) {
     }
   });
 
-  // --- Lógica de Busca ---
   createEffect(async () => {
     const branch = selectedBranch();
     const repoPath = props.repo.path;
@@ -301,7 +300,7 @@ export default function FileList(props: { repo: Repo }) {
           <FolderTreeView 
             items={filteredFiles()} 
             selected={selectedFilePath()} 
-            staged={false} defaultOpen={false}
+            staged={false} defaultOpen={searchTerm().length > 1}
             showStatus={false} selectMode="single"
             onToggle={(path: string, _selected: boolean, isFile: boolean) => handleFileClick(path, isFile)}
           />        
@@ -361,7 +360,7 @@ export default function FileList(props: { repo: Repo }) {
           {/* Folder list */}
           <Show when={directoryContent() && !showHistory()}>
             <div class="overflow-auto rounded-lg border border-gray-300 dark:border-gray-700">
-              <table class="w-full text-left border-collapse">
+              <table class="w-full text-left border-collapse table-striped">
                 <thead class="sticky top-0 left-0">
                   <tr class="border-b border-gray-300 bg-gray-200 dark:border-gray-700 dark:bg-gray-700">
                     <th class="p-2 font-semibold">Nome</th>
@@ -371,8 +370,7 @@ export default function FileList(props: { repo: Repo }) {
                 </thead>
                 <tbody>
                   <Show when={selectedFilePath()[0]}>
-                    <tr class="hover:bg-blue-500/10 transition-colors even:bg-gray-200 dark:even:bg-gray-900/30 odd:bg-transparent cursor-pointer"
-                      onClick={() => handleGoBack(selectedFilePath()[0])}>
+                    <tr onClick={() => handleGoBack(selectedFilePath()[0])}>
                       <td class="p-2" colspan={3}>
                         <div class="flex items-center gap-2">
                           <i class="fa text-yellow-600 fa-folder"></i>
@@ -383,9 +381,7 @@ export default function FileList(props: { repo: Repo }) {
                   </Show>
                   <For each={directoryContent()}>
                     {(d) => (
-                      <tr class="hover:bg-blue-500/10 transition-colors cursor-pointer even:bg-gray-200 
-                              dark:hover:bg-blue-500/10 dark:even:bg-gray-900/30 odd:bg-transparent"
-                              onClick={() => handleFileClick(d.path, !d.isDir)}>
+                      <tr onClick={() => handleFileClick(d.path, !d.isDir)}>
                         <td class="p-2 flex items-center gap-2">
                           <span>
                             {d.isDir ? <i class="fa text-yellow-600 fa-folder"></i> : <FileIcon fileName={d.name} /> }

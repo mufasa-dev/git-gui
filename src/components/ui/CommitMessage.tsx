@@ -1,4 +1,5 @@
 import { For, Show, createMemo } from "solid-js";
+import { commitColors } from "../../utils/file";
 
 interface Props {
   message: string;
@@ -30,24 +31,6 @@ const CommitMessage = (props: Props) => {
       fullMessage: msg
     };
   });
-
-  // 2. Dicionário de Cores para as Tags
-  const colors: Record<string, string> = {
-    feat: "text-green-600 dark:text-green-400 font-bold",
-    fix: "text-amber-600 dark:text-amber-400 font-bold",
-    assets: "text-orange-500 dark:text-orange-400 font-medium",
-    docs: "text-blue-500 dark:text-blue-400",
-    style: "text-purple-500 dark:text-purple-400",
-    refactor: "text-cyan-600 dark:text-cyan-400",
-    perf: "text-rose-500 dark:text-rose-400",
-    test: "text-pink-500 dark:text-pink-400",
-    build: "text-emerald-600 dark:text-emerald-500",
-    chore: "text-slate-500 dark:text-slate-400",
-    ci: "text-indigo-500 dark:text-indigo-400",
-    revert: "text-red-600 dark:text-red-500 line-through",
-    error: "text-green-600 dark:text-green-400 font-bold",
-    start: "text-green-600 dark:text-green-400 font-bold",
-  };
 
   const renderContentWithCards = (text: string) => {
     const parts = text.split(/(#\d+)/g);
@@ -81,7 +64,7 @@ const CommitMessage = (props: Props) => {
         }
       >
         <Show when={parsed().type} fallback={renderContentWithCards(parsed().fullMessage || "")}>
-          <span class={colors[parsed().type!] || "text-gray-500 dark:text-gray-400"}>
+          <span class={commitColors[parsed().type!] || "text-gray-500 dark:text-gray-400"}>
             {parsed().type}: 
           </span>
           <Show when={parsed().scope}>

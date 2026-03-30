@@ -11,6 +11,7 @@ import { platform } from "@tauri-apps/plugin-os";
 import Header from "../components/layout/Header";
 import LateralBar from "../components/ui/LateralBar";
 import FilesList from "./FilesList";
+import Dashboard from "./Dashboard";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -130,9 +131,12 @@ export default function RepoTabsPage() {
               activePage() === 'commits' ? (
                 <RepoView repo={repos().find(r => r.path === active())!} refreshBranches={refreshBranches} />
               ) :
-              activePage() === 'files' && (
+              activePage() === 'files' ? (
                 <FilesList repo={repos().find(r => r.path === active())!} />
-              )
+              ) : 
+              activePage() === 'dashboard' && (
+                <Dashboard repo={repos().find(r => r.path === active())!} branch={repos().find(r => r.path === active())?.activeBranch} />
+              ) 
             ) : (
               <p class="text-gray-500 p-4">Nenhum repositório aberto</p>
             )}
