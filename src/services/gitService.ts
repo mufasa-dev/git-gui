@@ -1,7 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Branch } from "../models/Banch.model";
+import { Branch, BranchFileContentResponse } from "../models/Banch.model";
 import { Diff } from "../models/Diff.model";
 import { GitPullResult } from "../models/Pull.model";
+import { Commit, FileEntry } from "../models/Commit.model";
+import { CoverageStats } from "../models/Dashboard.model";
 
 export async function validateRepo(path: string): Promise<string> {
   return await invoke("open_repo", { path });
@@ -34,6 +36,34 @@ export async function getCommits(path: string, branch: string) {
   return await invoke<{ hash: string; message: string; author: string; date: string }[]>(
     "list_commits",
     { path, branch }
+  );
+}
+
+export async function getUserCommits(path: string, branch: string, email: string) {
+  return await invoke<{ hash: string; message: string; author: string; date: string }[]>(
+    "list_user_commits",
+    { path, branch, email }
+  );
+}
+
+export async function getLastCommitForPath(path: string, branch: string, filePath: string) {
+  return await invoke<Commit>(
+    "get_last_commit_for_path",
+    { path, branch, filePath }
+  );
+}
+
+export async function getPathHistory(path: string, branch: string, filePath: string) {
+  return await invoke<Commit[]>(
+    "get_path_history",
+    { path, branch, filePath }
+  );
+}
+
+export async function listDirectory(repoPath: string, branch: string, folderPath: string) {
+  return await invoke<FileEntry[]>(
+    "list_directory_with_commits",
+    { repoPath, branch, folderPath }
   );
 }
 
@@ -196,6 +226,23 @@ export async function listBranchFiles(repoPath: string, branch: string): Promise
   return await invoke("list_branch_files", { path: repoPath, branch });
 }
 
-export async function getBranchFileContent(repoPath: string, branch: string, filePath: string): Promise<string> {
+export async function listBranchFilesWithSize(repoPath: string, branch: string): Promise<[string, number][]> {
+  return await invoke("list_branch_files_with_size", { path: repoPath, branch });
+}
+
+export async function getBranchFileContent(repoPath: string, branch: string, filePath: string): Promise<BranchFileContentResponse> {
   return await invoke("get_branch_file_content", { path: repoPath, branch, filePath });
+}
+
+export async function getCodeCoverageRatio(path: string, branch: string): Promise<CoverageStats> {
+  return await invoke("get_code_coverage_ratio", { path, branch });
+}
+
+export async function getMostModifiedFiles(path: string, branch: string): Promise<any[]> {
+  try {
+    return await invoke("get_most_modified_files", { path, branch });
+  } catch (error) {
+    console.error("Erro ao buscar hotspots:", error);
+    return [];
+  }
 }

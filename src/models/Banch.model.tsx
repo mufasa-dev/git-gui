@@ -3,3 +3,10 @@ export type Branch = {
   ahead: number;
   behind: number;
 };
+
+export type BranchFileContentResponse = {
+    isImage: boolean;
+    content: string;
+    size: number;
+    lineCount: number;
+}

@@ -14,12 +14,13 @@ html {
   }
 
   .left-btn {
-    @apply flex flex-col justify-items-center items-center mb-2 text-gray-800 dark:text-gray-300
+    @apply flex flex-col justify-items-center items-center text-gray-800 dark:text-gray-300
           bg-transparent hover:bg-gray-300 dark:hover:bg-gray-900/50
-          border-0 py-1 cursor-pointer transition border-l-4 border-transparent;
+          grayscale hover:grayscale-[50%] transition-all duration-300
+          border-0 py-1 cursor-pointer border-l-4 border-transparent;
   }
   .left-btn.selected {
-    @apply bg-gray-300 dark:bg-gray-900 border-blue-500 dark:border-blue-400;
+    @apply bg-gray-300 dark:bg-gray-900 border-blue-500 dark:border-blue-400 grayscale-0;
   }
 
   .btn-primary {
@@ -42,16 +43,17 @@ html {
   }
 
   .cm-commit-item {
-    @apply flex items-center border-b border-gray-200 py-2 pl-4 pr-2 cursor-pointer dark:bg-gray-700 dark:border-gray-900 rounded-full mb-2;
+    @apply flex items-center border-b border-gray-200 py-2 pl-4 pr-2 cursor-pointer 
+          bg-gray-200 dark:bg-gray-700 dark:border-gray-900 rounded-full mb-2;
   }
   .cm-commit-item:hover {
-    @apply bg-gray-100 dark:bg-gray-600/50; 
+    @apply bg-gray-300 dark:bg-gray-600/50; 
   }
   .cm-commit-item.selected {
-    @apply bg-blue-400 dark:text-black;
+    @apply bg-blue-500 dark:text-black;
   }
   .cm-commit-item.selected:hover {
-    @apply bg-blue-400 dark:text-black; 
+    @apply bg-blue-500 dark:text-black; 
   }
 
   .resize-bar-vertical { 
@@ -71,6 +73,58 @@ html {
 
   .container-branch-list {
     @apply flex flex-col space-y-2 bg-gray-100 dark:bg-gray-800 p-2 rounded-2xl border border-gray-300 dark:border-gray-700;
+  }
+
+  .clicked_label {
+    @apply cursor-pointer;
+  }
+  .clicked_label:hover {
+    @apply text-blue-500 dark:text-blue-400 font-bold underline;
+  }
+
+  .table-striped {
+    @apply w-full text-left border-collapse;
+  }
+
+  /* Cabeçalho fixo e estilizado */
+  .table-striped thead {
+    @apply sticky top-0 left-0 z-10;
+  }
+
+  .table-striped thead tr {
+    @apply border-b border-gray-300 bg-gray-200 
+           dark:border-gray-700 dark:bg-gray-800; /* Ajustei para bg-gray-800 no dark para contrastar melhor */
+  }
+
+  .table-striped th {
+    @apply p-2 font-semibold text-gray-700 dark:text-gray-200;
+  }
+
+  /* Linhas e o efeito listrado (Zebra) */
+  .table-striped tbody tr {
+    @apply transition-colors cursor-pointer border-b border-transparent;
+    @apply odd:bg-transparent;
+    /* Efeito listrado */
+    @apply even:bg-gray-200 dark:even:bg-gray-900/40;
+  }
+
+  /* Efeitos de Hover */
+  .table-striped tbody tr:hover {
+    @apply bg-blue-500/10 dark:bg-blue-400/10;
+  }
+
+  /* Células */
+  .table-striped td {
+    @apply p-2 align-middle;
+  }
+
+  /* Classes auxiliares para os textos dentro da tabela */
+  .table-striped .cell-secondary {
+    @apply text-gray-500 dark:text-gray-400 text-sm italic;
+  }
+
+  .table-striped .cell-date {
+    @apply text-gray-400 dark:text-gray-500 text-xs text-right whitespace-nowrap;
   }
 }
 
@@ -125,4 +179,16 @@ html {
           drop-shadow(-1px -1px 1px #000) 
           contrast(1.2) brightness(0.9);
   color: #c0c0c0;
+}
+
+.bg-checkered {
+  background-color: #ffffff;
+  background-image: radial-gradient(#ccc 1px, transparent 0);
+  background-size: 10px 10px;
+  background-position: -5px -5px;
+}
+
+.dark .bg-checkered {
+  background-color: #1f2937;
+  background-image: radial-gradient(#374151 1px, transparent 0);
 }

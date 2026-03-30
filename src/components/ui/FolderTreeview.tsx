@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import FileIcon from "./FileIcon";
 import alertIcon from '../../assets/alert.png';
 
@@ -144,6 +144,18 @@ function TreeNode(props: {
     return status.charAt(0).toUpperCase();
   }
 
+  createEffect(() => {
+    if (!props.node.__isFile) {
+      const isChildSelected = props.selected.some(selectedPath => 
+        selectedPath.startsWith(props.path + "/") || selectedPath === props.path
+      );
+
+      if (isChildSelected) {
+        setOpen(true);
+      }
+    }
+  });
+
   return (
     <li oncontextmenu={(e) => { 
       e.preventDefault();
@@ -179,7 +191,10 @@ function TreeNode(props: {
           </span>
         ) : (
           <>
-            <span class="mr-1" onClick={() => setOpen(!open())}>
+            <span class="mr-1" onClick={(e) => {
+              e.stopPropagation();
+              setOpen(!open());
+            }}>
               <i class="fa-solid" classList={{ 'fa-caret-down': open(), 'fa-caret-right': !open() }}></i>
             </span>
             <span title={props.name} class="truncate">
@@ -191,7 +206,7 @@ function TreeNode(props: {
 
       <Show when={open() && !props.node.__isFile}>
         <ul>
-          <For each={Object.entries(props.node.__children)}>
+          <For each={props.sortFn(Object.entries(props.node.__children))}>
             {([name, child]: any) => (
               <TreeNode
                 node={child}

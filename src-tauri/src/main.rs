@@ -6,6 +6,7 @@ mod utils;
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -21,11 +22,16 @@ fn main() {
             commands::branch::delete_branch,
             commands::branch::delete_remote_branch,
             commands::branch::list_branch_files,
+            commands::branch::list_branch_files_with_size,
             commands::branch::get_branch_file_content,
             commands::commit::list_commits,
+            commands::commit::list_user_commits,
             commands::commit::get_commit_details,
             commands::commit::git_commit,
             commands::commit::get_commit_file_diff,
+            commands::commit::get_last_commit_for_path,
+            commands::commit::get_path_history,
+            commands::commit::list_directory_with_commits,
             commands::stage::list_local_changes,
             commands::stage::stage_files,
             commands::stage::unstage_files,
@@ -51,7 +57,9 @@ fn main() {
             commands::merge::save_file,
             commands::pull_request::open_pull_request,
             commands::git_config::get_git_config,
-            commands::git_config::set_git_config
+            commands::git_config::set_git_config,
+            commands::dashboard::get_code_coverage_ratio,
+            commands::dashboard::get_most_modified_files
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");

@@ -100,7 +100,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
       onClose={props.onClose} 
       title="Configurações do Repositório"
       bodyClass="p-0"
-      width={600}
+      width={'600px'}
     >
       {/* HEADER DAS ABAS */}
       <div class="flex bg-gray-200 dark:bg-gray-900 px-1 pt-1">

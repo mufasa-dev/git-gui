@@ -7,6 +7,9 @@ export default {
   ],
   theme: {
     extend: {
+      fontSize: {
+        base: "14px",
+      },
       keyframes: {
         'bounce-in': {
           '0%': { transform: 'scale(0.95) translateX(10px)', opacity: '0' },
@@ -22,10 +25,7 @@ export default {
         'bounce-in': 'bounce-in 0.35s ease-out forwards',
         'fade-out': 'fade-out 0.2s ease-in forwards',
       },
-    },
-    fontSize: {
-      base: "14px",
-    },
+    }
   },
   plugins: [],
 }

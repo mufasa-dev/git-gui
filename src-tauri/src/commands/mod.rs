@@ -8,3 +8,4 @@ pub mod image;
 pub mod merge;
 pub mod pull_request;
 pub mod git_config;
+pub mod dashboard;

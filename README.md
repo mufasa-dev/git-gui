@@ -1,4 +1,4 @@
-# 🖥️ Git GUI Tauri
+# 🖥️ Git Trident
 
 A **cross-platform desktop app** for managing **Git repositories**, built with **[Tauri](https://tauri.app/)** and **[SolidJS](https://www.solidjs.com/)**, styled using **TailwindCSS**.
 
@@ -69,7 +69,7 @@ npm run tauri build
 
 ---
 
-## 🖼️ Preview (mock)
+## 🖼️ Preview
 
 > *(Em breve)* 📸
 
@@ -80,7 +80,8 @@ npm run tauri build
 * [ ] Show commit history with diffs 🔍
 * [ ] Support multiple remotes 🌎
 * [ ] Visual merge & rebase 🧩
-* [ ] Git user settings ⚙️
+* [X] Git user settings ⚙️
+* [ ] Git stash and tags 📝
 
 ---
 

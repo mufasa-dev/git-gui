@@ -16,6 +16,17 @@
     "store:allow-get",
     "store:allow-set",
     "store:allow-save",
-    "os:default"
+    "os:default",
+    "http:default",
+    "http:allow-fetch-send",
+    {
+      "identifier": "http:allow-fetch-send",
+      "allow": [{ "url": "https://*.gravatar.com/*" }]
+    },
+    "http:allow-fetch",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [{ "url": "https://*.gravatar.com/*" }]
+    }
   ]
 }

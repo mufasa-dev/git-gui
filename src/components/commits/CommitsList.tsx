@@ -5,6 +5,8 @@ import { formatRelativeDate } from "../../utils/date";
 import { CommitDetails } from "./CommitDetails";
 import { datepicker } from "../../directives/datepicker";
 import { notify } from "../../utils/notifications";
+import { getGravatarUrl } from "../../services/gravatarService";
+import CommitMessage from "../ui/CommitMessage";
 
 declare module "solid-js" {
   namespace JSX {
@@ -101,14 +103,24 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   }
 
   createEffect(on(() => [props.repo.path, props.branch], ([path, branch], prev) => {
-    const isNewRepoOrBranch = !prev || path !== prev[0] || branch !== prev[1];
-    
-    if (isNewRepoOrBranch) {
-       setCurrentPage(1);
-       setSelectedCommit(null);
-       loadCommits(true);
+    const isNewRepo = !prev || path !== prev[0];
+    const isNewBranch = !prev || branch !== prev[1];
+
+    if (isNewRepo) {
+      setCommits([]);
+      setCurrentPage(1);
+      setSelectedCommit(null);
+    }
+
+    const branchExists = props.repo.branches.some(b => b.name === branch) || 
+                        props.repo.remoteBranches?.includes(branch ||  "");
+
+    if (isNewRepo || isNewBranch) {
+      if (branchExists) {
+        loadCommits(isNewRepo);
+      }
     } else {
-       loadCommits(false);
+      loadCommits(false);
     }
   }));
 
@@ -202,9 +214,18 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                     onClick={() => selectCommit(c.hash)}
                   >
                     <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
-                    <div class="font-semibold px-2 flex-1 truncate">{c.message}</div>
-                    <div class="text-xs opacity-50 ml-auto whitespace-nowrap">{c.author}</div>
-                    <div class="px-2 text-xs">{formatRelativeDate(c.date)}</div>
+                    <div class="font-semibold px-2 flex-1 truncate">
+                      <CommitMessage message={c.message} />
+                    </div>
+                    <div class="text-xs ml-auto whitespace-nowrap flex items-center gap-2 w-[200px]">
+                      <img
+                        src={getGravatarUrl(c.email, 80)}
+                        alt={c.author}
+                        class="w-[18px] h-[18px] rounded shadow-sm"
+                      /> 
+                      <span class="opacity-50 truncate">{c.author}</span>
+                    </div>
+                    <div class="px-2 text-xs w-[182px] text-right truncate">{formatRelativeDate(c.date)}</div>
                   </div>
                 )}
               </For>
@@ -218,7 +239,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       
       {/* Detalhes */}
       <div style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px" }} class="overflow-auto container-branch-list p-0 mt-1">
-        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} selectCommit={selectCommit} />
+        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={props.branch || ""} selectCommit={selectCommit} />
       </div>
     </div>
   );
