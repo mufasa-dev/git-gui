@@ -155,6 +155,7 @@ export default function FileIcon(props: FileIconProps) {
       zsh: gitIcon,
       sh: gitIcon,
       editorconfig: gitIcon,
+      gitkeep: gitIcon,
       go: goIcon,
       mod: goIcon,
       sum: goIcon,

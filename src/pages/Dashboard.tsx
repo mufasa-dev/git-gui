@@ -165,7 +165,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   const totalContributors = createMemo(() => contributorStats().length);
 
   // Pega apenas os top 5 para a tabela
-  const topContributors = createMemo(() => contributorStats().slice(0, 5));
+  const topContributors = createMemo(() => contributorStats().slice(0, 100));
 
   return (
     <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-4 pr-2"  style={{"height": "calc(100vh - 101px)"}} 

@@ -11,6 +11,8 @@ const TAG_MAPPING: Record<string, string> = {
   // Features
   feature: "feat",
   ft: "feat",
+  fet: "feat",
+  featt: "feat",
   // Fixes
   bug: "fix",
   fixed: "fix",
@@ -27,6 +29,9 @@ const TAG_MAPPING: Record<string, string> = {
   // Chore
   chores: "chore",
   chord: "chore",
+  // Outros
+  srtle: "other",
+  other: "other"
 };
 
 // Função auxiliar para normalizar a tag

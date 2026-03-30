@@ -26,6 +26,9 @@ const LANGUAGE_GROUPS: Record<string, string> = {
   tres: "Godot Resource",
   cs: "C#",
   csproject: "C#",
+  cshtml: "C#",
+  razor: "C#",
+  sln: "C#",
   cpp: "C++",
   hpp: "C++",
   h: "C++",
@@ -44,7 +47,14 @@ const LANGUAGE_GROUPS: Record<string, string> = {
   makefile: "MakeFile",
   dockerfile: "Dockerfile",
   graphql: "GraphQL",
-  graphqls: "GraphQL"
+  graphqls: "GraphQL",
+  sql: "SQL",
+  bat: "Bat",
+  ttf: "Font",
+  woff: "Font",
+  woff2: "Font",
+  otf: "Font",
+  eot: "Font"
 };
 
 // Cores baseadas no NOME DO GRUPO agora
@@ -59,6 +69,8 @@ const GROUP_COLORS: Record<string, string> = {
   "C#": "#178600",
   "C++": "#f34b7d",
   "Asp": "#6a40fd",
+  "Aspx": "#6a40fd",
+  "Asax": "#6a40fd",
   "Python": "#3572A8",
   "Java": "#b07219",
   "Ruby": "#701516",
@@ -71,7 +83,10 @@ const GROUP_COLORS: Record<string, string> = {
   "MakeFile": "#427819",
   "Dockerfile": "#384d54",
   "GraphQL": "#e10098",
+  "SQL": "#e38c00",
   "Toml": "#9c4221",
+  "Bat": "#1f1f1f",
+  "Font": "#f7e03d",
   "Other": "#8b949e"
 };
 
@@ -80,16 +95,18 @@ const IGNORED_EXTENSIONS = [
   // Imagens
   'png', 'icns', 'bmp', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp',
   // Binários e outros
-  'exe', 'dll', 'so', 'lock', 'bin', 'ttf', 'woff', 'woff2', 'mp4', "mp3", 'avi', 'mov', 'zip', 'tar', 'gz', '7z', 'log',
+  'exe', 'dll', 'so', 'lock', 'bin', 'ttf', 'woff', 'woff2', 'mp4', "mp3", 'avi', 'mov', 'zip', 'log', 'map',
   'pdf', 'docx', 'xlsx', 'DS_Store', 'DS_Store', 'json', 'yml', 'yaml', 'env', 'env.local', 'env.development', 'env.production',
   'md', 'markdown', 'txt', 'rtf', 'csv', 'tsv', 'log', 'lock', 'bin', 'iso', 'dmg', 'app', 'apk', 'jar', 'war', 'ear', 'txt', 'log',
-  'zip', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml',
+  'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml',
   // Configurações e Metadados
   'gitignore', 'gitattributes', 'editorconfig', 'eslintignore', 'prettierignore',
   // Outros arquivos de configuração comuns
-  'vscode', 'idea', 'sublime-project', 'sublime-workspace',
-   // Godot
-  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp'
+  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj',
+  'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload',
+  'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc',
+  // Godot
+  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'conf', 'dll', 'resx'
 ];
 
 // O seu componente continua recebendo a lista do Rust: { path, size }
@@ -107,6 +124,8 @@ export default function LanguageBar(props: { files: { path: string, size: number
         path.includes('.godot/') ||    // Cache da Godot 4
         path.includes('.import/') ||   // Assets importados
         path.includes('node_modules/') || 
+        path.includes('/bin/') || 
+        path.includes('/obj/') || 
         path.includes('target/')       // Build do Rust
       ) {
         return false;
