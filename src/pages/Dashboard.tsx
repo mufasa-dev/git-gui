@@ -12,6 +12,7 @@ import TestCoverageDonut from "../components/Dashboard/TestCoverageDonut";
 import HourlyActivityChart from "../components/Dashboard/HourlyActivityChart";
 import HotspotsTable from "../components/Dashboard/HotspotsTable";
 import { UserProfileDialog } from "../components/Config/UserProfile";
+import { formatContributorName } from "../utils/user";
 
 declare module "solid-js" {
   namespace JSX {
@@ -242,7 +243,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
                               class="w-[18px] h-[18px] rounded-full shadow-sm"
                             /> 
                         </div>
-                        <span class="truncate font-medium">{contributor.name}</span>
+                        <span class="truncate font-medium">{formatContributorName(contributor.name)}</span>
                       </td>
                       <td class="py-2 text-right font-mono">{contributor.count}</td>
                       <td class="py-2 text-right text-gray-500">
@@ -274,7 +275,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
           repoPath={props.repo.path || ""} 
           branch={props.branch || ""}
           email={selectedUser()?.email || ""}
-          fallbackName={selectedUser()?.name || "Usuário Desconhecido"} 
+          fallbackName={formatContributorName(selectedUser()?.name) || "Usuário Desconhecido"} 
           open={modalUserProfileOpen()}
           onClose={() => {
             setModalUserProfileOpen(false)

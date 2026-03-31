@@ -29,6 +29,8 @@ const TAG_MAPPING: Record<string, string> = {
   // Chore
   chores: "chore",
   chord: "chore",
+  // Translate
+  i18n: "translate",
   // Outros
   srtle: "other",
   other: "other"
