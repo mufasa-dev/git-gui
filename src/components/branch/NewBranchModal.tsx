@@ -21,9 +21,20 @@ export default function BranchSwitchModal(props: Props) {
     <Dialog open={props.open} title="Nova Branch" onClose={props.onCancel}>
         <div>
           <label>Nome da branch:</label>
-          <input type="text" class="w-full input-text" placeholder="Nome da nova branch"
+          <input 
+            type="text" 
+            class="w-full input-text" 
+            placeholder="Nome da nova branch"
             value={branchName()}
-            onInput={(e) => setBranchName(e.currentTarget.value)} />
+            onInput={(e) => {
+              const sanitized = e.currentTarget.value
+                .replace(/\s/g, "_")
+                .replace(/[~^:?*\[\\]/g, "");
+
+              e.currentTarget.value = sanitized;
+              setBranchName(sanitized);
+            }} 
+          />
         </div>
 
         <div>

@@ -95,7 +95,7 @@ const CommitTypeDistribution = (props: Props) => {
     <div class="p-2 h-full flex flex-col">
       <div class="flex items-center gap-2 mb-5">
         <i class="fa-solid fa-chart-pie text-blue-400 text-xs"></i>
-        <h3 class="text-[11px] font-bold text-gray-900 dark:text-white uppercase tracking-widest">
+        <h3 class="font-bold text-gray-900 dark:text-white tracking-widest">
           Tipos de Commits
         </h3>
       </div>
@@ -131,7 +131,7 @@ const CommitTypeDistribution = (props: Props) => {
               <div class="flex items-center justify-between group">
                 <div class="flex items-center gap-2">
                   <span 
-                    class="w-2 h-2 rounded-full shadow-sm" 
+                    class="w-3.5 h-3.5 rounded-full shadow-sm" 
                     style={{ "background-color": item.color }} 
                   />
                   <span class={`font-bold transition-colors capitalize text-gray-700 dark:text-gray-300 group-hover:text-blue-500`}>

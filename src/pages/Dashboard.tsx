@@ -120,8 +120,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     if (!props.repo.path || !props.branch) return;
     try {
       const files = await listBranchFilesWithSize(props.repo.path, props.branch);
-      const mappedFiles = files.map(f => ({ path: f[0], size: f[1] })); 
-      console.log("Arquivos do branch:", mappedFiles);
+      const mappedFiles = files.map(f => ({ path: f[0], size: f[1] }));
       setBranchFiles(mappedFiles);
     } catch (e) {
       console.error("Erro ao carregar arquivos do branch:", e);

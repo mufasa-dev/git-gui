@@ -46,9 +46,12 @@ import svelteIcon from "../../assets/svelte.png";
 import astroIcon from "../../assets/astro.png";
 import luaIcon from "../../assets/lua.png";
 import juliaIcon from "../../assets/julia.png";
+import coffeeIcon from "../../assets/coffee.png";
+import vbsIcon from "../../assets/vbs.png";
 import delphiIcon from "../../assets/delphi.png";
 import pascalIcon from "../../assets/pascal.png";
 import dllIcon from "../../assets/dll.png";
+import flashIcon from "../../assets/flash.png";
 import rpgMakerIcon from "../../assets/rpg_maker.png";
 import androidIcon from "../../assets/android.png";
 import dockerIcon from "../../assets/docker.png";
@@ -63,6 +66,7 @@ import esIcon from "../../assets/flags/es.png";
 import enIcon from "../../assets/flags/us.png";
 import itIcon from "../../assets/flags/it.png";
 import frIcon from "../../assets/flags/fr.png";
+import deIcon from "../../assets/flags/de.png";
 import seIcon from "../../assets/flags/se.png";
 import cnIcon from "../../assets/flags/cn.png";
 import jpIcon from "../../assets/flags/jp.png";
@@ -94,6 +98,7 @@ export default function FileIcon(props: FileIconProps) {
     if (['en.ts', 'en.json', 'en-us.ts', 'en-us.json', 'en_us.json'].includes(name.toLowerCase())) return enIcon;
     if (['it.ts', 'it.json', 'it-it.ts', 'it-it.json', 'it_it.json'].includes(name.toLowerCase())) return itIcon;
     if (['fr.ts', 'fr.json', 'fr-fr.ts', 'fr-fr.json', 'fr_fr.json'].includes(name.toLowerCase())) return frIcon;
+    if (['de.ts', 'de.json', 'de-de.ts', 'de-de.json', 'de_de.json'].includes(name.toLowerCase())) return deIcon;
     if (['se.ts', 'se.json', 'se-se.ts', 'se-se.json', 'se_se.json'].includes(name.toLowerCase())) return seIcon;
     if (['cn.ts', 'cn.json', 'cn-cn.ts', 'cn-cn.json', 'cn_cn.json'].includes(name.toLowerCase())) return cnIcon;
     if (['jp.ts', 'jp.json', 'jp-jp.ts', 'jp-jp.json', 'jp_jp.json'].includes(name.toLowerCase())) return jpIcon;
@@ -193,6 +198,8 @@ export default function FileIcon(props: FileIconProps) {
       inl: cppIcon,
       lua: luaIcon,
       julia: juliaIcon,
+      vbs: vbsIcon,
+      oca: vbsIcon,
       dockerfile: dockerIcon,
       dockerignore: dockerIcon,
       toml: packageIcon,
@@ -218,6 +225,7 @@ export default function FileIcon(props: FileIconProps) {
       dpk: packageIcon,
       pascal: pascalIcon,
       pas: pascalIcon,
+      coffee: coffeeIcon,
       apk: androidIcon,
       rpgmaker: rpgMakerIcon,
       rvdata2: databaseIcon,
@@ -237,6 +245,8 @@ export default function FileIcon(props: FileIconProps) {
       avi: videoIcon,
       mov: videoIcon,
       wmv: videoIcon,
+      swf: flashIcon,
+      swc: flashIcon,
       config: configIcon
     };
 

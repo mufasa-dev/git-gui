@@ -241,7 +241,7 @@ pub async fn list_branch_files(path: String, branch: String) -> Result<Vec<Strin
 #[tauri::command]
 pub async fn list_branch_files_with_size(path: String, branch: String) -> Result<Vec<(String, u64)>, String> {
     let output = git_command_async(&path)
-        .args(["ls-tree", "-r", "-l", &branch]) // Adicionado -l
+        .args(["ls-tree", "-r", "-l", "-z", &branch])
         .output()
         .await
         .map_err(|e| e.to_string())?;
@@ -250,20 +250,22 @@ pub async fn list_branch_files_with_size(path: String, branch: String) -> Result
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
 
-    let raw = String::from_utf8_lossy(&output.stdout);
-    let files: Vec<(String, u64)> = raw
-        .lines()
-        .filter_map(|line| {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 5 {
+    let stdout = output.stdout;
+    let mut files = Vec::new();
+
+    for entry in stdout.split(|&b| b == 0) {
+        if entry.is_empty() { continue; }
+        
+        let line = String::from_utf8_lossy(entry);
+        
+        if let Some((info, name)) = line.split_once('\t') {
+            let parts: Vec<&str> = info.split_whitespace().collect();
+            if parts.len() >= 4 {
                 let size = parts[3].parse::<u64>().unwrap_or(0);
-                let name = parts[4..].join(" ");
-                Some((name, size))
-            } else {
-                None
+                files.push((name.to_string(), size));
             }
-        })
-        .collect();
+        }
+    }
 
     Ok(files)
 }

@@ -26,6 +26,7 @@ const LANGUAGE_GROUPS: Record<string, string> = {
   tres: "Godot Resource",
   cs: "C#",
   csproject: "C#",
+  csproj: "C#",
   cshtml: "C#",
   razor: "C#",
   sln: "C#",
@@ -33,28 +34,45 @@ const LANGUAGE_GROUPS: Record<string, string> = {
   hpp: "C++",
   h: "C++",
   asp: "Asp",
+  aspx : "Aspx",
+  vbs: "VBScript",
+  oca: "VBScript",
   // Frameworks
   svelte: "Svelte",
   vue: "Vue",
   astro: "Astro",
   // Styles
   css: "CSS",
-  scss: "CSS",
+  sass: "CSS",
+  scss: "SCSS",
   less: "CSS",
   // Outros
   html: "HTML",
+  htm: "HTML",
+  ghtml: "HTML",
   php: "PHP",
   makefile: "MakeFile",
   dockerfile: "Dockerfile",
   graphql: "GraphQL",
   graphqls: "GraphQL",
   sql: "SQL",
+  db: "Db",
   bat: "Bat",
+  coffee: "Coffee",
+  lua: "Lua",
+  julia: "Julia",
   ttf: "Font",
   woff: "Font",
   woff2: "Font",
   otf: "Font",
-  eot: "Font"
+  eot: "Font",
+  swf: "Adobe Flash",
+  swc: "Adobe Flash",
+  json: "Json",
+  config: "Config",
+  conf: "Config",
+  settings: "Config",
+  asa: "Config"
 };
 
 // Cores baseadas no NOME DO GRUPO agora
@@ -63,6 +81,7 @@ const GROUP_COLORS: Record<string, string> = {
   "JavaScript": "#f1e05a",
   "Rust": "#dea584",
   "CSS": "#563d7c",
+  "SCSS" : "#c6538c",
   "HTML": "#e34c26",
   "PHP": "#4f5d95",
   "Go": "#41acd5",
@@ -71,9 +90,12 @@ const GROUP_COLORS: Record<string, string> = {
   "Asp": "#6a40fd",
   "Aspx": "#6a40fd",
   "Asax": "#6a40fd",
+  "VBScript": "#145cab",
   "Python": "#3572A8",
   "Java": "#b07219",
   "Ruby": "#701516",
+  "Julia": "#f3705a",
+  "Lua": "#000080",
   "GDScript": "#355570",
   "Godot Scene": "#eb5555",
   "Godot Resource": "#eb5555",
@@ -84,9 +106,14 @@ const GROUP_COLORS: Record<string, string> = {
   "Dockerfile": "#384d54",
   "GraphQL": "#e10098",
   "SQL": "#e38c00",
+  "Db": "#e38c00",
   "Toml": "#9c4221",
   "Bat": "#1f1f1f",
   "Font": "#f7e03d",
+  "Adobe Flash": "#f7e03d",
+  "Json": "#51aff7",
+  "Coffee": "#6f4c3e",
+  "Config": "#8b949e",
   "Other": "#8b949e"
 };
 
@@ -96,17 +123,17 @@ const IGNORED_EXTENSIONS = [
   'png', 'icns', 'bmp', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp',
   // Binários e outros
   'exe', 'dll', 'so', 'lock', 'bin', 'ttf', 'woff', 'woff2', 'mp4', "mp3", 'avi', 'mov', 'zip', 'log', 'map',
-  'pdf', 'docx', 'xlsx', 'DS_Store', 'DS_Store', 'json', 'yml', 'yaml', 'env', 'env.local', 'env.development', 'env.production',
+  'pdf', 'docx', 'xlsx', 'DS_Store',  'yml', 'yaml', 'env', 'env.local', 'env.development', 'env.production',
   'md', 'markdown', 'txt', 'rtf', 'csv', 'tsv', 'log', 'lock', 'bin', 'iso', 'dmg', 'app', 'apk', 'jar', 'war', 'ear', 'txt', 'log',
-  'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml',
+  'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'ds_store', 'nfo', 'def',
   // Configurações e Metadados
-  'gitignore', 'gitattributes', 'editorconfig', 'eslintignore', 'prettierignore',
+  'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'cer', 'dep',
   // Outros arquivos de configuração comuns
-  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj',
+  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults',
   'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload',
-  'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc',
+  'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc', 'ini', 'old', 'new', 'lic', 'log', 'bak', 'backup', 'temp', 'cache', 'dist', 'out', 'build', 'target', 'obj',
   // Godot
-  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'conf', 'dll', 'resx'
+  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz'
 ];
 
 // O seu componente continua recebendo a lista do Rust: { path, size }
@@ -130,7 +157,12 @@ export default function LanguageBar(props: { files: { path: string, size: number
       ) {
         return false;
       }
-      const ext = file.path?.split('.')?.pop()?.toLowerCase() || '';
+      const fileName = path.split('/').pop() || ''; 
+      const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
+      
+      if (LANGUAGE_GROUPS[fileName.toLowerCase()]) {
+        return true;
+      }
       
       if (!ext || IGNORED_EXTENSIONS.includes(ext)) {
         return false;
@@ -148,13 +180,12 @@ export default function LanguageBar(props: { files: { path: string, size: number
     let totalBytes = 0;
 
     files.forEach(file => {
-      const ext = file.path?.split('.')?.pop()?.toLowerCase() || '';
+      const fileName = file.path.split('/').pop()?.toLowerCase() || '';
+      const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
       
-      // 1. Descobre a qual grupo essa extensão pertence
-      const groupName = LANGUAGE_GROUPS[ext] || "Other";
+      const groupName = LANGUAGE_GROUPS[fileName] || LANGUAGE_GROUPS[ext || ''] || "Other";
+      
       const size = file.size || 0;
-      
-      // 2. Acumula os bytes no grupo correspondente
       sizeByGroup[groupName] = (sizeByGroup[groupName] || 0) + size;
       totalBytes += size;
     });
@@ -165,9 +196,9 @@ export default function LanguageBar(props: { files: { path: string, size: number
         percent: ((bytes / totalBytes) * 100).toFixed(1),
         color: GROUP_COLORS[name] || GROUP_COLORS.Other
       }))
-      .filter(lang => parseFloat(lang.percent) > 0.1)
+      .filter(lang => parseFloat(lang.percent) > 0.0)
       .sort((a, b) => parseFloat(b.percent) - parseFloat(a.percent))
-      .slice(0, 6);
+      .slice(0, 14);
   });
 
   return (
@@ -192,21 +223,21 @@ export default function LanguageBar(props: { files: { path: string, size: number
         </For>
       </div>
 
-      {/* Legenda em Grid de 2 Colunas */}
-      <div class="grid grid-cols-2 gap-x-8 gap-y-4">
+      {/* Legenda: 1 Coluna em telas pequenas (default), 2 colunas em telas 'sm' ou maiores */}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 overflow-y-auto pr-2">
         <For each={stats()}>
           {(lang) => (
-            <div class="flex items-center justify-between group">
-              <div class="flex items-center gap-3">
+            <div class="flex items-center justify-between group min-w-0">
+              <div class="flex items-center gap-3 min-w-0">
                 <span 
-                  class="w-3.5 h-3.5 rounded-full shadow-sm" 
+                  class="w-3.5 h-3.5 rounded-full shadow-sm shrink-0" 
                   style={{ "background-color": lang.color }}
                 />
-                <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 truncate">
                   {lang.name}
                 </span>
               </div>
-              <span class="text-sm text-gray-500 dark:text-gray-400 font-medium">
+              <span class="text-xs text-gray-500 dark:text-gray-400 font-medium ml-2 shrink-0">
                 {lang.percent}%
               </span>
             </div>

@@ -29,7 +29,7 @@ export default function TestCoverageDonut(props: Props) {
   });
 
   return (
-    <div class="p-2 h-full flex flex-col items-center justify-between min-h-[220px]">
+    <div class="p-2 h-full flex flex-col items-center justify-between min-h-[220px] overflow-hidden">
       {/* Título */}
       <div class="flex items-center justify-between w-full mb-1">
         <h3 class="font-bold text-gray-800 dark:text-gray-100 tracking-widest">

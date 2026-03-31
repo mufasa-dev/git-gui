@@ -21,7 +21,7 @@ export default function HotspotsTable(props: Props) {
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold text-black dark:text-white tracking-widest flex items-center gap-2">
           <i class="fa-solid fa-fire text-orange-500"></i>
-          Arquivos Mais Modificados (Hotspots)
+          Arquivos Mais Modificados
         </h3>
         <Show when={hotspots.loading}>
           <div class="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
@@ -49,7 +49,7 @@ export default function HotspotsTable(props: Props) {
                   <td class="max-w-[200px]">
                     <div class="flex flex-col">
                       <span class="truncate text-xs text-gray-900 dark:text-gray-200 font-mono group-hover:text-blue-400 transition-colors flex items-center gap-1">
-                        <FileIcon fileName={file.name} /> {file.name.split('/').pop()}
+                        <FileIcon fileName={file.name.split('/').pop()} /> {file.name.split('/').pop()}
                       </span>
                       <span class="text-[9px] text-gray-800 dark:text-gray-400 truncate">
                         {file.name.split('/').slice(0, -1).join('/') || './'}

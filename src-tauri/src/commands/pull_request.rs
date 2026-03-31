@@ -55,8 +55,8 @@ pub async fn open_pull_request(path: String, branch: String) -> Result<(), Strin
         )
     } else if web_url.contains("dev.azure.com") || web_url.contains("visualstudio.com") {
         format!(
-            "{}/pullrequestcreate?sourceRef={}&targetRef={}",
-            web_url, branch, target_branch
+            "{}/pullrequestcreate?sourceRef={}",
+            web_url, branch
         )
     } else {
         return Err(format!("Serviço Git desconhecido: {}", web_url));

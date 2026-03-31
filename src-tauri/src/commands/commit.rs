@@ -2,6 +2,7 @@ use serde::Serialize;
 use tauri::command;
 use serde_json::{json, Value};
 use crate::utils::git_command;
+use rayon::prelude::*;
 
 #[derive(Serialize)]
 pub struct Commit {
@@ -303,8 +304,9 @@ pub fn list_directory_with_commits(
         format!("{}:{}", branch, path_with_slash)
     };
 
+    // 1. Lista os arquivos (LS-TREE) - Rápido
     let output = git_command(&repo_path)
-        .args(&["ls-tree", "--name-only", &target_path])
+        .args(&["ls-tree", "-l", &target_path])
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -313,44 +315,49 @@ pub fn list_directory_with_commits(
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut entries = Vec::new();
+    
+    // 2. Coleta as linhas em um Vec para podermos paralelizar
+    let lines: Vec<&str> = stdout.lines().collect();
 
-    for name in stdout.lines() {
-        // Constrói o path relativo completo para buscar o commit
+    // 3. PROCESSAMENTO PARALELO (O segredo da velocidade)
+    let entries: Vec<FileEntry> = lines.into_par_iter().map(|line| {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 5 { return None; }
+
+        let is_dir = parts[1] == "tree";
+        let name = parts[4..].join(" ");
+
         let full_item_path = if folder_path.is_empty() || folder_path == "." {
-            name.to_string()
+            name.clone()
         } else {
             format!("{}/{}", folder_path.trim_end_matches('/'), name)
         };
 
-        // Verifica se é diretório (usando o próprio Git para ser consistente)
-        let type_check = git_command(&repo_path)
-            .args(&["cat-file", "-t", &format!("{}:{}", branch, full_item_path)])
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-            .unwrap_or_else(|_| "blob".to_string());
-
-        // Busca o último commit deste item específico
+        // Agora cada thread busca o seu commit de forma independente
         let last_commit = get_last_commit_for_path(
             repo_path.clone(), 
             branch.clone(), 
             full_item_path.clone()
         ).unwrap_or(None);
 
-        entries.push(FileEntry {
-            name: name.to_string(),
+        Some(FileEntry {
+            name,
             path: full_item_path,
-            is_dir: type_check == "tree",
+            is_dir,
             last_commit,
-        });
-    }
+        })
+    })
+    .filter_map(|x| x) // Remove os Nones
+    .collect();
 
-    entries.sort_by(|a, b| {
+    // 4. Ordenação final
+    let mut final_entries = entries;
+    final_entries.sort_by(|a, b| {
         if a.is_dir != b.is_dir {
             return b.is_dir.cmp(&a.is_dir); 
         }
         a.name.to_lowercase().cmp(&b.name.to_lowercase())
     });
 
-    Ok(entries)
+    Ok(final_entries)
 }

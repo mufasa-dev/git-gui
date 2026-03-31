@@ -15,46 +15,58 @@ export default function ContributionGraph(props: { commits: any[] }) {
 
   const calendarData = createMemo(() => {
     const commitMap: Record<string, number> = {};
+    
     props.commits.forEach(c => {
-      const date = new Date(c.date).toISOString().split('T')[0];
-      commitMap[date] = (commitMap[date] || 0) + 1;
+      const d = new Date(c.date);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      commitMap[dateStr] = (commitMap[dateStr] || 0) + 1;
     });
 
     const filter = yearFilter();
     let startDate: Date;
     let endDate: Date;
     const today = new Date();
+    // Zerar horas para comparações precisas
+    today.setHours(0, 0, 0, 0);
 
     if (filter === "last_year") {
-      // Últimos 365 dias
       startDate = new Date(today);
       startDate.setDate(today.getDate() - 364);
-      startDate.setDate(startDate.getDate() - startDate.getDay()); // Alinha no domingo
-      endDate = today;
     } else {
-      // Ano Civil Específico (Jan 1 a Dez 31)
       const year = parseInt(filter);
       startDate = new Date(year, 0, 1);
-      startDate.setDate(startDate.getDate() - startDate.getDay()); // Alinha no domingo
       endDate = new Date(year, 11, 31);
     }
 
+    const dayOfWeek = startDate.getDay();
+    startDate.setDate(startDate.getDate() - dayOfWeek);
+
     const weeks = [];
     let currentDate = new Date(startDate);
+    const limitDate = filter === "last_year" ? today : endDate!;
 
-    while (currentDate <= endDate || weeks.length < 53) {
-      if (weeks.length >= 54) break; // Trava de segurança para layout
+    while (currentDate <= limitDate || weeks.length < 53) {
+      if (weeks.length >= 54) break; 
 
       const week = [];
       let weekLabel = null;
 
       for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
-        const dateStr = currentDate.toISOString().split('T')[0];
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
         const isFuture = currentDate > today;
         const isOutsideYear = filter !== "last_year" && currentDate.getFullYear() !== parseInt(filter);
         
         const count = (isFuture || isOutsideYear) ? -1 : (commitMap[dateStr] || 0);
 
+        // Rótulo do mês apenas se o dia 1 cair nesta semana
         if (currentDate.getDate() === 1) {
           weekLabel = months[currentDate.getMonth()];
         }

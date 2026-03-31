@@ -1,4 +1,4 @@
-use crate::utils::{git_command_async};
+use crate::utils::{git_command_async, git_command};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -52,7 +52,7 @@ pub struct FileHotspot {
 
 #[tauri::command]
 pub async fn get_most_modified_files(path: String, branch: String) -> Result<Vec<FileHotspot>, String> {
-    let output = std::process::Command::new("git")
+    let output = git_command(&path)
         .current_dir(&path)
         .args([
             "log",
