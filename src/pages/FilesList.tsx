@@ -129,7 +129,7 @@ export default function FileList(props: { repo: Repo }) {
       setLastProcessedBranch(branch);
       setLastProcessedRepoPath(repoPath);
 
-      showLoading();
+      showLoading("Carregando arquivos...");
       try {
         const files: string[] = await listBranchFiles(repoPath, branch);
         const mappedFiles = files.map(f => ({ path: f, status: "A" })); 
@@ -154,7 +154,7 @@ export default function FileList(props: { repo: Repo }) {
 
   const handleFileClick = async (path: string, isFile: boolean) => {
     if (isFile) {
-      showLoading();
+      showLoading("Carregando arquivo...");
       try {
         const data = await getBranchFileContent(props.repo.path, selectedBranch(), path);
         
@@ -191,7 +191,7 @@ export default function FileList(props: { repo: Repo }) {
   };
 
   const getLastCommit = async (path: string) => {
-    showLoading();
+    showLoading("Carregando último commit...");
     try {
       const lastCommitForFile = await getLastCommitForPath(props.repo.path, selectedBranch(), path);
       setLastCommit(lastCommitForFile);
@@ -203,7 +203,7 @@ export default function FileList(props: { repo: Repo }) {
   };
 
   const getPathHistoryAsync = async (path: string) => {
-    showLoading();
+    showLoading("Carregando histórico de alterações...");
     try {
       const content = await getPathHistory(props.repo.path, selectedBranch(), path);
       setPathHistory(content);
@@ -215,7 +215,7 @@ export default function FileList(props: { repo: Repo }) {
   };
 
   const getDirectoryContent = async (path: string) => {
-    showLoading();
+    showLoading("Carregando conteúdo do diretório...");
     try {
       const content = await listDirectory(props.repo.path, selectedBranch(), path);
       console.log('content', content);
