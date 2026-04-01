@@ -246,3 +246,12 @@ export async function getMostModifiedFiles(path: string, branch: string): Promis
     return [];
   }
 }
+
+export async function getRemoteUrl(path: string): Promise<string> {
+  try {
+    return await invoke("get_remote_url", { path });
+  } catch (e) {
+    console.error("Erro ao buscar URL remota", e);
+    return "";
+  }
+}

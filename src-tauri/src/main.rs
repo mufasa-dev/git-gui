@@ -1,15 +1,37 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod git_hub;
 mod models;
 mod utils;
+
+use tauri::{Emitter, Listener};
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
+        .setup(|app| {
+            #[cfg(desktop)]
+            {
+                let handle = app.handle().clone();
+                
+                app.listen("deep-link://fallback", move |event| {
+                    let url = event.payload().to_string();
+                    println!("URL recebida pelo Deep Link: {}", url); // Verifique seu terminal!
+                    handle.emit("oauth-callback", url).unwrap();
+                });
+            }
+            Ok(())
+        })
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            let url = args[1].clone(); 
+            app.emit("oauth-callback", url).unwrap();
+        }))
         .invoke_handler(tauri::generate_handler![
             commands::repo::open_repo,
             commands::branch::list_branches,
@@ -44,6 +66,7 @@ fn main() {
             commands::repo::git_pull,
             commands::repo::git_config_pull,
             commands::repo::fetch_repo,
+            commands::repo::get_remote_url,
             commands::terminal::open_console,
             commands::terminal::open_file_manager,
             commands::terminal::open_browser,
@@ -59,7 +82,8 @@ fn main() {
             commands::git_config::get_git_config,
             commands::git_config::set_git_config,
             commands::dashboard::get_code_coverage_ratio,
-            commands::dashboard::get_most_modified_files
+            commands::dashboard::get_most_modified_files,
+            git_hub::auth::exchange_code_for_token
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");

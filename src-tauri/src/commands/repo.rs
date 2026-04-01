@@ -104,3 +104,19 @@ pub fn git_config_pull(repo_path: String, mode: String) -> Result<(), String> {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
+
+#[tauri::command]
+pub async fn get_remote_url(path: String) -> Result<String, String> {
+    let output = git_command(&path)
+        .args(["remote", "get-url", "origin"])
+        .output()
+        .map_err(|e| format!("Falha ao executar git: {}", e))?;
+
+    if output.status.success() {
+        let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        Ok(url)
+    } else {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(format!("Erro git: {}", err))
+    }
+}
