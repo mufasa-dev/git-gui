@@ -7,6 +7,7 @@ import { datepicker } from "../../directives/datepicker";
 import { notify } from "../../utils/notifications";
 import { getGravatarUrl } from "../../services/gravatarService";
 import CommitMessage from "../ui/CommitMessage";
+import { formatContributorName } from "../../utils/user";
 
 declare module "solid-js" {
   namespace JSX {
@@ -223,7 +224,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                         alt={c.author}
                         class="w-[18px] h-[18px] rounded shadow-sm"
                       /> 
-                      <span class="opacity-50 truncate">{c.author}</span>
+                      <span class="opacity-50 truncate">{formatContributorName(c.author)}</span>
                     </div>
                     <div class="px-2 text-xs w-[182px] text-right truncate">{formatRelativeDate(c.date)}</div>
                   </div>

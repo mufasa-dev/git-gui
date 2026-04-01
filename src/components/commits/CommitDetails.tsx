@@ -7,6 +7,7 @@ import { notify } from "../../utils/notifications";
 import FileIcon from "../ui/FileIcon";
 import CommitMessage from "../ui/CommitMessage";
 import { UserProfileDialog } from "../Config/UserProfile";
+import { formatContributorName } from "../../utils/user";
 
 export function CommitDetails(props: { commit: any; repoPath: string, branch: string, selectCommit: (hash: string) => void }) {
   const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
@@ -105,7 +106,7 @@ export function CommitDetails(props: { commit: any; repoPath: string, branch: st
                   />
                   <div class="ml-4 !mt-0 select-text">
                     <div class="font-bold text-gray-900 dark:text-gray-100 clicked_label" onClick={() => setModalUserProfileOpen(true)}>
-                      {props.commit.authorName}
+                      {formatContributorName(props.commit.authorName)}
                     </div>
                     <div class="text-gray-500 dark:text-gray-200 text-sm">{props.commit.authorEmail}</div>
                     <div class="text-gray-500 dark:text-gray-400 text-sm">{formatDate(props.commit.authorDate)}</div>
