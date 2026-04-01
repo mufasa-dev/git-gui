@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createMemo, createSignal, Match, onCleanup, onMount, Switch } from "solid-js";
 import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
@@ -12,6 +12,7 @@ import Header from "../components/layout/Header";
 import LateralBar from "../components/ui/LateralBar";
 import FilesList from "./FilesList";
 import Dashboard from "./Dashboard";
+import ProviderAuthPage from "./ProviderAuthPage";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -115,6 +116,10 @@ export default function RepoTabsPage() {
     }
   }
 
+  const activeRepo = createMemo(() => 
+    repos().find(r => r.path === active())
+  );
+
   return (
      <RepoContext.Provider value={{ repos, active, refreshBranches }}>
       <div class="flex flex-col h-full dark:bg-gray-800 dark:text-white">
@@ -127,19 +132,37 @@ export default function RepoTabsPage() {
 
           <div class="flex flex-1 overflow-auto bg-gray-200 dark:bg-gray-900">
             <LateralBar repos={repos()} active={activePage()} onChangeActive={setActivePage} />
-            {active() ? (
-              activePage() === 'commits' ? (
-                <RepoView repo={repos().find(r => r.path === active())!} refreshBranches={refreshBranches} />
-              ) :
-              activePage() === 'files' ? (
-                <FilesList repo={repos().find(r => r.path === active())!} />
-              ) : 
-              activePage() === 'dashboard' && (
-                <Dashboard repo={repos().find(r => r.path === active())!} branch={repos().find(r => r.path === active())?.activeBranch} />
-              ) 
-            ) : (
-              <p class="text-gray-500 p-4">Nenhum repositório aberto</p>
-            )}
+            <Switch 
+              fallback={
+                <p class="text-gray-500 p-4 italic">Nenhum repositório aberto</p>
+              }
+            >
+              {/* Caso: Página de Commits */}
+              <Match when={active() && activePage() === 'commits'}>
+                <RepoView 
+                  repo={activeRepo()!} 
+                  refreshBranches={refreshBranches} 
+                />
+              </Match>
+
+              {/* Caso: Página de Arquivos */}
+              <Match when={active() && activePage() === 'files'}>
+                <FilesList repo={activeRepo()!} />
+              </Match>
+
+              {/* Caso: Dashboard */}
+              <Match when={active() && activePage() === 'dashboard'}>
+                <Dashboard 
+                  repo={activeRepo()!} 
+                  branch={activeRepo()?.activeBranch} 
+                />
+              </Match>
+
+              {/* Nova Página: Auth/Perfil (Opcional, se já quiser deixar o lugar guardado) */}
+              <Match when={active() && activePage() === 'profile'}>
+                <ProviderAuthPage repoPath={active()!} />
+              </Match>
+            </Switch>
           </div>
         </div>
       </div>
