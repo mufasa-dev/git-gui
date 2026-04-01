@@ -24,6 +24,13 @@ export const commitColors: Record<string, string> = {
   error: "text-green-600 dark:text-green-400 font-bold",
   start: "text-green-600 dark:text-green-400 font-bold",
   stop: "text-red-600 dark:text-red-500 font-bold",
+  // Game dev
+  art: "text-orange-500 dark:text-orange-400 font-medium",
+  audio: "text-cyan-500 dark:text-cyan-400 font-medium",
+  bal: "text-amber-500 dark:text-amber-400 font-medium",
+  shader: "text-violet-500 dark:text-violet-400 font-medium",
+  lvl: "text-emerald-500 dark:text-emerald-400 font-medium",
+  anim: "text-rose-500 dark:text-rose-400 font-medium"
 };
 
 export const tagBaseColors: Record<string, string> = {
@@ -46,4 +53,11 @@ export const tagBaseColors: Record<string, string> = {
   start: "#16a34a",    // green-600
   stop: "#dc2626",      // red-600
   other: "#94a3b8",    // gray-400
+  // Gamedev
+  art: "#f97316",       // orange-500 (Vibrante para arte)
+  audio: "#06b6d4",     // cyan-500 (Ondas sonoras)
+  bal: "#f59e0b",       // amber-500 (Equilíbrio/Ajuste)
+  shader: "#8b5cf6",    // violet-500 (Efeitos visuais)
+  lvl: "#10b981",       // emerald-500 (Cenários),
+  anim: "#f43f5e"      // rose-500 (Animações)
 };
