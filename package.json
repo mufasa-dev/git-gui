@@ -20,6 +20,7 @@
     "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-opener": "2.5.3",
     "@tauri-apps/plugin-os": "^2.3.1",
+    "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-store": "^2.4.0",
     "@uiw/codemirror-theme-github": "^4.25.8",
     "flatpickr": "^4.6.13",
