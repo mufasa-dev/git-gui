@@ -20,9 +20,11 @@ const TAG_MAPPING: Record<string, string> = {
   // Tests
   test: "tests",
   testing: "tests",
+  unit: "tests",
   // Docs
   doc: "docs",
   documentation: "docs",
+  readme: "docs",
   // Refactor
   refactoring: "refactor",
   ref: "refactor",
@@ -33,13 +35,55 @@ const TAG_MAPPING: Record<string, string> = {
   i18n: "translate",
   // Outros
   srtle: "other",
-  other: "other"
+  other: "other",
+  // Audio
+  adio: "audio",
+  som: "audio",
+  music: "audio",
+  wav: "audio",
+  ogg: "audio",
+  mp3: "audio",
+  // art
+  sfx: "art",
+  fbx: "art",
+  shaders: "art",
+  // lvl
+  map: "lvl",
+  pref: "lvl",
+  tscn: "lvl"
+};
+
+const INFERENCE_RULES: Record<string, string[]> = {
+  merge: ["merge", "mesclagem"],
+  tests: ["test", "spec", "coverage"],
+  style: ["debugger", "css", "identa"],
+  chore: ["event", "chord", "environ", ".config"],
+  ui: ["layout", "tela", "visual", "css", "color", "ux", "fundo", "font"],
+  assets: ["image", "img", "icon", "video", "vídeo", "svg", "font"],
+  anim: ["animma", "animação"],
+  fix: ["ajuste", "fix", "corrig", "bug", "erro", "consert", "resolv", "patch", "correc", "correç", "att", "remoç", "remov", "hotfix", "update"],
+  feat: ["adicao", "adiç", "novo", "new", "add", "cria", "implement", "feat", "improve", "finaliza"],
+  docs: ["doc", "readme", "ajuda", "help", "coment", "text", "logs"],
+  refactor: ["refactor", "limpeza", "clean", "melhoria", "otimiz"],
+  translate: ["traduc", "traduç", "translate", "idioma", "i18n", "pt", "en", "es"],
 };
 
 // Função auxiliar para normalizar a tag
 const normalizeTag = (tag: string): string => {
   const t = tag.toLowerCase();
   return TAG_MAPPING[t] || t;
+};
+
+const inferTagFromMessage = (message: string): string => {
+  const msg = message.toLowerCase();
+  
+  for (const [tag, keywords] of Object.entries(INFERENCE_RULES)) {
+    if (keywords.some(kw => msg.includes(kw))) {
+      return tag;
+    }
+  }
+  
+  return "other";
 };
 
 interface Commit {
@@ -65,17 +109,15 @@ const CommitTypeDistribution = (props: Props) => {
       // 1. Verificação de Merge
       if (msg.startsWith("Merge branch") || msg.startsWith("Merge remote-tracking branch") || msg.startsWith("Merge pull request")) {
         counts["merge"] = (counts["merge"] || 0) + 1;
-        totalProcessed++;
         return;
       }
 
-      // 2. Verificação de Conventional Tags
+      // 2. Tenta Conventional Tags ou Inferência
       const match = msg.match(tagRegex);
-      if (match) {
-        // AQUI ESTÁ A MUDANÇA: Normalizamos a tag antes de contar
-        const rawType = match[1];
-        const type = normalizeTag(rawType);
-        
+      let type = match ? normalizeTag(match[1]) : inferTagFromMessage(msg);
+
+      // FILTRO: Só contamos se NÃO for "other"
+      if (type !== "other") {
         counts[type] = (counts[type] || 0) + 1;
         totalProcessed++;
       }
