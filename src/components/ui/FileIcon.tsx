@@ -93,15 +93,15 @@ export default function FileIcon(props: FileIconProps) {
     if (name.includes('package-lock.json')) return packageIcon;
 
     // Checagem por arquivos de tradução
-    if (['pt.ts', 'pt.json', 'pt-br.ts', 'pt-br.json', 'pt_br.json'].includes(name.toLowerCase())) return brIcon;
-    if (['es.ts', 'es.json', 'es-es.ts', 'es-es.json', 'es_es.json'].includes(name.toLowerCase())) return esIcon;
-    if (['en.ts', 'en.json', 'en-us.ts', 'en-us.json', 'en_us.json'].includes(name.toLowerCase())) return enIcon;
-    if (['it.ts', 'it.json', 'it-it.ts', 'it-it.json', 'it_it.json'].includes(name.toLowerCase())) return itIcon;
-    if (['fr.ts', 'fr.json', 'fr-fr.ts', 'fr-fr.json', 'fr_fr.json'].includes(name.toLowerCase())) return frIcon;
-    if (['de.ts', 'de.json', 'de-de.ts', 'de-de.json', 'de_de.json'].includes(name.toLowerCase())) return deIcon;
-    if (['se.ts', 'se.json', 'se-se.ts', 'se-se.json', 'se_se.json'].includes(name.toLowerCase())) return seIcon;
-    if (['cn.ts', 'cn.json', 'cn-cn.ts', 'cn-cn.json', 'cn_cn.json'].includes(name.toLowerCase())) return cnIcon;
-    if (['jp.ts', 'jp.json', 'jp-jp.ts', 'jp-jp.json', 'jp_jp.json'].includes(name.toLowerCase())) return jpIcon;
+    if (['pt.ts', 'pt.json', 'pt-br.ts', 'pt-br.json', 'pt_br.json', 'pt_br.asp'].includes(name.toLowerCase())) return brIcon;
+    if (['es.ts', 'es.json', 'es-es.ts', 'es-es.json', 'es_es.json', 'es_es.asp'].includes(name.toLowerCase())) return esIcon;
+    if (['en.ts', 'en.json', 'en-us.ts', 'en-us.json', 'en_us.json', 'en_us.asp'].includes(name.toLowerCase())) return enIcon;
+    if (['it.ts', 'it.json', 'it-it.ts', 'it-it.json', 'it_it.json', 'it_it.asp'].includes(name.toLowerCase())) return itIcon;
+    if (['fr.ts', 'fr.json', 'fr-fr.ts', 'fr-fr.json', 'fr_fr.json', 'fr_fr.asp'].includes(name.toLowerCase())) return frIcon;
+    if (['de.ts', 'de.json', 'de-de.ts', 'de-de.json', 'de_de.json', 'de_de.asp'].includes(name.toLowerCase())) return deIcon;
+    if (['se.ts', 'se.json', 'se-se.ts', 'se-se.json', 'se_se.json', 'se_se.asp'].includes(name.toLowerCase())) return seIcon;
+    if (['cn.ts', 'cn.json', 'cn-cn.ts', 'cn-cn.json', 'cn_cn.json', 'cn_cn.asp'].includes(name.toLowerCase())) return cnIcon;
+    if (['jp.ts', 'jp.json', 'jp-jp.ts', 'jp-jp.json', 'jp_jp.json', 'jp_jp.asp'].includes(name.toLowerCase())) return jpIcon;
 
     const mapping: Record<string, string> = {
       js: jsIcon,
