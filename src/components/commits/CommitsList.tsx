@@ -222,7 +222,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                       <img
                         src={getGravatarUrl(c.email, 80)}
                         alt={c.author}
-                        class="w-[18px] h-[18px] rounded shadow-sm"
+                        class="w-[18px] h-[18px] rounded-full shadow-sm"
                       /> 
                       <span class="opacity-50 truncate">{formatContributorName(c.author)}</span>
                     </div>
