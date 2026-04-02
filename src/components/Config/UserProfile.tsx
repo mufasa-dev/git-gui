@@ -8,6 +8,7 @@ import HourlyActivityChart from "../Dashboard/HourlyActivityChart";
 import CommitMessage from "../ui/CommitMessage";
 import { openBrowser } from "../../services/openService";
 import CommitTypeDistribution from "../Dashboard/CommitDistributionBar";
+import CommitsModalList from "../commits/CommitsModalList";
 
 // Helper para formatar data curta
 const formatShortDate = (dateStr: string) => {
@@ -26,6 +27,8 @@ interface UserProfileDialogProps {
 
 export function UserProfileDialog(props: UserProfileDialogProps) {
   const [profile] = createResource(() => props.email, getGravatarProfile);
+  const [showCommits, setShowCommits] = createSignal(false);
+  const [selectedCommits, setSelectedCommits] = createSignal<any[]>([]);
   
   const [userCommits] = createResource(
     () => ({ path: props.repoPath, branch: props.branch, email: props.email }),
@@ -34,6 +37,12 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
       return await getUserCommits(params.path, params.branch, params.email);
     }
   );
+
+  const openModalWithCommits = (commitsToShow: any[]) => {
+    debugger;
+    setSelectedCommits(commitsToShow);
+    setShowCommits(true);
+  }
 
   // Memo para pegar apenas os 5 últimos commits
   const recentCommits = createMemo(() => (userCommits() || []).slice(0, 5));
@@ -96,10 +105,10 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div class="lg:col-span-8 space-y-4">
             <div class="container-branch-list h-64 overflow-hidden">
-               <ContributionGraph commits={userCommits() || []} />
+               <ContributionGraph commits={userCommits() || []} openCommits={openModalWithCommits} />
             </div>
             <div class="container-branch-list p-4 h-64">
-               <ActivityChart commits={userCommits() || []} />
+               <ActivityChart commits={userCommits() || []} openCommits={openModalWithCommits} />
             </div>
           </div>
 
@@ -172,6 +181,17 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
         </div>
 
       </div>
+
+      <Show when={showCommits()}>
+        <Dialog 
+          open={showCommits()} 
+          onClose={() => setShowCommits(false)} 
+          title="Histórico de Alterações"
+          width="550px" bodyClass="p-0"
+        >
+          <CommitsModalList commits={selectedCommits()} />
+        </Dialog>
+      </Show>
     </Dialog>
   );
 }
