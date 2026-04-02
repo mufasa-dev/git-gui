@@ -201,7 +201,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         </div>
 
         <div class="col-span-2 container-branch-list">
-          <ContributionGraph commits={commits()} />
+          <ContributionGraph commits={commits()} openCommits={openModalWithCommits} />
         </div>
 
         <div class="row-span-2 container-branch-list">

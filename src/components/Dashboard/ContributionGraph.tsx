@@ -1,10 +1,26 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 
-export default function ContributionGraph(props: { commits: any[] }) {
+export default function ContributionGraph(props: { commits: any[], openCommits: (commits: any[]) => void }) {
   const [yearFilter, setYearFilter] = createSignal("last_year");
   
   const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   const daysOfWeek = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+  const handleDayClick = (dateStr: string, count: number) => {
+    if (count <= 0) return;
+
+    const dayCommits = props.commits.filter(c => {
+      const d = new Date(c.date);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}` === dateStr;
+    });
+
+    if (dayCommits.length > 0) {
+      props.openCommits(dayCommits);
+    }
+  };
 
   // 1. Extrair anos disponíveis dos commits para o Select
   const availableYears = createMemo(() => {
@@ -160,6 +176,7 @@ export default function ContributionGraph(props: { commits: any[] }) {
                     <For each={week.days}>
                         {(day) => (
                         <div 
+                            onClick={() => handleDayClick(day.date, day.count)}
                             class={`rounded-[2px] transition-colors duration-200 ${getContributionColor(day.count)} ${day.count === -1 ? 'opacity-[0.02]' : 'hover:ring-1 hover:ring-white/30'}`}
                             title={day.count >= 0 ? `${day.count} commits em ${day.date}` : ""}
                         />

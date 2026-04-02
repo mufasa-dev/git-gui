@@ -39,7 +39,13 @@ export default function CommitsModalList(props: { commits: Commit[] }) {
                       {commit.hash.substring(0, 7)}
                     </span>
                     <span class="text-[10px] text-gray-500 dark:text-gray-200">
-                      {new Date(commit.date).toLocaleDateString()}
+                      {new Date(commit.date).toLocaleString(undefined, {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}
                     </span>
                   </div>
                   
