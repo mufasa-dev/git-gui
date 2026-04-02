@@ -57,7 +57,7 @@ const INFERENCE_RULES: Record<string, string[]> = {
   merge: ["merge", "mesclagem"],
   tests: ["test", "spec", "coverage"],
   style: ["debugger", "css", "identa"],
-  chore: ["event", "chord", "environ", ".config"],
+  chore: ["event", "chord", "environ", ".config", "global", "build", "dependen", "depen", "release", "version", "versão"],
   ui: ["layout", "tela", "visual", "css", "color", "ux", "fundo", "font"],
   assets: ["image", "img", "icon", "video", "vídeo", "svg", "font"],
   anim: ["animma", "animação"],
