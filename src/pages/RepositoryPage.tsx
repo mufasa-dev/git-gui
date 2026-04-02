@@ -13,6 +13,7 @@ import LateralBar from "../components/ui/LateralBar";
 import FilesList from "./FilesList";
 import Dashboard from "./Dashboard";
 import ProviderAuthPage from "./ProviderAuthPage";
+import WelcomeScreen from "./WelcomeScreen";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -131,12 +132,12 @@ export default function RepoTabsPage() {
           <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
 
           <div class="flex flex-1 overflow-auto bg-gray-200 dark:bg-gray-900">
-            <LateralBar repos={repos()} active={activePage()} onChangeActive={setActivePage} />
             <Switch 
               fallback={
-                <p class="text-gray-500 p-4 italic">Nenhum repositório aberto</p>
+                <WelcomeScreen />
               }
             >
+              <LateralBar repos={repos()} active={activePage()} onChangeActive={setActivePage} />
               {/* Caso: Página de Commits */}
               <Match when={active() && activePage() === 'commits'}>
                 <RepoView 
