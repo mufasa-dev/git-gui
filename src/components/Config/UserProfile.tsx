@@ -41,12 +41,12 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
   const getAccountIcon = (shortname: string) => {
     switch (shortname) {
       case 'github': return 'fab fa-github';
-      case 'twitter': return 'fab fa-twitter text-blue-400';
-      case 'linkedin': return 'fab fa-linkedin text-blue-600';
-      case 'pinterest': return 'fab fa-pinterest text-red-600';
-      case 'youtube': return 'fab fa-youtube text-red-600';
-      case 'instagram': return 'fab fa-instagram text-pink-500';
-      case 'facebook': return 'fab fa-facebook text-blue-600';
+      case 'twitter': return 'fab fa-twitter text-blue-400 hover:text-blue-500';
+      case 'linkedin': return 'fab fa-linkedin text-blue-600 hover:text-blue-700';
+      case 'pinterest': return 'fab fa-pinterest text-red-600 hover:text-red-700';
+      case 'youtube': return 'fab fa-youtube text-red-600 hover:text-red-700';
+      case 'instagram': return 'fab fa-instagram text-pink-500 hover:text-pink-600';
+      case 'facebook': return 'fab fa-facebook text-blue-600 hover:text-blue-700';
       default: return 'fa fa-globe';
     }
   };
