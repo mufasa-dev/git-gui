@@ -79,6 +79,24 @@ export default function ContributionGraph(props: { commits: any[] }) {
     return weeks;
   });
 
+  const filteredTotal = createMemo(() => {
+    const filter = yearFilter();
+    
+    if (filter === "last_year") {
+      const today = new Date();
+      const oneYearAgo = new Date();
+      oneYearAgo.setDate(today.getDate() - 365);
+      
+      return props.commits.filter(c => {
+        const commitDate = new Date(c.date);
+        return commitDate >= oneYearAgo && commitDate <= today;
+      }).length;
+    } else {
+      const targetYear = parseInt(filter);
+      return props.commits.filter(c => new Date(c.date).getFullYear() === targetYear).length;
+    }
+  });
+
   return (
     <div class="px-2 flex flex-col h-full overflow-hidden">
       
@@ -86,7 +104,7 @@ export default function ContributionGraph(props: { commits: any[] }) {
       <div class="flex items-center justify-between mb-4">
         <span class="text-gray-900 dark:text-gray-200">
           <i class="fa-solid fa-code-commit text-green-500 mr-2"></i>
-          {props.commits.length} contribuições {yearFilter() === "last_year" ? "nos últimos 365 dias" : "em " + yearFilter()}
+          {filteredTotal()} contribuições {yearFilter() === "last_year" ? "nos últimos 365 dias" : "em " + yearFilter()}
         </span>
         
         <select 
