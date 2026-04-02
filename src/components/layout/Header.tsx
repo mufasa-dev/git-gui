@@ -68,6 +68,7 @@ export default function Header(props: Props) {
 
         if (typeof selected === "string") {
             try {
+              showLoading("Abrindo repositório...");
               await validateRepo(selected);
               const branches = await getBranchStatus(selected);
               const remoteBranches = await getRemoteBranches(selected);
@@ -84,6 +85,8 @@ export default function Header(props: Props) {
               props.setActive(selected);
             } catch (err) {
               notify.error('Erro ao abrir repositório', `Erro ao abrir o repositório: ${err}`);
+            } finally {
+              hideLoading();
             }
         }
     }

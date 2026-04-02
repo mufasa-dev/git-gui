@@ -78,7 +78,6 @@ export const githubService = {
     const store = await getAuthStore();
     await store.delete("github_token");
     await store.save();
-    window.location.reload();
   }
 };
 

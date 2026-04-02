@@ -1,4 +1,4 @@
-import { createMemo, createSignal, Match, onCleanup, onMount, Switch } from "solid-js";
+import { createMemo, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
@@ -125,7 +125,9 @@ export default function RepoTabsPage() {
      <RepoContext.Provider value={{ repos, active, refreshBranches }}>
       <div class="flex flex-col h-full dark:bg-gray-800 dark:text-white">
         {/* Topo com botão */}
-        <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
+        <Show when={repos()?.length > 0}>
+          <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
+        </Show>
 
         {/* Abas + conteúdo */}
         <div class="flex flex-col flex-1">
