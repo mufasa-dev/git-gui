@@ -47,35 +47,60 @@ export default function ActivityChart(props: { commits: any[] }) {
   };
 
   const processedData = createMemo(() => {
-    if (!props.commits.length) return { points: [], yTicks: [], xTicks: [], area: "", line: "" };
+    // 0. Verificação de segurança
+    if (!props.commits || props.commits.length === 0) {
+      return { points: [], yTicks: [], xTicks: [], area: "", line: "", drawHeight: 0, drawWidth: 0 };
+    }
 
     const days = daysToView();
-    const hidden = hiddenDays();
-    
-    // 1. Gerar e FILTRAR o intervalo de datas
-    const dateRange = Array.from({ length: days }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d;
-    })
-    .filter(d => !hidden.includes(d.getDay()))
-    .map(d => d.toISOString().split('T')[0])
-    .reverse();
+    const hiddenConfigs = hiddenDays(); // Ex: [0, 6] vindo do seu sinal/localStorage
 
-    if (dateRange.length < 2) return { points: [], yTicks: [], xTicks: [], area: "", line: "" };
-
-    const counts = props.commits.reduce((acc, c) => {
+    // 1. Mapear contagem de commits por data (Y-axis data)
+    const commitCounts = props.commits.reduce((acc, c) => {
       const day = new Date(c.date).toISOString().split('T')[0];
       acc[day] = (acc[day] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const data = dateRange.map(day => ({ date: day, value: counts[day] || 0 }));
+    // 2. Gerar o intervalo de datas com FILTRAGEM CONDICIONAL
+    const dateRange = Array.from({ length: days }, (_, i) => {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0); // Normaliza para evitar problemas de fuso
+      d.setDate(d.getDate() - i);
+      return d;
+    })
+    .filter(d => {
+      const dateStr = d.toISOString().split('T')[0];
+      const dayOfWeek = d.getDay();
+      const count = commitCounts[dateStr] || 0;
+
+      // Lógica: Se o dia for um dos "ocultáveis" E não tiver atividade, removemos.
+      // Caso contrário (tem atividade ou não está na lista de ocultar), mantemos.
+      if (hiddenConfigs.includes(dayOfWeek) && count === 0) {
+        return false;
+      }
+      return true;
+    })
+    .map(d => d.toISOString().split('T')[0])
+    .reverse(); // Coloca em ordem cronológica (passado -> presente)
+
+    // 3. Se o filtro remover tudo (caso raro), evita quebra do SVG
+    if (dateRange.length < 2) {
+      return { points: [], yTicks: [], xTicks: [], area: "", line: "", drawHeight: 0, drawWidth: 0 };
+    }
+
+    // 4. Preparar dados para o desenho
+    const data = dateRange.map(day => ({ 
+      date: day, 
+      value: commitCounts[day] || 0 
+    }));
+
     const maxVal = Math.max(...data.map(d => d.value), 5);
 
     const drawWidth = chartConfig.svgWidth - chartConfig.paddings.left - chartConfig.paddings.right;
     const drawHeight = chartConfig.svgHeight - chartConfig.paddings.top - chartConfig.paddings.bottom;
 
+    // 5. Calcular coordenadas exatas dos pontos no SVG
     const points = data.map((d, i) => ({
       x: chartConfig.paddings.left + (i / (data.length - 1)) * drawWidth,
       y: chartConfig.paddings.top + drawHeight - (d.value / maxVal) * drawHeight,
@@ -83,21 +108,34 @@ export default function ActivityChart(props: { commits: any[] }) {
       date: d.date
     }));
 
-    const lineData = `M ${points[0].x} ${points[0].y} ` + points.map(p => `L ${p.x} ${p.y}`).join(" ");
+    // 6. Gerar caminhos (Paths) do SVG
+    const lineData = `M ${points[0].x} ${points[0].y} ` + 
+                    points.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ");
+                    
     const areaData = `${lineData} L ${points[points.length - 1].x} ${chartConfig.paddings.top + drawHeight} L ${chartConfig.paddings.left} ${chartConfig.paddings.top + drawHeight} Z`;
 
+    // 7. Gerar Ticks do Eixo Y
     const yTicks = [0, Math.round(maxVal / 2), maxVal].map(val => ({
       value: val,
       y: chartConfig.paddings.top + drawHeight - (val / maxVal) * drawHeight
     }));
 
+    // 8. Gerar Ticks do Eixo X (Início, Meio e Fim do período visível)
     const xTicksIndices = [0, Math.round((dateRange.length - 1) / 2), dateRange.length - 1];
     const xTicks = xTicksIndices.map(idx => ({
       label: formatDateAxis(data[idx].date),
       x: points[idx].x
     }));
 
-    return { points, yTicks, xTicks, area: areaData, line: lineData, drawHeight, drawWidth };
+    return { 
+      points, 
+      yTicks, 
+      xTicks, 
+      area: areaData, 
+      line: lineData, 
+      drawHeight, 
+      drawWidth 
+    };
   });
 
   return (
