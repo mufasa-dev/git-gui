@@ -20,6 +20,7 @@ const WEEKDAYS = [
 export default function ActivityChart(props: { commits: any[] }) {
   const [daysToView, setDaysToView] = createSignal(30);
   const [isModalOpen, setIsModalOpen] = createSignal(false);
+  const [hoveredPoint, setHoveredPoint] = createSignal<{x: number, y: number, value: number, date: string} | null>(null);
   
   // Estado para os dias ocultos (0 = Domingo, 6 = Sábado)
   const [hiddenDays, setHiddenDays] = createSignal<number[]>([]);
@@ -253,6 +254,45 @@ export default function ActivityChart(props: { commits: any[] }) {
               stroke-linecap="round" stroke-linejoin="round"
               style={{ "vector-effect": "non-scaling-stroke" }} // Mantém a espessura da linha constante
             />
+
+            <Show when={hoveredPoint()}>
+              <circle 
+                cx={hoveredPoint()!.x} 
+                cy={hoveredPoint()!.y} 
+                r="4" 
+                fill="#22c55e" 
+                stroke="white" 
+                stroke-width="2" 
+              />
+              {/* Linha vertical indicadora */}
+              <line 
+                x1={hoveredPoint()!.x} y1={chartConfig.paddings.top} 
+                x2={hoveredPoint()!.x} y2={chartConfig.svgHeight - chartConfig.paddings.bottom} 
+                stroke="#22c55e" stroke-width="1" stroke-dasharray="4" opacity="0.5"
+              />
+            </Show>
+
+            <rect
+              width={chartConfig.svgWidth}
+              height={chartConfig.svgHeight}
+              fill="transparent"
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                // Calcula o X relativo dentro do SVG (0 a 500)
+                const x = ((e.clientX - rect.left) / rect.width) * chartConfig.svgWidth;
+                
+                // Encontra o ponto mais próximo no array processado
+                const pts = processedData().points;
+                if (!pts.length) return;
+
+                const closest = pts.reduce((prev, curr) => 
+                  Math.abs(curr.x - x) < Math.abs(prev.x - x) ? curr : prev
+                );
+
+                setHoveredPoint(closest);
+              }}
+              onMouseLeave={() => setHoveredPoint(null)}
+            />
           </svg>
 
           {/* 3. LEGENDAS DO EIXO X (HTML Absoluto - Não distorce) */}
@@ -274,7 +314,26 @@ export default function ActivityChart(props: { commits: any[] }) {
                 )}
             </For>
           </div>
+        </Show>
 
+        {/* Tooltip Flutuante */}
+        <Show when={hoveredPoint()}>
+          <div 
+            class="absolute z-10 pointer-events-none bg-gray-900 border border-gray-700 p-2 rounded shadow-lg text-[10px] text-white"
+            style={{
+              left: `${(hoveredPoint()!.x / chartConfig.svgWidth) * 100}%`,
+              top: `${(hoveredPoint()!.y / chartConfig.svgHeight) * 100}%`,
+              transform: 'translate(-50%, -120%)' // Centraliza sobre o ponto
+            }}
+          >
+            <div class="font-bold border-b border-gray-700 pb-1 mb-1">
+              {formatDateAxis(hoveredPoint()!.date)}
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-green-500"></span>
+              {hoveredPoint()!.value} commits
+            </div>
+          </div>
         </Show>
       </div>
     </div>
