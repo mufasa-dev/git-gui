@@ -17,7 +17,7 @@ const WEEKDAYS = [
   { id: 6, label: "Sáb" },
 ];
 
-export default function ActivityChart(props: { commits: any[] }) {
+export default function ActivityChart(props: { commits: any[], openCommits: (commits: any[]) => void }) {
   const [daysToView, setDaysToView] = createSignal(30);
   const [isModalOpen, setIsModalOpen] = createSignal(false);
   const [hoveredPoint, setHoveredPoint] = createSignal<{x: number, y: number, value: number, date: string} | null>(null);
@@ -139,6 +139,20 @@ export default function ActivityChart(props: { commits: any[] }) {
     };
   });
 
+  const handleChartClick = () => {
+    const point = hoveredPoint();
+    if (!point) return;
+
+    const commitsOfDay = props.commits.filter(c => {
+      const commitDate = new Date(c.date).toISOString().split('T')[0];
+      return commitDate === point.date;
+    });
+
+    if (commitsOfDay.length > 0) {
+      props.openCommits(commitsOfDay);
+    }
+  };
+
   return (
     <div class="flex flex-col h-full relative">
       <div class="flex items-center justify-between mb-4">
@@ -151,11 +165,14 @@ export default function ActivityChart(props: { commits: any[] }) {
           <select 
             value={daysToView()} 
             onInput={(e) => setDaysToView(parseInt(e.currentTarget.value))}
-            class="input-select"
+            class="input-select mt-0"
           >
-            <option value={7}>7 dias</option>
-            <option value={30}>30 dias</option>
-            <option value={90}>90 dias</option>
+            <option value={7}>Últimos 7 dias</option>
+            <option value={30}>Últimos 30 dias</option>
+            <option value={90}>Últimos 90 dias</option>
+            <option value={180}>Últimos 6 meses</option>
+            <option value={365}>Últimos 12 meses</option>
+            <option value={730}>Últimos 2 anos</option>
           </select>
           
           <button 
@@ -276,19 +293,16 @@ export default function ActivityChart(props: { commits: any[] }) {
               width={chartConfig.svgWidth}
               height={chartConfig.svgHeight}
               fill="transparent"
+              onClick={handleChartClick}
               onMouseMove={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
-                // Calcula o X relativo dentro do SVG (0 a 500)
                 const x = ((e.clientX - rect.left) / rect.width) * chartConfig.svgWidth;
-                
-                // Encontra o ponto mais próximo no array processado
                 const pts = processedData().points;
                 if (!pts.length) return;
 
                 const closest = pts.reduce((prev, curr) => 
                   Math.abs(curr.x - x) < Math.abs(prev.x - x) ? curr : prev
                 );
-
                 setHoveredPoint(closest);
               }}
               onMouseLeave={() => setHoveredPoint(null)}

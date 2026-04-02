@@ -13,6 +13,8 @@ import HourlyActivityChart from "../components/Dashboard/HourlyActivityChart";
 import HotspotsTable from "../components/Dashboard/HotspotsTable";
 import { UserProfileDialog } from "../components/Config/UserProfile";
 import { formatContributorName } from "../utils/user";
+import Dialog from "../components/ui/Dialog";
+import CommitsModalList from "../components/commits/CommitsModalList";
 
 declare module "solid-js" {
   namespace JSX {
@@ -25,6 +27,7 @@ let isFetchingCommits = false;
 
 export default function Dashboard(props: { repo: Repo; branch?: string, class?: string }) {
   const [commits, setCommits] = createSignal<any[]>([]);
+  const [selectedCommits, setSelectedCommits] = createSignal<any[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   const [commitDetailsHeight, setCommitDetailsHeight] = createSignal(300);
@@ -33,6 +36,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   const [startDate, setStartDate] = createSignal("");
   const [endDate, setEndDate] = createSignal("");
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
+  const [showCommits, setShowCommits] = createSignal(false);
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
   
   // Estados para Paginação e Filtro
@@ -145,6 +149,11 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     }
   }
 
+  const openModalWithCommits = (commitsToShow: any[]) => {
+    setSelectedCommits(commitsToShow);
+    setShowCommits(true);
+  }
+
   const contributorStats = createMemo(() => {
     const allCommits = commits();
     const stats: Record<string, { name: string, email: string, count: number }> = {};
@@ -200,7 +209,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         </div>
 
         <div class="col-span-2 container-branch-list">
-          <ActivityChart commits={commits()} />
+          <ActivityChart commits={commits()} openCommits={openModalWithCommits} />
         </div>
 
         <div class="container-branch-list">
@@ -282,6 +291,17 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
             setSelectedUser({ name: "", email: "" });
           }}
         />
+      </Show>
+
+      <Show when={showCommits()}>
+        <Dialog 
+          open={showCommits()} 
+          onClose={() => setShowCommits(false)} 
+          title="Histórico de Alterações"
+          width="550px" bodyClass="p-0"
+        >
+          <CommitsModalList commits={selectedCommits()} />
+        </Dialog>
       </Show>
     </div>
   );
