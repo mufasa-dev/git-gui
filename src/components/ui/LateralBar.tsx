@@ -10,10 +10,12 @@ import profileIcon from "../../assets/profile_silver.png";
 import configIcon from "../../assets/config_silver.png";
 import logo from "../../assets/fork.png";
 import Tooltip from "./Tooltip";
+import { Show } from "solid-js";
 
 export default function LateralBar(props: {
   repos: Repo[];
   active: string | null;
+  isLogged: boolean;
   onChangeActive: (id: string) => void;
 }) {
   return (
@@ -34,27 +36,29 @@ export default function LateralBar(props: {
           <img src={dashboardIcon} class="h-10" />
         </Button>
       </Tooltip>
-      <Tooltip text="Pull Requests" class="mb-2">
-        <Button class={`left-btn w-full ${props.active === "pull-requests" ? "selected" : ""}`} onClick={() => props.onChangeActive("pull-requests")}>
-          <img src={prIcon} class="h-10" />
-        </Button>
-      </Tooltip>
-      <Tooltip text="Pipeline" class="mb-2">
-        <Button class={`left-btn w-full ${props.active === "rocket" ? "selected" : ""}`} onClick={() => props.onChangeActive("rocket")}>
-          <img src={rocketIcon} class="h-10" />
-        </Button>
-      </Tooltip>
-      <Tooltip text="Board" class="mb-2">
-        <Button class={`left-btn w-full ${props.active === "table" ? "selected" : ""}`} onClick={() => props.onChangeActive("table")}>
-          <img src={tableIcon} class="h-10" />
-        </Button>
-      </Tooltip>
+      <Show when={props.isLogged}>
+        <Tooltip text="Pull Requests" class="mb-2">
+          <Button class={`left-btn w-full ${props.active === "pull-requests" ? "selected" : ""}`} onClick={() => props.onChangeActive("pull-requests")}>
+            <img src={prIcon} class="h-10" />
+          </Button>
+        </Tooltip>
+        <Tooltip text="Pipeline" class="mb-2">
+          <Button class={`left-btn w-full ${props.active === "rocket" ? "selected" : ""}`} onClick={() => props.onChangeActive("rocket")}>
+            <img src={rocketIcon} class="h-10" />
+          </Button>
+        </Tooltip>
+        <Tooltip text="Board" class="mb-2">
+          <Button class={`left-btn w-full ${props.active === "table" ? "selected" : ""}`} onClick={() => props.onChangeActive("table")}>
+            <img src={tableIcon} class="h-10" />
+          </Button>
+        </Tooltip>
+      </Show>
       <Tooltip text="Perfil" class="mb-2 mt-auto">
         <Button class={`left-btn w-full ${props.active === "profile" ? "selected" : ""}`} onClick={() => props.onChangeActive("profile")}>
           <img src={profileIcon} class="h-10" />
         </Button>
       </Tooltip>
-      <Tooltip text="Configurações" class="mb-2">
+      <Tooltip text="Configurações" class={"mb-2"}>
         <Button class={`left-btn w-full ${props.active === "config" ? "selected" : ""}`} onClick={() => props.onChangeActive("config")}>
           <img src={configIcon} class="h-10" />
         </Button>

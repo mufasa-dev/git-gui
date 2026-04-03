@@ -2,19 +2,28 @@ import { createResource, Show, createSignal } from "solid-js";
 import { getProviderFromUrl, GitProvider } from "../utils/gitProvider";
 import { getRemoteUrl } from "../services/gitService"; // Você já tem lógica de remote
 import { githubService } from "../services/githubService";
+import { useRepoContext } from "../context/RepoContext";
 
 export default function ProviderAuthPage(props: { repoPath: string }) {
-  const [remoteUrl] = createResource(() => getRemoteUrl(props.repoPath));
+  const { user, mutateUser, refetchUser } = useRepoContext();
   
+  // O remoteUrl ainda pode ser local ou vir do contexto também
+  const [remoteUrl] = createResource(() => getRemoteUrl(props.repoPath));
   const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
 
-  // Busca dados do usuário se o provider for GitHub e houver token
-  const [userData] = createResource(provider, async (p) => {
-    if (p === 'github') {
-      return await githubService.getCurrentUser();
+  const handleLogout = async () => {
+    if (provider() === 'github') {
+      await githubService.logout();
+      mutateUser(null); // Limpa GLOBALMENTE. A barra lateral vai esconder os botões na hora!
     }
-    return null;
-  });
+  };
+
+  const handleLogin = async () => {
+     if (provider() === 'github') {
+       await githubService.login();
+       refetchUser(); // Recarrega GLOBALMENTE. Os botões vão aparecer na hora!
+     }
+  };
 
   return (
     <div class="p-6 max-w-4xl mx-auto">
@@ -37,18 +46,22 @@ export default function ProviderAuthPage(props: { repoPath: string }) {
 
         {/* Card de Perfil do Usuário */}
         <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <Show when={!userData.loading} fallback={<div class="animate-pulse h-20 bg-gray-100 dark:bg-gray-700 rounded-lg" />}>
+          <Show when={!user.loading} fallback={<div class="animate-pulse h-20 bg-gray-100 dark:bg-gray-700 rounded-lg" />}>
             <Show 
-              when={userData()} 
+              when={user()} 
               fallback={<LoginAction provider={provider()} />}
             >
               <div class="flex items-center gap-4">
-                <img src={userData().avatar_url} class="w-12 h-12 rounded-full border-2 border-purple-500" />
+                <img src={user().avatar_url} class="w-12 h-12 rounded-full border-2 border-purple-500" />
                 <div>
-                  <h4 class="font-bold dark:text-white">{userData().name || userData().login}</h4>
-                  <p class="text-xs text-gray-500">{userData().email}</p>
+                  <h4 class="font-bold dark:text-white">{user().name || user().login}</h4>
+                  <p class="text-xs text-gray-500">{user().email}</p>
                 </div>
-                <button class="ml-auto text-red-500 hover:bg-red-50 p-2 rounded-lg">
+                <button 
+                  onClick={handleLogout}
+                  title="Sair da conta"
+                  class="ml-auto text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-all active:scale-90"
+                >
                   <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
               </div>

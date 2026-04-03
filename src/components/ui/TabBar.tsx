@@ -8,7 +8,7 @@ export default function TabBar(props: {
   onClose: (id: string) => void; 
 }) {
   return (
-    <div class="flex border-b bg-white dark:bg-gray-800 dark:border-gray-900 overflow-x-auto">
+    <div class="flex border-b bg-white dark:bg-gray-800 dark:border-gray-900 overflow-x-auto ml-2">
       <For each={props.repos}>
         {(repo) => (
           <div

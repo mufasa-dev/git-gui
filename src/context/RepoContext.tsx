@@ -1,10 +1,13 @@
-import { createContext, useContext } from "solid-js";
+import { createContext, useContext, Resource } from "solid-js";
 import type { Repo } from "../models/Repo.model";
 
 type RepoContextType = {
   repos: () => Repo[];
   active: () => string | null;
   refreshBranches: (repoPath: string) => Promise<void>;
+  user: Resource<any>; 
+  mutateUser: (data: any) => void;
+  refetchUser: () => void;
 };
 
 const RepoContext = createContext<RepoContextType>();

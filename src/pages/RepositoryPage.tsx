@@ -1,4 +1,4 @@
-import { createMemo, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { createMemo, createResource, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
@@ -14,11 +14,13 @@ import FilesList from "./FilesList";
 import Dashboard from "./Dashboard";
 import ProviderAuthPage from "./ProviderAuthPage";
 import WelcomeScreen from "./WelcomeScreen";
+import { githubService } from "../services/githubService";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
   const [active, setActive] = createSignal<string | null>(null);
   const [activePage, setActivePage] = createSignal<string>('commits');
+  const [user, { mutate, refetch }] = createResource(() => githubService.getCurrentUser());
 
   const closeRepo = (id: string) => {
     const currentRepos = repos();
@@ -128,7 +130,14 @@ export default function RepoTabsPage() {
   });
 
   return (
-     <RepoContext.Provider value={{ repos, active, refreshBranches }}>
+     <RepoContext.Provider value={{ 
+      repos, 
+      active, 
+      refreshBranches,
+      user,
+      mutateUser: mutate,
+      refetchUser: refetch
+    }}>
       <div class="flex flex-col h-full dark:bg-gray-800 dark:text-white">
         {/* Topo com botão */}
         <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
@@ -139,7 +148,11 @@ export default function RepoTabsPage() {
 
           <div class="flex flex-1 overflow-auto bg-gray-200 dark:bg-gray-900">
             <Show when={repos().length > 0 && active()}>
-              <LateralBar repos={repos()} active={activePage()} onChangeActive={setActivePage} />
+              <LateralBar repos={repos()} 
+                active={activePage()} 
+                onChangeActive={setActivePage}
+                isLogged={!!user()}
+              />
             </Show>
             
             <Switch 
