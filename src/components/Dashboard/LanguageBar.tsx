@@ -24,6 +24,8 @@ const LANGUAGE_GROUPS: Record<string, string> = {
   gd: "GDScript",
   tscn: "Godot Scene",
   tres: "Godot Resource",
+  uid: "Godot Resource",
+  cfg: "Config",
   cs: "C#",
   csproject: "C#",
   csproj: "C#",
@@ -133,7 +135,7 @@ const IGNORED_EXTENSIONS = [
   'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload',
   'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc', 'ini', 'old', 'new', 'lic', 'log', 'bak', 'backup', 'temp', 'cache', 'dist', 'out', 'build', 'target', 'obj',
   // Godot
-  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz'
+  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', '.import'
 ];
 
 // O seu componente continua recebendo a lista do Rust: { path, size }
