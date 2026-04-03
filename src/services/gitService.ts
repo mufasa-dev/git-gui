@@ -257,5 +257,9 @@ export async function getRemoteUrl(path: string): Promise<string> {
 }
 
 export async function cloneRepository(url: string, targetPath: string): Promise<void> {
-  return await invoke("clone_repo_command", { url, path: targetPath });
+  try{
+    return await invoke("clone_repo", { url, targetPath });
+  } catch (e) {
+    throw e;
+  }
 }

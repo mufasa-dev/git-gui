@@ -67,6 +67,7 @@ fn main() {
             commands::repo::git_config_pull,
             commands::repo::fetch_repo,
             commands::repo::get_remote_url,
+            commands::repo::clone_repo,
             commands::terminal::open_console,
             commands::terminal::open_file_manager,
             commands::terminal::open_browser,

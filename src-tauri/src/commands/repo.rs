@@ -120,3 +120,34 @@ pub async fn get_remote_url(path: String) -> Result<String, String> {
         Err(format!("Erro git: {}", err))
     }
 }
+
+#[tauri::command]
+pub async fn clone_repo(url: String, target_path: String) -> Result<String, String> {
+    let path = std::path::Path::new(&target_path);
+    
+    if path.exists() && path.is_dir() && path.read_dir().map_err(|e| e.to_string())?.next().is_some() {
+        return Err("A pasta de destino já existe e não está vazia. Escolha um novo nome ou pasta.".to_string());
+    }
+
+    let parent_dir = path.parent()
+        .ok_or("Caminho pai inválido")?
+        .to_str()
+        .ok_or("Erro de conversão")?;
+
+    let repo_name = path.file_name()
+        .and_then(|n| n.to_str())
+        .ok_or("Nome do repo inválido")?;
+
+    // Roda o clone criando a subpasta
+    let output = git_command(parent_dir)
+        .args(["clone", &url, repo_name])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(target_path)
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(stderr.trim().to_string())
+    }
+}

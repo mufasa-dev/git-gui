@@ -1,2 +1,7 @@
 node_modules
 dist
+
+# Credenciais e Segredos
+.env
+.env.local
+.env.*.local

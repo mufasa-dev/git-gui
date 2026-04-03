@@ -209,13 +209,18 @@ function LocalActions(props: { setActive: (path: string | null) => void, setRepo
     async function handleClone(url: string, path: string) {
         showLoading("Clonando repositório remoto...");
         try {
-        await cloneRepository(url, path); // Sua chamada ao backend
-        await processAndOpenRepo(path);    // Abre automaticamente após clonar
+            let finalUrl = url;
+            const token = await githubService.getToken();
+            if (token && url.includes("github.com")) {
+                finalUrl = url.replace("https://", `https://${token}@`);
+            }
+            await cloneRepository(finalUrl, path);
+            await processAndOpenRepo(path);
         setIsCloneModalOpen(false);
         } catch (err) {
-        notify.error('Erro no Clone', `${err}`);
+            notify.error('Erro ao Clonar', String(err));
         } finally {
-        hideLoading();
+            hideLoading();
         }
     }
 

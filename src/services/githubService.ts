@@ -3,10 +3,8 @@ import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
 
-const GITHUB_CLIENT_ID = "Ov23liCQYZsoi4mj7n12";
-// O Secret idealmente deve ficar apenas no Rust por segurança, 
-// mas passaremos aqui se você optar por manter a lógica flexível no TS.
-const GITHUB_CLIENT_SECRET = "2120c273cf18d94c05a2e36f736d44ab726803a6"; 
+const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
+const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
 
 async function getAuthStore() {
   // 'auth.bin' é o nome do arquivo. O Tauri v2 gerencia o rid internamente com o objeto retornado por load()
@@ -14,6 +12,19 @@ async function getAuthStore() {
 }
 
 export const githubService = {
+
+  async getToken(): Promise<string | null> {
+    try {
+      const store = await getAuthStore();
+      const token = await store.get<any>("github_token");
+      
+      if (!token) return null;
+      return typeof token === 'string' ? token : token.value;
+    } catch (e) {
+      return null;
+    }
+  },
+
   async login() {
     const rootUrl = `https://github.com/login/oauth/authorize`;
     const options = {
