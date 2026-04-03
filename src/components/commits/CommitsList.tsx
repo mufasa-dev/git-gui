@@ -99,6 +99,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   const totalPages = createMemo(() => Math.ceil(filteredCommits().length / itemsPerPage));
 
   async function selectCommit(hash: string) {
+    if (!props.repo || !props.repo.path) return;
     const details = await getCommitDetails(props.repo.path, hash);
     setSelectedCommit({ ...details, _ts: Date.now() });
   }

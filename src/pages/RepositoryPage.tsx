@@ -166,11 +166,13 @@ export default function RepoTabsPage() {
             >
               {/* Caso: Página de Commits */}
               <Match when={active() && activePage() === 'commits'}>
-                <Show when={activeRepo()}>
-                  <RepoView 
-                    repo={activeRepo()!} 
-                    refreshBranches={refreshBranches} 
-                  />
+                <Show when={activeRepo()} fallback={<div>Carregando repositório...</div>}>
+                  {(currentRepo) => (
+                    <RepoView 
+                      repo={currentRepo()} 
+                      refreshBranches={refreshBranches} 
+                    />
+                  )}
                 </Show>
               </Match>
 
