@@ -33,6 +33,7 @@ import swiftIcon from "../../assets/swift.png";
 import flutterIcon from "../../assets/flutter.png";
 import goIcon from "../../assets/golang.png";
 import godotIcon from "../../assets/godot.png";
+import tagIcon from "../../assets/tag.png";
 import graphqlIcon from "../../assets/graphql.png";
 import makefileIcon from "../../assets/makefile.png";
 import pythonIcon from "../../assets/python.png";
@@ -168,6 +169,8 @@ export default function FileIcon(props: FileIconProps) {
       gd: godotIcon,
       tscn: godotIcon,
       tres: godotIcon,
+      uid: tagIcon,
+      cfg: configIcon,
       graphql: graphqlIcon,
       graphqls: graphqlIcon,
       makefile: makefileIcon,

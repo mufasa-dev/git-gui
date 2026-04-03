@@ -21,14 +21,18 @@ export default function RepoTabsPage() {
   const [activePage, setActivePage] = createSignal<string>('commits');
 
   const closeRepo = (id: string) => {
-    setRepos(prev => {
-      const nextRepos = prev.filter(r => r.path !== id);
-      saveRepos(nextRepos);
-      if (active() === id) {
-        setActive(nextRepos.length > 0 ? nextRepos[0].path : null);
-      }
-      return nextRepos;
-    });
+    const currentRepos = repos();
+    const isClosingActive = active() === id;
+
+    const nextRepos = currentRepos.filter(r => r.path !== id);
+
+    if (isClosingActive) {
+      const nextActive = nextRepos.length > 0 ? nextRepos[0].path : null;
+      setActive(nextActive);
+    }
+
+    setRepos(nextRepos);
+    saveRepos(nextRepos);
   };
 
   onMount(async () => {
@@ -117,9 +121,11 @@ export default function RepoTabsPage() {
     }
   }
 
-  const activeRepo = createMemo(() => 
-    repos().find(r => r.path === active())
-  );
+  const activeRepo = createMemo(() => {
+    const currentActive = active();
+    if (!currentActive) return null;
+    return repos().find(r => r.path === currentActive) || null;
+  });
 
   return (
      <RepoContext.Provider value={{ repos, active, refreshBranches }}>
@@ -132,36 +138,51 @@ export default function RepoTabsPage() {
           <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
 
           <div class="flex flex-1 overflow-auto bg-gray-200 dark:bg-gray-900">
+            <Show when={repos().length > 0 && active()}>
+              <LateralBar repos={repos()} active={activePage()} onChangeActive={setActivePage} />
+            </Show>
+            
             <Switch 
               fallback={
-                <WelcomeScreen />
+                <WelcomeScreen 
+                  repos={repos()} 
+                  setActive={setActive} 
+                  setRepos={setRepos}
+                />
               }
             >
-              <LateralBar repos={repos()} active={activePage()} onChangeActive={setActivePage} />
               {/* Caso: Página de Commits */}
               <Match when={active() && activePage() === 'commits'}>
-                <RepoView 
-                  repo={activeRepo()!} 
-                  refreshBranches={refreshBranches} 
-                />
+                <Show when={activeRepo()}>
+                  <RepoView 
+                    repo={activeRepo()!} 
+                    refreshBranches={refreshBranches} 
+                  />
+                </Show>
               </Match>
 
               {/* Caso: Página de Arquivos */}
               <Match when={active() && activePage() === 'files'}>
-                <FilesList repo={activeRepo()!} />
+                <Show when={activeRepo()}>
+                  <FilesList repo={activeRepo()!} />
+                </Show>
               </Match>
 
               {/* Caso: Dashboard */}
               <Match when={active() && activePage() === 'dashboard'}>
-                <Dashboard 
-                  repo={activeRepo()!} 
-                  branch={activeRepo()?.activeBranch} 
-                />
+                <Show when={activeRepo()}>
+                  <Dashboard 
+                    repo={activeRepo()!} 
+                    branch={activeRepo()?.activeBranch} 
+                  />
+                </Show>
               </Match>
 
               {/* Nova Página: Auth/Perfil (Opcional, se já quiser deixar o lugar guardado) */}
               <Match when={active() && activePage() === 'profile'}>
-                <ProviderAuthPage repoPath={active()!} />
+                <Show when={activeRepo()}>
+                  <ProviderAuthPage repoPath={active()!} />
+                </Show>
               </Match>
             </Switch>
           </div>

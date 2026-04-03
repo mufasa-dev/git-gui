@@ -215,7 +215,7 @@ export default function Header(props: Props) {
             <img src={folderIcon} class="inline h-6" />
             <small>Abrir Repositório</small>
           </Button>
-          <Show when={props.repos.length > 0}>
+          <Show when={props.active}>
             <Button class="top-btn" onClick={async () => { await doFetch()}} disabled={disabledButton()}>
               <img src={fetchIcon} class="inline h-6" />
               <small>{fetching() ? " Atualizando..." : " Fetch"}</small>
@@ -294,7 +294,7 @@ export default function Header(props: Props) {
           </Show>
 
           <Button
-            class={`top-btn ${props.repos.length > 0 ? "ml-2" : "ml-auto"}`}
+            class={`top-btn ${props.active ? "ml-2" : "ml-auto"}`}
             onClick={toggleDark}
           >
             <img src={dark() ? sunIcon : moonIcon} class="inline h-6" />
