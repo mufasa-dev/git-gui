@@ -3,10 +3,11 @@ import { open } from "@tauri-apps/plugin-dialog";
 
 export default function CloneRepositoryModal(props: { 
   isOpen: boolean, 
+  initialUrl?: string;
   onClose: () => void,
   onClone: (url: string, path: string) => Promise<void> 
 }) {
-  const [url, setUrl] = createSignal("");
+  const [url, setUrl] = createSignal(props.initialUrl || "");
   const [path, setPath] = createSignal("");
   const [loading, setLoading] = createSignal(false);
 

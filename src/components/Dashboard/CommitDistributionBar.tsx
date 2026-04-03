@@ -13,10 +13,12 @@ const TAG_MAPPING: Record<string, string> = {
   ft: "feat",
   fet: "feat",
   featt: "feat",
+  fewat: "feat",
   // Fixes
   bug: "fix",
   fixed: "fix",
   hotfix: "fix",
+  fixx: "fix",
   // Tests
   test: "tests",
   testing: "tests",

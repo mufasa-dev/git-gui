@@ -69,7 +69,6 @@ export const githubService = {
       const store = await getAuthStore();
       const token = await store.get<{ value: string }>("github_token");
 
-      // No Tauri v2, às vezes o retorno é um objeto { value: ... } ou a string direta
       const tokenValue = typeof token === 'string' ? token : (token as any)?.value;
 
       if (!tokenValue) return null;
@@ -78,10 +77,50 @@ export const githubService = {
         headers: { Authorization: `Bearer ${tokenValue}` }
       });
 
-      return res.ok ? await res.json() : null;
+      if (res.ok) {
+          const data = await res.json();
+          return { 
+              ...data, 
+              provider: 'github' 
+          };
+      }
+      
+      return null;
     } catch (e) {
       console.error("Erro ao ler token", e);
       return null;
+    }
+  },
+
+  async getUserRepositories() {
+    const token = await this.getToken();
+    if (!token) return [];
+
+    try {
+      const res = await fetch("https://api.github.com/user/repos?sort=updated&per_page=100", {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Accept": "application/vnd.github.v3+json"
+        }
+      });
+
+      if (!res.ok) throw new Error("Falha ao buscar repositórios");
+      
+      const data = await res.json();
+      return data.map((repo: any) => ({
+        id: repo.id,
+        name: repo.name,
+        full_name: repo.full_name,
+        html_url: repo.html_url,
+        private: repo.private,
+        description: repo.description,
+        language: repo.language,
+        stargazers_count: repo.stargazers_count,
+        updated_at: repo.updated_at, 
+      }));
+    } catch (e) {
+      console.error(e);
+      return [];
     }
   },
 

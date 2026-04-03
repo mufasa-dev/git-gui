@@ -250,7 +250,8 @@ export default function FileIcon(props: FileIconProps) {
       wmv: videoIcon,
       swf: flashIcon,
       swc: flashIcon,
-      config: configIcon
+      config: configIcon,
+      env: configIcon,
     };
 
     return mapping[ext!] || defaultIcon;
