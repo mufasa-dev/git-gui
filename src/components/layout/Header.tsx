@@ -1,4 +1,4 @@
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onMount, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { openBash, openConsole, openFileManager, openRepositoryBrowser, openVsCode } from "../../services/openService";
 import Button from "../ui/Button";
@@ -215,84 +215,86 @@ export default function Header(props: Props) {
             <img src={folderIcon} class="inline h-6" />
             <small>Abrir Repositório</small>
           </Button>
-          <Button class="top-btn" onClick={async () => { await doFetch()}} disabled={disabledButton()}>
-            <img src={fetchIcon} class="inline h-6" />
-            <small>{fetching() ? " Atualizando..." : " Fetch"}</small>
-          </Button>
-          <Button class="top-btn relative" onClick={async () => { await doPull()}} disabled={disabledButton()}>
-            <img src={pullIcon} class="inline h-6" />
-             <small>{pulling() ? " Atualizando..." : " Pull"}</small>
-             {props.active && (() => {
-              const repo = props.repos.find(r => r.path === props.active);
-              const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
-              return branch && branch.behind > 0
-                ? <span class="text-red-700 dark:text-red-200 font-bold rounded-full ml-1 absolute px-2 right-0">
-                  {branch.behind}
-                </span>
-                : null;
-            })()}
-          </Button>
-          <Button class="top-btn relative" onClick={async () => { await doPush()}} disabled={disabledButton()}>
-            <img src={pushIcon} class="inline h-6" />
-            <small>{pushing() ? " Enviando..." : " Push"}</small>
-            {props.active && (() => {
-              const repo = props.repos.find(r => r.path === props.active);
-              const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
-              return branch && branch.ahead > 0
-                ? <span class="text-green-700 dark:text-green-200 font-bold rounded-full ml-1 absolute px-2 left-0">
-                  {branch.ahead}
-                </span>
-                : null;
-            })()}
-          </Button>
-          <Button class="top-btn" onClick={() => setOpenModalNewBranch(true)} disabled={disabledButton()}>
-            <img src={branchIcon} class="inline h-6" />
-            <small>Nova Branch</small>
-          </Button>
-          <DropdownButton
-            label="Abrir"
-            class="ml-auto"
-            img={newWindowIcon}
-            options={[
-              {
-                img: commandIcon,
-                label: "Abrir Console",
-                action: () => {
-                  try {
-                    console.log("Abrindo console...", props);
-                    openConsole(props.active!)
-                  } catch (error) {
-                    const errorMessage = typeof error === 'string' ? error : String(error);
-                    notify.error('Erro ao abrir console', errorMessage);
+          <Show when={props.repos.length > 0}>
+            <Button class="top-btn" onClick={async () => { await doFetch()}} disabled={disabledButton()}>
+              <img src={fetchIcon} class="inline h-6" />
+              <small>{fetching() ? " Atualizando..." : " Fetch"}</small>
+            </Button>
+            <Button class="top-btn relative" onClick={async () => { await doPull()}} disabled={disabledButton()}>
+              <img src={pullIcon} class="inline h-6" />
+              <small>{pulling() ? " Atualizando..." : " Pull"}</small>
+              {props.active && (() => {
+                const repo = props.repos.find(r => r.path === props.active);
+                const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
+                return branch && branch.behind > 0
+                  ? <span class="text-red-700 dark:text-red-200 font-bold rounded-full ml-1 absolute px-2 right-0">
+                    {branch.behind}
+                  </span>
+                  : null;
+              })()}
+            </Button>
+            <Button class="top-btn relative" onClick={async () => { await doPush()}} disabled={disabledButton()}>
+              <img src={pushIcon} class="inline h-6" />
+              <small>{pushing() ? " Enviando..." : " Push"}</small>
+              {props.active && (() => {
+                const repo = props.repos.find(r => r.path === props.active);
+                const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
+                return branch && branch.ahead > 0
+                  ? <span class="text-green-700 dark:text-green-200 font-bold rounded-full ml-1 absolute px-2 left-0">
+                    {branch.ahead}
+                  </span>
+                  : null;
+              })()}
+            </Button>
+            <Button class="top-btn" onClick={() => setOpenModalNewBranch(true)} disabled={disabledButton()}>
+              <img src={branchIcon} class="inline h-6" />
+              <small>Nova Branch</small>
+            </Button>
+            <DropdownButton
+              label="Abrir"
+              class="ml-auto"
+              img={newWindowIcon}
+              options={[
+                {
+                  img: commandIcon,
+                  label: "Abrir Console",
+                  action: () => {
+                    try {
+                      console.log("Abrindo console...", props);
+                      openConsole(props.active!)
+                    } catch (error) {
+                      const errorMessage = typeof error === 'string' ? error : String(error);
+                      notify.error('Erro ao abrir console', errorMessage);
+                    }
                   }
-                }
-              },
-              {
-                img: bashIcon,
-                label: "Abrir no Git Bash",
-                hide: platform() != "windows",
-                action: () => openBash(props.active!)
-              },
-              {
-                img: folderIcon,
-                label: "Gerenciador de Arquivos",
-                action: () => openFileManager(props.active!)
-              },
-              {
-                img: internetIcon,
-                label: "Navegador",
-                action: () => openRepositoryBrowser(props.active!)
-              },
-              {
-                img: vsCodeIcon,
-                label: "Abrir no VSCode",
-                action: () => openVsCode(props.active!)
-              },
-            ]}
-          />
+                },
+                {
+                  img: bashIcon,
+                  label: "Abrir no Git Bash",
+                  hide: platform() != "windows",
+                  action: () => openBash(props.active!)
+                },
+                {
+                  img: folderIcon,
+                  label: "Gerenciador de Arquivos",
+                  action: () => openFileManager(props.active!)
+                },
+                {
+                  img: internetIcon,
+                  label: "Navegador",
+                  action: () => openRepositoryBrowser(props.active!)
+                },
+                {
+                  img: vsCodeIcon,
+                  label: "Abrir no VSCode",
+                  action: () => openVsCode(props.active!)
+                },
+              ]}
+            />
+          </Show>
 
           <Button
-            class="top-btn ml-2"
+            class={`top-btn ${props.repos.length > 0 ? "ml-2" : "ml-auto"}`}
             onClick={toggleDark}
           >
             <img src={dark() ? sunIcon : moonIcon} class="inline h-6" />

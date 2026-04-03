@@ -11,22 +11,26 @@ export default function WelcomeScreen() {
   ];
 
   return (
-    <div class="h-full w-full flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-[#0d1117] transition-colors overflow-y-auto">
+    <div class="h-full w-full flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-900 transition-colors overflow-y-auto">
       
       {/* Logo e Branding (Sempre visível) */}
-      <div class="flex items-center gap-6 mb-8 group">
-        {/* Container do Logo com efeito de brilho no hover */}
-        <div class="relative">
-            <div class="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-400 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+      <div class="flex items-center gap-8 mb-2 group p-12 isolate transition-all">
+    
+        {/* Container do Logo */}
+        <div class="relative flex-shrink-0">
+            <div class="absolute -inset-4 bg-gradient-to-r from-blue-600 to-cyan-400 rounded-full blur-xl opacity-20 
+                group-hover:opacity-60 group-hover:blur-2xl transition-all duration-500 
+                group-hover:duration-300 will-change-[filter]">
+            </div>
             <img 
             src={logoImg} 
             alt="Git Trident Logo" 
-            class="relative h-28 w-auto drop-shadow-2xl transform transition-transform duration-500 group-hover:scale-105" 
+            class="relative h-32 w-auto drop-shadow-2xl transform-gpu will-change-transform transition-transform duration-500 group-hover:scale-110" 
             />
         </div>
 
         {/* Texto da Marca */}
-        <div class="flex flex-col justify-center">
+        <div class="flex flex-col justify-center select-none transform-gpu">
             <h1 class="text-6xl font-black tracking-tighter leading-none select-none">
             <span class="text-gray-900 dark:text-white">Git</span>
             <span class="bg-clip-text text-transparent bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-cyan-300 ml-2">
@@ -101,7 +105,9 @@ function ProviderCard(props: { provider: any }) {
   };
 
   return (
-    <div class="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm flex flex-col gap-3">
+    <div class={`p-4 rounded-xl border border-gray-200 dark:border-gray-700 
+              bg-white dark:bg-gray-800 shadow-sm flex flex-col gap-3
+              ${userData.loading ? 'opacity-50 pointer-events-none' : ''}`}>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class={`w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300`}>
@@ -125,7 +131,8 @@ function ProviderCard(props: { provider: any }) {
         fallback={
           <button 
             onClick={handleLogin}
-            class="w-full py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-blue-600 hover:text-white transition-all"
+            class="w-full py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-gray-700 
+                 text-gray-600 dark:text-gray-300 hover:bg-blue-600 hover:text-white transition-all"
           >
             Conectar Conta
           </button>
@@ -151,7 +158,7 @@ function ProviderCard(props: { provider: any }) {
 function LocalActions() {
     return (
         <div class="space-y-4">
-            <button class="w-full flex items-center gap-4 p-5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:shadow-md transition-all group">
+            <button class="w-full flex items-center gap-4 p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition-all group">
                 <i class="fa-solid fa-download text-2xl text-blue-500"></i>
                 <div class="text-left">
                     <div class="font-bold dark:text-white group-hover:text-blue-500 transition-colors">Clonar Repositório</div>
@@ -159,7 +166,7 @@ function LocalActions() {
                 </div>
             </button>
 
-            <button class="w-full flex items-center gap-4 p-5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:shadow-md transition-all group">
+            <button class="w-full flex items-center gap-4 p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition-all group">
                 <i class="fa-solid fa-folder-open text-2xl text-green-500"></i>
                 <div class="text-left">
                     <div class="font-bold dark:text-white group-hover:text-green-500 transition-colors">Abrir Repositório Local</div>

@@ -125,9 +125,7 @@ export default function RepoTabsPage() {
      <RepoContext.Provider value={{ repos, active, refreshBranches }}>
       <div class="flex flex-col h-full dark:bg-gray-800 dark:text-white">
         {/* Topo com botão */}
-        <Show when={repos()?.length > 0}>
-          <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
-        </Show>
+        <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
 
         {/* Abas + conteúdo */}
         <div class="flex flex-col flex-1">

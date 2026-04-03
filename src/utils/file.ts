@@ -14,7 +14,7 @@ export const commitColors: Record<string, string> = {
   style: "text-purple-500 dark:text-purple-400",
   refactor: "text-cyan-600 dark:text-cyan-400",
   perf: "text-rose-500 dark:text-rose-400",
-  test: "text-pink-500 dark:text-pink-400",
+  tests: "text-pink-500 dark:text-pink-400",
   build: "text-emerald-600 dark:text-emerald-500",
   chore: "text-slate-500 dark:text-slate-400",
   ci: "text-indigo-500 dark:text-indigo-400",
@@ -40,7 +40,7 @@ export const tagBaseColors: Record<string, string> = {
   style: "#a855f7",    // purple-500
   refactor: "#0891b2", // cyan-600
   perf: "#f43f5e",     // rose-500
-  test: "#ec4899",     // pink-500
+  tests: "#ec4899",     // pink-500
   build: "#10b981",    // emerald-500
   chore: "#64748b",    // slate-500
   ci: "#6366f1",       // indigo-500
