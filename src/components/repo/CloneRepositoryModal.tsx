@@ -29,6 +29,12 @@ export default function CloneRepositoryModal(props: {
     }
   }, { defer: true }));
 
+  createEffect(() => {
+    if (props.isOpen && props.initialUrl !== undefined) {
+      setUrl(props.initialUrl);
+    }
+  });
+
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
     setLoading(true);
@@ -71,7 +77,6 @@ export default function CloneRepositoryModal(props: {
             </h3>
             <button onClick={props.onClose} class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
               <i class="fa-solid fa-xmark"></i>
-
             </button>
           </div>
 
