@@ -91,6 +91,24 @@ export const githubService = {
       return null;
     }
   },
+  
+  async getExtraProfileData(username: string) {
+    const token = await this.getToken(); // Sua lógica de pegar o token
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const [orgsRes, readmeRes] = await Promise.all([
+      fetch(`https://api.github.com/users/${username}/orgs`, { headers }),
+      // O README geralmente fica no repositório com o mesmo nome do usuário
+      fetch(`https://api.github.com/repos/${username}/${username}/contents/README.md`, { 
+        headers: { ...headers, Accept: "application/vnd.github.raw" } 
+      })
+    ]);
+
+    return {
+      orgs: orgsRes.ok ? await orgsRes.json() : [],
+      readme: readmeRes.ok ? await readmeRes.text() : null
+    };
+  },
 
   async getUserRepositories() {
     const token = await this.getToken();

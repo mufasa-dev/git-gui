@@ -3,6 +3,7 @@ import { getProviderFromUrl, GitProvider } from "../utils/gitProvider";
 import { getRemoteUrl } from "../services/gitService"; // Você já tem lógica de remote
 import { githubService } from "../services/githubService";
 import { useRepoContext } from "../context/RepoContext";
+import GithubProfileCard from "../components/Remote/GithubProfileCard";
 
 export default function ProviderAuthPage(props: { repoPath: string }) {
   const { user, mutateUser, refetchUser } = useRepoContext();
@@ -26,48 +27,36 @@ export default function ProviderAuthPage(props: { repoPath: string }) {
   };
 
   return (
-    <div class="p-6 max-w-4xl mx-auto">
+    <div class="p-6 max-w-5xl mx-auto">
       <h2 class="text-2xl font-bold mb-6 dark:text-white text-gray-900">Conexão com Provedor</h2>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Card de Status da Origem */}
-        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <p class="text-xs text-gray-500 uppercase font-bold mb-2">Repositório Remoto</p>
-          <div class="flex items-center gap-3">
-            <ProviderIcon type={provider()} />
-            <div>
-              <p class="font-mono text-sm truncate w-64">{remoteUrl() || 'Detectando...'}</p>
-              <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full capitalize">
-                {provider()}
-              </span>
-            </div>
-          </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Coluna da Esquerda: Status e Login */}
+        <div class="lg:col-span-1 space-y-6">
+           {/* Seu Card de Repositório Remoto aqui... */}
+           
+           <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+              <Show when={!user.loading} fallback={<div class="animate-pulse h-20 bg-gray-100 rounded-lg" />}>
+                <Show when={!user()} fallback={
+                   <div class="text-center">
+                     <p class="text-xs text-green-500 font-bold uppercase mb-4">Autenticado via GitHub</p>
+                     <button onClick={handleLogout} class="w-full py-2 bg-red-50 text-red-600 rounded-lg font-bold text-xs hover:bg-red-100 transition-colors">
+                        DESCONECTAR CONTA
+                     </button>
+                   </div>
+                }>
+                  <LoginAction provider={provider()} />
+                </Show>
+              </Show>
+           </div>
         </div>
 
-        {/* Card de Perfil do Usuário */}
-        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <Show when={!user.loading} fallback={<div class="animate-pulse h-20 bg-gray-100 dark:bg-gray-700 rounded-lg" />}>
-            <Show 
-              when={user()} 
-              fallback={<LoginAction provider={provider()} />}
-            >
-              <div class="flex items-center gap-4">
-                <img src={user().avatar_url} class="w-12 h-12 rounded-full border-2 border-purple-500" />
-                <div>
-                  <h4 class="font-bold dark:text-white">{user().name || user().login}</h4>
-                  <p class="text-xs text-gray-500">{user().email}</p>
-                </div>
-                <button 
-                  onClick={handleLogout}
-                  title="Sair da conta"
-                  class="ml-auto text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-all active:scale-90"
-                >
-                  <i class="fa-solid fa-right-from-bracket"></i>
-                </button>
-              </div>
-            </Show>
-          </Show>
+        {/* Coluna da Direita: O Perfil Detalhado */}
+        <div class="lg:col-span-2">
+           <GithubProfileCard />
         </div>
+
       </div>
     </div>
   );
