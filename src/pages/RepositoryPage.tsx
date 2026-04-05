@@ -7,7 +7,6 @@ import RepoContext from "../context/RepoContext";
 
 import { path } from "@tauri-apps/api";
 import { loadRepos, saveRepos } from "../services/storeService";
-import { platform } from "@tauri-apps/plugin-os";
 import Header from "../components/layout/Header";
 import LateralBar from "../components/ui/LateralBar";
 import FilesList from "./FilesList";

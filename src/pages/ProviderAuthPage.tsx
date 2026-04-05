@@ -1,6 +1,6 @@
 import { createResource, Show, createSignal } from "solid-js";
 import { getProviderFromUrl, GitProvider } from "../utils/gitProvider";
-import { getRemoteUrl } from "../services/gitService"; // Você já tem lógica de remote
+import { getRemoteUrl } from "../services/gitService"; 
 import { githubService } from "../services/githubService";
 import { useRepoContext } from "../context/RepoContext";
 import GithubProfileCard from "../components/Remote/GithubProfileCard";
@@ -8,61 +8,37 @@ import GithubProfileCard from "../components/Remote/GithubProfileCard";
 export default function ProviderAuthPage(props: { repoPath: string }) {
   const { user, mutateUser, refetchUser } = useRepoContext();
   
-  // O remoteUrl ainda pode ser local ou vir do contexto também
   const [remoteUrl] = createResource(() => getRemoteUrl(props.repoPath));
   const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
 
-  const handleLogout = async () => {
-    if (provider() === 'github') {
-      await githubService.logout();
-      mutateUser(null); // Limpa GLOBALMENTE. A barra lateral vai esconder os botões na hora!
-    }
-  };
-
-  const handleLogin = async () => {
-     if (provider() === 'github') {
-       await githubService.login();
-       refetchUser(); // Recarrega GLOBALMENTE. Os botões vão aparecer na hora!
-     }
-  };
-
   return (
-    <div class="p-6 max-w-5xl mx-auto">
-      <h2 class="text-2xl font-bold mb-6 dark:text-white text-gray-900">Conexão com Provedor</h2>
-
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Coluna da Esquerda: Status e Login */}
-        <div class="lg:col-span-1 space-y-6">
-           {/* Seu Card de Repositório Remoto aqui... */}
-           
-           <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
-              <Show when={!user.loading} fallback={<div class="animate-pulse h-20 bg-gray-100 rounded-lg" />}>
-                <Show when={!user()} fallback={
-                   <div class="text-center">
-                     <p class="text-xs text-green-500 font-bold uppercase mb-4">Autenticado via GitHub</p>
-                     <button onClick={handleLogout} class="w-full py-2 bg-red-50 text-red-600 rounded-lg font-bold text-xs hover:bg-red-100 transition-colors">
-                        DESCONECTAR CONTA
-                     </button>
-                   </div>
-                }>
-                  <LoginAction provider={provider()} />
-                </Show>
-              </Show>
-           </div>
+    <div class="h-full w-full bg-gray-100 dark:bg-gray-900 overflow-hidden flex flex-col">
+      <Show when={!user.loading} fallback={
+        <div class="flex h-full w-full items-center justify-center">
+           <i class="fa-solid fa-circle-notch animate-spin text-blue-500 text-3xl"></i>
         </div>
-
-        {/* Coluna da Direita: O Perfil Detalhado */}
-        <div class="lg:col-span-2">
-           <GithubProfileCard />
-        </div>
-
-      </div>
+      }>
+        <Show 
+          when={user()} 
+          fallback={
+            <div class="flex h-full w-full items-center justify-center p-10">
+              <div class="bg-white dark:bg-gray-800 p-10 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl max-w-md w-full text-center">
+                <div class="mb-6 flex justify-center">
+                  <ProviderIcon type={provider()} />
+                </div>
+                <LoginAction provider={provider()} />
+              </div>
+            </div>
+          }
+        >
+          {/* Se estiver logado, o GithubProfileCard assume o controle total da tela */}
+          <GithubProfileCard />
+        </Show>
+      </Show>
     </div>
   );
 }
 
-// Sub-componente para exibição de ícones
 function ProviderIcon(props: { type: GitProvider }) {
   const icons = {
     github: "fa-brands fa-github text-white",
@@ -71,7 +47,7 @@ function ProviderIcon(props: { type: GitProvider }) {
     unknown: "fa-solid fa-link text-gray-400"
   };
   return (
-    <div class={`w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-gray-900`}>
+    <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl bg-gray-900 shadow-inner">
       <i class={icons[props.type]}></i>
     </div>
   );
@@ -85,8 +61,6 @@ function LoginAction(props: { provider: GitProvider }) {
     try {
       if (props.provider === 'github') {
         await githubService.login();
-        // O createResource(userData) no pai vai disparar 
-        // automaticamente se você usar uma refetch logic
         window.location.reload(); 
       }
     } catch (e) {
@@ -97,14 +71,15 @@ function LoginAction(props: { provider: GitProvider }) {
   };
 
   return (
-    <div class="flex flex-col items-center justify-center h-full gap-2">
-      <p class="text-sm text-gray-500">Você não está autenticado no {props.provider}</p>
+    <div class="flex flex-col gap-4">
+      <h2 class="text-xl font-bold dark:text-white uppercase tracking-tight">Conectar ao {props.provider}</h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Para visualizar seu perfil e README, você precisa autorizar o Trident.</p>
       <button 
         onClick={handleLogin}
         disabled={isLogging()}
-        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all disabled:opacity-50"
+        class="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-blue-500/20"
       >
-        {isLogging() ? "Aguardando navegador..." : "Conectar Conta"}
+        {isLogging() ? "Aguardando navegador..." : "EFETUAR LOGIN"}
       </button>
     </div>
   );

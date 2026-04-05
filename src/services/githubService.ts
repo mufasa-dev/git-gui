@@ -104,10 +104,12 @@ export const githubService = {
       })
     ]);
 
-    return {
+    let result =  {
       orgs: orgsRes.ok ? await orgsRes.json() : [],
       readme: readmeRes.ok ? await readmeRes.text() : null
     };
+    console.log("Dados extras do perfil:", result); // Debug para verificar os dados retornados
+    return result;
   },
 
   async getUserRepositories() {
