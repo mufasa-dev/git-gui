@@ -1,5 +1,5 @@
 import { createResource, For, Show, createSignal } from "solid-js";
-import { githubService } from "../services/githubService";
+import { githubService } from "../services/github";
 import logoImg from "../assets/fork.png";
 import CloneRepositoryModal from "../components/repo/CloneRepositoryModal";
 import { notify } from "../utils/notifications";

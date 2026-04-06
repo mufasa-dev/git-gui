@@ -13,7 +13,7 @@ import FilesList from "./FilesList";
 import Dashboard from "./Dashboard";
 import ProviderAuthPage from "./ProviderAuthPage";
 import WelcomeScreen from "./WelcomeScreen";
-import { githubService } from "../services/githubService";
+import { githubService } from "../services/github";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);

@@ -1,7 +1,7 @@
 import { createResource, Show, createSignal } from "solid-js";
 import { getProviderFromUrl, GitProvider } from "../utils/gitProvider";
 import { getRemoteUrl } from "../services/gitService"; 
-import { githubService } from "../services/githubService";
+import { githubService } from "../services/github";
 import { useRepoContext } from "../context/RepoContext";
 import GithubProfileCard from "../components/Remote/GithubProfileCard";
 

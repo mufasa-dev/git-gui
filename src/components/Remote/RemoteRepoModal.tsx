@@ -1,5 +1,5 @@
 import { createResource, For, Show, createSignal } from "solid-js";
-import { githubService } from "../../services/githubService";
+import { githubService } from "../../services/github";
 import Dialog from "../ui/Dialog";
 import { GROUP_COLORS } from "../../utils/file";
 
