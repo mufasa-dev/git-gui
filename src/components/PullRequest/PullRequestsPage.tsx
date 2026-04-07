@@ -68,7 +68,7 @@ export default function PullRequestsPage(props: { repo: any, username: string })
           <For each={filteredPRList()}>
             {(pr) => (
               <div class={`flex items-center border rounded-xl p-2 mb-2 transition-colors cursor-pointer
-                          ${selectedPR()?.number === pr.number ? 'bg-blue-500/10 border-blue-500/30' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-700'}`}
+                          ${selectedPR()?.number === pr.number ? 'bg-blue-500/10 border-blue-500/30' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
                   onClick={() => setSelectedPR(pr)}>
                 <img src={pr.author.avatarUrl} alt={pr.author.login} class="w-16 h-16 rounded-full border-2 border-gray-300 dark:border-gray-700 mx-3" />
                 <div 
@@ -115,7 +115,7 @@ export default function PullRequestsPage(props: { repo: any, username: string })
       <div class="resize-bar-vertical" onMouseDown={() => setIsResizing(true)}></div>
 
       {/* PAINEL DE DETALHES (Ocupa o resto) */}
-      <div class="flex-1 flex flex-col overflow-hidden ml-1">
+      <div class="flex-1 flex flex-col overflow-hidden">
          <div class="container-branch-list flex-1 p-0 flex flex-col mb-2 overflow-hidden">
            <Show 
             when={selectedPR()} 
