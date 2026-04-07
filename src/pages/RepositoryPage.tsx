@@ -14,6 +14,7 @@ import Dashboard from "./Dashboard";
 import ProviderAuthPage from "./ProviderAuthPage";
 import WelcomeScreen from "./WelcomeScreen";
 import { githubService } from "../services/github";
+import PullRequestsPage from "../components/PullRequest/PullRequestsPage";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -73,7 +74,7 @@ export default function RepoTabsPage() {
   });
 
   const handleVisibilityChange = () => {
-    if (document.visibilityState === "visible" && active()) {
+    if (document.visibilityState === "visible" && active() && ['commits', 'dashboard'].includes(activePage())) {
       refreshBranches(active()!);
     }
   };
@@ -81,7 +82,7 @@ export default function RepoTabsPage() {
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
   const handleFocus = () => {
-    if (active()) refreshBranches(active()!);
+    if (active() && ['commits', 'dashboard'].includes(activePage())) refreshBranches(active()!);
   };
   window.addEventListener("focus", handleFocus);
 
@@ -189,6 +190,17 @@ export default function RepoTabsPage() {
                     repo={activeRepo()!} 
                     branch={activeRepo()?.activeBranch} 
                   />
+                </Show>
+              </Match>
+
+              <Match when={active() && activePage() === 'pull-requests'}>
+                <Show when={activeRepo()} fallback={<div>Carregando repositório...</div>}>
+                  {(currentRepo) => (
+                    <PullRequestsPage 
+                      repo={currentRepo()} 
+                      username={user()?.login || ''} 
+                    />
+                  )}
                 </Show>
               </Match>
 
