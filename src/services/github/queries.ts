@@ -133,6 +133,18 @@ export const PR_DESCRIPTION_QUERY = `
         participants(first: 10) {
           nodes { login avatarUrl }
         }
+        reviewRequests(first: 10) {
+          nodes {
+            requestedReviewer {
+              ... on User {
+                login
+                avatarUrl
+                name
+                email
+              }
+            }
+          }
+        }
         comments(first: 30) {
           totalCount
           nodes {

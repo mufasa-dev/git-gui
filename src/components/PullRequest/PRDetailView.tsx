@@ -1,4 +1,4 @@
-import { createResource, Show, For, createSignal, Switch, Match } from "solid-js";
+import { createResource, Show, For, createSignal, Switch, Match, createMemo } from "solid-js";
 import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
 
@@ -20,6 +20,44 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
     const total = (details()?.additions || 0) + (details()?.deletions || 0);
     return total === 0 ? 50 : (details()?.additions / total) * 100;
   };
+
+  const reviewersList = createMemo(() => {
+    const data = details();
+    if (!data) return [];
+
+    const list: any[] = [];
+
+    // 1. Adiciona quem já revisou
+    data.reviews?.nodes?.forEach((review: any) => {
+      // Evita duplicados, pegando sempre o estado mais recente
+      const existing = list.find(r => r.login === review.author.login);
+      if (existing) {
+        existing.state = review.state;
+      } else {
+        list.push({
+          login: review.author.login,
+          avatarUrl: review.author.avatarUrl,
+          name: review.author.name,
+          state: review.state, // APPROVED, CHANGES_REQUESTED, COMMENTED
+        });
+      }
+    });
+
+    // 2. Adiciona quem foi solicitado e ainda não fez nada
+    data.reviewRequests?.nodes?.forEach((req: any) => {
+      const user = req.requestedReviewer;
+      if (!list.find(r => r.login === user.login)) {
+        list.push({
+          login: user.login,
+          avatarUrl: user.avatarUrl,
+          name: user.name,
+          state: "PENDING",
+        });
+      }
+    });
+
+    return list;
+  });
 
   const tabs = ['Visão Geral', 'Files', 'Commits', 'Checks'];
 
@@ -158,26 +196,55 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
           <div>
             <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
               <span>Reviewers</span>
-              <i class="fa-solid fa-plus hover:text-blue-500 cursor-pointer transition-colors"></i>
+              <i class="fa-solid fa-gear hover:text-blue-500 cursor-pointer transition-colors"></i>
             </div>
+            
             <div class="space-y-5">
-              <div class="flex items-center justify-between group">
-                <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-lg bg-pink-500/20 text-pink-500 flex items-center justify-center font-black text-[10px]">BR</div>
-                  <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Bruno Ribeiro</span>
-                </div>
-                <i class="fa-solid fa-check-circle text-green-500 text-xs"></i>
-              </div>
-              <div class="flex items-center justify-between opacity-50">
-                <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-lg bg-yellow-500/20 text-yellow-500 flex items-center justify-center font-black text-[10px]">AM</div>
-                  <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Amanda</span>
-                </div>
-                <div class="flex gap-1">
-                   <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"></span>
-                   <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce delay-75"></span>
-                </div>
-              </div>
+              <For each={reviewersList()}>
+                {(reviewer) => (
+                  <div class="flex items-center justify-between group">
+                    <div class="flex items-center gap-3">
+                      <div class="relative">
+                        <img 
+                          src={reviewer.avatarUrl} 
+                          class="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700" 
+                        />
+                        {/* Indicador de status visual sobre o avatar ou ao lado */}
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200">
+                          {reviewer.name || reviewer.login}
+                        </span>
+                        <span class="text-[9px] text-gray-500 uppercase font-black tracking-tighter">
+                          {reviewer.state.replace('_', ' ')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Ícones de Status Dinâmicos */}
+                    <Switch>
+                      <Match when={reviewer.state === 'APPROVED'}>
+                        <i class="fa-solid fa-circle-check text-green-500 text-sm shadow-[0_0_8px_rgba(34,197,94,0.4)]"></i>
+                      </Match>
+                      <Match when={reviewer.state === 'CHANGES_REQUESTED'}>
+                        <i class="fa-solid fa-circle-exclamation text-red-500 text-sm"></i>
+                      </Match>
+                      <Match when={reviewer.state === 'PENDING'}>
+                        <div class="flex gap-1 items-center">
+                          <span class="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span>
+                        </div>
+                      </Match>
+                      <Match when={reviewer.state === 'COMMENTED'}>
+                        <i class="fa-solid fa-comment-dots text-gray-400 text-sm"></i>
+                      </Match>
+                    </Switch>
+                  </div>
+                )}
+              </For>
+              
+              <Show when={reviewersList().length === 0}>
+                <div class="text-[10px] text-gray-500 italic">Nenhum revisor solicitado</div>
+              </Show>
             </div>
           </div>
 
