@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
-import { FOLLOWERS_QUERY, FOLLOWING_QUERY, PROFILE_GRAPHQL_QUERY } from "./queries";
+import { FOLLOWERS_QUERY, FOLLOWING_QUERY, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REPO_PULL_REQUESTS_QUERY } from "./queries";
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
@@ -186,6 +186,17 @@ export const githubService = {
       console.error("Erro ao buscar seguindo:", e);
       return { users: [], pageInfo: { hasNextPage: false } };
     }
+  },
+  
+  async getRepoPullRequests(owner: string, name: string, state: string) {
+    const states = state === "MERGED" ? ["MERGED", "CLOSED"] : ["OPEN"];
+    const data = await this.fetchGraphQL(REPO_PULL_REQUESTS_QUERY, { owner, name, states });
+    return data.repository.pullRequests.nodes;
+  },
+
+  async getPullRequestDescription(owner: string, name: string, number: number) {
+    const data = await this.fetchGraphQL(PR_DESCRIPTION_QUERY, { owner, name, number });
+    return data.repository.pullRequest;
   },
 
   async logout() {

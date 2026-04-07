@@ -65,3 +65,83 @@ export const FOLLOWING_QUERY = `
     }
   }
 `;
+
+export const USER_PULL_REQUESTS_QUERY = `
+    query ($username: String!) {
+        user(login: $username) {
+            pullRequests(first: 20, orderBy: {field: CREATED_AT, direction: DESC}) {
+            nodes {
+                id
+                title
+                state
+                createdAt
+                number
+                repository {
+                name
+                owner { login }
+                }
+                comments { totalCount }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+          }
+      }
+    }
+  `;
+
+export const REPO_PULL_REQUESTS_QUERY = `
+  query ($owner: String!, $name: String!, $states: [PullRequestState!]) {
+    repository(owner: $owner, name: $name) {
+      pullRequests(first: 50, states: $states, orderBy: {field: CREATED_AT, direction: DESC}) {
+        nodes {
+          id
+          number
+          title
+          state
+          createdAt
+          author { login avatarUrl }
+        }
+      }
+    }
+  }
+`;
+
+export const PR_DESCRIPTION_QUERY = `
+  query ($owner: String!, $name: String!, $number: Int!) {
+    repository(owner: $owner, name: $name) {
+      pullRequest(number: $number) {
+        body
+        author { login }
+        changedFiles
+        additions
+        deletions
+        reviews(first: 10) {
+          nodes {
+            state
+            author { login }
+          }
+        }
+        reviewRequests(first: 10) {
+          nodes {
+            requestedReviewer {
+              ... on User { login avatarUrl }
+            }
+          }
+        }
+        participants(first: 10) {
+          nodes { login avatarUrl }
+        }
+        comments(first: 30) {
+          totalCount
+          nodes {
+            author { login }
+            body
+            createdAt
+          }
+        }
+      }
+    }
+  }
+`;
