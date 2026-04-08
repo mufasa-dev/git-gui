@@ -186,3 +186,29 @@ export const GET_FILE_CONTENT_QUERY = `
     }
   }
 `;
+
+export const GET_PR_COMMITS_QUERY = `
+  query($owner: String!, $name: String!, $number: Int!) {
+    repository(owner: $owner, name: $name) {
+      pullRequest(number: $number) {
+        commits(first: 100) {
+          nodes {
+            commit {
+              oid
+              abbreviatedOid
+              message
+              committedDate
+              author {
+                name
+                avatarUrl
+                user {
+                  login
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
