@@ -251,7 +251,9 @@ export default function FileIcon(props: FileIconProps) {
       swf: flashIcon,
       swc: flashIcon,
       config: configIcon,
+      conf: configIcon,
       env: configIcon,
+      browserslistrc: configIcon
     };
 
     return mapping[ext!] || defaultIcon;

@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on, Show, For, onMount, onCleanup, createMemo } from "solid-js";
+import { createSignal, createEffect, on, Show, For, onMount, onCleanup, createMemo, Switch, Match } from "solid-js";
 import { createCodeMirror } from "solid-codemirror";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { EditorState, StateEffect } from "@codemirror/state";
@@ -8,7 +8,7 @@ import { githubLight } from '@uiw/codemirror-theme-github';
 
 import { Repo } from "../models/Repo.model";
 import { FolderTreeView } from "../components/ui/FolderTreeview";
-import { listBranchFiles, getBranchFileContent, getLastCommitForPath, listDirectory, getPathHistory, getCommitDetails } from "../services/gitService";
+import { listBranchFiles, getBranchFileContent, getLastCommitForPath, listDirectory, getPathHistory, getCommitDetails, getBranchFileMetadata } from "../services/gitService";
 import { useLoading } from "../components/ui/LoadingContext";
 import { Commit, FileEntry } from "../models/Commit.model";
 import { getGravatarUrl } from "../services/gravatarService";
@@ -19,6 +19,7 @@ import { formatSize } from "../utils/file";
 import Dialog from "../components/ui/Dialog";
 import { CommitDetails } from "../components/commits/CommitDetails";
 import CommitMessage from "../components/ui/CommitMessage";
+import { SearchableSelect, SearchableSelectOption } from "../components/ui/SearchableSelect";
 
 export default function FileList(props: { repo: Repo }) {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
@@ -39,6 +40,9 @@ export default function FileList(props: { repo: Repo }) {
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   const [showHistory, setShowHistory] = createSignal(false);
   const [searchTerm, setSearchTerm] = createSignal("");
+  const [isBinary, setIsBinary] = createSignal(false);
+
+  const UNSUPPORTED_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.bin', '.mp4', '.mkv', '.mov', '.mp3', '.ogg', '.avi', '.ds_store', '.ifc'];
 
   const { showLoading, hideLoading } = useLoading();
 
@@ -46,7 +50,6 @@ export default function FileList(props: { repo: Repo }) {
   const { ref: codeMirrorRef, editorView } = createCodeMirror({
     value: fileContent() ?? "",
   });
-
 
   onMount(() => {
     const handleThemeChange = (e: any) => {
@@ -154,6 +157,23 @@ export default function FileList(props: { repo: Repo }) {
 
   const handleFileClick = async (path: string, isFile: boolean) => {
     if (isFile) {
+      const extension = path.substring(path.lastIndexOf('.')).toLowerCase();
+      const unsupported = UNSUPPORTED_EXTENSIONS.includes(extension);
+      
+      setIsBinary(unsupported);
+
+      if (unsupported) {
+        setFileContent(""); // Limpa conteúdo anterior
+        setIsImage(false);
+        setSelectedFilePath([path]);
+        setDirectoryContent(null);
+        showLoading("Carregando arquivo...");
+        const data = await getBranchFileMetadata(props.repo.path, selectedBranch(), path);
+        setFileMeta({size: data.size, lines: 0});
+        hideLoading();
+        return; 
+      }
+      
       showLoading("Carregando arquivo...");
       try {
         const data = await getBranchFileContent(props.repo.path, selectedBranch(), path);
@@ -178,6 +198,45 @@ export default function FileList(props: { repo: Repo }) {
        getPathHistoryAsync(path);
     }
     getLastCommit(path);
+  };
+
+  const allBranchOptions = createMemo(() => {
+    const options: SearchableSelectOption[] = [];
+
+    // Seção Local
+    if (props.repo.branches?.length > 0) {
+      options.push({ value: 'header-local', label: 'Local Branches', disabled: true });
+      props.repo.branches.forEach(b => {
+        options.push({ value: b.name, label: b.name });
+      });
+    }
+
+    // Seção Remota
+    if ((props.repo.remoteBranches?.length ?? 0) > 0) {
+      options.push({ value: 'header-remote', label: 'Remote Branches', disabled: true });
+      props.repo.remoteBranches?.forEach(rb => {
+        options.push({ value: rb, label: rb });
+      });
+    }
+
+    return options;
+  });
+
+  // Função para lidar com a troca de branch de forma segura
+  const handleBranchChange = (newBranch: string) => {
+    if (newBranch === selectedBranch()) return;
+
+    showLoading("Trocando branch...");
+    
+    // Limpa estados de visualização para evitar "ghosting" de arquivos da branch anterior
+    setFileContent(null);
+    setDirectoryContent(null);
+    setSelectedFilePath([]);
+    setLastCommit(null);
+    setShowHistory(false);
+    
+    setSelectedBranch(newBranch);
+    // O createEffect que monitora selectedBranch() cuidará do fetch dos arquivos
   };
 
   const handleGoBack = (currentPath: string) => {
@@ -255,27 +314,13 @@ export default function FileList(props: { repo: Repo }) {
       {/* Sidebar */}
       <div class="container-branch-list p-0 overflow-auto mb-2" style={{ width: `${sidebarWidth()}px`, height: `calc(100vh - 124px)` }}>
         <div class="p-3 border-b border-gray-300 dark:border-gray-700">
-          <select 
-            class="w-full input-select mb-2"
-            value={selectedBranch()} 
-            onInput={(e) => {
-              setSelectedBranch(e.currentTarget.value);
-            }}
-          >
-            <optgroup label="Locais">
-              <For each={props.repo.branches}>
-                {(b) => <option value={b.name}>{b.name}</option>}
-              </For>
-            </optgroup>
-            
-            <Show when={props.repo.remoteBranches}>
-              <optgroup label="Remotas">
-                <For each={props.repo.remoteBranches}>
-                  {(rb) => <option value={rb}>{rb}</option>}
-                </For>
-              </optgroup>
-            </Show>
-          </select>
+          <SearchableSelect 
+            options={allBranchOptions()}
+            initialValue={selectedBranch()}
+            placeholder="Buscar branch..."
+            onSelect={handleBranchChange}
+            class="mb-4 w-full"
+          />
 
           <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -403,34 +448,48 @@ export default function FileList(props: { repo: Repo }) {
             </div>
           </Show>
           {/* Container do Visualizador */}
-          <Show when={fileContent() && !showHistory()}>
+          <Show when={fileContent() !== null && !showHistory() && !directoryContent()}>
             <div class={`border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 
-                        flex flex-col min-h-[300px] ${isImage() ? "items-center justify-center overflow-auto" : ""}`}>
-              <div class={`bg-gray-300 dark:bg-gray-700 p-2 w-full rounded-t-xl flex items-center gap-2 ${isImage() && 'mb-auto'}`}>
+                          flex flex-col min-h-[300px] ${(isImage() || isBinary()) ? "items-center justify-center overflow-auto" : ""}`}>
+              
+              <div class={`bg-gray-300 dark:bg-gray-700 p-2 w-full rounded-t-xl flex items-center gap-2 ${(isImage() || isBinary()) && 'mb-auto'}`}>
                 <FileIcon fileName={getSelectedFileName()} /> 
-                <Show when={!isImage()}>
+                <Show when={!isImage() && !isBinary()}>
                   <b>{(fileMeta()?.lines || 0)} linhas</b>
                   <span>-</span>
                 </Show>
                 <span>{formatSize(fileMeta()?.size || 0)}</span>
               </div>
-              <Show when={isImage()} fallback={
-                <div class="w-full overflow-auto rounded-b-xl" ref={codeMirrorRef} />
-              }>
-                {/* Imagem*/}
-                <div class="p-8 flex flex-col items-center gap-4 mb-auto">
-                  <div class="bg-checkered p-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg shadow-black/20">
-                    <img 
-                      src={fileContent()!} 
-                      alt="Preview" 
-                      class="max-w-full max-h-[500px] object-contain" 
-                    />
+
+              <Switch>
+                {/* Caso 1: Arquivo Binário/Não suportado */}
+                <Match when={isBinary()}>
+                  <div class="p-20 flex flex-col items-center justify-center text-center gap-4 mb-auto">
+                    <i class="fa-solid fa-file-zipper text-6xl opacity-20"></i>
+                    <div>
+                      <p class="text-lg font-semibold">Visualização indisponível</p>
+                      <p class="text-sm opacity-60">Arquivos do tipo {selectedFilePath()[0].split('.').pop()?.toUpperCase()} não podem ser exibidos no editor.</p>
+                    </div>
                   </div>
-                  <div class="text-[10px] text-gray-500 font-mono dark:text-white bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-xl">
+                </Match>
+
+                {/* Caso 2: Imagem */}
+                <Match when={isImage()}>
+                  <div class="p-8 flex flex-col items-center gap-4 mb-auto">
+                    <div class="bg-checkered p-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg shadow-black/20">
+                      <img src={fileContent()!} alt="Preview" class="max-w-full max-h-[500px] object-contain" />
+                    </div>
+                    <div class="text-[10px] text-gray-500 font-mono dark:text-white bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-xl">
                       {selectedFilePath()[0]}
+                    </div>
                   </div>
-                </div>
-              </Show>
+                </Match>
+
+                {/* Caso 3: Texto (CodeMirror) */}
+                <Match when={true}>
+                  <div class="w-full overflow-auto rounded-b-xl" ref={codeMirrorRef} />
+                </Match>
+              </Switch>
 
             </div>
           </Show>
