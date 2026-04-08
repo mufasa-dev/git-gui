@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
-import { FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REPO_PULL_REQUESTS_QUERY } from "./queries";
+import { FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REPO_PULL_REQUESTS_QUERY } from "./queries";
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
@@ -222,12 +222,21 @@ export const githubService = {
     );
     
     if (!response.ok) throw new Error("Falha ao buscar diff do PR");
-    return await response.text(); // Retorna o texto do diff (patch)
+    return await response.text();
   },
 
   async getPRCommits(owner: string, name: string, number: number) {
     const data = await this.fetchGraphQL(GET_PR_COMMITS_QUERY, { owner, name, number });
     return data.repository.pullRequest.commits.nodes.map((n: any) => n.commit);
+  },
+
+  async getPRChecks(owner: string, name: string, number: number) {
+    const data = await this.fetchGraphQL(GET_PR_CHECKS_QUERY, { owner, name, number });
+    const commit = data.repository.pullRequest.commits.nodes[0]?.commit;
+    return {
+      state: commit?.statusCheckRollup?.state,
+      contexts: commit?.statusCheckRollup?.contexts?.nodes || []
+    };
   },
 
   async logout() {

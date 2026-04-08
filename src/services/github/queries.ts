@@ -212,3 +212,40 @@ export const GET_PR_COMMITS_QUERY = `
     }
   }
 `;
+
+export const GET_PR_CHECKS_QUERY = `
+  query($owner: String!, $name: String!, $number: Int!) {
+    repository(owner: $owner, name: $name) {
+      pullRequest(number: $number) {
+        commits(last: 1) {
+          nodes {
+            commit {
+              statusCheckRollup {
+                state
+                contexts(first: 50) {
+                  nodes {
+                    ... on CheckRun {
+                      id
+                      name
+                      status
+                      conclusion
+                      url
+                      detailsUrl
+                    }
+                    ... on StatusContext {
+                      id
+                      context
+                      state
+                      targetUrl
+                      description
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
