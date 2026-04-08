@@ -3,8 +3,7 @@ import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import PRFilesTab from "./PRFilesTab";
 import PRCommitsView from "./PRCommitsView";
-
-const ChecksTab = () => <div class="p-4 text-gray-400 font-bold uppercase text-[10px]">Status do CI/CD</div>;
+import PRChecksView from "./PRChecksView";
 
 export default function PRDetailView(props: { pr: any, owner: string, repoName: string }) {
   const [comment, setComment] = createSignal("");
@@ -63,7 +62,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
   return (
     <div class="flex flex-col h-full select-text transition-colors">
       {/* HEADER ESTILO TRIDENT */}
-      <header class="container-branch-list p-6 mb-2 border-b border-gray-200 dark:border-gray-700">
+      <header class="container-branch-list p-4 mb-2">
         <div class="flex items-center justify-between mb-2">
           <h1 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
             {props.pr.title} <span class="text-gray-500/50 ml-2 font-mono text-lg">#{props.pr.number}</span>
@@ -94,7 +93,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
           <div class="h-full flex flex-col">
             
             {/* NAVEGAÇÃO DE ABAS */}
-            <nav class="flex gap-6 border border-gray-200 dark:border-gray-700 rounded-t-xl px-4 dark:bg-gray-900">
+            <nav class="flex gap-6 border border-gray-100 dark:border-gray-700 rounded-t-xl px-4 bg-gray-300 dark:bg-gray-900">
               <For each={tabs}>
                 {(tab) => (
                   <button 
@@ -197,13 +196,19 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
                     prNumber={props.pr.number} 
                 />
               </Match>
-              <Match when={activeTab() === 'Checks'}><ChecksTab /></Match>
+              <Match when={activeTab() === 'Checks'}>
+                <PRChecksView
+                    owner={props.owner} 
+                    repoName={props.repoName} 
+                    prNumber={props.pr.number} 
+                />
+              </Match>
             </Switch>
           </div>
         </div>
 
         {/* SIDEBAR DE METADADOS */}
-        <aside class="container-branch-list w-72 ml-2 border-l border-gray-200 dark:border-gray-700 p-4 space-y-10 bg-gray-50/50 dark:bg-gray-800">
+        <aside class="container-branch-list w-72 ml-2 p-4 space-y-10">
           <div>
             <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
               <span>Reviewers</span>
