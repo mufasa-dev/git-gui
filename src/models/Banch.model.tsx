@@ -10,3 +10,8 @@ export type BranchFileContentResponse = {
     size: number;
     lineCount: number;
 }
+
+export type BranchFileMetadataResponse = {
+    isBinary: boolean;
+    size: number;
+}
