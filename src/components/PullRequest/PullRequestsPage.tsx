@@ -116,7 +116,7 @@ export default function PullRequestsPage(props: { repo: any, username: string })
 
       {/* PAINEL DE DETALHES (Ocupa o resto) */}
       <div class="flex-1 flex flex-col overflow-hidden">
-         <div class="container-branch-list flex-1 p-0 flex flex-col mb-2 overflow-hidden">
+         <div class="flex-1 p-0 flex flex-col mb-2 overflow-hidden">
            <Show 
             when={selectedPR()} 
           >

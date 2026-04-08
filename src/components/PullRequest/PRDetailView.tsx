@@ -2,8 +2,8 @@ import { createResource, Show, For, createSignal, Switch, Match, createMemo } fr
 import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import PRFilesTab from "./PRFilesTab";
+import PRCommitsView from "./PRCommitsView";
 
-const CommitsTab = (props: { data: any }) => <div class="p-4 text-gray-400 font-bold uppercase text-[10px]">Histórico de Commits</div>;
 const ChecksTab = () => <div class="p-4 text-gray-400 font-bold uppercase text-[10px]">Status do CI/CD</div>;
 
 export default function PRDetailView(props: { pr: any, owner: string, repoName: string }) {
@@ -61,9 +61,9 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
   const tabs = ['Visão Geral', 'Files', 'Commits', 'Checks'];
 
   return (
-    <div class="flex flex-col h-full select-text bg-white dark:bg-gray-800 transition-colors">
+    <div class="flex flex-col h-full select-text transition-colors">
       {/* HEADER ESTILO TRIDENT */}
-      <header class="p-6 border-b border-gray-200 dark:border-gray-700">
+      <header class="container-branch-list p-6 mb-2 border-b border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between mb-2">
           <h1 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
             {props.pr.title} <span class="text-gray-500/50 ml-2 font-mono text-lg">#{props.pr.number}</span>
@@ -90,7 +90,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
       </header>
 
       <div class="flex flex-1 overflow-hidden">
-        <div class="flex-1 overflow-y-auto custom-scrollbar p-8">
+        <div class="flex-1 overflow-y-auto custom-scrollbar">
           <div class="h-full flex flex-col">
             
             {/* NAVEGAÇÃO DE ABAS */}
@@ -115,7 +115,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
             <Switch>
               {/* ABA: VISÃO GERAL */}
               <Match when={activeTab() === 'Visão Geral'}>
-                <div class="flex-1 space-y-8 p-2 animate-in fade-in slide-in-from-bottom-2 duration-300 border border-gray-300 dark:border-gray-700 rounded-b-xl">
+                <div class="flex-1 space-y-8 p-2 animate-in fade-in slide-in-from-bottom-2 duration-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-b-xl">
                   {/* BARRA DE PROGRESSO */}
                   <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-5">
                     <div class="flex justify-between items-end mb-3">
@@ -190,14 +190,20 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
                     prNumber={props.pr.number} 
                 />
               </Match>
-              <Match when={activeTab() === 'Commits'}><CommitsTab data={details()} /></Match>
+              <Match when={activeTab() === 'Commits'}>
+                <PRCommitsView 
+                    owner={props.owner} 
+                    repoName={props.repoName} 
+                    prNumber={props.pr.number} 
+                />
+              </Match>
               <Match when={activeTab() === 'Checks'}><ChecksTab /></Match>
             </Switch>
           </div>
         </div>
 
         {/* SIDEBAR DE METADADOS */}
-        <aside class="w-72 border-l border-gray-200 dark:border-gray-700 p-8 space-y-10 bg-gray-50/50 dark:bg-gray-800">
+        <aside class="container-branch-list w-72 ml-2 border-l border-gray-200 dark:border-gray-700 p-4 space-y-10 bg-gray-50/50 dark:bg-gray-800">
           <div>
             <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
               <span>Reviewers</span>
