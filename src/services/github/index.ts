@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
-import { FOLLOWERS_QUERY, FOLLOWING_QUERY, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REPO_PULL_REQUESTS_QUERY } from "./queries";
+import { FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_FILES_QUERY, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REPO_PULL_REQUESTS_QUERY } from "./queries";
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
@@ -197,6 +197,32 @@ export const githubService = {
   async getPullRequestDescription(owner: string, name: string, number: number) {
     const data = await this.fetchGraphQL(PR_DESCRIPTION_QUERY, { owner, name, number });
     return data.repository.pullRequest;
+  },
+
+  async getPRFiles(owner: string, name: string, number: number) {
+    const res = await this.fetchGraphQL(GET_PR_FILES_QUERY, { owner, name, number });
+    return res.repository.pullRequest.files.nodes;
+  },
+
+  async getFileContent(owner: string, name: string, expression: string) {
+    const res = await this.fetchGraphQL(GET_FILE_CONTENT_QUERY, { owner, name, expression });
+    return res.repository.object?.text;
+  },
+
+  async getPRFileDiff(owner: string, repo: string, prNumber: number) {
+    const token = await this.getToken();
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`,
+      {
+        headers: {
+          'Accept': 'application/vnd.github.v3.diff',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    if (!response.ok) throw new Error("Falha ao buscar diff do PR");
+    return await response.text(); // Retorna o texto do diff (patch)
   },
 
   async logout() {

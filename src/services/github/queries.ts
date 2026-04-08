@@ -157,3 +157,32 @@ export const PR_DESCRIPTION_QUERY = `
     }
   }
 `;
+
+export const GET_PR_FILES_QUERY = `
+  query($owner: String!, $name: String!, $number: Int!) {
+    repository(owner: $owner, name: $name) {
+      pullRequest(number: $number) {
+        files(first: 100) {
+          nodes {
+            path
+            changeType
+            additions
+            deletions
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const GET_FILE_CONTENT_QUERY = `
+  query($owner: String!, $name: String!, $expression: String!) {
+    repository(owner: $owner, name: $name) {
+      object(expression: $expression) {
+        ... on Blob {
+          text
+        }
+      }
+    }
+  }
+`;
