@@ -11,6 +11,7 @@ import alertIcon from "../../assets/alert.png";
 import { openVsCodeDiff } from "../../services/openService";
 
 type Props = {
+  key?: string | null;
   path: string;
   diff: Diff;
   class: string;

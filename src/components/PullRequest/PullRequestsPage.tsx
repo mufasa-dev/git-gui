@@ -45,7 +45,7 @@ export default function PullRequestsPage(props: { repo: any, username: string })
       onMouseUp={() => setIsResizing(false)}
     >
       {/* SIDEBAR */}
-      <div class="container-branch-list p-0 flex flex-col mb-2" style={{ width: `${sidebarWidth()}px` }}>
+      <div class="container-branch-list p-0 flex flex-col mb-2 rounded-t-none" style={{ width: `${sidebarWidth()}px` }}>
         <header class="p-4 border-b dark:border-gray-700/50 space-y-4">
           <div class="flex bg-gray-100 dark:bg-gray-800/50 p-1 rounded-lg border dark:border-gray-700">
             <button onClick={() => setFilter("OPEN")} class={`flex-1 py-1 text-[9px] font-black uppercase rounded-md ${filter() === 'OPEN' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>Abertos</button>

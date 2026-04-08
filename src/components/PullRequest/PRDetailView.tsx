@@ -1,9 +1,8 @@
 import { createResource, Show, For, createSignal, Switch, Match, createMemo } from "solid-js";
 import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
+import PRFilesTab from "./PRFilesTab";
 
-// Componentes de Placeholder para as abas (Você pode movê-los para arquivos separados depois)
-const FilesTab = (props: { data: any }) => <div class="p-4 text-gray-400 font-bold uppercase text-[10px]">Lista de arquivos alterados ({props.data?.changedFiles})</div>;
 const CommitsTab = (props: { data: any }) => <div class="p-4 text-gray-400 font-bold uppercase text-[10px]">Histórico de Commits</div>;
 const ChecksTab = () => <div class="p-4 text-gray-400 font-bold uppercase text-[10px]">Status do CI/CD</div>;
 
@@ -92,18 +91,18 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
 
       <div class="flex flex-1 overflow-hidden">
         <div class="flex-1 overflow-y-auto custom-scrollbar p-8">
-          <div class="max-w-4xl space-y-8">
+          <div class="h-full flex flex-col">
             
             {/* NAVEGAÇÃO DE ABAS */}
-            <nav class="flex gap-6 border-b border-gray-200 dark:border-gray-700 mb-8">
+            <nav class="flex gap-6 border border-gray-200 dark:border-gray-700 rounded-t-xl px-4 dark:bg-gray-900">
               <For each={tabs}>
                 {(tab) => (
                   <button 
                     onClick={() => setActiveTab(tab)}
-                    class={`pb-3 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all ${
+                    class={`pb-3 pt-2 px-2 text-[11px] font-black uppercase tracking-widest transition-all ${
                       activeTab() === tab 
-                      ? 'border-blue-500 text-blue-600 dark:text-white' 
-                      : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                      ? 'bg-gray-200 dark:bg-gray-700 dark:text-white' 
+                      : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
                     }`}
                   >
                     {tab}
@@ -116,7 +115,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
             <Switch>
               {/* ABA: VISÃO GERAL */}
               <Match when={activeTab() === 'Visão Geral'}>
-                <div class="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div class="flex-1 space-y-8 p-2 animate-in fade-in slide-in-from-bottom-2 duration-300 border border-gray-300 dark:border-gray-700 rounded-b-xl">
                   {/* BARRA DE PROGRESSO */}
                   <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-5">
                     <div class="flex justify-between items-end mb-3">
@@ -184,7 +183,13 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
               </Match>
 
               {/* OUTRAS ABAS */}
-              <Match when={activeTab() === 'Files'}><FilesTab data={details()} /></Match>
+              <Match when={activeTab() === 'Files'}>
+                <PRFilesTab 
+                    owner={props.owner} 
+                    repoName={props.repoName} 
+                    prNumber={props.pr.number} 
+                />
+              </Match>
               <Match when={activeTab() === 'Commits'}><CommitsTab data={details()} /></Match>
               <Match when={activeTab() === 'Checks'}><ChecksTab /></Match>
             </Switch>
