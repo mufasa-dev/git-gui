@@ -46,6 +46,7 @@ fn main() {
             commands::branch::list_branch_files,
             commands::branch::list_branch_files_with_size,
             commands::branch::get_branch_file_content,
+            commands::branch::get_file_metadata,
             commands::commit::list_commits,
             commands::commit::list_user_commits,
             commands::commit::get_commit_details,
