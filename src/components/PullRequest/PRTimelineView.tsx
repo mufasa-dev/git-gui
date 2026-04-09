@@ -102,8 +102,8 @@ export default function PRTimelineView(props: { owner: string, repo: string, pr:
                                                     {new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                     </span>
                                                 </div>
-                                                <div class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed" innerHTML={item.bodyHTML}>
-                                                    {/* Renderiza o HTML do GitHub preservando seu estilo */}
+                                                <div class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                                                    <MarkdownViewer content={item.bodyHTML} />
                                                 </div>
                                                 <div class="flex gap-4 mt-4 text-[9px] font-black uppercase tracking-widest text-gray-400">
                                                     <button class="hover:text-blue-500 transition-colors"><i class="fa-solid fa-reply mr-1"></i> Responder</button>
