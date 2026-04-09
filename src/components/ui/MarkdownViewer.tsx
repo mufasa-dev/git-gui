@@ -1,61 +1,42 @@
-import { createMemo, onMount, onCleanup } from "solid-js";
+import { createMemo } from "solid-js";
 // @ts-ignore
-import { marked, Renderer } from "marked";
-import { openUrl } from "@tauri-apps/plugin-opener";
-
-// helper global para abrir links externos (mantenha se ainda for usar para outros links)
-(window as any).openExternal = async (url: string) => {
-  try {
-    await openUrl(url);
-  } catch (e) {
-    console.error("Erro ao abrir:", e);
-  }
-};
+import { marked } from "marked";
 
 export default function MarkdownViewer(props: { content: string | undefined, class?: string }) {
-  let containerRef: HTMLDivElement | undefined;
+  
+  const cleanHtml = createMemo(() => {
+    let rawMd = props.content;
+    if (!rawMd) return "";
 
-  const html = createMemo(() => {
-    if (!props.content) return "";
+    // 1. Remove links de Markdown: [google](www.google.com) -> [google](javascript:void(0))
+    // Isso mantém o estilo de link (cor azul), mas mata a ação de navegar
+    rawMd = rawMd.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, (match, text, url) => {
+      // Se quiser que ainda seja clicável para abrir externo, usamos o onclick aqui
+      return `<a href="javascript:void(0)" onclick="window.openExternal('${url}')">${text}</a>`;
+    });
 
-    // @ts-ignore
-    const markedInstance = new marked.Marked();
-    const renderer = new marked.Renderer();
-
-    // 1. Mantenha o Renderer de Link para outros links do PR (se desejar abrir externo)
-    // Se quiser bloquear TODOS os links do markdown, remova este bloco.
-    renderer.link = ({ href, title, text }: any) => {
-      const isExternal = href.startsWith('http');
-      if (isExternal) {
-        return `<a href="javascript:void(0)" onclick="window.openExternal('${href}')" class="external-link font-bold text-blue-500 hover:underline cursor-pointer" ${title ? `title="${title}"` : ""}>${text}</a>`;
+    // 2. Trata links que já venham como HTML: <a href="url"> -> <a data-url="url">
+    rawMd = rawMd.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"([^>]*)>/gi, (match, href, rest) => {
+      if (href.startsWith('http')) {
+        return `<a href="javascript:void(0)" onclick="window.openExternal('${href}')" ${rest}>`;
       }
-      return `<a href="${href}">${text}</a>`;
-    };
+      return match;
+    });
 
-    // 2. Sobrescreva o Renderer de Imagem para Bloquear Links
-    // Esta é a solução para o seu problema das skill icons.
-    renderer.image = ({ href, title, text }: any) => {
-      // Retorna apenas a tag <img> pura. O Marked não a envolverá em um <a>.
-      const titleAttr = title ? `title="${title}"` : "";
-      const altAttr = text ? `alt="${text}"` : "";
-      
-      // Adicione classes CSS aqui se quiser estilizar a imagem (ex: prose-img:m-0)
-      return `<img src="${href}" ${titleAttr} ${altAttr} class="skill-icon prose-img:m-0" />`;
-    };
+    // 3. Se o objetivo for APENAS IMAGEM (bloquear o link das skills)
+    // Procuramos o padrão [![alt](img_url)](link_url) e deixamos só a imagem
+    rawMd = rawMd.replace(/\[(!\[[^\]]*\]\([^)]+\))\]\([^)]+\)/g, "$1");
 
-    // Aplica o renderer customizado na instância
-    markedInstance.use({ renderer });
-
-    // Renderiza o markdown preservando o estilo do seu Dashboard
-    return markedInstance.parse(props.content, { gfm: true, breaks: true }) as string;
+    // Agora passamos a string já "limpa" para o marked
+    // Como já transformamos links em tags <a> manuais, o marked apenas vai ignorar ou formatar o resto
+    return marked.parse(rawMd, { gfm: true, breaks: true }) as string;
   });
 
   return (
-    <div 
-      ref={containerRef}
-      class={`prose dark:prose-invert max-w-none relative z-[1000] pointer-events-auto ${props.class || ""}`}
+    <article 
+      class={`prose dark:prose-invert max-w-none ${props.class || ""}`}
       // @ts-ignore
-      innerHTML={html()} 
+      innerHTML={cleanHtml()} 
     />
   );
 }
