@@ -36,3 +36,21 @@ export function formatDate(dateStr: string) {
   };
   return date.toLocaleString("pt-BR", options); // ou "en-US"
 }
+
+export const getRelativeTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const s = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (s < 3600) return `${Math.floor(s / 60)}m atrás`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h atrás`;
+    if (s < 604800) return `${Math.floor(s / 86400)}d atrás`;
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Meses começam em 0
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
