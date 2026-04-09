@@ -249,3 +249,51 @@ export const GET_PR_CHECKS_QUERY = `
     }
   }
 `;
+
+export const GET_PR_TIMELINE_QUERY = `
+  query($owner: String!, $name: String!, $number: Int!) {
+    repository(owner: $owner, name: $name) {
+      pullRequest(number: $number) {
+        timelineItems(first: 50) {
+          nodes {
+            __typename
+            ... on PullRequestCommit {
+              commit {
+                oid
+                message
+                committedDate
+                author {
+                  name
+                  avatarUrl
+                }
+              }
+            }
+            ... on IssueComment {
+              author {
+                login
+                avatarUrl
+              }
+              bodyHTML
+              createdAt
+            }
+            ... on PullRequestReview {
+              author {
+                login
+                avatarUrl
+              }
+              state
+              createdAt
+            }
+            ... on MergedEvent {
+              actor {
+                login
+                avatarUrl
+              }
+              createdAt
+            }
+          }
+        }
+      }
+    }
+  }
+`;
