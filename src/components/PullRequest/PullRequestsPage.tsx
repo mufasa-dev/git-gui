@@ -2,6 +2,7 @@ import { createResource, createSignal, For, Show, createMemo } from "solid-js";
 import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import PRDetailView from "./PRDetailView";
+import { getRelativeTime } from "../../utils/date";
 
 export default function PullRequestsPage(props: { repo: any, username: string }) {
   const [filter, setFilter] = createSignal("OPEN");
@@ -30,13 +31,6 @@ export default function PullRequestsPage(props: { repo: any, username: string })
       pr.number.toString().includes(term)
     );
   });
-
-  const getRelativeTime = (dateStr: string) => {
-    const s = Math.floor((new Date().getTime() - new Date(dateStr).getTime()) / 1000);
-    if (s < 3600) return `${Math.floor(s/60)}m atrás`;
-    if (s < 86400) return `${Math.floor(s/3600)}h atrás`;
-    return `${Math.floor(s/86400)}d atrás`;
-  };
 
   return (
     <div 
@@ -115,7 +109,7 @@ export default function PullRequestsPage(props: { repo: any, username: string })
       <div class="resize-bar-vertical" onMouseDown={() => setIsResizing(true)}></div>
 
       {/* PAINEL DE DETALHES (Ocupa o resto) */}
-      <div class="flex-1 flex flex-col overflow-hidden">
+      <div class="flex-1 flex flex-col overflow-hidden" style={{"height": "calc(100vh - 114px)"}} >
          <div class="flex-1 p-0 flex flex-col mb-2 overflow-hidden">
            <Show 
             when={selectedPR()} 

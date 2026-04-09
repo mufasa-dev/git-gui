@@ -4,6 +4,8 @@ import MarkdownViewer from "../ui/MarkdownViewer";
 import PRFilesTab from "./PRFilesTab";
 import PRCommitsView from "./PRCommitsView";
 import PRChecksView from "./PRChecksView";
+import PRTimelineView from "./PRTimelineView";
+import { getRelativeTime } from "../../utils/date";
 
 export default function PRDetailView(props: { pr: any, owner: string, repoName: string }) {
   const [comment, setComment] = createSignal("");
@@ -83,7 +85,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
             <span class="font-bold text-gray-900 dark:text-white">{props.pr.author?.login}</span>
             <span class="text-gray-500 mx-2">→</span>
             <span class="font-mono text-blue-500 dark:text-blue-400">main</span>
-            <span class="text-gray-400 ml-3 uppercase text-[9px] font-black italic">4h atrás</span>
+            <span class="text-gray-400 ml-3 uppercase text-[9px] font-black italic">{getRelativeTime(props.pr.createdAt)}</span>
           </div>
         </div>
       </header>
@@ -114,71 +116,13 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
             <Switch>
               {/* ABA: VISÃO GERAL */}
               <Match when={activeTab() === 'Visão Geral'}>
-                <div class="flex-1 space-y-8 p-2 animate-in fade-in slide-in-from-bottom-2 duration-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-b-xl">
-                  {/* BARRA DE PROGRESSO */}
-                  <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-5">
-                    <div class="flex justify-between items-end mb-3">
-                      <span class="text-lg font-black text-gray-900 dark:text-white">
-                        {details()?.changedFiles || 0} <span class="text-[10px] text-gray-400 font-black uppercase ml-1 tracking-widest">arquivos</span>
-                      </span>
-                      <div class="flex gap-4 font-mono font-bold text-xs">
-                        <span class="text-green-500">+{details()?.additions || 0}</span>
-                        <span class="text-red-500">-{details()?.deletions || 0}</span>
-                      </div>
-                    </div>
-                    <div class="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
-                      <div class="h-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)] transition-all duration-500" style={{ width: `${additionsWidth()}%` }}></div>
-                      <div class="h-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)] transition-all duration-500" style={{ width: `${100 - additionsWidth()}%` }}></div>
-                    </div>
-                  </div>
-
-                  {/* TIMELINE */}
-                  <div class="space-y-6">
-                    <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Linha do Tempo</h3>
-                    <div class="relative border-l-2 border-gray-200 dark:border-gray-600 ml-4 pl-8 space-y-8">
-                      <div class="relative">
-                        <div class="absolute -left-[35px] top-0 w-[12px] h-[12px] rounded-full bg-blue-500 border-4 border-gray-200 dark:border-gray-600"></div>
-                        <p class="text-xs font-bold text-gray-500">Pull request aberto por <span class="text-gray-900 dark:text-white font-black">{props.pr.author?.login}</span> <span class="ml-4 opacity-30 font-mono">10:18</span></p>
-                      </div>
-
-                      {/* COMENTÁRIO */}
-                      <div class="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 rounded-xl overflow-hidden shadow-sm">
-                         <div class="p-5 flex gap-4">
-                            <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-500 flex items-center justify-center font-black">BR</div>
-                            <div class="flex-1">
-                               <div class="flex justify-between items-center mb-2">
-                                  <span class="text-xs font-black text-gray-900 dark:text-white">Bruno Ribeiro <span class="text-[9px] text-gray-400 font-normal ml-2 lowercase">há 1h</span></span>
-                                  <span class="text-[10px] text-gray-400 font-mono">10:18</span>
-                               </div>
-                               <div class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed italic">
-                                  "Isso aqui pode ser refatorado para usar o novo service de context menu."
-                               </div>
-                               <div class="flex gap-4 mt-4 text-[9px] font-black uppercase tracking-widest text-gray-400">
-                                  <button class="hover:text-blue-500 transition-colors"><i class="fa-solid fa-reply mr-1"></i> Responder</button>
-                                  <button class="hover:text-pink-500 transition-colors"><i class="fa-solid fa-heart mr-1"></i> Curtir</button>
-                               </div>
-                            </div>
-                         </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* INPUT DE COMENTÁRIO */}
-                  <div class="ml-12 bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-4 flex gap-4">
-                      <div class="w-8 h-8 rounded-full bg-gray-400 dark:bg-gray-600 flex-shrink-0 border border-white dark:border-gray-700 shadow-sm"></div>
-                      <div class="flex-1 relative">
-                          <textarea 
-                              placeholder="Adicione um comentário à discussão..."
-                              value={comment()}
-                              onInput={(e) => setComment(e.currentTarget.value)}
-                              class="w-full bg-transparent text-sm text-gray-700 dark:text-gray-200 outline-none min-h-[80px] resize-none p-2"
-                          ></textarea>
-                          <button class="absolute bottom-2 right-2 bg-gray-900 dark:bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">
-                              Enviar
-                          </button>
-                      </div>
-                  </div>
-                </div>
+                  <PRTimelineView 
+                    owner={props.owner} 
+                    repo={props.repoName} 
+                    pr={props.pr} 
+                    details={details()}
+                    currentUserAvatar={props.pr.author?.avatarUrl}
+                />
               </Match>
 
               {/* OUTRAS ABAS */}
