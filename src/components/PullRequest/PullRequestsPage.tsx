@@ -4,7 +4,7 @@ import PRDetailView from "./PRDetailView";
 import { getRelativeTime } from "../../utils/date";
 import { Repo } from "../../models/Repo.model";
 
-export default function PullRequestsPage(props: { repo: Repo, username: string }) {
+export default function PullRequestsPage(props: { repo: Repo, username: string, branch?: string }) {
   const [filter, setFilter] = createSignal("OPEN");
   const [searchTerm, setSearchTerm] = createSignal("");
   const [selectedPR, setSelectedPR] = createSignal<any>(null);
@@ -119,6 +119,7 @@ export default function PullRequestsPage(props: { repo: Repo, username: string }
               pr={selectedPR()} 
               owner={props.username} 
               repo={props.repo} 
+              branch={props.branch}
             />
           </Show>
          </div>

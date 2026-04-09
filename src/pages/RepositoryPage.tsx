@@ -198,7 +198,8 @@ export default function RepoTabsPage() {
                   {(currentRepo) => (
                     <PullRequestsPage 
                       repo={currentRepo()} 
-                      username={user()?.login || ''} 
+                      username={user()?.login || ''}
+                      branch={activeRepo()?.activeBranch}  
                     />
                   )}
                 </Show>

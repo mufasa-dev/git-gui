@@ -12,6 +12,7 @@ type PRTimelineViewProps = {
     details: any;
     currentUserAvatar: string;
     selectCommit: (hash: string) => void;
+    openUserProfile: (name: string, email: string, login: string) => void;
 };
 
 export default function PRTimelineView(props: PRTimelineViewProps) {
@@ -66,10 +67,11 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 <div class="absolute -left-[35px] top-4 w-[12px] h-[12px] rounded-full bg-gray-400 border-4 border-gray-200 dark:border-gray-600"></div>
                                 <div class="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 rounded-xl overflow-hidden shadow-sm mr-4">
                                     <div class="p-5 flex gap-4">
-                                        <img src={props.pr.author?.avatarUrl} class="w-10 h-10 rounded-lg border border-gray-700" />
+                                        <img src={props.pr.author?.avatarUrl} class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
+                                            onClick={() => {props.openUserProfile(props.details.author.name, props.details.author.email, props.details.author.login)}} />
                                         <div class="flex-1">
                                             <div class="flex justify-between items-center mb-2">
-                                                <span class="text-xs font-black text-gray-900 dark:text-white">
+                                                <span class="text-sm font-black text-gray-900 dark:text-white">
                                                     {props.details.author.login} 
                                                     <span class="text-[9px] text-gray-400 font-normal ml-2 lowercase">{getRelativeTime(props.pr.createdAt)}</span>
                                                 </span>
@@ -111,10 +113,11 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         <div class="absolute -left-[35px] top-4 w-[12px] h-[12px] rounded-full bg-gray-400 border-4 border-gray-200 dark:border-gray-600"></div>
                                         <div class="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 rounded-xl overflow-hidden shadow-sm mr-4">
                                             <div class="p-5 flex gap-4">
-                                                <img src={item.author.avatarUrl} class="w-10 h-10 rounded-lg border border-gray-700" />
+                                                <img src={item.author.avatarUrl} class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
+                                                    onClick={() => props.openUserProfile(item.author.name, item.author.email, item.author.login)} />
                                                 <div class="flex-1">
                                                 <div class="flex justify-between items-center mb-2">
-                                                    <span class="text-xs font-black text-gray-900 dark:text-white">
+                                                    <span class="text-sm font-black text-gray-900 dark:text-white">
                                                     {item.author.login} 
                                                     <span class="text-[9px] text-gray-400 font-normal ml-2 lowercase">{getRelativeTime(item.createdAt)}</span>
                                                     </span>

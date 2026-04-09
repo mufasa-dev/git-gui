@@ -61,7 +61,6 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
   };
 
   return (
-    <Dialog open={props.open} onClose={props.onClose} title="Perfil do Usuário" width={"90vw"}>
       <div class="flex flex-col gap-6 overflow-y-auto max-h-[85vh] custom-scrollbar p-2">
         
         {/* CABEÇALHO */}
@@ -180,18 +179,16 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
           </div>
         </div>
 
+        <Show when={showCommits()}>
+          <Dialog 
+            open={showCommits()} 
+            onClose={() => setShowCommits(false)} 
+            title="Histórico de Alterações"
+            width="550px" bodyClass="p-0"
+          >
+            <CommitsModalList commits={selectedCommits()} />
+          </Dialog>
+        </Show>
       </div>
-
-      <Show when={showCommits()}>
-        <Dialog 
-          open={showCommits()} 
-          onClose={() => setShowCommits(false)} 
-          title="Histórico de Alterações"
-          width="550px" bodyClass="p-0"
-        >
-          <CommitsModalList commits={selectedCommits()} />
-        </Dialog>
-      </Show>
-    </Dialog>
   );
 }

@@ -175,6 +175,10 @@ export const githubService = {
     }
   },
 
+  async openInBrowser(username: string) {
+    await open(`https://github.com/` + username);
+  },
+
   async getFollowing(username: string, cursor: string | null = null) {
     try {
       const data = await this.fetchGraphQL(FOLLOWING_QUERY, { username, cursor });

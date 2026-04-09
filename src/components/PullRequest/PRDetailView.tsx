@@ -11,11 +11,15 @@ import Dialog from "../ui/Dialog";
 import { CommitDetails } from "../commits/CommitDetails";
 import { getCommitDetails } from "../../services/gitService";
 import { Repo } from "../../models/Repo.model";
+import { formatContributorName } from "../../utils/user";
+import { UserProfileDialog } from "../Config/UserProfile";
 
-export default function PRDetailView(props: { pr: any, owner: string, repo: Repo }) {
+export default function PRDetailView(props: { pr: any, owner: string, repo: Repo, branch?: string }) {
   const [activeTab, setActiveTab] = createSignal("Visão Geral");
   const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
+  const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
+  const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
   
   const [details] = createResource(
     () => ({ owner: props.owner, name: props.repo.name, number: props.pr.number }),
@@ -69,6 +73,15 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
     const details = await getCommitDetails(props.repo.path, hash);
     setSelectedCommit({ ...details, _ts: Date.now() });
     setModalCommitDetails(true);
+  }
+
+  function openUserProfile(name: string, email: string, login: string) {
+    if (email) {
+        setSelectedUser({ name: name, email: email });
+        setModalUserProfileOpen(true);
+    } else {
+      githubService.openInBrowser(login);
+    }
   }
 
   const tabs = ['Visão Geral', 'Files', 'Commits', 'Checks'];
@@ -137,6 +150,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
                     details={details()}
                     currentUserAvatar={props.pr.author?.avatarUrl}
                     selectCommit={selectCommit}
+                    openUserProfile={openUserProfile}
                 />
               </Match>
 
@@ -230,14 +244,15 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
             </div>
             <div class="flex flex-col flex-wrap gap-2">
               <For each={details()?.participants?.nodes}>
-                {(p: any) => (<div class="flex items-center gap-3">
-                  <img class="w-7 h-7 rounded-full border-2 border-gray-200 dark:border-gray-600 
-                        hover:scale-110 transition-transform" 
-                        src={p.avatarUrl} title={p.login} 
-                  />
-                  <span>{p.login}</span>
-                </div>
-
+                {(p: any) => (
+                  <div class="flex items-center gap-3 hover:text-blue-500 transition-colors cursor-pointer hover:underline" 
+                       onClick={() => openUserProfile(p.name, p.email, p.login)}>
+                    <img class="w-7 h-7 rounded-full border-2 border-gray-200 dark:border-gray-600 
+                          hover:scale-110 transition-transform" 
+                          src={p.avatarUrl} title={p.login} 
+                    />
+                    <span>{p.name}</span>
+                  </div>
                 )}
               </For>
             </div>
@@ -252,6 +267,25 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
               height={'calc(100vh - 100px)'}>
         <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={""} openParent={false} selectCommit={selectCommit} />
       </Dialog>
+      <Show when={modalUserProfileOpen()}>
+        <Dialog open={modalUserProfileOpen()} 
+            onClose={() => {
+              setModalUserProfileOpen(false);
+              setSelectedUser({ name: "", email: "" });
+            }} title="Perfil do Usuário" width={"90vw"}>
+          <UserProfileDialog 
+            repoPath={props.repo.path || ""} 
+            branch={props.branch || ""}
+            email={selectedUser()?.email || ""}
+            fallbackName={formatContributorName(selectedUser()?.name) || "Usuário Desconhecido"} 
+            open={modalUserProfileOpen()}
+            onClose={() => {
+              setModalUserProfileOpen(false);
+              setSelectedUser({ name: "", email: "" });
+            }}
+          />
+        </Dialog>
+      </Show>
     </div>
   );
 }

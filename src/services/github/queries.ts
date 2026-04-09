@@ -120,18 +120,18 @@ export const PR_DESCRIPTION_QUERY = `
         reviews(first: 10) {
           nodes {
             state
-            author { login }
+            author { login name email avatarUrl }
           }
         }
         reviewRequests(first: 10) {
           nodes {
             requestedReviewer {
-              ... on User { login avatarUrl }
+              ... on User { login avatarUrl name email }
             }
           }
         }
         participants(first: 10) {
-          nodes { login avatarUrl }
+          nodes { login avatarUrl name email }
         }
         reviewRequests(first: 10) {
           nodes {
@@ -148,7 +148,7 @@ export const PR_DESCRIPTION_QUERY = `
         comments(first: 30) {
           totalCount
           nodes {
-            author { login }
+            author { login name email avatarUrl }
             body
             createdAt
           }
@@ -264,6 +264,8 @@ export const GET_PR_TIMELINE_QUERY = `
                 committedDate
                 author {
                   name
+                  email
+                  login
                   avatarUrl
                 }
               }

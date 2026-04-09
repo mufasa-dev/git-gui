@@ -280,17 +280,23 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
 
       </div>
       <Show when={modalUserProfileOpen()}>
-        <UserProfileDialog 
-          repoPath={props.repo.path || ""} 
-          branch={props.branch || ""}
-          email={selectedUser()?.email || ""}
-          fallbackName={formatContributorName(selectedUser()?.name) || "Usuário Desconhecido"} 
-          open={modalUserProfileOpen()}
-          onClose={() => {
-            setModalUserProfileOpen(false)
-            setSelectedUser({ name: "", email: "" });
-          }}
-        />
+        <Dialog open={modalUserProfileOpen()} 
+            onClose={() => {
+              setModalUserProfileOpen(false)
+              setSelectedUser({ name: "", email: "" });
+            }} title="Perfil do Usuário" width={"90vw"}>
+          <UserProfileDialog 
+            repoPath={props.repo.path || ""} 
+            branch={props.branch || ""}
+            email={selectedUser()?.email || ""}
+            fallbackName={formatContributorName(selectedUser()?.name) || "Usuário Desconhecido"} 
+            open={modalUserProfileOpen()}
+            onClose={() => {
+              setModalUserProfileOpen(false)
+              setSelectedUser({ name: "", email: "" });
+            }}
+          />
+        </Dialog>
       </Show>
 
       <Show when={showCommits()}>
