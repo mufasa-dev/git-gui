@@ -2,6 +2,7 @@ import { createMemo, createResource, For, Show } from "solid-js";
 import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import { getRelativeTime } from "../../utils/date";
+import MarkdownEditor from "../ui/MarkdownEditor";
 
 export default function PRTimelineView(props: { owner: string, repo: string, pr: any, details: any, currentUserAvatar: string }) {
     const [timeline] = createResource(
@@ -120,16 +121,10 @@ export default function PRTimelineView(props: { owner: string, repo: string, pr:
                 </div>
 
                 {/* INPUT DE COMENTÁRIO (MANTIDO) */}
-                <div class="ml-12 bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-4 flex gap-4 mr-4">
-                    <img src={props.currentUserAvatar} class="w-8 h-8 rounded-full flex-shrink-0 border border-white dark:border-gray-700 shadow-sm" />
+                <div class="p-4 flex gap-4">
+                    <img src={props.currentUserAvatar} class="w-12 h-12 mt-1 rounded-full flex-shrink-0 border border-white dark:border-gray-700 shadow-sm" />
                     <div class="flex-1 relative">
-                    <textarea 
-                        placeholder="Adicione um comentário à discussão..."
-                        class="w-full bg-transparent text-sm text-gray-700 dark:text-gray-200 outline-none min-h-[80px] resize-none p-2"
-                    ></textarea>
-                    <button class="absolute bottom-2 right-2 bg-gray-900 dark:bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">
-                        Enviar
-                    </button>
+                        <MarkdownEditor onSave={(content) => console.log("Salvar no GitHub:", content)} />
                     </div>
                 </div>
             </div>
