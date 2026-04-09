@@ -120,13 +120,13 @@ export const PR_DESCRIPTION_QUERY = `
         reviews(first: 10) {
           nodes {
             state
-            author { login name email avatarUrl }
+            author { login avatarUrl }
           }
         }
         reviewRequests(first: 10) {
           nodes {
             requestedReviewer {
-              ... on User { login avatarUrl name email }
+              ... on User { login avatarUrl }
             }
           }
         }
@@ -139,8 +139,6 @@ export const PR_DESCRIPTION_QUERY = `
               ... on User {
                 login
                 avatarUrl
-                name
-                email
               }
             }
           }
@@ -148,7 +146,7 @@ export const PR_DESCRIPTION_QUERY = `
         comments(first: 30) {
           totalCount
           nodes {
-            author { login name email avatarUrl }
+            author { login }
             body
             createdAt
           }
@@ -265,7 +263,6 @@ export const GET_PR_TIMELINE_QUERY = `
                 author {
                   name
                   email
-                  login
                   avatarUrl
                 }
               }
@@ -294,6 +291,21 @@ export const GET_PR_TIMELINE_QUERY = `
               createdAt
             }
           }
+        }
+      }
+    }
+  }
+`;
+
+export const ADD_PR_COMMENT = `
+  mutation ($subjectId: ID!, $body: String!) {
+    addComment(input: { subjectId: $subjectId, body: $body }) {
+      commentEdge {
+        node {
+          id
+          body
+          createdAt
+          author { login avatarUrl }
         }
       }
     }

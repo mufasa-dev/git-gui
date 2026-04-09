@@ -4,6 +4,7 @@ import MarkdownViewer from "../ui/MarkdownViewer";
 import { getRelativeTime } from "../../utils/date";
 import MarkdownEditor from "../ui/MarkdownEditor";
 import CommitMessage from "../ui/CommitMessage";
+import { useLoading } from "../ui/LoadingContext";
 
 type PRTimelineViewProps = {
     owner: string;
@@ -17,8 +18,9 @@ type PRTimelineViewProps = {
 
 export default function PRTimelineView(props: PRTimelineViewProps) {
     const [commentText, setCommentText] = createSignal("");
+    const { showLoading, hideLoading } = useLoading();
     
-    const [timeline] = createResource(
+    const [timeline, { refetch }] = createResource(
         () => ({ owner: props.owner, name: props.repo, number: props.pr.number }),
         async (params) => await githubService.getPRTimeline(params.owner, params.name, params.number)
     );
@@ -30,9 +32,19 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         return (add / (add + del)) * 100;
     });
 
-    const handleSaveComment = () => {
-        console.log("Enviando para o GitHub:", commentText());
-        setCommentText(""); // Limpa após enviar
+    const handleSaveComment = async () => {
+        if (!commentText()) return;
+
+        try {
+            showLoading("Salvando comentário...");
+            await githubService.addComment(props.pr.id, commentText());
+            hideLoading();
+            setCommentText("");
+            refetch();
+        } catch (err) {
+            hideLoading();
+            console.error("Falha ao comentar:", err);
+        }
     };
 
     return (
@@ -145,20 +157,19 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
                 {/* INPUT DE COMENTÁRIO (MANTIDO) */}
                 <div class="p-4 flex gap-4">
-                    <img src={props.currentUserAvatar} class="w-12 h-12 mt-1 rounded-full flex-shrink-0 border border-white dark:border-gray-700 shadow-sm" />
+                    <img src={props.currentUserAvatar} class="w-12 h-12 mt-1 rounded-full border dark:border-gray-700 shadow-sm" />
                     <div class="flex-1 relative">
                         <MarkdownEditor 
                             value={commentText()} 
                             onInput={setCommentText}
-                            placeholder="Deixe um comentário na PR..."
+                            placeholder="Deixe um comentário..."
                         >
-                            {/* Botões específicos deste contexto */}
                             <button 
                                 disabled={!commentText()}
                                 onClick={handleSaveComment}
-                                class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all"
+                                class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
                             >
-                                Comentar
+                                Comment
                             </button>
                         </MarkdownEditor>
                     </div>
