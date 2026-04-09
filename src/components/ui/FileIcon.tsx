@@ -56,6 +56,7 @@ import flashIcon from "../../assets/flash.png";
 import rpgMakerIcon from "../../assets/rpg_maker.png";
 import androidIcon from "../../assets/android.png";
 import dockerIcon from "../../assets/docker.png";
+import jenkinsIcon from "../../assets/jenkins.png";
 import blenderIcon from "../../assets/blender.png";
 import excelIcon from "../../assets/excel.png";
 import musicIcon from "../../assets/music.png";
@@ -87,6 +88,7 @@ export default function FileIcon(props: FileIconProps) {
 
     // Checagem por nome exato
     if (name === 'dockerfile') return dockerIcon;
+    if (name === 'jenkinsfile') return jenkinsIcon;
     if (name === 'makefile') return makefileIcon;
     if (name === '.gitignore') return gitIcon;
     if (name === 'license') return mdIcon;
