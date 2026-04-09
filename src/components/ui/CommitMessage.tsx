@@ -53,7 +53,7 @@ const CommitMessage = (props: Props) => {
   };
 
   return (
-    <div class={`font-mono text-sm ${props.class ?? ""}`}>
+    <div class={`${props.class ?? "text-sm font-mono"}`}>
       <Show 
         when={!parsed().isMerge} 
         fallback={

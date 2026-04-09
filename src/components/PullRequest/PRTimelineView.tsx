@@ -1,10 +1,22 @@
-import { createMemo, createResource, For, Show } from "solid-js";
+import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import { getRelativeTime } from "../../utils/date";
 import MarkdownEditor from "../ui/MarkdownEditor";
+import CommitMessage from "../ui/CommitMessage";
 
-export default function PRTimelineView(props: { owner: string, repo: string, pr: any, details: any, currentUserAvatar: string }) {
+type PRTimelineViewProps = {
+    owner: string;
+    repo: string;
+    pr: any;
+    details: any;
+    currentUserAvatar: string;
+    selectCommit: (hash: string) => void;
+};
+
+export default function PRTimelineView(props: PRTimelineViewProps) {
+    const [commentText, setCommentText] = createSignal("");
+    
     const [timeline] = createResource(
         () => ({ owner: props.owner, name: props.repo, number: props.pr.number }),
         async (params) => await githubService.getPRTimeline(params.owner, params.name, params.number)
@@ -16,6 +28,11 @@ export default function PRTimelineView(props: { owner: string, repo: string, pr:
         if (add + del === 0) return 50;
         return (add / (add + del)) * 100;
     });
+
+    const handleSaveComment = () => {
+        console.log("Enviando para o GitHub:", commentText());
+        setCommentText(""); // Limpa após enviar
+    };
 
     return (
         <div class="flex flex-1 flex-col w-full bg-white dark:bg-gray-800 rounded-b-xl border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden">
@@ -77,8 +94,11 @@ export default function PRTimelineView(props: { owner: string, repo: string, pr:
                                     <div class="relative">
                                         <div class="absolute -left-[35px] top-1 w-[12px] h-[12px] rounded-full bg-blue-500 border-4 border-gray-200 dark:border-gray-600"></div>
                                         <div class="flex justify-between items-center pr-4">
-                                            <p class="text-xs font-bold text-gray-500">
-                                                Commit: <span class="text-gray-900 dark:text-white font-black">{item.commit.message.split('\n')[0]}</span>
+                                            <p class="font-mono text-sm font-bold text-gray-500 dark:text-gray-400 flex items-center 
+                                                      mt-1 hover:text-blue-500 dark:hover:text-blue-500 hover:underline cursor-pointer  transition-colors"
+                                                    onClick={() => props.selectCommit(item.commit.oid)}>
+                                                <span>Commit</span>
+                                                <CommitMessage message={item.commit.message} class="text-sm text-gray-600 dark:text-gray-300 ml-1" />
                                             </p>
                                             <span class="opacity-30 font-mono text-[10px]">{new Date(item.commit.committedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                         </div>
@@ -124,7 +144,20 @@ export default function PRTimelineView(props: { owner: string, repo: string, pr:
                 <div class="p-4 flex gap-4">
                     <img src={props.currentUserAvatar} class="w-12 h-12 mt-1 rounded-full flex-shrink-0 border border-white dark:border-gray-700 shadow-sm" />
                     <div class="flex-1 relative">
-                        <MarkdownEditor onSave={(content) => console.log("Salvar no GitHub:", content)} />
+                        <MarkdownEditor 
+                            value={commentText()} 
+                            onInput={setCommentText}
+                            placeholder="Deixe um comentário na PR..."
+                        >
+                            {/* Botões específicos deste contexto */}
+                            <button 
+                                disabled={!commentText()}
+                                onClick={handleSaveComment}
+                                class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all"
+                            >
+                                Comentar
+                            </button>
+                        </MarkdownEditor>
                     </div>
                 </div>
             </div>

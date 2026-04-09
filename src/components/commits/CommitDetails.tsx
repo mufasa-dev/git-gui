@@ -9,7 +9,15 @@ import CommitMessage from "../ui/CommitMessage";
 import { UserProfileDialog } from "../Config/UserProfile";
 import { formatContributorName } from "../../utils/user";
 
-export function CommitDetails(props: { commit: any; repoPath: string, branch: string, selectCommit: (hash: string) => void }) {
+type CommitDetailsProps = {
+  commit: any;
+  repoPath: string;
+  branch: string;
+  openParent: boolean;
+  selectCommit: (hash: string) => void;
+}
+
+export function CommitDetails(props: CommitDetailsProps) {
   const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
   const [selectedFile, setSelectedFile] = createSignal<any>(null);
   const [fileDiff, setFileDiff] = createSignal<any>(null);
@@ -137,14 +145,21 @@ export function CommitDetails(props: { commit: any; repoPath: string, branch: st
                         <div class="flex flex-wrap gap-2">
                           <For each={props.commit.parents}>
                             {(parentHash) => (
-                              <span 
-                                onClick={() => props.selectCommit(parentHash)}
-                                class="font-mono text-xs bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-gray-900 rounded-xl
-                                      text-blue-600 dark:text-white px-2 py-1 cursor-pointer transition-colors border border-gray-300 dark:border-gray-600"
-                                title={parentHash}
-                              >
-                                {parentHash.substring(0, 8)}
-                              </span>
+                              <Show when={props.openParent} fallback={
+                                <span class="font-mono text-xs bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 
+                                           text-blue-600 dark:text-white px-2 py-1 rounded-xl">
+                                  {parentHash.substring(0, 8)}
+                                </span>
+                              }>
+                                <span 
+                                  onClick={() => props.selectCommit(parentHash)}
+                                  class="font-mono text-xs bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-gray-900 rounded-xl
+                                        text-blue-600 dark:text-white px-2 py-1 cursor-pointer transition-colors border border-gray-300 dark:border-gray-600"
+                                  title={parentHash}
+                                >
+                                  {parentHash.substring(0, 8)}
+                                </span>
+                              </Show>
                             )}
                           </For>
                         </div>

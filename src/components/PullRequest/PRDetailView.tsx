@@ -6,13 +6,19 @@ import PRCommitsView from "./PRCommitsView";
 import PRChecksView from "./PRChecksView";
 import PRTimelineView from "./PRTimelineView";
 import { getRelativeTime } from "../../utils/date";
+import CommitMessage from "../ui/CommitMessage";
+import Dialog from "../ui/Dialog";
+import { CommitDetails } from "../commits/CommitDetails";
+import { getCommitDetails } from "../../services/gitService";
+import { Repo } from "../../models/Repo.model";
 
-export default function PRDetailView(props: { pr: any, owner: string, repoName: string }) {
-  const [comment, setComment] = createSignal("");
-  const [activeTab, setActiveTab] = createSignal("Visão Geral"); // Estado da Aba
+export default function PRDetailView(props: { pr: any, owner: string, repo: Repo }) {
+  const [activeTab, setActiveTab] = createSignal("Visão Geral");
+  const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
+  const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   
   const [details] = createResource(
-    () => ({ owner: props.owner, name: props.repoName, number: props.pr.number }),
+    () => ({ owner: props.owner, name: props.repo.name, number: props.pr.number }),
     async (p) => await githubService.getPullRequestDescription(p.owner, p.name, p.number)
   );
 
@@ -59,6 +65,12 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
     return list;
   });
 
+  async function selectCommit(hash: string) {
+    const details = await getCommitDetails(props.repo.path, hash);
+    setSelectedCommit({ ...details, _ts: Date.now() });
+    setModalCommitDetails(true);
+  }
+
   const tabs = ['Visão Geral', 'Files', 'Commits', 'Checks'];
 
   return (
@@ -66,8 +78,9 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
       {/* HEADER ESTILO TRIDENT */}
       <header class="container-branch-list p-4 mb-2">
         <div class="flex items-center justify-between mb-2">
-          <h1 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-            {props.pr.title} <span class="text-gray-500/50 ml-2 font-mono text-lg">#{props.pr.number}</span>
+          <h1 class="text-lg font-black text-gray-900 dark:text-white tracking-tight flex items-center">
+            <CommitMessage message={props.pr.title} class="text-xl" />
+            <span class="text-gray-500/50 dark:text-gray-400 ml-2">#{props.pr.number}</span>
           </h1>
           <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20">
             <i class="fa-solid fa-check"></i> Approve
@@ -82,10 +95,11 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
             <img src={props.pr.author?.avatarUrl} alt={props.pr.author?.login} />
           </div>
           <div class="text-xs">
-            <span class="font-bold text-gray-900 dark:text-white">{props.pr.author?.login}</span>
+            <span class="font-bold text-blue-500 dark:text-blue-400">Branch 2</span>
             <span class="text-gray-500 mx-2">→</span>
-            <span class="font-mono text-blue-500 dark:text-blue-400">main</span>
-            <span class="text-gray-400 ml-3 uppercase text-[9px] font-black italic">{getRelativeTime(props.pr.createdAt)}</span>
+            <span class="font-mono text-blue-500 dark:text-blue-400">main</span><br />
+            <span class="font-bold text-gray-900 dark:text-white">{props.pr.author?.login}</span>
+            <span class="text-gray-400 uppercase ml-3 text-[9px] font-black italic">{getRelativeTime(props.pr.createdAt)}</span>
           </div>
         </div>
       </header>
@@ -118,10 +132,11 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
               <Match when={activeTab() === 'Visão Geral'}>
                   <PRTimelineView 
                     owner={props.owner} 
-                    repo={props.repoName} 
+                    repo={props.repo.name} 
                     pr={props.pr} 
                     details={details()}
                     currentUserAvatar={props.pr.author?.avatarUrl}
+                    selectCommit={selectCommit}
                 />
               </Match>
 
@@ -129,21 +144,22 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
               <Match when={activeTab() === 'Files'}>
                 <PRFilesTab 
                     owner={props.owner} 
-                    repoName={props.repoName} 
+                    repoName={props.repo.name} 
                     prNumber={props.pr.number} 
                 />
               </Match>
               <Match when={activeTab() === 'Commits'}>
                 <PRCommitsView 
                     owner={props.owner} 
-                    repoName={props.repoName} 
+                    repoName={props.repo.name} 
                     prNumber={props.pr.number} 
+                    selectCommit={selectCommit}
                 />
               </Match>
               <Match when={activeTab() === 'Checks'}>
                 <PRChecksView
                     owner={props.owner} 
-                    repoName={props.repoName} 
+                    repoName={props.repo.name} 
                     prNumber={props.pr.number} 
                 />
               </Match>
@@ -228,6 +244,14 @@ export default function PRDetailView(props: { pr: any, owner: string, repoName: 
           </div>
         </aside>
       </div>
+      <Dialog open={showModalCommitDetails()}
+              title="Detalhes co Commit"
+              onClose={() => setModalCommitDetails(false)}
+              bodyClass="p-0 h-full"
+              width={'calc(100vw - 40px)'}
+              height={'calc(100vh - 100px)'}>
+        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={""} openParent={false} selectCommit={selectCommit} />
+      </Dialog>
     </div>
   );
 }

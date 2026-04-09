@@ -1,10 +1,10 @@
 import { createResource, createSignal, For, Show, createMemo } from "solid-js";
 import { githubService } from "../../services/github";
-import MarkdownViewer from "../ui/MarkdownViewer";
 import PRDetailView from "./PRDetailView";
 import { getRelativeTime } from "../../utils/date";
+import { Repo } from "../../models/Repo.model";
 
-export default function PullRequestsPage(props: { repo: any, username: string }) {
+export default function PullRequestsPage(props: { repo: Repo, username: string }) {
   const [filter, setFilter] = createSignal("OPEN");
   const [searchTerm, setSearchTerm] = createSignal("");
   const [selectedPR, setSelectedPR] = createSignal<any>(null);
@@ -118,7 +118,7 @@ export default function PullRequestsPage(props: { repo: any, username: string })
             <PRDetailView 
               pr={selectedPR()} 
               owner={props.username} 
-              repoName={props.repo.name} 
+              repo={props.repo} 
             />
           </Show>
          </div>
