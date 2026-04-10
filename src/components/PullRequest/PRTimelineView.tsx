@@ -6,6 +6,7 @@ import MarkdownEditor from "../ui/MarkdownEditor";
 import CommitMessage from "../ui/CommitMessage";
 import { useLoading } from "../ui/LoadingContext";
 import { getEmojiChar } from "../../utils/emoji";
+import ConfirmModal from "../ui/ConfirmModal";
 
 type PRTimelineViewProps = {
     owner: string;
@@ -20,6 +21,7 @@ type PRTimelineViewProps = {
 export default function PRTimelineView(props: PRTimelineViewProps) {
     const [commentText, setCommentText] = createSignal("");
     const { showLoading, hideLoading } = useLoading();
+    const [confirmData, setConfirmData] = createSignal<{ id: string } | null>(null);
     
     const [timeline, { refetch }] = createResource(
         () => ({ owner: props.owner, name: props.repo, number: props.pr.number }),
@@ -63,6 +65,31 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         } catch (err) {
             hideLoading();
             console.error("Erro ao processar reação:", err);
+        }
+    };
+
+    const handleEdit = (item: any) => {
+        console.log("Editando:", item.id);
+    };
+
+    const requestDelete = (id: string) => {
+        setConfirmData({ id });
+    };
+
+    // 3. Função que executa após a confirmação real
+    const executeDelete = async () => {
+        const data = confirmData();
+        if (!data) return;
+
+        try {
+            setConfirmData(null); // Fecha a modal
+            showLoading("Deletando comentário...");
+            await githubService.deleteComment(data.id);
+            hideLoading();
+            refetch();
+        } catch (err) {
+            hideLoading();
+            console.error("Erro ao deletar:", err);
         }
     };
 
@@ -142,19 +169,68 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 <Show when={item.__typename === 'IssueComment'}>
                                     <div class="relative">
                                         <div class="absolute -left-[35px] top-4 w-[12px] h-[12px] rounded-full bg-gray-400 border-4 border-gray-200 dark:border-gray-600"></div>
-                                        <div class="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 rounded-xl overflow-hidden shadow-sm mr-4">
+                                        <div class="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 rounded-xl shadow-lg mr-4">
                                             <div class="p-5 flex gap-4">
                                                 <img src={item.author.avatarUrl} class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
                                                     onClick={() => props.openUserProfile(item.author.name, item.author.email, item.author.login)} />
                                                 <div class="flex-1">
                                                     <div class="flex justify-between items-center mb-2">
-                                                        <span class="text-sm font-black text-gray-900 dark:text-white">
-                                                        {item.author.login} 
-                                                        <span class="text-[9px] text-gray-400 font-normal ml-2 lowercase">{getRelativeTime(item.createdAt)}</span>
-                                                        </span>
-                                                        <span class="text-[10px] text-gray-400 font-mono">
-                                                        {new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                        </span>
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="text-sm font-black text-gray-900 dark:text-white">
+                                                                {item.author.login} 
+                                                            </span>
+                                                            <span class="text-[9px] text-gray-400 font-normal lowercase">
+                                                                {getRelativeTime(item.createdAt)}
+                                                            </span>
+                                                            
+                                                            {/* BADGES OPCIONAIS (Owner/Author) */}
+                                                            <Show when={item.author.login === props.pr.author?.login}>
+                                                                <span class="px-1.5 py-0.5 border border-gray-600 rounded-full text-[8px] text-gray-400 font-bold uppercase tracking-tighter">Author</span>
+                                                            </Show>
+                                                        </div>
+
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="text-[10px] text-gray-400 font-mono">
+                                                                {new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                            </span>
+
+                                                            {/* MENU DROPDOWN (TRÊS PONTINHOS) */}
+                                                            <div class="group relative">
+                                                                <button class="p-1 hover:bg-gray-700/50 rounded-md transition-colors text-gray-400 hover:text-white">
+                                                                    <i class="fa-solid fa-ellipsis"></i>
+                                                                </button>
+
+                                                                {/* DROPDOWN MENU - Usando a mesma técnica de bridge (pt-2) */}
+                                                                <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute top-full right-0 pt-1 transition-all z-[60] min-w-[160px]">
+                                                                    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden py-1">
+                                                                        <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                                            <i class="fa-regular fa-copy opacity-60"></i> Copy link
+                                                                        </button>
+                                                                        <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                                            <i class="fa-solid fa-quote-left opacity-60"></i> Quote reply
+                                                                        </button>
+                                                                        
+                                                                        <div class="h-[1px] bg-gray-200 dark:bg-gray-700 my-1"></div>
+                                                                        
+                                                                        <button 
+                                                                            onClick={() => handleEdit(item)}
+                                                                            class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                                                                        >
+                                                                            <i class="fa-regular fa-pen-to-square opacity-60"></i> Edit
+                                                                        </button>
+                                                                        <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                                            <i class="fa-regular fa-eye-slash opacity-60"></i> Hide
+                                                                        </button>
+                                                                        <button 
+                                                                            onClick={() => requestDelete(item.id)}
+                                                                            class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-red-500 font-bold"
+                                                                        >
+                                                                            <i class="fa-regular fa-trash-can"></i> Delete
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                     <div class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
                                                         <MarkdownViewer content={item.bodyHTML} />
@@ -252,6 +328,16 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                         </MarkdownEditor>
                     </div>
                 </div>
+
+                <ConfirmModal 
+                    isOpen={confirmData() !== null}
+                    title="Deletar Comentário"
+                    message="Tem certeza que deseja remover este comentário? Esta ação não pode ser desfeita."
+                    confirmText="Deletar"
+                    isDanger={true}
+                    onConfirm={executeDelete}
+                    onCancel={() => setConfirmData(null)}
+                />
             </div>
         </div>
   );

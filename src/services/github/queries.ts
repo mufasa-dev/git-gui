@@ -329,6 +329,14 @@ export const ADD_PR_COMMENT = `
   }
 `;
 
+export const DELETE_PR_COMMENT = `
+  mutation($id: ID!) {
+    deleteIssueComment(input: { id: $id }) {
+      clientMutationId
+    }
+  }
+`;
+
 export const ADD_REACTION = `
   mutation ($subjectId: ID!, $content: ReactionContent!) {
     addReaction(input: { subjectId: $subjectId, content: $content }) {
