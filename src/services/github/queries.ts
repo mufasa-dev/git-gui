@@ -339,3 +339,13 @@ export const ADD_REACTION = `
     }
   }
 `;
+
+export const REMOVE_REACTION = `
+  mutation ($subjectId: ID!, $content: ReactionContent!) {
+    removeReaction(input: { subjectId: $subjectId, content: $content }) {
+      reaction {
+        content
+      }
+    }
+  }
+`;
