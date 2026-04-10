@@ -19,6 +19,7 @@ import { formatSize } from "../utils/file";
 import Dialog from "../components/ui/Dialog";
 import { CommitDetails } from "../components/commits/CommitDetails";
 import CommitMessage from "../components/ui/CommitMessage";
+import CodePreviewer from "../components/ui/CodePreviewer";
 
 export default function FileList(props: { repo: Repo }) {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
@@ -42,12 +43,6 @@ export default function FileList(props: { repo: Repo }) {
 
   const { showLoading, hideLoading } = useLoading();
 
-  // --- Configuração CodeMirror ---
-  const { ref: codeMirrorRef, editorView } = createCodeMirror({
-    value: fileContent() ?? "",
-  });
-
-
   onMount(() => {
     const handleThemeChange = (e: any) => {
       setIsDark(e.detail.theme === "dark");
@@ -67,55 +62,6 @@ export default function FileList(props: { repo: Repo }) {
       setSelectedBranch(activeBranch || "");
       setFileContent(null);
       setBranchFiles([]);
-    }
-  });
-
-  createEffect(() => {
-    const view = editorView();
-    if (!view) return;
-    
-    const dark = isDark();
-
-    const extensions = [
-      lineNumbers(),
-      EditorView.lineWrapping,
-      EditorState.readOnly.of(true),
-      dark ? oneDark : githubLight,
-      javascript() 
-    ];
-
-    extensions.push(
-      EditorView.theme({
-        "&": {
-          height: "100%",
-          backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#ffffff !important",
-        },
-        ".cm-scroller": { 
-          overflow: "auto",
-          backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#ffffff !important",
-        },
-        ".cm-gutters": {
-          backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#f5f5f5",
-          border: "none"
-        },
-        ".cm-content": {
-          color: dark ? "#abb2bf" : "#000000",
-        }
-      }, { dark: dark })
-    );
-
-    view.dispatch({
-      effects: StateEffect.reconfigure.of(extensions)
-    });
-  });
-
-  createEffect(() => {
-    const view = editorView();
-    const content = fileContent();
-    if (view && content !== null) {
-      view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: content }
-      });
     }
   });
 
@@ -415,7 +361,7 @@ export default function FileList(props: { repo: Repo }) {
                 <span>{formatSize(fileMeta()?.size || 0)}</span>
               </div>
               <Show when={isImage()} fallback={
-                <div class="w-full overflow-auto rounded-b-xl" ref={codeMirrorRef} />
+                <CodePreviewer fileName={getSelectedFileName()} content={fileContent() || ''} />
               }>
                 {/* Imagem*/}
                 <div class="p-8 flex flex-col items-center gap-4 mb-auto">
