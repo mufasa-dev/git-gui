@@ -178,6 +178,39 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                     </div>
                                 </Show>
 
+                                <Show when={item.__typename === 'ClosedEvent'}>
+                                    <div class="relative flex items-center gap-3 py-2">
+                                        {/* Ícone de Fechado (Vermelho) */}
+                                        <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-red-500 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
+                                            <i class="fa-solid fa-circle-xmark text-[10px] text-white"></i>
+                                        </div>
+                                        
+                                        <img src={item.actor.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
+                                        <p class="text-gray-500 dark:text-gray-400">
+                                            <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
+                                            <span class="ml-1">fechou este commit</span>
+                                            <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt)}</span>
+                                        </p>
+                                    </div>
+                                </Show>
+
+                                {/* EVENTO DE REABERTURA (REOPENED) */}
+                                <Show when={item.__typename === 'ReopenedEvent'}>
+                                    <div class="relative flex items-center gap-3 py-2">
+                                        {/* Ícone de Reaberto (Verde) */}
+                                        <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-green-500 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
+                                            <i class="fa-solid fa-circle-dot text-[10px] text-white"></i>
+                                        </div>
+                                        
+                                        <img src={item.actor.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
+                                        <p class="text-gray-500 dark:text-gray-400">
+                                            <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
+                                            <span class="ml-1">reabriu este commit</span>
+                                            <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt)}</span>
+                                        </p>
+                                    </div>
+                                </Show>
+
                                 {/* CARD DE COMENTÁRIO (ESTILIZADO COMO O SEU) */}
                                 <Show when={item.__typename === 'IssueComment'}>
                                     <Show 

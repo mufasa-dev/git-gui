@@ -311,6 +311,20 @@ export const GET_PR_TIMELINE_QUERY = `
               }
               createdAt
             }
+            ... on ClosedEvent {
+              actor {
+                login
+                avatarUrl
+              }
+              createdAt
+            }
+            ... on ReopenedEvent {
+              actor {
+                login
+                avatarUrl
+              }
+              createdAt
+            }
           }
         }
       }
