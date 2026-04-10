@@ -252,6 +252,7 @@ export const GET_PR_TIMELINE_QUERY = `
   query($owner: String!, $name: String!, $number: Int!) {
     repository(owner: $owner, name: $name) {
       pullRequest(number: $number) {
+        id 
         timelineItems(first: 50) {
           nodes {
             __typename
@@ -268,20 +269,36 @@ export const GET_PR_TIMELINE_QUERY = `
               }
             }
             ... on IssueComment {
+              id
               author {
                 login
                 avatarUrl
               }
               bodyHTML
               createdAt
+              reactionGroups {
+                content
+                users {
+                  totalCount
+                }
+                viewerHasReacted
+              }
             }
             ... on PullRequestReview {
+              id
               author {
                 login
                 avatarUrl
               }
               state
               createdAt
+              reactionGroups {
+                content
+                users {
+                  totalCount
+                }
+                viewerHasReacted
+              }
             }
             ... on MergedEvent {
               actor {
@@ -307,6 +324,17 @@ export const ADD_PR_COMMENT = `
           createdAt
           author { login avatarUrl }
         }
+      }
+    }
+  }
+`;
+
+export const ADD_REACTION = `
+  mutation ($subjectId: ID!, $content: ReactionContent!) {
+    addReaction(input: { subjectId: $subjectId, content: $content }) {
+      reaction {
+        content
+        user { login }
       }
     }
   }
