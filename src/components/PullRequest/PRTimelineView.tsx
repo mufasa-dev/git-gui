@@ -48,16 +48,21 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         }
     };
 
-    const onReact = async (subjectId: string, content: string) => {
+    const onReact = async (subjectId: string, content: string, hasReacted: boolean) => {
         try {
-            showLoading("Salvando reação...");
-            await githubService.addReaction(subjectId, content);
+            showLoading(hasReacted ? "Removendo..." : "Reagindo...");
+            
+            if (hasReacted) {
+                await githubService.removeReaction(subjectId, content);
+            } else {
+                await githubService.addReaction(subjectId, content);
+            }
+
             hideLoading();
-            setCommentText("");
-            refetch();
+            refetch(); 
         } catch (err) {
             hideLoading();
-            console.error("Falha ao comentar:", err);
+            console.error("Erro ao processar reação:", err);
         }
     };
 
@@ -176,14 +181,21 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                 <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute bottom-full left-0 pb-2 transition-all duration-200 z-50">
                                                                     <div class="flex gap-1 p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl">
                                                                         <For each={['THUMBS_UP', 'THUMBS_DOWN', 'LAUGH', 'HOORAY', 'CONFUSED', 'HEART', 'ROCKET', 'EYES']}>
-                                                                            {(emoji) => (
-                                                                                <button 
-                                                                                    onClick={() => onReact(item.id, emoji)}
-                                                                                    class="text-lg hover:bg-gray-100 dark:hover:bg-gray-700 w-8 h-8 flex items-center justify-center rounded-lg transition-transform hover:scale-125"
-                                                                                >
-                                                                                    {getEmojiChar(emoji)}
-                                                                                </button>
-                                                                            )}
+                                                                            {(emoji) => {
+                                                                                // Verifica se este emoji específico já foi marcado por você
+                                                                                const myReaction = item.reactionGroups?.find((g: any) => g.content === emoji);
+                                                                                const alreadyReacted = myReaction?.viewerHasReacted || false;
+
+                                                                                return (
+                                                                                    <button 
+                                                                                        onClick={() => onReact(item.id, emoji, alreadyReacted)}
+                                                                                        class={`text-lg hover:bg-gray-100 dark:hover:bg-gray-700 w-8 h-8 flex items-center justify-center rounded-lg transition-all 
+                                                                                                ${alreadyReacted ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}
+                                                                                    >
+                                                                                        {getEmojiChar(emoji)}
+                                                                                    </button>
+                                                                                );
+                                                                            }}
                                                                         </For>
                                                                     </div>
                                                                 </div>
@@ -191,13 +203,12 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
                                                             {/* LISTA DE BADGES LADO A LADO */}
                                                             <div class="flex items-center gap-1.5">
-                                                                
                                                                 <For each={item.reactionGroups}>
                                                                     {(group: any) => (
-                                                                        <Show when={group.users?.totalCount > 0}>
+                                                                        <Show when={group.users.totalCount > 0}>
                                                                             <button
-                                                                                onClick={() => onReact(item.id, group.content)}
-                                                                                class={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold transition-all
+                                                                                onClick={() => onReact(item.id, group.content, group.viewerHasReacted)}
+                                                                                class={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold transition-all
                                                                                     ${group.viewerHasReacted 
                                                                                         ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' 
                                                                                         : 'bg-gray-50 border-gray-200 text-gray-500 dark:bg-gray-800/50 dark:border-gray-700 hover:border-gray-500'}`}
