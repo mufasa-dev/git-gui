@@ -9,6 +9,8 @@ import vsCodeIcon from "../../assets/vscode.png";
 import forkIcon from "../../assets/fork.png";
 import alertIcon from "../../assets/alert.png";
 import { openVsCodeDiff } from "../../services/openService";
+import { getExtension } from "../../utils/file";
+import { highlightCode } from "../../utils/highlight";
 
 type Props = {
   key?: string | null;
@@ -38,12 +40,17 @@ function parseDiff(diff: string): DiffLine[] {
   let newLine = 0;
 
   for (const line of lines) {
-    if (line.startsWith("diff --git") || line.startsWith("index ") || line.startsWith("new file mode")) {
-      continue; // pula cabeçalhos
+    if (
+      line.startsWith("diff --git") || 
+      line.startsWith("index ") || 
+      line.startsWith("new file mode") ||
+      line.startsWith("--- ") || 
+      line.startsWith("+++ ")
+    ) {
+      continue;
     }
 
     if (line.startsWith("@@")) {
-      // hunk header → @@ -1,3 +1,4 @@
       const match = /@@ -(\d+),?\d* \+(\d+),?\d* @@/.exec(line);
       if (match) {
         oldLine = parseInt(match[1], 10);
@@ -53,12 +60,14 @@ function parseDiff(diff: string): DiffLine[] {
       continue;
     }
 
+    const cleanContent = line.slice(1);
+
     if (line.startsWith("+")) {
-      result.push({ type: "add", newLine: newLine++, content: line });
+      result.push({ type: "add", newLine: newLine++, content: cleanContent });
     } else if (line.startsWith("-")) {
-      result.push({ type: "del", oldLine: oldLine++, content: line });
+      result.push({ type: "del", oldLine: oldLine++, content: cleanContent });
     } else {
-      result.push({ type: "ctx", oldLine: oldLine++, newLine: newLine++, content: line });
+      result.push({ type: "ctx", oldLine: oldLine++, newLine: newLine++, content: cleanContent });
     }
   }
 
@@ -127,7 +136,6 @@ export default function DiffViewer(props: Props) {
       notify.error("Erro ao salvar", String(err));
     }
   }
-  console.log("hasConflict", props);
 
   return (
     <>
@@ -159,24 +167,22 @@ export default function DiffViewer(props: Props) {
                     <tr
                       class={
                         line.type === "add"
-                          ? "bg-green-100 dark:bg-green-300 dark:text-black"
+                          ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200"
                           : line.type === "del"
-                          ? "bg-red-100 dark:bg-red-300 dark:text-black"
+                          ? "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200"
                           : line.type === "hunk"
-                          ? "bg-gray-200 dark:bg-gray-700 font-bold"
-                          : ""
+                          ? "bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-300 font-bold opacity-80"
+                          : "hover:bg-gray-50 dark:hover:bg-white/5"
                       }
                     >
-                      {/* Número linha antiga */}
-                      <td class="w-12 text-right px-2 text-gray-500 select-none border-r border-gray-300 dark:border-gray-600">
+                      <td class="w-12 text-right px-2 text-gray-400 select-none border-r border-gray-300 dark:border-gray-700 text-[11px]">
                         <Show when={line.oldLine !== undefined}>{line.oldLine}</Show>
                       </td>
-                      {/* Número linha nova */}
-                      <td class="w-12 text-right px-2 text-gray-500 select-none border-r border-gray-300 dark:border-gray-600">
+                      <td class="w-12 text-right px-2 text-gray-400 select-none border-r border-gray-300 dark:border-gray-700 text-[11px]">
                         <Show when={line.newLine !== undefined}>{line.newLine}</Show>
                       </td>
-                      <td class="px-2 whitespace-pre-wrap select-text">
-                        {line.content}
+                      <td class="px-4 whitespace-pre-wrap select-text font-mono leading-6" innerHTML={highlightCode(line.content, props.file)}>
+
                       </td>
                     </tr>
                   )}
