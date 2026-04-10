@@ -5,6 +5,7 @@ import { getRelativeTime } from "../../utils/date";
 import MarkdownEditor from "../ui/MarkdownEditor";
 import CommitMessage from "../ui/CommitMessage";
 import { useLoading } from "../ui/LoadingContext";
+import { getEmojiChar } from "../../utils/emoji";
 
 type PRTimelineViewProps = {
     owner: string;
@@ -38,6 +39,19 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         try {
             showLoading("Salvando comentário...");
             await githubService.addComment(props.pr.id, commentText());
+            hideLoading();
+            setCommentText("");
+            refetch();
+        } catch (err) {
+            hideLoading();
+            console.error("Falha ao comentar:", err);
+        }
+    };
+
+    const onReact = async (subjectId: string, content: string) => {
+        try {
+            showLoading("Salvando reação...");
+            await githubService.addReaction(subjectId, content);
             hideLoading();
             setCommentText("");
             refetch();
@@ -128,22 +142,75 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                 <img src={item.author.avatarUrl} class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
                                                     onClick={() => props.openUserProfile(item.author.name, item.author.email, item.author.login)} />
                                                 <div class="flex-1">
-                                                <div class="flex justify-between items-center mb-2">
-                                                    <span class="text-sm font-black text-gray-900 dark:text-white">
-                                                    {item.author.login} 
-                                                    <span class="text-[9px] text-gray-400 font-normal ml-2 lowercase">{getRelativeTime(item.createdAt)}</span>
-                                                    </span>
-                                                    <span class="text-[10px] text-gray-400 font-mono">
-                                                    {new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                    </span>
-                                                </div>
-                                                <div class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                                                    <MarkdownViewer content={item.bodyHTML} />
-                                                </div>
-                                                <div class="flex gap-4 mt-4 text-[9px] font-black uppercase tracking-widest text-gray-400">
-                                                    <button class="hover:text-blue-500 transition-colors"><i class="fa-solid fa-reply mr-1"></i> Responder</button>
-                                                    <button class="hover:text-pink-500 transition-colors"><i class="fa-solid fa-heart mr-1"></i> Curtir</button>
-                                                </div>
+                                                    <div class="flex justify-between items-center mb-2">
+                                                        <span class="text-sm font-black text-gray-900 dark:text-white">
+                                                        {item.author.login} 
+                                                        <span class="text-[9px] text-gray-400 font-normal ml-2 lowercase">{getRelativeTime(item.createdAt)}</span>
+                                                        </span>
+                                                        <span class="text-[10px] text-gray-400 font-mono">
+                                                        {new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                        </span>
+                                                    </div>
+                                                    <div class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                                                        <MarkdownViewer content={item.bodyHTML} />
+                                                    </div>
+
+                                                    {/* BOTÕES DE AÇÃO */}
+                                                    <div class="flex items-center gap-4 mt-4 text-[9px] font-black uppercase tracking-widest text-gray-400">
+                                                        <button class="hover:text-blue-500 transition-colors flex items-center">
+                                                            <i class="fa-solid fa-reply mr-1"></i> Responder
+                                                        </button>
+                                                        
+                                                        {/* CONTAINER DAS REAÇÕES + BOTÃO REAGIR */}
+                                                        <div class="flex items-center gap-2">
+                                                            
+                                                            {/* BOTÃO REAGIR (COM TOOLTIP) */}
+                                                            <div class="group relative flex items-center">
+                                                                <button 
+                                                                    class="hover:text-gray-600 dark:hover:text-white transition-colors flex items-center justify-center bg-gray-100 dark:bg-gray-700/50 w-7 h-7 rounded-full"
+                                                                >
+                                                                    <i class="fa-regular fa-face-smile text-xs"></i>
+                                                                </button>
+
+                                                                {/* TOOLTIP CORRIGIDO (COM ÁREA DE PONTE) */}
+                                                                <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute bottom-full left-0 pb-2 transition-all duration-200 z-50">
+                                                                    <div class="flex gap-1 p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl">
+                                                                        <For each={['THUMBS_UP', 'THUMBS_DOWN', 'LAUGH', 'HOORAY', 'CONFUSED', 'HEART', 'ROCKET', 'EYES']}>
+                                                                            {(emoji) => (
+                                                                                <button 
+                                                                                    onClick={() => onReact(item.id, emoji)}
+                                                                                    class="text-lg hover:bg-gray-100 dark:hover:bg-gray-700 w-8 h-8 flex items-center justify-center rounded-lg transition-transform hover:scale-125"
+                                                                                >
+                                                                                    {getEmojiChar(emoji)}
+                                                                                </button>
+                                                                            )}
+                                                                        </For>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* LISTA DE BADGES LADO A LADO */}
+                                                            <div class="flex items-center gap-1.5">
+                                                                
+                                                                <For each={item.reactionGroups}>
+                                                                    {(group: any) => (
+                                                                        <Show when={group.users?.totalCount > 0}>
+                                                                            <button
+                                                                                onClick={() => onReact(item.id, group.content)}
+                                                                                class={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold transition-all
+                                                                                    ${group.viewerHasReacted 
+                                                                                        ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' 
+                                                                                        : 'bg-gray-50 border-gray-200 text-gray-500 dark:bg-gray-800/50 dark:border-gray-700 hover:border-gray-500'}`}
+                                                                            >
+                                                                                <span class="text-xs">{getEmojiChar(group.content)}</span>
+                                                                                <span>{group.users.totalCount}</span>
+                                                                            </button>
+                                                                        </Show>
+                                                                    )}
+                                                                </For>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
