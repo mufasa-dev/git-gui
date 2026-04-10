@@ -72,6 +72,19 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         console.log("Editando:", item.id);
     };
 
+    const handleHide = async (id: string) => {
+        try {
+            showLoading("Escondendo comentário...");
+            // Usando 'OUTDATED' como padrão, similar ao comportamento de 'Hide' rápido
+            await githubService.minimizeComment(id, "OUTDATED");
+            hideLoading();
+            refetch();
+        } catch (err) {
+            hideLoading();
+            console.error("Erro ao esconder:", err);
+        }
+    };
+
     const requestDelete = (id: string) => {
         setConfirmData({ id });
     };
@@ -167,6 +180,15 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
                                 {/* CARD DE COMENTÁRIO (ESTILIZADO COMO O SEU) */}
                                 <Show when={item.__typename === 'IssueComment'}>
+                                    <Show 
+                                        when={!item.isMinimized} 
+                                        fallback={
+                                            <div class="ml-4 p-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg text-[10px] text-gray-500 italic border border-dashed border-gray-300 dark:border-gray-700 mr-4">
+                                                <i class="fa-solid fa-eye-slash mr-2"></i>
+                                                Este comentário foi escondido ({item.minimizedReason})
+                                            </div>
+                                        }
+                                    >
                                     <div class="relative">
                                         <div class="absolute -left-[35px] top-4 w-[12px] h-[12px] rounded-full bg-gray-400 border-4 border-gray-200 dark:border-gray-600"></div>
                                         <div class="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 rounded-xl shadow-lg mr-4">
@@ -204,7 +226,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                 <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute top-full right-0 pt-1 transition-all z-[60] min-w-[160px]">
                                                                     <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden py-1">
                                                                         <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                                                            <i class="fa-regular fa-copy opacity-60"></i> Copy link
+                                                                            <i class="fa-regular fa-copy opacity-60"></i> Copiar link
                                                                         </button>
                                                                         <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                                                             <i class="fa-solid fa-quote-left opacity-60"></i> Quote reply
@@ -216,16 +238,17 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                             onClick={() => handleEdit(item)}
                                                                             class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300"
                                                                         >
-                                                                            <i class="fa-regular fa-pen-to-square opacity-60"></i> Edit
+                                                                            <i class="fa-regular fa-pen-to-square opacity-60"></i> Editar
                                                                         </button>
-                                                                        <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                                                            <i class="fa-regular fa-eye-slash opacity-60"></i> Hide
+                                                                        <button onClick={() => handleHide(item.id)} 
+                                                                            class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                                            <i class="fa-regular fa-eye-slash opacity-60"></i> Esconder
                                                                         </button>
                                                                         <button 
                                                                             onClick={() => requestDelete(item.id)}
                                                                             class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-red-500 font-bold"
                                                                         >
-                                                                            <i class="fa-regular fa-trash-can"></i> Delete
+                                                                            <i class="fa-regular fa-trash-can"></i> Deletar
                                                                         </button>
                                                                     </div>
                                                                 </div>
@@ -302,6 +325,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                             </div>
                                         </div>
                                     </div>
+                                    </Show>
                                 </Show>
                             </>
                             )}

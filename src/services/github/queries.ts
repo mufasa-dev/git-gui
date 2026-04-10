@@ -276,6 +276,8 @@ export const GET_PR_TIMELINE_QUERY = `
               }
               bodyHTML
               createdAt
+              isMinimized
+              minimizedReason
               reactionGroups {
                 content
                 users {
@@ -292,6 +294,8 @@ export const GET_PR_TIMELINE_QUERY = `
               }
               state
               createdAt
+              isMinimized
+              minimizedReason
               reactionGroups {
                 content
                 users {
@@ -333,6 +337,17 @@ export const DELETE_PR_COMMENT = `
   mutation($id: ID!) {
     deleteIssueComment(input: { id: $id }) {
       clientMutationId
+    }
+  }
+`;
+
+export const HIDE_PR_COMMENT = `
+  mutation ($subjectId: ID!, $reason: ReportedContentClassifiers!) {
+    minimizeComment(input: { subjectId: $subjectId, classifier: $reason }) {
+      minimizedComment {
+        isMinimized
+        minimizedReason
+      }
     }
   }
 `;
