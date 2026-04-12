@@ -93,7 +93,6 @@ pub fn list_user_commits(path: String, branch: String, email: String) -> Result<
 
 #[command]
 pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
-    // 1. Executa o comando com --name-status (caminhos completos, sem abreviação)
     let output = git_command(&path)
         .arg("show")
         .arg("--name-status") 
@@ -109,19 +108,16 @@ pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let lines: Vec<&str> = stdout.split('\n').collect();
 
-    // 2. Parse dos metadados (fixos no topo devido ao format do pretty)
     let commit_hash = lines.get(0).unwrap_or(&"").to_string();
     let author_name = lines.get(1).unwrap_or(&"").to_string();
     let author_email = lines.get(2).unwrap_or(&"").to_string();
     let author_date = lines.get(3).unwrap_or(&"").to_string();
     let subject = lines.get(4).unwrap_or(&"").to_string();
 
-    // 3. Captura o Body e identifica onde começam os Parents/Arquivos
     let mut body_lines = Vec::new();
     let mut idx = 5;
     while idx < lines.len() {
         let line = lines[idx];
-        // Se a linha tem 40 caracteres (SHA) ou múltiplos SHAs, são os parents
         if line.len() == 40 || (line.contains(' ') && line.split_whitespace().all(|h| h.len() == 40)) {
             break; 
         }
@@ -130,28 +126,26 @@ pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
     }
     let body = body_lines.join("\n").trim().to_string();
 
-    // 4. Parents
     let parents_line = lines.get(idx).unwrap_or(&"");
     let parents: Vec<String> = parents_line
         .split_whitespace()
         .map(|p| p.to_string())
         .collect();
 
-    // 5. Arquivos (Usando a lógica do --name-status)
     let mut files: Vec<Value> = Vec::new();
-    // Pulamos a linha dos parents para começar a lista de arquivos
     for line in lines.iter().skip(idx + 1) {
         let trimmed = line.trim();
         if trimmed.is_empty() { continue; }
 
-        // O --name-status retorna: "M\tpath/to/file.txt" ou "A  file.txt"
-        // O split_whitespace lida com tabs ou espaços
-        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+        let parts: Vec<&str> = trimmed.split('\t').collect();
+        
         if parts.len() >= 2 {
+            let clean_path = parts[1].trim_matches('"').trim();
+
             files.push(json!({
-                "file": parts[1].trim(),   // Caminho real completo
-                "status": parts[0].trim(), // M, A, D, R...
-                "changes": ""              // Mantido para não quebrar o front
+                "file": clean_path,   
+                "status": parts[0].trim(),
+                "changes": ""
             }));
         }
     }
