@@ -3,6 +3,8 @@ import { githubService } from "../../services/github";
 import PRDetailView from "./PRDetailView";
 import { getRelativeTime } from "../../utils/date";
 import { Repo } from "../../models/Repo.model";
+import CommitMessage from "../ui/CommitMessage";
+import PRStatusBadge from "./PRStatusBadge";
 
 export default function PullRequestsPage(props: { repo: Repo, username: string, branch?: string }) {
   const [filter, setFilter] = createSignal("OPEN");
@@ -59,50 +61,50 @@ export default function PullRequestsPage(props: { repo: Repo, username: string, 
         </header>
 
         <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
-          <For each={filteredPRList()}>
-            {(pr) => (
-              <div class={`flex items-center border rounded-xl p-2 mb-2 transition-colors cursor-pointer
-                          ${selectedPR()?.number === pr.number ? 'bg-blue-500/10 border-blue-500/30' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                  onClick={() => setSelectedPR(pr)}>
-                <img src={pr.author.avatarUrl} alt={pr.author.login} class="w-16 h-16 rounded-full border-2 border-gray-300 dark:border-gray-700 mx-3" />
-                <div 
-                  onClick={() => setSelectedPR(pr)}
-                  class={`p-1 rounded-xl cursor-pointer transition-all`}
-                >
-                  <h4 class={`text-xs font-bold leading-tight mb-1 ${selectedPR()?.number === pr.number ? 'text-blue-500' : 'dark:text-gray-200'}`}>
-                    {pr.title}
-                  </h4>
-                  
-                  <div class="text-[10px] text-gray-500 font-bold uppercase tracking-tight mb-2">
-                    #{pr.number} • por {pr.author.login}
-                  </div>
+          <Show 
+            when={!prs.loading} 
+            fallback={
+              <div class="w-100 text-center">
+                <i class="fa-solid fa-spinner fa-spin text-blue-500"></i>
+              </div>
+            }
+          >
+            <For each={filteredPRList()}>
+              {(pr) => (
+                <div class={`flex items-center border rounded-xl p-2 mb-2 transition-colors cursor-pointer
+                            ${selectedPR()?.number === pr.number ? 'bg-blue-500/10 border-blue-500/30' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                    onClick={() => setSelectedPR(pr)}>
+                  <img src={pr.author.avatarUrl} alt={pr.author.login} class="w-16 h-16 rounded-full border-2 border-gray-300 dark:border-gray-700 mx-3" />
+                  <div 
+                    onClick={() => setSelectedPR(pr)}
+                    class={`p-1 rounded-xl cursor-pointer transition-all`}
+                  >
+                    <h4 class={`text-xs font-bold leading-tight mb-1 ${selectedPR()?.number === pr.number ? 'text-blue-500' : 'dark:text-gray-200'}`}>
+                      <CommitMessage message={pr.title} />
+                    </h4>
+                    
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-tight mb-2">
+                      #{pr.number} • por {pr.author.login}
+                    </div>
 
-                  <div class="flex items-center gap-3 text-[9px] font-black uppercase">
-                    {/* Status do Review */}
-                    <Show when={pr.state === 'APPROVED'} fallback={
+                    <div class="flex items-center gap-3 text-[9px] font-black uppercase">
+                      <PRStatusBadge state={pr.state} variant="dot" />
+
+                      {/* Comentários */}
                       <span class="text-gray-400 flex items-center gap-1">
-                        <div class="w-1.5 h-1.5 rounded-full bg-gray-500"></div> Pending
+                        <i class="fa-regular fa-comment text-[10px]"></i> {pr.comments?.totalCount || 0}
                       </span>
-                    }>
-                      <span class="text-green-500 flex items-center gap-1">
-                        <div class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div> Approved
+
+                      {/* Tempo */}
+                      <span class="text-gray-400 flex items-center gap-1 ml-auto font-mono">
+                        <i class="fa-regular fa-clock text-[10px]"></i> {getRelativeTime(pr.createdAt)}
                       </span>
-                    </Show>
-
-                    {/* Comentários */}
-                    <span class="text-gray-400 flex items-center gap-1">
-                      <i class="fa-regular fa-comment text-[10px]"></i> {pr.comments?.totalCount || 0}
-                    </span>
-
-                    {/* Tempo */}
-                    <span class="text-gray-400 flex items-center gap-1 ml-auto font-mono">
-                      <i class="fa-regular fa-clock text-[10px]"></i> {getRelativeTime(pr.createdAt)}
-                    </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </For>
+              )}
+            </For>
+          </Show>
         </div>
       </div>
 

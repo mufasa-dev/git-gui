@@ -67,29 +67,29 @@ export const FOLLOWING_QUERY = `
 `;
 
 export const USER_PULL_REQUESTS_QUERY = `
-    query ($username: String!) {
-        user(login: $username) {
-            pullRequests(first: 20, orderBy: {field: CREATED_AT, direction: DESC}) {
-            nodes {
-                id
-                title
-                state
-                createdAt
-                number
-                repository {
-                name
-                owner { login }
-                }
-                comments { totalCount }
-            }
-            pageInfo {
-                hasNextPage
-                endCursor
-            }
+  query ($username: String!) {
+      user(login: $username) {
+          pullRequests(first: 20, orderBy: {field: CREATED_AT, direction: DESC}) {
+          nodes {
+              id
+              title
+              state
+              createdAt
+              number
+              repository {
+              name
+              owner { login }
+              }
+              comments { totalCount }
           }
-      }
+          pageInfo {
+              hasNextPage
+              endCursor
+          }
+        }
     }
-  `;
+  }
+`;
 
 export const REPO_PULL_REQUESTS_QUERY = `
   query ($owner: String!, $name: String!, $states: [PullRequestState!]) {
@@ -100,6 +100,8 @@ export const REPO_PULL_REQUESTS_QUERY = `
           number
           title
           state
+          headRefName
+          baseRefName
           createdAt
           author { login avatarUrl }
         }

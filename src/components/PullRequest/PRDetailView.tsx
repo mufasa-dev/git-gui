@@ -13,6 +13,7 @@ import { getCommitDetails } from "../../services/gitService";
 import { Repo } from "../../models/Repo.model";
 import { formatContributorName } from "../../utils/user";
 import { UserProfileDialog } from "../Config/UserProfile";
+import PRStatusBadge from "./PRStatusBadge";
 
 export default function PRDetailView(props: { pr: any, owner: string, repo: Repo, branch?: string }) {
   const [activeTab, setActiveTab] = createSignal("Visão Geral");
@@ -84,7 +85,12 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
     }
   }
 
-  const tabs = ['Visão Geral', 'Files', 'Commits', 'Checks'];
+  const tabs = [
+    { id: 'Visão Geral', label: 'Conversa', icon: 'fa-regular fa-comments' },
+    { id: 'Files', label: 'Arquivos', icon: 'fa-regular fa-file-code' },
+    { id: 'Commits', label: 'Commits', icon: 'fa-solid fa-code-commit' },
+    { id: 'Checks', label: 'Verificações', icon: 'fa-solid fa-list-check' }
+  ];
 
   return (
     <div class="flex flex-col h-full select-text transition-colors">
@@ -101,16 +107,14 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
         </div>
         
         <div class="flex items-center gap-3 mt-4">
-          <span class="px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 dark:text-purple-400 text-[10px] font-black uppercase tracking-widest border border-purple-500/20">
-            {props.pr.state}
-          </span>
+          <PRStatusBadge state={props.pr.state} variant="badge" />
           <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden border border-gray-300 dark:border-gray-600">
             <img src={props.pr.author?.avatarUrl} alt={props.pr.author?.login} />
           </div>
-          <div class="text-xs">
-            <span class="font-bold text-blue-500 dark:text-blue-400">Branch 2</span>
+          <div class="text-sm">
+            <span class="font-bold text-blue-500 dark:text-blue-400">{props.pr.headRefName}</span>
             <span class="text-gray-500 mx-2">→</span>
-            <span class="font-mono text-blue-500 dark:text-blue-400">main</span><br />
+            <span class="font-mono text-blue-500 dark:text-blue-400">{props.pr.baseRefName}</span><br />
             <span class="font-bold text-gray-900 dark:text-white">{props.pr.author?.login}</span>
             <span class="text-gray-400 uppercase ml-3 text-[9px] font-black italic">{getRelativeTime(props.pr.createdAt)}</span>
           </div>
@@ -126,14 +130,15 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
               <For each={tabs}>
                 {(tab) => (
                   <button 
-                    onClick={() => setActiveTab(tab)}
-                    class={`pb-3 pt-2 px-2 text-[11px] font-black uppercase tracking-widest transition-all ${
-                      activeTab() === tab 
+                    onClick={() => setActiveTab(tab.id)}
+                    class={`pb-3 pt-3 px-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                      activeTab() === tab.id
                       ? 'bg-gray-200 dark:bg-gray-700 dark:text-white' 
                       : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
                     }`}
                   >
-                    {tab}
+                    <i class={`${tab.icon} text-xs ${activeTab() === tab.id ? 'text-white' : 'opacity-50'}`}></i>
+                    {tab.label}
                   </button>
                 )}
               </For>

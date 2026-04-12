@@ -129,10 +129,8 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
                 {/* TIMELINE REFEITA COM MAP DOS DADOS */}
                 <div class="space-y-6">
-                    <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Linha do Tempo</h3>
                     
                     <div class="relative border-l-2 border-gray-200 dark:border-gray-600 ml-4 pl-8 space-y-8">
-
                         <Show when={props.details && props.details.body}>
                             <div class="relative">
                                 <div class="absolute -left-[35px] top-4 w-[12px] h-[12px] rounded-full bg-gray-400 border-4 border-gray-200 dark:border-gray-600"></div>
