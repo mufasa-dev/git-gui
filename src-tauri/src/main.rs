@@ -4,6 +4,7 @@ mod commands;
 mod git_hub;
 mod models;
 mod utils;
+mod tests;
 
 use tauri::{Emitter, Listener};
 
@@ -84,7 +85,8 @@ fn main() {
             commands::git_config::set_git_config,
             commands::dashboard::get_code_coverage_ratio,
             commands::dashboard::get_most_modified_files,
-            git_hub::auth::exchange_code_for_token
+            git_hub::auth::exchange_code_for_token,
+            tests::front_test::run_angular_tests
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
