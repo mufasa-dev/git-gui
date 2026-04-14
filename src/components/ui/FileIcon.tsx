@@ -108,6 +108,7 @@ export default function FileIcon(props: FileIconProps) {
 
     const mapping: Record<string, string> = {
       js: jsIcon,
+      cjs: jsIcon,
       mjs: jsIcon,
       ts: tsIcon,
       tsx: reactIcon,
