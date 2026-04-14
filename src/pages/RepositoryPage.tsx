@@ -15,6 +15,7 @@ import ProviderAuthPage from "./ProviderAuthPage";
 import WelcomeScreen from "./WelcomeScreen";
 import { githubService } from "../services/github";
 import PullRequestsPage from "../components/PullRequest/PullRequestsPage";
+import { TestRunner } from "../components/Test/TestRunner";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -200,6 +201,16 @@ export default function RepoTabsPage() {
                       repo={currentRepo()} 
                       username={user()?.login || ''}
                       branch={activeRepo()?.activeBranch}  
+                    />
+                  )}
+                </Show>
+              </Match>
+
+               <Match when={active() && activePage() === 'table'}>
+                <Show when={activeRepo()} fallback={<div>Carregando repositório...</div>}>
+                  {(currentRepo) => (
+                    <TestRunner 
+                      repo={currentRepo()} 
                     />
                   )}
                 </Show>
