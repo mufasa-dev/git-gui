@@ -1,11 +1,11 @@
-use tauri::{Manager, AppHandle, Window, Emitter}; // No v2, Emitter substitui parte da lógica de eventos
+use tauri::{Manager, AppHandle, Emitter};
 use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 use std::thread;
-use serde::Serialize; // Certifique-se de que este import existe
+use serde::Serialize;
 use tauri::path::BaseDirectory;
 
-#[derive(Clone, Serialize)] // O derive Serialize precisa do import acima
+#[derive(Clone, Serialize)]
 pub struct Payload {
     pub file: String,
     pub status: String,
@@ -22,7 +22,6 @@ pub async fn run_angular_tests(app: AppHandle, project_path: String) -> Result<S
     let window_clone = window.clone();
     let app_handle = app.clone(); 
 
-    // No seu front_test.rs
     thread::spawn(move || {
         let bridge_path = app_handle.path()
             .resolve("assets/karma-bridge.conf.cjs", BaseDirectory::Resource)
@@ -78,6 +77,13 @@ pub async fn run_angular_tests(app: AppHandle, project_path: String) -> Result<S
         });
 
         let _ = child.wait();
+
+        let _ = window_clone.emit("test-event", Payload { 
+            file: "SYSTEM".into(), 
+            status: "finished".into(), 
+            name: "PROCESS_FINISHED".into(), 
+            error: None 
+        });
     });
 
     Ok("Execução iniciada".into())
