@@ -8,14 +8,14 @@ export default function TabBar(props: {
   onClose: (id: string) => void; 
 }) {
   return (
-    <div class="flex border-b bg-white dark:bg-gray-800 dark:border-gray-900 overflow-x-auto ml-2">
+    <div class="flex border-b bg-gray-200 dark:bg-gray-900 dark:border-gray-800 overflow-x-auto pl-2">
       <For each={props.repos}>
         {(repo) => (
           <div
             class={`px-4 py-2 cursor-pointer rounded-t-xl flex items-center transition-colors border-b-0 ${
               props.active === repo.path
-                ? "border border-gray-200 dark:border-gray-700 bg-gray-200 dark:bg-gray-900 dark:text-white"
-                : "bg-white hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400"
+                ? "border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 dark:text-white"
+                : "bg-gray-200 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-400"
             }`}
             onClick={() => props.onChangeActive(repo.path)}
           >
@@ -41,7 +41,7 @@ export default function TabBar(props: {
           title="Abrir Tela Inicial"
           class={`p-3 h-full flex items-center justify-center transition-colors ${
               props.active === null 
-              ? "bg-gray-200 dark:bg-gray-900 rounded-t-xl text-white shadow-inner" 
+              ? "bg-white dark:bg-gray-800 rounded-t-xl text-gray-400 shadow-inner" 
               : "text-gray-400"
           }`}
         >

@@ -83,7 +83,7 @@ type FileIconProps = {
 
 export default function FileIcon(props: FileIconProps) {
   const iconSrc = createMemo(() => {
-    const name = props.fileName.toLowerCase();
+    const name = (props.fileName.split(/[\\/]/).pop() || '').toLowerCase();
     const ext = name.split('.').pop();
 
     // Checagem por nome exato
