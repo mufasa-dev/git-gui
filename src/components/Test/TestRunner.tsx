@@ -1,6 +1,9 @@
 import { createSignal, For, onMount, Show, createMemo, createEffect } from 'solid-js';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+import { ParsedEvent, ProjectType } from '../../models/ProjectType.model';
+import { getProjectType } from '../../services/testService';
+import { angularParser } from '../../lib/TestsPareser/AngularParser';
 
 interface TestSpec {
   id: string;
@@ -15,6 +18,7 @@ export const TestRunner = (props: { repo: any }) => {
   const [isRunning, setIsRunning] = createSignal(false);
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
+  const [projectInfo, setProjectInfo] = createSignal<ProjectType | null>(null);
 
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
 
@@ -55,6 +59,13 @@ export const TestRunner = (props: { repo: any }) => {
     }
   });
 
+  createEffect(async () => {
+    if (props.repo?.path) {
+      const info = await getProjectType(props.repo.path);
+      setProjectInfo(info);
+    }
+  });
+
   onMount(async () => {
     let logBuffer: string[] = [];
 
@@ -62,50 +73,54 @@ export const TestRunner = (props: { repo: any }) => {
       const rawLine = typeof event.payload === 'string' ? event.payload : event.payload.name;
       if (!rawLine) return;
 
-      let line = stripAnsi(rawLine).trim();
-
-      // Se for o resultado de uma falha
-      if (line.includes('SPEC_RESULT|') && line.includes('|FAIL')) {
-        const parts = line.split('|');
-        const newId = crypto.randomUUID();
-
-        setSpecs(prev => [...prev, { 
-          id: newId, 
-          name: `${parts[1]} > ${parts[2]}`, 
-          status: 'fail', 
-          log: [...logBuffer] // Pega o que está no buffer AGORA
-        }]);
-        logBuffer = []; // Limpa para o próximo
-        return;
-      } 
-
-      // Se for um resultado de sucesso, só adiciona e limpa o buffer
-      if (line.includes('SPEC_RESULT|') && line.includes('|PASS')) {
-          const parts = line.split('|');
-          setSpecs(prev => [...prev, { 
-              id: crypto.randomUUID(), 
-              name: `${parts[1]} > ${parts[2]}`, 
-              status: 'pass', 
-              log: [] 
-          }]);
-          logBuffer = [];
-          return;
-      }
-
-      // Se não for resultado, e não for lixo de conexão, guarda no buffer
-      if (line.length > 0 && !line.includes("INFO [") && !line.includes("Connected")) {
-        logBuffer.push(line);
-        if (logBuffer.length > 30) logBuffer.shift();
-      }
-
-      if (
-        line.includes("TOTAL:") || 
-        line.includes("Done") || 
-        line.includes("Executed") || 
-        line.includes("Finished")
-      ) {
-        console.log("Parada detectada na linha:", line);
+      // Check de finalização bruta do sistema (Rust enviando PROCESS_FINISHED)
+      if (event.payload.status === "finished" || event.payload.name === "PROCESS_FINISHED") {
         setIsRunning(false);
+        return;
+      }
+
+      const line = stripAnsi(rawLine).trim();
+      if (!line) return;
+
+      // --- LÓGICA DE DECISÃO DO PARSER ---
+      let parsed: ParsedEvent;
+      
+      const type = projectInfo()?.framework;
+      
+      if (type === 'Angular') {
+        parsed = angularParser(line, logBuffer);
+      } else {
+        // Parser genérico ou outros...
+        parsed = { type: 'LOG' }; 
+      }
+
+      // --- EXECUÇÃO DAS AÇÕES ---
+      switch (parsed.type) {
+        case 'RESULT':
+          const specData = parsed.data!;
+          setSpecs(prev => {
+            if (prev.some(s => s.name === specData.name)) return prev;
+            return [...prev, {
+              id: crypto.randomUUID(),
+              name: specData.name!,
+              status: specData.status!,
+              log: specData.log || []
+            }];
+          });
+          logBuffer = []; // Limpa o buffer sempre que um teste termina
+          break;
+
+        case 'LOG':
+          logBuffer.push(line);
+          if (logBuffer.length > 30) logBuffer.shift();
+          break;
+
+        case 'FINISH':
+          setIsRunning(false);
+          break;
+
+        case 'IGNORE':
+          break;
       }
     });
   });
@@ -138,30 +153,32 @@ export const TestRunner = (props: { repo: any }) => {
       >
         {/* Header com Stats */}
         <div class="p-3 border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50">
-          <div class="flex justify-between items-center mb-3">
-             <span class="text-[10px] font-bold uppercase text-gray-500">Test Runner</span>
-             <button onClick={runAllTests} disabled={isRunning()} class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3 py-1 rounded font-bold transition-all flex items-center gap-2">
-                <Show when={isRunning()} fallback={<i class="fa-solid fa-play"></i>}>
-                  <i class="fa-solid fa-circle-notch animate-spin"></i>
-                </Show>
-                {isRunning() ? 'RUNNING' : 'RUN ALL'}
-             </button>
-          </div>
+          <Show when={projectInfo()?.testRunner && projectInfo()?.testRunner != "None"}>
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-[10px] font-bold uppercase text-gray-500 dark:text-white">{projectInfo()?.testRunner}</span>
+                <button onClick={runAllTests} disabled={isRunning()} class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-2">
+                    <Show when={isRunning()} fallback={<i class="fa-solid fa-play"></i>}>
+                      <i class="fa-solid fa-circle-notch animate-spin"></i>
+                    </Show>
+                    {isRunning() ? 'RUNNING' : 'RUN ALL'}
+                </button>
+            </div>
           
-          <div class="grid grid-cols-3 gap-1 text-center">
-            <div class="bg-gray-200 dark:bg-gray-800 p-1 rounded">
-              <div class="text-[10px] text-gray-500 uppercase">Total</div>
-              <div class="text-xs font-bold">{stats().total}</div>
+            <div class="grid grid-cols-3 gap-1 text-center">
+              <div class="bg-gray-200 dark:bg-gray-800 p-1 rounded">
+                <div class="text-[10px] text-gray-500 uppercase">Total</div>
+                <div class="text-xs font-bold">{stats().total}</div>
+              </div>
+              <div class="bg-green-500/10 p-1 rounded border border-green-500/20">
+                <div class="text-[10px] text-green-500 uppercase">Pass</div>
+                <div class="text-xs font-bold text-green-500">{stats().passed}</div>
+              </div>
+              <div class="bg-red-500/10 p-1 rounded border border-red-500/20">
+                <div class="text-[10px] text-red-500 uppercase">Fail</div>
+                <div class="text-xs font-bold text-red-500">{stats().failed}</div>
+              </div>
             </div>
-            <div class="bg-green-500/10 p-1 rounded border border-green-500/20">
-              <div class="text-[10px] text-green-500 uppercase">Pass</div>
-              <div class="text-xs font-bold text-green-500">{stats().passed}</div>
-            </div>
-            <div class="bg-red-500/10 p-1 rounded border border-red-500/20">
-              <div class="text-[10px] text-red-500 uppercase">Fail</div>
-              <div class="text-xs font-bold text-red-500">{stats().failed}</div>
-            </div>
-          </div>
+          </Show>
         </div>
 
         <div class="flex-1 overflow-y-auto p-1">
@@ -189,12 +206,19 @@ export const TestRunner = (props: { repo: any }) => {
       <div class="resize-bar-vertical" onMouseDown={() => setIsResizing(true)} />
 
       {/* Painel Principal: Lista de Testes (Ocupando tudo) */}
-      <div class="flex-1 flex flex-col container-branch-list overflow-hidden ml-1 h-full p-0" style={{ height: `calc(100vh - 124px)` }}>
+      <div class="flex-1 flex flex-col container-branch-list overflow-hidden h-full p-0" style={{ height: `calc(100vh - 124px)` }}>
         <Show when={selectedSuite()} fallback={
-          <div class="flex-1 flex flex-col items-center justify-center opacity-30">
-            <i class="fa-solid fa-vials text-4xl mb-4"></i>
-            <span class="italic text-sm">Selecione uma suíte para detalhar os resultados</span>
-          </div>
+          <Show when={projectInfo()?.testRunner && projectInfo()?.testRunner != "None"} fallback={
+            <div class="flex-1 flex flex-col items-center justify-center text-red-500 dark:text-red-400 opacity-90">
+              <i class="fa-solid fa-triangle-exclamation text-4xl mb-4"></i>
+              <span class="italic text-sm">Nenhum motor de testes encontrado para nesse repositório</span>
+            </div>
+          }>
+            <div class="flex-1 flex flex-col items-center justify-center opacity-30">
+              <i class="fa-solid fa-vials text-4xl mb-4"></i>
+              <span class="italic text-sm">Selecione uma suíte para detalhar os resultados</span>
+            </div>
+          </Show>
         }>
           <div class="p-4 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800/30">
             <h2 class="text-sm font-bold font-mono uppercase tracking-wider">

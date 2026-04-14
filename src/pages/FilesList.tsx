@@ -291,9 +291,9 @@ export default function FileList(props: { repo: Repo }) {
               <img
                 src={getGravatarUrl(lastCommit()?.email || '', 80)}
                 alt={lastCommit()?.author}
-                class="w-[18px] h-[18px] rounded shadow-sm"
+                class="w-[18px] h-[18px] rounded-full shadow-sm"
               /> 
-              <b>{lastCommit()?.author}</b> 
+              <b class="text-sm font-mono">{lastCommit()?.author}</b> 
               <span class="truncate clicked_label" onClick={() => selectCommit(lastCommit()?.hash || '')}>
                 <CommitMessage message={lastCommit()?.message || ''} />
               </span>

@@ -140,12 +140,12 @@ export default function RepoTabsPage() {
       refetchUser: refetch
     }}>
       <div class="flex flex-col h-full dark:bg-gray-800 dark:text-white">
-        {/* Topo com botão */}
-        <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
 
         {/* Abas + conteúdo */}
         <div class="flex flex-col flex-1">
           <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
+
+          <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
 
           <div class="flex flex-1 overflow-auto bg-gray-200 dark:bg-gray-900">
             <Show when={repos().length > 0 && active()}>
@@ -206,7 +206,7 @@ export default function RepoTabsPage() {
                 </Show>
               </Match>
 
-               <Match when={active() && activePage() === 'table'}>
+              <Match when={active() && activePage() === 'test'}>
                 <Show when={activeRepo()} fallback={<div>Carregando repositório...</div>}>
                   {(currentRepo) => (
                     <TestRunner 
