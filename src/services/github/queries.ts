@@ -119,6 +119,8 @@ export const PR_DESCRIPTION_QUERY = `
         changedFiles
         additions
         deletions
+        mergeable
+        viewerCanMergeAsAdmin
         reviews(first: 10) {
           nodes {
             state
