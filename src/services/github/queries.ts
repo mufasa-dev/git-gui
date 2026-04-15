@@ -336,6 +336,20 @@ export const GET_PR_TIMELINE_QUERY = `
   }
 `;
 
+export const APROVE_PR = `
+  mutation($prId: ID!, $body: String!) {
+    addPullRequestReview(input: {
+      pullRequestId: $prId,
+      event: APPROVE,
+      body: $body
+    }) {
+      pullRequestReview {
+        state
+      }
+    }
+  }
+`;
+
 export const ADD_PR_COMMENT = `
   mutation ($subjectId: ID!, $body: String!) {
     addComment(input: { subjectId: $subjectId, body: $body }) {

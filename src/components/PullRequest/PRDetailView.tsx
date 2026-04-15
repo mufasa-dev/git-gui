@@ -14,6 +14,7 @@ import { Repo } from "../../models/Repo.model";
 import { formatContributorName } from "../../utils/user";
 import { UserProfileDialog } from "../Config/UserProfile";
 import PRStatusBadge from "./PRStatusBadge";
+import { notify } from "../../utils/notifications";
 
 export default function PRDetailView(props: { pr: any, owner: string, repo: Repo, branch?: string }) {
   const [activeTab, setActiveTab] = createSignal("Visão Geral");
@@ -21,8 +22,9 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
+  const [isApproving, setIsApproving] = createSignal(false);
   
-  const [details] = createResource(
+  const [details, { refetch }] = createResource(
     () => ({ owner: props.owner, name: props.repo.name, number: props.pr.number }),
     async (p) => await githubService.getPullRequestDescription(p.owner, p.name, p.number)
   );
@@ -85,6 +87,28 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
     }
   }
 
+  const handleApprove = async () => {
+    // O ideal é que o props.pr já venha com o 'node_id' ou 'id' do GraphQL
+    const prId = props.pr.node_id || props.pr.id; 
+    
+    if (!prId) {
+      notify.error("Erro", "ID do Pull Request não encontrado.");
+      return;
+    }
+
+    setIsApproving(true);
+    try {
+      await githubService.approvePullRequest(prId);
+      notify.success("Sucesso", "Pull Request aprovado com sucesso!");
+      
+      refetch(); 
+    } catch (err) {
+      notify.error("Falha na Aprovação", String(err));
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
   const tabs = [
     { id: 'Visão Geral', label: 'Conversa', icon: 'fa-regular fa-comments' },
     { id: 'Files', label: 'Arquivos', icon: 'fa-regular fa-file-code' },
@@ -119,8 +143,18 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
               </Match>
               
               <Match when={details()?.mergeable === 'MERGEABLE'}>
-                <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all">
-                  <i class="fa-solid fa-check"></i> Approve
+                <button 
+                  onClick={handleApprove}
+                  disabled={isApproving() || details()?.mergeable === 'CONFLICTING'}
+                  class={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all shadow-lg 
+                    ${isApproving() 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-green-600 hover:bg-green-500 text-white shadow-green-500/20 active:scale-95'
+                    } ${details()?.mergeable === 'CONFLICTING' ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                >
+                  <Show when={isApproving()} fallback={<><i class="fa-solid fa-check"></i> Aprovar</>}>
+                    <i class="fa-solid fa-circle-notch animate-spin"></i> Aprovando...
+                  </Show>
                 </button>
               </Match>
             </Switch>
