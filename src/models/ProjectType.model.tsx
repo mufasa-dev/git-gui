@@ -8,6 +8,8 @@ export interface ParsedEvent {
   data?: {
     name?: string;
     status?: 'pass' | 'fail';
+    filePath?: string;
+    duration?: string;
     log?: string[];
   };
 }

@@ -3,13 +3,15 @@ import { ParsedEvent } from "../../models/ProjectType.model";
 export const angularParser = (line: string, buffer: string[]): ParsedEvent => {
   if (line.includes('SPEC_RESULT|')) {
     const parts = line.split('|');
-    const status = parts[3]?.trim();
+    console.log('line', line)
     return {
       type: 'RESULT',
       data: {
         name: `${parts[1]} > ${parts[2]}`,
-        status: status === 'PASS' ? 'pass' : 'fail',
-        log: status === 'FAIL' ? [...buffer] : []
+        status: parts[3]?.trim() === 'PASS' ? 'pass' : 'fail',
+        filePath: parts[4]?.trim(), // O arquivo
+        duration: parts[5]?.trim(), // O tempo (ms)
+        log: parts[3]?.trim() === 'FAIL' ? [...buffer] : []
       }
     };
   }

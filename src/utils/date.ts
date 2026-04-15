@@ -54,3 +54,17 @@ export const getRelativeTime = (dateStr: string) => {
 
     return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
+
+export const formatDuration = (msStr: string | undefined) => {
+  if (!msStr) return '';
+  const ms = parseInt(msStr);
+  if (isNaN(ms)) return msStr;
+
+  if (ms < 1000) return `${ms}ms`;
+  
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  
+  const minutes = seconds / 60;
+  return `${minutes.toFixed(1)}m`;
+};

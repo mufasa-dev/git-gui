@@ -4,12 +4,15 @@ import { invoke } from '@tauri-apps/api/core';
 import { ParsedEvent, ProjectType } from '../../models/ProjectType.model';
 import { getProjectType } from '../../services/testService';
 import { angularParser } from '../../lib/TestsPareser/AngularParser';
+import { formatDuration } from '../../utils/date';
 
 interface TestSpec {
   id: string;
   name: string;
   status: 'pass' | 'fail' | 'running';
   log: string[];
+  filePath?: string;
+  duration?: string;
 }
 
 export const TestRunner = (props: { repo: any }) => {
@@ -21,6 +24,28 @@ export const TestRunner = (props: { repo: any }) => {
   const [projectInfo, setProjectInfo] = createSignal<ProjectType | null>(null);
 
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
+  const storageKey = () => `trident_test_cache_${props.repo?.path}`;
+
+  // 1. Persistência: Carregar dados ao trocar de repositório
+  createEffect(() => {
+    if (props.repo?.path) {
+      const cached = localStorage.getItem(storageKey());
+      if (cached) {
+        setSpecs(JSON.parse(cached));
+      } else {
+        setSpecs([]);
+      }
+      setSelectedSuite(null);
+      setIsRunning(false);
+    }
+  });
+
+  // 2. Persistência: Salvar dados sempre que as specs mudarem
+  createEffect(() => {
+    if (props.repo?.path && specs().length > 0) {
+      localStorage.setItem(storageKey(), JSON.stringify(specs()));
+    }
+  });
 
   // Estatísticas Globais
   const stats = createMemo(() => {
@@ -30,13 +55,11 @@ export const TestRunner = (props: { repo: any }) => {
     return { total, passed, failed };
   });
 
-  // Agrupamento com lógica de status da Suíte
+  // Agrupamento
   const groupedSpecs = createMemo(() => {
     const groups: Record<string, { tests: TestSpec[], hasError: boolean }> = {};
     const currentSpecs = specs();
     
-    if (!currentSpecs.length) return groups;
-
     currentSpecs.forEach(spec => {
       const [suiteName] = spec.name.split(' > ');
       if (!groups[suiteName]) {
@@ -50,14 +73,6 @@ export const TestRunner = (props: { repo: any }) => {
   });
 
   const suites = createMemo(() => Object.keys(groupedSpecs()));
-
-  createEffect(() => {
-    if (props.repo?.path) {
-      setSpecs([]);
-      setSelectedSuite(null);
-      setIsRunning(false);
-    }
-  });
 
   createEffect(async () => {
     if (props.repo?.path) {
@@ -73,7 +88,6 @@ export const TestRunner = (props: { repo: any }) => {
       const rawLine = typeof event.payload === 'string' ? event.payload : event.payload.name;
       if (!rawLine) return;
 
-      // Check de finalização bruta do sistema (Rust enviando PROCESS_FINISHED)
       if (event.payload.status === "finished" || event.payload.name === "PROCESS_FINISHED") {
         setIsRunning(false);
         return;
@@ -82,32 +96,38 @@ export const TestRunner = (props: { repo: any }) => {
       const line = stripAnsi(rawLine).trim();
       if (!line) return;
 
-      // --- LÓGICA DE DECISÃO DO PARSER ---
       let parsed: ParsedEvent;
-      
       const type = projectInfo()?.framework;
       
       if (type === 'Angular') {
         parsed = angularParser(line, logBuffer);
       } else {
-        // Parser genérico ou outros...
         parsed = { type: 'LOG' }; 
       }
 
-      // --- EXECUÇÃO DAS AÇÕES ---
       switch (parsed.type) {
         case 'RESULT':
           const specData = parsed.data!;
           setSpecs(prev => {
-            if (prev.some(s => s.name === specData.name)) return prev;
-            return [...prev, {
-              id: crypto.randomUUID(),
+            // Se o teste já existe, atualizamos (importante para o Rerun não duplicar)
+            const existingIndex = prev.findIndex(s => s.name === specData.name);
+            const newSpec: TestSpec = {
+              id: existingIndex !== -1 ? prev[existingIndex].id : crypto.randomUUID(),
               name: specData.name!,
               status: specData.status!,
-              log: specData.log || []
-            }];
+              log: specData.log || [],
+              filePath: specData.filePath,
+              duration: specData.duration // Agora capturando duração
+            };
+
+            if (existingIndex !== -1) {
+              const copy = [...prev];
+              copy[existingIndex] = newSpec;
+              return copy;
+            }
+            return [...prev, newSpec];
           });
-          logBuffer = []; // Limpa o buffer sempre que um teste termina
+          logBuffer = [];
           break;
 
         case 'LOG':
@@ -118,9 +138,6 @@ export const TestRunner = (props: { repo: any }) => {
         case 'FINISH':
           setIsRunning(false);
           break;
-
-        case 'IGNORE':
-          break;
       }
     });
   });
@@ -128,9 +145,7 @@ export const TestRunner = (props: { repo: any }) => {
   const runAllTests = async () => {
     if (!props.repo?.path || isRunning()) return;
     setIsRunning(true);
-    
-    setSpecs([]);
-    setSelectedSuite(null);
+    setSpecs([]); // Limpa para nova execução
     
     try {
       await invoke('run_angular_tests', { projectPath: props.repo.path });
@@ -140,45 +155,59 @@ export const TestRunner = (props: { repo: any }) => {
     }
   };
 
+  const runSingleTest = async (filePath: string) => {
+    if (!props.repo?.path || isRunning() || !filePath) return;
+    setIsRunning(true);
+    
+    // Resetamos apenas os testes desse arquivo
+    setSpecs(prev => prev.filter(s => s.filePath !== filePath));
+    
+    try {
+      await invoke('run_angular_tests', { 
+        projectPath: props.repo.path, 
+        testFile: filePath 
+      });
+    } catch (err) {
+      setIsRunning(false);
+    }
+  };
+
   return (
     <div 
       class="flex h-full w-full select-none bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-2"
       onMouseMove={(e) => isResizing() && setSidebarWidth(Math.min(600, Math.max(200, e.clientX)))}
       onMouseUp={() => setIsResizing(false)}
     >
-      {/* Sidebar: Suítes + Resumo */}
+      {/* Sidebar */}
       <div 
         class="container-branch-list p-0 overflow-hidden flex flex-col mb-2" 
         style={{ width: `${sidebarWidth()}px`, height: `calc(100vh - 124px)` }}
       >
-        {/* Header com Stats */}
         <div class="p-3 border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50">
-          <Show when={projectInfo()?.testRunner && projectInfo()?.testRunner != "None"}>
-            <div class="flex justify-between items-center mb-3">
-                <span class="text-[10px] font-bold uppercase text-gray-500 dark:text-white">{projectInfo()?.testRunner}</span>
-                <button onClick={runAllTests} disabled={isRunning()} class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-2">
-                    <Show when={isRunning()} fallback={<i class="fa-solid fa-play"></i>}>
-                      <i class="fa-solid fa-circle-notch animate-spin"></i>
-                    </Show>
-                    {isRunning() ? 'RUNNING' : 'RUN ALL'}
-                </button>
-            </div>
+          <div class="flex justify-between items-center mb-3">
+              <span class="text-[10px] font-bold uppercase text-gray-500 dark:text-white">{projectInfo()?.testRunner || 'Runner'}</span>
+              <button onClick={runAllTests} disabled={isRunning()} class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-2">
+                  <Show when={isRunning()} fallback={<i class="fa-solid fa-play"></i>}>
+                    <i class="fa-solid fa-circle-notch animate-spin"></i>
+                  </Show>
+                  {isRunning() ? 'RUNNING' : 'RUN ALL'}
+              </button>
+          </div>
           
-            <div class="grid grid-cols-3 gap-1 text-center">
-              <div class="bg-gray-200 dark:bg-gray-800 p-1 rounded">
-                <div class="text-[10px] text-gray-500 uppercase">Total</div>
-                <div class="text-xs font-bold">{stats().total}</div>
-              </div>
-              <div class="bg-green-500/10 p-1 rounded border border-green-500/20">
-                <div class="text-[10px] text-green-500 uppercase">Pass</div>
-                <div class="text-xs font-bold text-green-500">{stats().passed}</div>
-              </div>
-              <div class="bg-red-500/10 p-1 rounded border border-red-500/20">
-                <div class="text-[10px] text-red-500 uppercase">Fail</div>
-                <div class="text-xs font-bold text-red-500">{stats().failed}</div>
-              </div>
+          <div class="grid grid-cols-3 gap-1 text-center">
+            <div class="bg-gray-200 dark:bg-gray-800 p-1 rounded">
+              <div class="text-[10px] text-gray-500 uppercase">Total</div>
+              <div class="text-xs font-bold">{stats().total}</div>
             </div>
-          </Show>
+            <div class="bg-green-500/10 p-1 rounded border border-green-500/20">
+              <div class="text-[10px] text-green-500 uppercase text-green-500">Pass</div>
+              <div class="text-xs font-bold text-green-500">{stats().passed}</div>
+            </div>
+            <div class="bg-red-500/10 p-1 rounded border border-red-500/20">
+              <div class="text-[10px] text-red-500 uppercase text-red-500">Fail</div>
+              <div class="text-xs font-bold text-red-500">{stats().failed}</div>
+            </div>
+          </div>
         </div>
 
         <div class="flex-1 overflow-y-auto p-1">
@@ -205,36 +234,42 @@ export const TestRunner = (props: { repo: any }) => {
 
       <div class="resize-bar-vertical" onMouseDown={() => setIsResizing(true)} />
 
-      {/* Painel Principal: Lista de Testes (Ocupando tudo) */}
+      {/* Painel Principal */}
       <div class="flex-1 flex flex-col container-branch-list overflow-hidden h-full p-0" style={{ height: `calc(100vh - 124px)` }}>
         <Show when={selectedSuite()} fallback={
-          <Show when={projectInfo()?.testRunner && projectInfo()?.testRunner != "None"} fallback={
-            <div class="flex-1 flex flex-col items-center justify-center text-red-500 dark:text-red-400 opacity-90">
-              <i class="fa-solid fa-triangle-exclamation text-4xl mb-4"></i>
-              <span class="italic text-sm">Nenhum motor de testes encontrado para nesse repositório</span>
-            </div>
-          }>
-            <div class="flex-1 flex flex-col items-center justify-center opacity-30">
-              <i class="fa-solid fa-vials text-4xl mb-4"></i>
-              <span class="italic text-sm">Selecione uma suíte para detalhar os resultados</span>
-            </div>
-          </Show>
+          <div class="flex-1 flex flex-col items-center justify-center opacity-30">
+            <i class="fa-solid fa-vials text-4xl mb-4"></i>
+            <span class="italic text-sm">Selecione uma suíte para detalhar os resultados</span>
+          </div>
         }>
           <div class="p-4 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800/30">
-            <h2 class="text-sm font-bold font-mono uppercase tracking-wider">
+            <h2 class="text-sm font-bold font-mono uppercase tracking-wider truncate mr-4">
               <i class="fa-solid fa-folder-open mr-2 opacity-50"></i>
-              Suíte: {selectedSuite()}
+              {selectedSuite()}
             </h2>
-            <div class="text-[10px] font-mono text-gray-500 dark:text-gray-400 uppercase">
-              {groupedSpecs()[selectedSuite()!].tests.length} Testes Encontrados
-            </div>
+            
+            <Show when={
+                (() => {
+                  const path = groupedSpecs()[selectedSuite()!]?.tests[0]?.filePath;
+                  // Valida se existe e se não é um dos placeholders genéricos
+                  return path && !['unknown', 'spec 0', 'spec 1'].includes(path) && path.includes('.');
+                })()
+              }>
+                <button 
+                  onClick={() => runSingleTest(groupedSpecs()[selectedSuite()!]?.tests[0]?.filePath!)}
+                  disabled={isRunning()}
+                  class="bg-gray-200 dark:bg-gray-700 hover:bg-blue-600 hover:text-white text-[10px] px-2 py-1 rounded font-bold transition-all flex items-center gap-1 disabled:opacity-50"
+                >
+                  <i class="fa-solid fa-rotate-right"></i> RERUN SUITE
+                </button>
+            </Show>
           </div>
 
           <div class="flex-1 overflow-y-auto p-4">
             <div class="grid grid-cols-1 gap-2">
               <For each={groupedSpecs()[selectedSuite()!]?.tests || []}>
                 {(spec) => (
-                  <div class={`flex items-center gap-4 p-3 rounded-lg border ${
+                  <div class={`group flex items-center gap-4 p-3 rounded-lg border transition-all ${
                     spec.status === 'pass' 
                     ? 'bg-green-500/5 border-green-500/20' 
                     : 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
@@ -245,13 +280,16 @@ export const TestRunner = (props: { repo: any }) => {
                       <i class={`fa-solid text-[10px] ${spec.status === 'pass' ? 'fa-check' : 'fa-xmark'}`}></i>
                     </div>
                     
-                    <div class="flex-1 min-w-0" onClick={() => console.log('spec', spec)}>
-                      <div class="text-xs font-bold font-mono truncate">{spec.name.split(' > ')[1]}</div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2">
+                        <div class="text-xs font-bold font-mono truncate">{spec.name.split(' > ')[1] || spec.name}</div>
+                      </div>
+
                       <Show when={spec.status === 'fail' && spec.log.length > 0}>
-                        <div class="mt-2 p-3 dark:bg-red-950/30 rounded border border-red-500/30 font-mono text-[11px] text-black dark:text-red-200">
+                        <div class="mt-2 p-3 dark:bg-red-950/30 rounded border border-red-500/30 font-mono text-[11px] text-black dark:text-red-200 overflow-x-auto">
                           <For each={spec.log}>
                             {(logLine) => (
-                              <div class={`mb-1 ${logLine.includes('at ') ? 'opacity-50 text-[10px]' : 'font-bold'}`}>
+                              <div class={`mb-1 whitespace-pre ${logLine.includes('at ') ? 'opacity-50 text-[10px]' : 'font-bold'}`}>
                                 {logLine}
                               </div>
                             )}
@@ -260,8 +298,13 @@ export const TestRunner = (props: { repo: any }) => {
                       </Show>
                     </div>
 
-                    <div class={`text-[10px] font-bold uppercase ${spec.status === 'pass' ? 'text-green-600' : 'text-red-600'}`}>
-                      {spec.status === 'pass' ? 'Passed' : 'Failed'}
+                    <div class="flex flex-col items-end gap-1">
+                      <div class={`text-[10px] font-bold uppercase ${spec.status === 'pass' ? 'text-green-600' : 'text-red-600'}`}>
+                        {spec.status === 'pass' ? 'Passed' : 'Failed'}
+                      </div>
+                      <Show when={spec.duration}>
+                        <span class="text-[9px] font-mono opacity-50">{formatDuration(spec.duration)}</span>
+                      </Show>
                     </div>
                   </div>
                 )}
