@@ -2,11 +2,10 @@ import { createMemo, createSignal, For, Show, onMount } from "solid-js";
 import Dialog from "../ui/Dialog";
 
 const formatDateAxis = (dateStr: string) => {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr.replace(/-/g, '/')); 
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
-// Dias da semana para o seletor
 const WEEKDAYS = [
   { id: 0, label: "Dom" },
   { id: 1, label: "Seg" },
@@ -30,6 +29,13 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
     const saved = localStorage.getItem("git-trident-hidden-days");
     if (saved) setHiddenDays(JSON.parse(saved));
   });
+
+  const toLocalDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const toggleDay = (dayId: number) => {
     const current = hiddenDays();
@@ -56,34 +62,31 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
     const days = daysToView();
     const hiddenConfigs = hiddenDays(); // Ex: [0, 6] vindo do seu sinal/localStorage
 
-    // 1. Mapear contagem de commits por data (Y-axis data)
     const commitCounts = props.commits.reduce((acc, c) => {
-      const day = new Date(c.date).toISOString().split('T')[0];
+      // Use a data local para contar os commits
+      const day = toLocalDateString(new Date(c.date)); 
       acc[day] = (acc[day] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    // 2. Gerar o intervalo de datas com FILTRAGEM CONDICIONAL
     const dateRange = Array.from({ length: days }, (_, i) => {
       const d = new Date();
-      d.setHours(0, 0, 0, 0); // Normaliza para evitar problemas de fuso
+      d.setHours(0, 0, 0, 0); // Zera as horas locais
       d.setDate(d.getDate() - i);
       return d;
     })
     .filter(d => {
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = toLocalDateString(d); // Comparação local
       const dayOfWeek = d.getDay();
       const count = commitCounts[dateStr] || 0;
 
-      // Lógica: Se o dia for um dos "ocultáveis" E não tiver atividade, removemos.
-      // Caso contrário (tem atividade ou não está na lista de ocultar), mantemos.
       if (hiddenConfigs.includes(dayOfWeek) && count === 0) {
         return false;
       }
       return true;
     })
-    .map(d => d.toISOString().split('T')[0])
-    .reverse(); // Coloca em ordem cronológica (passado -> presente)
+    .map(d => toLocalDateString(d)) // Gera a array de strings locais
+    .reverse();
 
     // 3. Se o filtro remover tudo (caso raro), evita quebra do SVG
     if (dateRange.length < 2) {
@@ -144,7 +147,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
     if (!point) return;
 
     const commitsOfDay = props.commits.filter(c => {
-      const commitDate = new Date(c.date).toISOString().split('T')[0];
+      const commitDate = toLocalDateString(new Date(c.date));
       return commitDate === point.date;
     });
 
