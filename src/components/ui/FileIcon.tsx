@@ -26,6 +26,9 @@ import scssIcon from "../../assets/sass.png";
 import lessIcon from "../../assets/less.png";
 import htmlIcon from "../../assets/html-5.png";
 import jsonIcon from "../../assets/json.png";
+import jasmineIcon from "../../assets/jasmine.png"
+import jestIcon from "../../assets/jest.png"
+import vitestIcon from "../../assets/vitest.png"
 import xmlIcon from "../../assets/xml.png";
 import rustIcon from "../../assets/rust.png";
 import gitIcon from "../../assets/bash.png";
@@ -74,6 +77,7 @@ import cnIcon from "../../assets/flags/cn.png";
 import jpIcon from "../../assets/flags/jp.png";
 import packageIcon from "../../assets/package.png";
 import defaultIcon from "../../assets/file.png";
+import alertIcon from "../../assets/alert.png";
 
 type FileIconProps = {
   fileName: string;
@@ -94,6 +98,14 @@ export default function FileIcon(props: FileIconProps) {
     if (name === 'license') return mdIcon;
     if (name.includes('package.json')) return packageIcon;
     if (name.includes('package-lock.json')) return packageIcon;
+
+    // Ícones de teste
+    if (name === 'jasmine') return jasmineIcon;
+    if (name === 'jest') return jestIcon;
+    if (name === 'vitest') return vitestIcon;
+    if (name === 'gotest') return goIcon;
+    if (name === 'pytest') return pythonIcon;
+    if (name === 'none') return alertIcon;
 
     // Checagem por arquivos de tradução
     if (['pt.ts', 'pt.json', 'pt-br.ts', 'pt-br.json', 'pt_br.json', 'pt_br.asp'].includes(name.toLowerCase())) return brIcon;
