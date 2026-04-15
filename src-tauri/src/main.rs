@@ -85,6 +85,7 @@ fn main() {
             commands::git_config::set_git_config,
             commands::dashboard::get_code_coverage_ratio,
             commands::dashboard::get_most_modified_files,
+            commands::dashboard::get_user_most_modified_files,
             git_hub::auth::exchange_code_for_token,
             tests::front_test::run_angular_tests,
             tests::project_type::detect_project_type,

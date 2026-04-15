@@ -82,3 +82,46 @@ pub async fn get_most_modified_files(path: String, branch: String) -> Result<Vec
 
     Ok(hotspots)
 }
+
+#[tauri::command]
+pub async fn get_user_most_modified_files(
+    path: String, 
+    branch: String, 
+    email: String // Novo parâmetro
+) -> Result<Vec<FileHotspot>, String> {
+    let output = git_command(&path)
+        .current_dir(&path)
+        .args([
+            "log",
+            &branch,
+            &format!("--author={}", email), // Filtra pelo e-mail do usuário
+            "--format=",       // Não queremos a mensagem do commit
+            "--name-only",     // Apenas os nomes dos arquivos
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() { continue; }
+        
+        if trimmed.contains("node_modules/") || trimmed.ends_with(".lock") {
+            continue;
+        }
+
+        *counts.entry(trimmed.to_string()).or_insert(0) += 1;
+    }
+
+    let mut hotspots: Vec<FileHotspot> = counts
+        .into_iter()
+        .map(|(name, count)| FileHotspot { name, count })
+        .collect();
+
+    hotspots.sort_by(|a, b| b.count.cmp(&a.count));
+    hotspots.truncate(10);
+
+    Ok(hotspots)
+}

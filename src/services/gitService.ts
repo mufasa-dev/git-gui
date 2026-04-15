@@ -247,6 +247,15 @@ export async function getMostModifiedFiles(path: string, branch: string): Promis
   }
 }
 
+export async function getUserMostModifiedFiles(path: string, branch: string, email: string): Promise<any[]> {
+  try {
+    return await invoke("get_user_most_modified_files", { path, branch, email });
+  } catch (error) {
+    console.error("Erro ao buscar hotspots:", error);
+    return [];
+  }
+}
+
 export async function getRemoteUrl(path: string): Promise<string> {
   try {
     return await invoke("get_remote_url", { path });
