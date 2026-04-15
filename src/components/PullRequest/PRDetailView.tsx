@@ -101,9 +101,30 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
             <CommitMessage message={props.pr.title} class="text-xl" />
             <span class="text-gray-500/50 dark:text-gray-400 ml-2">#{props.pr.number}</span>
           </h1>
-          <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20">
-            <i class="fa-solid fa-check"></i> Approve
-          </button>
+          <div class="flex items-center gap-2">
+            <Switch>
+              <Match when={details()?.mergeable === 'CONFLICTING'}>
+                <div class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-md">
+                  <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
+                  <span class="text-[10px] font-bold text-red-500 uppercase tracking-tight">
+                    Existem conflitos que devem ser resolvidos
+                  </span>
+                  <button 
+                    onClick={() => setActiveTab('Files')} // Redireciona para a aba de arquivos
+                    class="bg-red-500 text-white px-3 py-1 rounded text-[9px] font-black uppercase hover:bg-red-600 transition-all"
+                  >
+                    Resolver Conflitos
+                  </button>
+                </div>
+              </Match>
+              
+              <Match when={details()?.mergeable === 'MERGEABLE'}>
+                <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all">
+                  <i class="fa-solid fa-check"></i> Approve
+                </button>
+              </Match>
+            </Switch>
+          </div>
         </div>
         
         <div class="flex items-center gap-3 mt-4">
