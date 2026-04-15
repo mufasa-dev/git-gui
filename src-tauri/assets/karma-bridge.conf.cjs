@@ -20,18 +20,27 @@ module.exports = function (config) {
           };
 
           this.onSpecComplete = function(browser, result) {
-            // 2. Se falhar, forçamos a impressão dos erros detalhados ANTES da linha de resultado
-            if (!result.success && result.log) {
-              result.log.forEach(l => {
-                // Limpa quebras de linha extras para não quebrar o log do Rust
-                console.error(l.split('\n')[0]); 
-              });
-            }
-
-            // 3. Linha de veredito final do teste
             const suite = result.suite.join(' > ');
             const status = result.success ? 'PASS' : 'FAIL';
-            console.error(`SPEC_RESULT|${suite}|${result.description}|${status}`);
+            const duration = result.time || 0;
+
+            let filePath = 'unknown';
+
+            // 🔥 pega direto do browser global
+            if (browser && browser.lastResult && browser.lastResult.lastSpecFile) {
+              filePath = browser.lastResult.lastSpecFile;
+            }
+
+            // fallback via log (FAIL)
+            if (filePath === 'unknown' && result.log) {
+              const stack = result.log.join('\n');
+              const match = stack.match(/(src\/.*\.spec\.ts)/);
+              filePath = match ? match[1] : 'unknown';
+            }
+
+            console.error(
+              `SPEC_RESULT|${suite}|${result.description}|${status}|${filePath}|${duration}`
+            );
           };
         }]
       }
@@ -41,8 +50,20 @@ module.exports = function (config) {
     browsers: ['ChromeHeadless'],
     singleRun: true,
     
-    // Nível de log INFO ajuda a ver se o Karma conectou, 
-    // mas se quiser silenciar o "lixo" do Karma, use config.LOG_ERROR
+    webpack: {
+      module: {
+        rules: [
+          {
+            test: /\.spec\.ts$/,
+            use: [
+              {
+                loader: path.resolve(__dirname, './karma-spec-path-loader.js')
+              }
+            ]
+          }
+        ]
+      }
+    },
     logLevel: config.LOG_INFO, 
     
     client: {

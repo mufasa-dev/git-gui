@@ -14,8 +14,11 @@ pub struct Payload {
 }
 
 #[tauri::command]
-pub async fn run_angular_tests(app: AppHandle, project_path: String) -> Result<String, String> {
-    // No v2, use get_webview_window para a janela "main"
+pub async fn run_angular_tests(
+    app: AppHandle, 
+    project_path: String, 
+    test_file: Option<String> // Novo parâmetro opcional
+) -> Result<String, String> {
     let window = app.get_webview_window("main")
         .ok_or_else(|| "Janela principal não encontrada".to_string())?;
     
@@ -29,18 +32,25 @@ pub async fn run_angular_tests(app: AppHandle, project_path: String) -> Result<S
             .to_string_lossy()
             .to_string();
 
-        // Usamos 'sh -c' para garantir que o ambiente do sistema seja carregado
+        // Se test_file existir, criamos a flag --include, caso contrário, fica vazio
+        let include_arg = match test_file {
+            Some(file) => format!("--include '{}'", file),
+            None => "".to_string(),
+        };
+
+        // Adicionamos {include_arg} no final do comando
         let cmd_string = format!(
-            "cd '{}' && npx ng test --watch=false --progress=false --karma-config='{}'", 
+            "cd '{}' && npx ng test --watch=false --progress=false --karma-config='{}' {}", 
             project_path, 
-            bridge_path
+            bridge_path,
+            include_arg
         );
 
         let mut child = Command::new("sh")
             .args(["-c", &cmd_string])
             .current_dir(&project_path)
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped()) // CAPTURAR ERROS AQUI É VITAL
+            .stderr(Stdio::piped())
             .spawn()
             .expect("Falha ao iniciar comando");
 
@@ -54,7 +64,6 @@ pub async fn run_angular_tests(app: AppHandle, project_path: String) -> Result<S
             let reader = BufReader::new(stdout);
             for line in reader.lines() {
                 if let Ok(l) = line {
-                    // Emitimos a linha pura, o frontend decide o que ela é
                     let _ = win_out.emit("test-event", Payload { 
                         file: "STDOUT".into(), status: "running".into(), name: l, error: None 
                     });
@@ -62,13 +71,11 @@ pub async fn run_angular_tests(app: AppHandle, project_path: String) -> Result<S
             }
         });
 
-        // Thread para STDERR (Para você saber por que não está rodando)
+        // Thread para STDERR
         thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines() {
                 if let Ok(l) = line {
-                    // IMPORTANTE: Removido o "ERROR: " manual. 
-                    // Se a linha contiver "SPEC_RESULT", ela deve ir limpa.
                     let _ = win_err.emit("test-event", Payload { 
                         file: "STDERR".into(), status: "running".into(), name: l, error: None 
                     });
@@ -78,6 +85,7 @@ pub async fn run_angular_tests(app: AppHandle, project_path: String) -> Result<S
 
         let _ = child.wait();
 
+        // Avisa que terminou
         let _ = window_clone.emit("test-event", Payload { 
             file: "SYSTEM".into(), 
             status: "finished".into(), 

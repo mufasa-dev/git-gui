@@ -1,5 +1,6 @@
 use std::path::Path;
 use serde::Serialize;
+use walkdir::WalkDir;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,4 +47,36 @@ pub async fn detect_project_type(project_path: String) -> Result<ProjectType, St
         framework: "Unknown".into(),
         test_runner: "None".into(),
     })
+}
+
+#[derive(Serialize)]
+pub struct TestFile {
+    pub name: String,     // Ex: app.component.spec.ts
+    pub path: String,     // Ex: src/app/app.component.spec.ts
+    pub label: String,    // Ex: AppComponent (opcional, para exibir bonito)
+}
+
+#[tauri::command]
+pub async fn get_project_test_files(project_path: String) -> Result<Vec<TestFile>, String> {
+    let mut test_files = Vec::new();
+    let src_path = format!("{}/src", project_path);
+
+    for entry in WalkDir::new(src_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.is_file() && path.to_string_lossy().contains(".spec.ts") {
+            let full_path = path.to_str().unwrap().replace("\\", "/");
+            let relative_path = full_path.replace(&project_path.replace("\\", "/"), "");
+            let relative_clean = relative_path.trim_start_matches('/').to_string();
+
+            test_files.push(TestFile {
+                name: path.file_name().unwrap().to_string_lossy().into(),
+                path: relative_clean,
+                label: path.file_stem().unwrap().to_string_lossy().replace(".spec", ""),
+            });
+        }
+    }
+    Ok(test_files)
 }

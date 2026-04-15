@@ -87,7 +87,8 @@ fn main() {
             commands::dashboard::get_most_modified_files,
             git_hub::auth::exchange_code_for_token,
             tests::front_test::run_angular_tests,
-            tests::project_type::detect_project_type
+            tests::project_type::detect_project_type,
+            tests::project_type::get_project_test_files
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
