@@ -1,10 +1,11 @@
 import { createResource, For, Show } from "solid-js";
-import { getMostModifiedFiles } from "../../services/gitService";
+import { getMostModifiedFiles, getUserMostModifiedFiles } from "../../services/gitService";
 import FileIcon from "../ui/FileIcon";
 
 interface Props {
   path: string;
   branch: string;
+  email?: string;
 }
 
 export default function HotspotsTable(props: Props) {
@@ -12,6 +13,9 @@ export default function HotspotsTable(props: Props) {
     () => ({ path: props.path, branch: props.branch }),
     async (params) => {
       if (!params.path || !params.branch) return [];
+      if (props.email) {
+        return await getUserMostModifiedFiles(params.path, params.branch, props.email);
+      }
       return await getMostModifiedFiles(params.path, params.branch);
     }
   );
