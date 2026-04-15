@@ -1,8 +1,27 @@
-import { createMemo, For } from "solid-js";
+import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import { GROUP_COLORS, IGNORED_EXTENSIONS, LANGUAGE_GROUPS } from "../../utils/file";
+import Dialog from "../ui/Dialog";
 
 // O seu componente continua recebendo a lista do Rust: { path, size }
 export default function LanguageBar(props: { files: { path: string, size: number }[] }) {
+
+  const [isModalOpen, setIsModalOpen] = createSignal(false);
+  const [hiddenLanguages, setHiddenLanguages] = createSignal<string[]>([]);
+
+  onMount(() => {
+    const saved = localStorage.getItem("git-trident-hidden-langs");
+    if (saved) setHiddenLanguages(JSON.parse(saved));
+  });
+
+  const toggleLanguage = (name: string) => {
+    const current = hiddenLanguages();
+    const next = current.includes(name) 
+      ? current.filter(l => l !== name) 
+      : [...current, name];
+    
+    setHiddenLanguages(next);
+    localStorage.setItem("git-trident-hidden-langs", JSON.stringify(next));
+  };
   
   // 1. Memo intermediário para filtrar arquivos indesejados
   const codeFiles = createMemo(() => {
@@ -43,17 +62,22 @@ export default function LanguageBar(props: { files: { path: string, size: number
 
     const sizeByGroup: Record<string, number> = {};
     let totalBytes = 0;
+    const hidden = hiddenLanguages(); // Pega o sinal aqui
 
     files.forEach(file => {
       const fileName = file.path.split('/').pop()?.toLowerCase() || '';
       const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
-      
       const groupName = LANGUAGE_GROUPS[fileName] || LANGUAGE_GROUPS[ext || ''] || "Other";
       
+      // FILTRO: Se o grupo estiver na lista de ocultos, ignoramos no cálculo
+      if (hidden.includes(groupName)) return;
+
       const size = file.size || 0;
       sizeByGroup[groupName] = (sizeByGroup[groupName] || 0) + size;
       totalBytes += size;
     });
+
+    if (totalBytes === 0) return [];
 
     return Object.entries(sizeByGroup)
       .map(([name, bytes]) => ({
@@ -66,13 +90,32 @@ export default function LanguageBar(props: { files: { path: string, size: number
       .slice(0, 14);
   });
 
+  // Memo extra para saber todas as linguagens possíveis (para o modal)
+  const allAvailableLangs = createMemo(() => {
+     const files = codeFiles();
+     const names = new Set<string>();
+     files.forEach(file => {
+        const fileName = file.path.split('/').pop()?.toLowerCase() || '';
+        const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
+        names.add(LANGUAGE_GROUPS[fileName] || LANGUAGE_GROUPS[ext || ''] || "Other");
+     });
+     return Array.from(names).sort();
+  });
+
   return (
-    <div class="p-2 flex flex-col h-full bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-      <div class="flex items-center gap-2 mb-6">
-        <i class="fa-solid fa-code text-blue-500 text-lg"></i>
-        <h4 class="text-base font-bold text-gray-800 dark:text-gray-100">
-          Linguagens mais usadas
-        </h4>
+    <div class="p-1 flex flex-col h-full bg-white dark:bg-gray-800 rounded-lg shadow-sm relative">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-code text-blue-500 text-xs"></i>
+          <h4 class="font-bold text-gray-900 dark:text-white tracking-widest">Linguagens</h4>
+        </div>
+        
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          class="p-1.5 text-gray-400 hover:text-blue-500 transition-colors"
+        >
+          <i class="fa-solid fa-gear"></i>
+        </button>
       </div>
 
       {/* Barra de Progresso mais alta */}
@@ -109,6 +152,42 @@ export default function LanguageBar(props: { files: { path: string, size: number
           )}
         </For>
       </div>
+
+      {/* MODAL DE CONFIGURAÇÃO */}
+      <Dialog 
+        open={isModalOpen()} 
+        title="Ocultar Linguagens" 
+        onClose={() => setIsModalOpen(false)}
+        width="400px"
+      >
+        <div class="space-y-4">
+          <p class="text-xs text-gray-400">Desmarque as linguagens que não deseja ver nas estatísticas (ex: JSON, Lockfiles):</p>
+          <div class="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto p-1">
+            <For each={allAvailableLangs()}>
+              {(langName) => (
+                <button
+                  onClick={() => toggleLanguage(langName)}
+                  class={`px-3 py-1.5 text-xs rounded-full border transition-all flex items-center gap-2 ${
+                    !hiddenLanguages().includes(langName)
+                      ? "bg-blue-500/10 border-blue-500 text-blue-500"
+                      : "bg-gray-700 border-gray-600 text-gray-400 opacity-60"
+                  }`}
+                >
+                  <Show when={!hiddenLanguages().includes(langName)} fallback={<i class="fa-solid fa-eye-slash"></i>}>
+                    <i class="fa-solid fa-eye"></i>
+                  </Show>
+                  {langName}
+                </button>
+              )}
+            </For>
+          </div>
+          <div class="pt-4 border-t border-gray-700 flex justify-end">
+             <button onClick={() => setIsModalOpen(false)} class="btn-primary py-2 px-4 text-sm font-bold bg-blue-600 text-white rounded">
+               Salvar
+             </button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
