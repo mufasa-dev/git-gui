@@ -5,6 +5,7 @@ import { ParsedEvent, ProjectType } from '../../models/ProjectType.model';
 import { getProjectType } from '../../services/testService';
 import { angularParser } from '../../lib/TestsPareser/AngularParser';
 import { formatDuration } from '../../utils/date';
+import FileIcon from '../ui/FileIcon';
 
 interface TestSpec {
   id: string;
@@ -22,6 +23,7 @@ export const TestRunner = (props: { repo: any }) => {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
   const [projectInfo, setProjectInfo] = createSignal<ProjectType | null>(null);
+  const [searchQuery, setSearchQuery] = createSignal("");
 
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
   const storageKey = () => `trident_test_cache_${props.repo?.path}`;
@@ -72,7 +74,14 @@ export const TestRunner = (props: { repo: any }) => {
     return groups;
   });
 
-  const suites = createMemo(() => Object.keys(groupedSpecs()));
+  const suites = createMemo(() => {
+    const allSuites = Object.keys(groupedSpecs());
+    const query = searchQuery().toLowerCase().trim();
+    
+    if (!query) return allSuites;
+    
+    return allSuites.filter(suite => suite.toLowerCase().includes(query));
+  });
 
   createEffect(async () => {
     if (props.repo?.path) {
@@ -185,7 +194,10 @@ export const TestRunner = (props: { repo: any }) => {
       >
         <div class="p-3 border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50">
           <div class="flex justify-between items-center mb-3">
-              <span class="text-[10px] font-bold uppercase text-gray-500 dark:text-white">{projectInfo()?.testRunner || 'Runner'}</span>
+              <span class="text-[10px] font-bold uppercase text-gray-500 dark:text-white flex items-center gap-2">
+                <FileIcon fileName={projectInfo()?.testRunner || 'dockerfile'} />
+                {projectInfo()?.testRunner || 'Runner'}
+              </span>
               <button onClick={runAllTests} disabled={isRunning()} class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-2">
                   <Show when={isRunning()} fallback={<i class="fa-solid fa-play"></i>}>
                     <i class="fa-solid fa-circle-notch animate-spin"></i>
@@ -195,18 +207,38 @@ export const TestRunner = (props: { repo: any }) => {
           </div>
           
           <div class="grid grid-cols-3 gap-1 text-center">
-            <div class="bg-gray-200 dark:bg-gray-800 p-1 rounded">
-              <div class="text-[10px] text-gray-500 uppercase">Total</div>
+            <div class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-1 rounded">
+              <div class="text-[10px] text-gray-500 dark:text-gray-400 uppercase">Total</div>
               <div class="text-xs font-bold">{stats().total}</div>
             </div>
             <div class="bg-green-500/10 p-1 rounded border border-green-500/20">
-              <div class="text-[10px] text-green-500 uppercase text-green-500">Pass</div>
+              <div class="text-[10px] text-green-500 uppercase dark:text-green-500">Pass</div>
               <div class="text-xs font-bold text-green-500">{stats().passed}</div>
             </div>
             <div class="bg-red-500/10 p-1 rounded border border-red-500/20">
-              <div class="text-[10px] text-red-500 uppercase text-red-500">Fail</div>
+              <div class="text-[10px] text-red-500 uppercase dark:text-red-500">Fail</div>
               <div class="text-xs font-bold text-red-500">{stats().failed}</div>
             </div>
+          </div>
+
+          <div class="relative mt-3">
+            <i class={`fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[10px] transition-opacity ${isRunning() ? 'opacity-20' : 'opacity-50'}`}></i>
+            <input 
+              type="text"
+              placeholder={isRunning() ? "Running tests..." : "Search suites..."}
+              disabled={isRunning()}
+              value={searchQuery()}
+              onInput={(e) => setSearchQuery(e.currentTarget.value)}
+              class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md py-1.5 pl-8 pr-3 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            />
+            <Show when={searchQuery() && !isRunning()}>
+              <button 
+                onClick={() => setSearchQuery("")}
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <i class="fa-solid fa-xmark text-[10px]"></i>
+              </button>
+            </Show>
           </div>
         </div>
 
@@ -229,6 +261,12 @@ export const TestRunner = (props: { repo: any }) => {
               </div>
             )}
           </For>
+
+          <Show when={suites().length === 0 && searchQuery()}>
+            <div class="p-4 text-center dark:text-gray-400 italic text-[10px]">
+              Nenhuma suíte encontrada
+            </div>
+          </Show>
         </div>
       </div>
 
