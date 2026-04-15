@@ -3,6 +3,8 @@ use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 use std::thread;
 use serde::Serialize;
+use std::fs;
+use serde_json::Value;
 use tauri::path::BaseDirectory;
 
 #[derive(Clone, Serialize)]
@@ -25,30 +27,36 @@ pub async fn run_angular_tests(
     let window_clone = window.clone();
     let app_handle = app.clone(); 
 
+    let is_legacy = is_angular_legacy(&project_path);
+
     thread::spawn(move || {
+        // 2. Escolher o arquivo de configuração correto
+        let config_file = if is_legacy {
+            "assets/karma-bridge-legacy.conf.js"
+        } else {
+            "assets/karma-bridge.conf.cjs"
+        };
+
         let bridge_path = app_handle.path()
-            .resolve("assets/karma-bridge.conf.cjs", BaseDirectory::Resource)
+            .resolve(config_file, BaseDirectory::Resource)
             .expect("Falha ao resolver caminho")
             .to_string_lossy()
             .to_string();
 
-        // Se test_file existir, criamos a flag --include, caso contrário, fica vazio
         let include_arg = match test_file {
             Some(file) => format!("--include '{}'", file),
             None => "".to_string(),
         };
 
-        // Adicionamos {include_arg} no final do comando
         let cmd_string = format!(
-            "cd '{}' && npx ng test --watch=false --progress=false --karma-config='{}' {}", 
-            project_path, 
+            "npx ng test --watch=false --progress=false --karma-config='{}' {}", 
             bridge_path,
             include_arg
         );
 
         let mut child = Command::new("sh")
             .args(["-c", &cmd_string])
-            .current_dir(&project_path)
+            .current_dir(&project_path) // Garante que o npx rode no contexto do projeto
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -95,4 +103,22 @@ pub async fn run_angular_tests(
     });
 
     Ok("Execução iniciada".into())
+}
+
+fn is_angular_legacy(project_path: &str) -> bool {
+    let pkg_path = format!("{}/package.json", project_path);
+    if let Ok(content) = fs::read_to_string(pkg_path) {
+        if let Ok(json) = serde_json::from_str::<Value>(&content) {
+            if let Some(version) = json["dependencies"]["@angular/core"].as_str() {
+                // Se a versão começar com ^12, ^13, 14, 15...
+                let v = version.replace("^", "").replace("~", "");
+                if let Some(major) = v.split('.').next() {
+                    if let Ok(m) = major.parse::<i32>() {
+                        return m < 16;
+                    }
+                }
+            }
+        }
+    }
+    false
 }
