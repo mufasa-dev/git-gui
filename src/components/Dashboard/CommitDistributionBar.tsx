@@ -1,5 +1,6 @@
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import { tagBaseColors } from "../../utils/file";
+import Dialog from "../ui/Dialog";
 
 // 1. Dicionário de normalização para corrigir erros de digitação comuns
 const TAG_MAPPING: Record<string, string> = {
@@ -99,27 +100,44 @@ interface Props {
 
 const CommitTypeDistribution = (props: Props) => {
 
+  const [isModalOpen, setIsModalOpen] = createSignal(false);
+  const [hiddenTypes, setHiddenTypes] = createSignal<string[]>([]);
+
+  onMount(() => {
+    const saved = localStorage.getItem("git-trident-hidden-commit-types");
+    if (saved) setHiddenTypes(JSON.parse(saved));
+  });
+
+  const toggleType = (type: string) => {
+    const current = hiddenTypes();
+    const next = current.includes(type) 
+      ? current.filter(t => t !== type) 
+      : [...current, type];
+    
+    setHiddenTypes(next);
+    localStorage.setItem("git-trident-hidden-commit-types", JSON.stringify(next));
+  };
+
   const stats = createMemo(() => {
     const counts: Record<string, number> = {};
     let totalProcessed = 0;
+    const hidden = hiddenTypes(); // Pega a lista de ocultos
     
     const tagRegex = /^(\w+)(?:\(([^)]+)\))?:\s*(.*)$/;
 
     props.commits.forEach((c) => {
       const msg = c.message || "";
+      let type = "other";
       
-      // 1. Verificação de Merge
       if (msg.startsWith("Merge branch") || msg.startsWith("Merge remote-tracking branch") || msg.startsWith("Merge pull request")) {
-        counts["merge"] = (counts["merge"] || 0) + 1;
-        return;
+        type = "merge";
+      } else {
+        const match = msg.match(tagRegex);
+        type = match ? normalizeTag(match[1]) : inferTagFromMessage(msg);
       }
 
-      // 2. Tenta Conventional Tags ou Inferência
-      const match = msg.match(tagRegex);
-      let type = match ? normalizeTag(match[1]) : inferTagFromMessage(msg);
-
-      // FILTRO: Só contamos se NÃO for "other"
-      if (type !== "other") {
+      // FILTRO: Se o tipo for "other" ou estiver na lista de OCULTOS, ignoramos
+      if (type !== "other" && !hidden.includes(type)) {
         counts[type] = (counts[type] || 0) + 1;
         totalProcessed++;
       }
@@ -137,13 +155,45 @@ const CommitTypeDistribution = (props: Props) => {
       .sort((a, b) => b.count - a.count);
   });
 
+  const detectedTypes = createMemo(() => {
+    const types = new Set<string>();
+    const tagRegex = /^(\w+)(?:\(([^)]+)\))?:\s*(.*)$/;
+
+    props.commits.forEach((c) => {
+      const msg = c.message || "";
+      let type = "other";
+
+      if (msg.startsWith("Merge branch") || msg.startsWith("Merge remote-tracking branch") || msg.startsWith("Merge pull request")) {
+        type = "merge";
+      } else {
+        const match = msg.match(tagRegex);
+        type = match ? normalizeTag(match[1]) : inferTagFromMessage(msg);
+      }
+
+      if (type !== "other") {
+        types.add(type);
+      }
+    });
+
+    return Array.from(types).sort();
+  });
+
   return (
-    <div class="p-2 h-full flex flex-col">
-      <div class="flex items-center gap-2 mb-5">
-        <i class="fa-solid fa-chart-pie text-blue-400 text-xs"></i>
-        <h3 class="font-bold text-gray-900 dark:text-white tracking-widest">
-          Tipos de Commits
-        </h3>
+    <div class="p-2 h-full flex flex-col relative">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-blue-400 text-xs"></i>
+          <h3 class="font-bold text-gray-900 dark:text-white tracking-widest">
+            Tipos de Commits
+          </h3>
+        </div>
+        
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          class="p-1.5 text-gray-400 hover:text-blue-500 transition-colors"
+        >
+          <i class="fa-solid fa-gear"></i>
+        </button>
       </div>
 
       <Show 
@@ -197,6 +247,45 @@ const CommitTypeDistribution = (props: Props) => {
           </For>
         </div>
       </Show>
+
+      {/* MODAL DE FILTRO DE COMMITS */}
+      <Dialog 
+        open={isModalOpen()} 
+        title="Filtrar Tipos de Commit" 
+        onClose={() => setIsModalOpen(false)}
+        width="380px"
+      >
+        <div class="space-y-4">
+          <p class="text-[11px] text-gray-400">
+            Tipos detectados neste repositório:
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <For each={detectedTypes()}>
+              {(type) => (
+                <button
+                  onClick={() => toggleType(type)}
+                  class={`px-3 py-1 text-[10px] font-bold rounded-full border transition-all flex items-center gap-2 ${
+                    !hiddenTypes().includes(type)
+                      ? "bg-blue-500/10 border-blue-500 text-blue-500"
+                      : "bg-gray-800 border-gray-700 text-gray-500 opacity-50"
+                  }`}
+                >
+                  <div 
+                    class="w-2 h-2 rounded-full" 
+                    style={{ "background-color": tagBaseColors[type] || tagBaseColors.other }} 
+                  />
+                  {type.toUpperCase()}
+                </button>
+              )}
+            </For>
+          </div>
+          <div class="pt-4 border-t border-gray-700 flex justify-end">
+             <button onClick={() => setIsModalOpen(false)} class="px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold">
+               Aplicar Filtros
+             </button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };
