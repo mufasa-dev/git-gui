@@ -13,6 +13,13 @@ pub struct FileContentResponse {
     pub line_count: Option<usize>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileMetadataResponse {
+    pub is_binary: bool,
+    pub size: usize,
+}
+
 #[tauri::command]
 pub async fn list_branches(path: String) -> Result<Vec<String>, String> {
     let output = git_command_async(&path)
@@ -312,4 +319,47 @@ pub async fn get_branch_file_content(
             line_count,
         })
     }
+}
+
+#[tauri::command]
+pub async fn get_file_metadata(
+    path: String,
+    branch: String,
+    file_path: String
+) -> Result<FileMetadataResponse, String> {
+    let output = git_command_async(&path)
+        .args(["ls-tree", "-l", &branch, &file_path])
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err("Arquivo não encontrado ou erro no git".into());
+    }
+
+    let output = git_command_async(&path)
+        .args(["ls-tree", "-l", &branch, &file_path])
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err("Arquivo não encontrado ou erro no git".into());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let line = stdout.lines().next().ok_or("Arquivo não encontrado")?;
+    
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    
+    if parts.len() < 4 {
+        return Err("Formato de saída do Git inválido".into());
+    }
+
+    let size = parts[3].parse::<usize>().unwrap_or(0);
+
+    Ok(FileMetadataResponse {
+        size,
+        is_binary: true,
+    })
 }

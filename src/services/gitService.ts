@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Branch, BranchFileContentResponse } from "../models/Banch.model";
+import { Branch, BranchFileContentResponse, BranchFileMetadataResponse } from "../models/Banch.model";
 import { Diff } from "../models/Diff.model";
 import { GitPullResult } from "../models/Pull.model";
 import { Commit, FileEntry } from "../models/Commit.model";
@@ -232,6 +232,10 @@ export async function listBranchFilesWithSize(repoPath: string, branch: string):
 
 export async function getBranchFileContent(repoPath: string, branch: string, filePath: string): Promise<BranchFileContentResponse> {
   return await invoke("get_branch_file_content", { path: repoPath, branch, filePath });
+}
+
+export async function getBranchFileMetadata(repoPath: string, branch: string, filePath: string): Promise<BranchFileMetadataResponse> {
+  return await invoke("get_file_metadata", { path: repoPath, branch, filePath });
 }
 
 export async function getCodeCoverageRatio(path: string, branch: string): Promise<CoverageStats> {
