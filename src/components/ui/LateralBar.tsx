@@ -48,7 +48,7 @@ export default function LateralBar(props: {
             <img src={prIcon} class="h-10" />
           </Button>
         </Tooltip>
-        <Tooltip text="Pipeline" class="mb-2">
+        {/*<Tooltip text="Pipeline" class="mb-2">
           <Button class={`left-btn w-full ${props.active === "rocket" ? "selected" : ""}`} onClick={() => props.onChangeActive("rocket")}>
             <img src={rocketIcon} class="h-10" />
           </Button>
@@ -57,18 +57,18 @@ export default function LateralBar(props: {
           <Button class={`left-btn w-full ${props.active === "table" ? "selected" : ""}`} onClick={() => props.onChangeActive("table")}>
             <img src={tableIcon} class="h-10" />
           </Button>
-        </Tooltip>
+        </Tooltip>*/}
       </Show>
       <Tooltip text="Perfil" class="mb-2 mt-auto">
         <Button class={`left-btn w-full ${props.active === "profile" ? "selected" : ""}`} onClick={() => props.onChangeActive("profile")}>
           <img src={profileIcon} class="h-10" />
         </Button>
       </Tooltip>
-      <Tooltip text="Configurações" class={"mb-2"}>
+      {/*<Tooltip text="Configurações" class={"mb-2"}>
         <Button class={`left-btn w-full ${props.active === "config" ? "selected" : ""}`} onClick={() => props.onChangeActive("config")}>
           <img src={configIcon} class="h-10" />
         </Button>
-      </Tooltip>
+      </Tooltip>*/}
     </div> 
   );
 }

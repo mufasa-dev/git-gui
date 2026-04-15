@@ -24,19 +24,23 @@ export const TestRunner = (props: { repo: any }) => {
   const [isResizing, setIsResizing] = createSignal(false);
   const [projectInfo, setProjectInfo] = createSignal<ProjectType | null>(null);
   const [searchQuery, setSearchQuery] = createSignal("");
+  const [lastLoadedPath, setLastLoadedPath] = createSignal<string | null>(null);
 
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
   const storageKey = () => `trident_test_cache_${props.repo?.path}`;
 
   // 1. Persistência: Carregar dados ao trocar de repositório
   createEffect(() => {
-    if (props.repo?.path) {
+    const path = props.repo?.path;
+    if (path) {
       const cached = localStorage.getItem(storageKey());
       if (cached) {
         setSpecs(JSON.parse(cached));
       } else {
         setSpecs([]);
       }
+      // Marcar que as specs atuais pertencem a este path
+      setLastLoadedPath(path); 
       setSelectedSuite(null);
       setIsRunning(false);
     }
@@ -44,7 +48,10 @@ export const TestRunner = (props: { repo: any }) => {
 
   // 2. Persistência: Salvar dados sempre que as specs mudarem
   createEffect(() => {
-    if (props.repo?.path && specs().length > 0) {
+    const currentPath = props.repo?.path;
+    const loadedPath = lastLoadedPath();
+
+    if (currentPath && loadedPath === currentPath && specs().length > 0) {
       localStorage.setItem(storageKey(), JSON.stringify(specs()));
     }
   });
@@ -126,7 +133,7 @@ export const TestRunner = (props: { repo: any }) => {
               status: specData.status!,
               log: specData.log || [],
               filePath: specData.filePath,
-              duration: specData.duration // Agora capturando duração
+              duration: specData.duration
             };
 
             if (existingIndex !== -1) {
@@ -154,7 +161,7 @@ export const TestRunner = (props: { repo: any }) => {
   const runAllTests = async () => {
     if (!props.repo?.path || isRunning()) return;
     setIsRunning(true);
-    setSpecs([]); // Limpa para nova execução
+    setSpecs([]);
     
     try {
       await invoke('run_angular_tests', { projectPath: props.repo.path });
@@ -202,7 +209,7 @@ export const TestRunner = (props: { repo: any }) => {
                   <Show when={isRunning()} fallback={<i class="fa-solid fa-play"></i>}>
                     <i class="fa-solid fa-circle-notch animate-spin"></i>
                   </Show>
-                  {isRunning() ? 'RUNNING' : 'RUN ALL'}
+                  {isRunning() ? 'Executando' : 'Executar'}
               </button>
           </div>
           
@@ -221,11 +228,33 @@ export const TestRunner = (props: { repo: any }) => {
             </div>
           </div>
 
+          <div class="mt-3 h-1.5 w-full bg-gray-300 dark:bg-gray-800 rounded-full overflow-hidden flex">
+            <Show when={stats().total > 0}>
+              {/* Segmento de Sucesso */}
+              <div 
+                class="h-full bg-green-500 transition-all duration-500 ease-out" 
+                style={{ width: `${(stats().passed / stats().total) * 100}%` }}
+              />
+              {/* Segmento de Falha */}
+              <div 
+                class="h-full bg-red-500 transition-all duration-500 ease-out" 
+                style={{ width: `${(stats().failed / stats().total) * 100}%` }}
+              />
+            </Show>
+          </div>
+
+          {/* Opcional: Porcentagem de Sucesso */}
+          <Show when={stats().total > 0}>
+            <div class="mt-1 text-[9px] text-right font-mono opacity-50 uppercase tracking-tighter">
+              {Math.round((stats().passed / stats().total) * 100)}% taxa de sucesso
+            </div>
+          </Show>
+
           <div class="relative mt-3">
             <i class={`fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[10px] transition-opacity ${isRunning() ? 'opacity-20' : 'opacity-50'}`}></i>
             <input 
               type="text"
-              placeholder={isRunning() ? "Running tests..." : "Search suites..."}
+              placeholder={isRunning() ? "Executando testes..." : "Procurar..."}
               disabled={isRunning()}
               value={searchQuery()}
               onInput={(e) => setSearchQuery(e.currentTarget.value)}
@@ -282,7 +311,7 @@ export const TestRunner = (props: { repo: any }) => {
         }>
           <div class="p-4 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800/30">
             <h2 class="text-sm font-bold font-mono uppercase tracking-wider truncate mr-4">
-              <i class="fa-solid fa-folder-open mr-2 opacity-50"></i>
+              <i class="fa-solid fa-flask text-purple-500 dark:text-purple-400 mr-2"></i>
               {selectedSuite()}
             </h2>
             
@@ -307,7 +336,7 @@ export const TestRunner = (props: { repo: any }) => {
             <div class="grid grid-cols-1 gap-2">
               <For each={groupedSpecs()[selectedSuite()!]?.tests || []}>
                 {(spec) => (
-                  <div class={`group flex items-center gap-4 p-3 rounded-lg border transition-all ${
+                  <div class={`group flex items-center gap-4 px-3 py-1 rounded-lg border transition-all ${
                     spec.status === 'pass' 
                     ? 'bg-green-500/5 border-green-500/20' 
                     : 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
@@ -341,7 +370,7 @@ export const TestRunner = (props: { repo: any }) => {
                         {spec.status === 'pass' ? 'Passed' : 'Failed'}
                       </div>
                       <Show when={spec.duration}>
-                        <span class="text-[9px] font-mono opacity-50">{formatDuration(spec.duration)}</span>
+                        <span class="text-[9px] font-mono dark:text-white">{formatDuration(spec.duration)}</span>
                       </Show>
                     </div>
                   </div>
