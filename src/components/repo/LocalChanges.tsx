@@ -307,8 +307,8 @@ export function LocalChanges(props: { repo: Repo; }) {
         onMouseDown={startResize}
       ></div>
 
-      <div  class="flex-1 flex flex-col h-full overflow-hidden">
-        <div class="flex-1 overflow-auto px-2 container-branch-list">
+      <div  class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+        <div class="flex-1 overflow-auto px-2 container-branch-list min-w-0">
           <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
             path={props.repo.path} isStaged={isVisualizingStaged()}
             onMergeStatusChange={(open) => setIsMerging(open)}

@@ -14,6 +14,8 @@ import Dashboard from "./Dashboard";
 import ProviderAuthPage from "./ProviderAuthPage";
 import WelcomeScreen from "./WelcomeScreen";
 import { githubService } from "../services/github";
+import PullRequestsPage from "../components/PullRequest/PullRequestsPage";
+import { TestRunner } from "../components/Test/TestRunner";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -73,7 +75,7 @@ export default function RepoTabsPage() {
   });
 
   const handleVisibilityChange = () => {
-    if (document.visibilityState === "visible" && active()) {
+    if (document.visibilityState === "visible" && active() && ['commits', 'dashboard'].includes(activePage())) {
       refreshBranches(active()!);
     }
   };
@@ -81,7 +83,7 @@ export default function RepoTabsPage() {
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
   const handleFocus = () => {
-    if (active()) refreshBranches(active()!);
+    if (active() && ['commits', 'dashboard'].includes(activePage())) refreshBranches(active()!);
   };
   window.addEventListener("focus", handleFocus);
 
@@ -138,12 +140,12 @@ export default function RepoTabsPage() {
       refetchUser: refetch
     }}>
       <div class="flex flex-col h-full dark:bg-gray-800 dark:text-white">
-        {/* Topo com botão */}
-        <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
 
         {/* Abas + conteúdo */}
         <div class="flex flex-col flex-1">
           <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
+
+          <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
 
           <div class="flex flex-1 overflow-auto bg-gray-200 dark:bg-gray-900">
             <Show when={repos().length > 0 && active()}>
@@ -189,6 +191,28 @@ export default function RepoTabsPage() {
                     repo={activeRepo()!} 
                     branch={activeRepo()?.activeBranch} 
                   />
+                </Show>
+              </Match>
+
+              <Match when={active() && activePage() === 'pull-requests'}>
+                <Show when={activeRepo()} fallback={<div>Carregando repositório...</div>}>
+                  {(currentRepo) => (
+                    <PullRequestsPage 
+                      repo={currentRepo()} 
+                      username={user()?.login || ''}
+                      branch={activeRepo()?.activeBranch}  
+                    />
+                  )}
+                </Show>
+              </Match>
+
+              <Match when={active() && activePage() === 'test'}>
+                <Show when={activeRepo()} fallback={<div>Carregando repositório...</div>}>
+                  {(currentRepo) => (
+                    <TestRunner 
+                      repo={currentRepo()} 
+                    />
+                  )}
                 </Show>
               </Match>
 

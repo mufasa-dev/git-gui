@@ -20,6 +20,7 @@ import Dialog from "../components/ui/Dialog";
 import { CommitDetails } from "../components/commits/CommitDetails";
 import CommitMessage from "../components/ui/CommitMessage";
 import { SearchableSelect, SearchableSelectOption } from "../components/ui/SearchableSelect";
+import CodePreviewer from "../components/ui/CodePreviewer";
 
 export default function FileList(props: { repo: Repo }) {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
@@ -70,55 +71,6 @@ export default function FileList(props: { repo: Repo }) {
       setSelectedBranch(activeBranch || "");
       setFileContent(null);
       setBranchFiles([]);
-    }
-  });
-
-  createEffect(() => {
-    const view = editorView();
-    if (!view) return;
-    
-    const dark = isDark();
-
-    const extensions = [
-      lineNumbers(),
-      EditorView.lineWrapping,
-      EditorState.readOnly.of(true),
-      dark ? oneDark : githubLight,
-      javascript() 
-    ];
-
-    extensions.push(
-      EditorView.theme({
-        "&": {
-          height: "100%",
-          backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#ffffff !important",
-        },
-        ".cm-scroller": { 
-          overflow: "auto",
-          backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#ffffff !important",
-        },
-        ".cm-gutters": {
-          backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#f5f5f5",
-          border: "none"
-        },
-        ".cm-content": {
-          color: dark ? "#abb2bf" : "#000000",
-        }
-      }, { dark: dark })
-    );
-
-    view.dispatch({
-      effects: StateEffect.reconfigure.of(extensions)
-    });
-  });
-
-  createEffect(() => {
-    const view = editorView();
-    const content = fileContent();
-    if (view && content !== null) {
-      view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: content }
-      });
     }
   });
 
@@ -390,9 +342,9 @@ export default function FileList(props: { repo: Repo }) {
               <img
                 src={getGravatarUrl(lastCommit()?.email || '', 80)}
                 alt={lastCommit()?.author}
-                class="w-[18px] h-[18px] rounded shadow-sm"
+                class="w-[18px] h-[18px] rounded-full shadow-sm"
               /> 
-              <b>{lastCommit()?.author}</b> 
+              <b class="text-sm font-mono">{lastCommit()?.author}</b> 
               <span class="truncate clicked_label" onClick={() => selectCommit(lastCommit()?.hash || '')}>
                 <CommitMessage message={lastCommit()?.message || ''} />
               </span>
@@ -534,7 +486,12 @@ export default function FileList(props: { repo: Repo }) {
               bodyClass="p-0 h-full"
               width={'calc(100vw - 40px)'}
               height={'calc(100vh - 100px)'}>
-        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={selectedBranch() || ""} selectCommit={selectCommit} />
+        <CommitDetails commit={selectedCommit()} 
+            repoPath={props.repo.path} 
+            branch={selectedBranch() || ""} 
+            openParent={false} 
+            selectCommit={selectCommit} 
+        />
       </Dialog>
     </div>
   );

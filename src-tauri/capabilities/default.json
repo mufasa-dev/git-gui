@@ -19,8 +19,17 @@
     "os:default",
     "http:default",
     "http:allow-fetch-send",
-    "shell:allow-open",
     "deep-link:default",
+    {
+      "identifier": "shell:allow-open",
+      "allow": [
+        {
+          "name": "open",
+          "cmd": "open",
+          "args": [{ "validator": "^https?://" }]
+        }
+      ]
+    },
     {
       "identifier": "http:allow-fetch-send",
       "allow": [{ "url": "https://*.gravatar.com/*" }]

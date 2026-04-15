@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
-import { FOLLOWERS_QUERY, FOLLOWING_QUERY, PROFILE_GRAPHQL_QUERY } from "./queries";
+import { ADD_PR_COMMENT, ADD_REACTION, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_TIMELINE_QUERY, HIDE_PR_COMMENT, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY } from "./queries";
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
@@ -175,6 +175,10 @@ export const githubService = {
     }
   },
 
+  async openInBrowser(username: string) {
+    await open(`https://github.com/` + username);
+  },
+
   async getFollowing(username: string, cursor: string | null = null) {
     try {
       const data = await this.fetchGraphQL(FOLLOWING_QUERY, { username, cursor });
@@ -186,6 +190,82 @@ export const githubService = {
       console.error("Erro ao buscar seguindo:", e);
       return { users: [], pageInfo: { hasNextPage: false } };
     }
+  },
+  
+  async getRepoPullRequests(owner: string, name: string, state: string) {
+    const states = state === "MERGED" ? ["MERGED", "CLOSED"] : ["OPEN"];
+    const data = await this.fetchGraphQL(REPO_PULL_REQUESTS_QUERY, { owner, name, states });
+    return data.repository.pullRequests.nodes;
+  },
+
+  async getPullRequestDescription(owner: string, name: string, number: number) {
+    const data = await this.fetchGraphQL(PR_DESCRIPTION_QUERY, { owner, name, number });
+    return data.repository.pullRequest;
+  },
+
+  async getPRTimeline(owner: string, name: string, number: number) {
+    const data = await this.fetchGraphQL(GET_PR_TIMELINE_QUERY, { owner, name, number });
+    return data.repository.pullRequest.timelineItems.nodes;
+  },
+
+  async getPRFiles(owner: string, name: string, number: number) {
+    const res = await this.fetchGraphQL(GET_PR_FILES_QUERY, { owner, name, number });
+    return res.repository.pullRequest.files.nodes;
+  },
+
+  async getFileContent(owner: string, name: string, expression: string) {
+    const res = await this.fetchGraphQL(GET_FILE_CONTENT_QUERY, { owner, name, expression });
+    return res.repository.object?.text;
+  },
+
+  async getPRFileDiff(owner: string, repo: string, prNumber: number) {
+    const token = await this.getToken();
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`,
+      {
+        headers: {
+          'Accept': 'application/vnd.github.v3.diff',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    if (!response.ok) throw new Error("Falha ao buscar diff do PR");
+    return await response.text();
+  },
+
+  async getPRCommits(owner: string, name: string, number: number) {
+    const data = await this.fetchGraphQL(GET_PR_COMMITS_QUERY, { owner, name, number });
+    return data.repository.pullRequest.commits.nodes.map((n: any) => n.commit);
+  },
+
+  async getPRChecks(owner: string, name: string, number: number) {
+    const data = await this.fetchGraphQL(GET_PR_CHECKS_QUERY, { owner, name, number });
+    const commit = data.repository.pullRequest.commits.nodes[0]?.commit;
+    return {
+      state: commit?.statusCheckRollup?.state,
+      contexts: commit?.statusCheckRollup?.contexts?.nodes || []
+    };
+  },
+
+  async addComment(prId: string, body: string) {
+    return await this.fetchGraphQL(ADD_PR_COMMENT, { subjectId: prId, body });
+  },
+
+  async deleteComment(id: string) {
+      return await this.fetchGraphQL(DELETE_PR_COMMENT, { id });
+  },
+
+  async addReaction(subjectId: string, content: string) {
+    return await this.fetchGraphQL(ADD_REACTION, { subjectId, content });
+  },
+
+  async removeReaction(subjectId: string, content: string) {
+    return await this.fetchGraphQL(REMOVE_REACTION, { subjectId, content });
+  },
+
+  async minimizeComment(subjectId: string, reason: string = "OUTDATED") {
+    return await this.fetchGraphQL(HIDE_PR_COMMENT, { subjectId, reason });
   },
 
   async logout() {

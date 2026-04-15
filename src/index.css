@@ -192,3 +192,18 @@ html {
   background-color: #1f2937;
   background-image: radial-gradient(#374151 1px, transparent 0);
 }
+
+.code-viewport {
+  overflow-x: auto;
+  white-space: pre; /* Garante que espaços e tabs sejam respeitados */
+  font-family: 'Fira Code', 'JetBrains Mono', monospace; /* Importante para leitura */
+}
+
+/* Dica de Ouro: Scrollbar sutil */
+.code-viewport::-webkit-scrollbar {
+  height: 8px;
+}
+.code-viewport::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3); /* Cinza suave */
+  border-radius: 4px;
+}

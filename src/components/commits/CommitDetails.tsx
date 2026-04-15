@@ -8,8 +8,17 @@ import FileIcon from "../ui/FileIcon";
 import CommitMessage from "../ui/CommitMessage";
 import { UserProfileDialog } from "../Config/UserProfile";
 import { formatContributorName } from "../../utils/user";
+import Dialog from "../ui/Dialog";
 
-export function CommitDetails(props: { commit: any; repoPath: string, branch: string, selectCommit: (hash: string) => void }) {
+type CommitDetailsProps = {
+  commit: any;
+  repoPath: string;
+  branch: string;
+  openParent: boolean;
+  selectCommit: (hash: string) => void;
+}
+
+export function CommitDetails(props: CommitDetailsProps) {
   const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
   const [selectedFile, setSelectedFile] = createSignal<any>(null);
   const [fileDiff, setFileDiff] = createSignal<any>(null);
@@ -137,14 +146,21 @@ export function CommitDetails(props: { commit: any; repoPath: string, branch: st
                         <div class="flex flex-wrap gap-2">
                           <For each={props.commit.parents}>
                             {(parentHash) => (
-                              <span 
-                                onClick={() => props.selectCommit(parentHash)}
-                                class="font-mono text-xs bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-gray-900 rounded-xl
-                                      text-blue-600 dark:text-white px-2 py-1 cursor-pointer transition-colors border border-gray-300 dark:border-gray-600"
-                                title={parentHash}
-                              >
-                                {parentHash.substring(0, 8)}
-                              </span>
+                              <Show when={props.openParent} fallback={
+                                <span class="font-mono text-xs bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 
+                                           text-blue-600 dark:text-white px-2 py-1 rounded-xl">
+                                  {parentHash.substring(0, 8)}
+                                </span>
+                              }>
+                                <span 
+                                  onClick={() => props.selectCommit(parentHash)}
+                                  class="font-mono text-xs bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-gray-900 rounded-xl
+                                        text-blue-600 dark:text-white px-2 py-1 cursor-pointer transition-colors border border-gray-300 dark:border-gray-600"
+                                  title={parentHash}
+                                >
+                                  {parentHash.substring(0, 8)}
+                                </span>
+                              </Show>
                             )}
                           </For>
                         </div>
@@ -157,39 +173,39 @@ export function CommitDetails(props: { commit: any; repoPath: string, branch: st
 
             {/* CONTEÚDO: ABA ARQUIVOS */}
             <Show when={activeTab() === "arquivos"}>
-            <div class="flex h-full">
-              {/* Sidebar de arquivos */}
-              <div class="w-1/3 overflow-y-auto p-1">
-                <For each={props.commit.files}>
-                  {(f) => (
-                    <div 
-                      onClick={() => fetchFileDiff(f)}
-                      class={`flex items-center p-2 text-xs cursor-pointer border-b dark:border-gray-900 
-                        rounded-xl my-1 hover:bg-blue-500/10 
-                        ${selectedFile()?.file === f.file ? 'bg-blue-500/20 dark:bg-blue-400/30' : 'bg-gray-100 dark:bg-gray-700'}`}
-                    >
-                      <FileIcon fileName={getFileNameFromPath(f.file)} /> <span class="ml-2">{getFileNameFromPath(f.file)}</span>
-                    </div>
-                  )}
-                </For>
-              </div>
+              <div class="flex h-full">
+                {/* Sidebar de arquivos */}
+                <div class="w-1/3 overflow-y-auto p-1">
+                  <For each={props.commit.files}>
+                    {(f) => (
+                      <div 
+                        onClick={() => fetchFileDiff(f)}
+                        class={`flex items-center p-2 text-xs cursor-pointer border-b dark:border-gray-900 
+                          rounded-xl my-1 hover:bg-blue-500/10 
+                          ${selectedFile()?.file === f.file ? 'bg-blue-500/20 dark:bg-blue-400/30' : 'bg-gray-100 dark:bg-gray-700'}`}
+                      >
+                        <FileIcon fileName={getFileNameFromPath(f.file)} /> <span class="ml-2">{getFileNameFromPath(f.file)}</span>
+                      </div>
+                    )}
+                  </For>
+                </div>
 
-              {/* Área do Diff */}
-              <div class="w-2/3 overflow-y-auto bg-white dark:bg-gray-800">
-                <Show when={selectedFile()} fallback={<div class="p-10 text-center text-gray-500 text-sm">Selecione um arquivo para ver o diff</div>}>
-                  <Show when={!loadingDiff()}>
-                    <DiffViewer 
-                      path={props.repoPath}
-                      file={selectedFile().file}
-                      diff={fileDiff()}
-                      class="text-xs"
-                      isStaged={true}
-                    />
+                {/* Área do Diff */}
+                <div class="w-2/3 overflow-y-auto bg-white dark:bg-gray-800">
+                  <Show when={selectedFile()} fallback={<div class="p-10 text-center text-gray-500 text-sm">Selecione um arquivo para ver o diff</div>}>
+                    <Show when={!loadingDiff()}>
+                      <DiffViewer 
+                        path={props.repoPath}
+                        file={selectedFile().file}
+                        diff={fileDiff()}
+                        class="text-xs"
+                        isStaged={true}
+                      />
+                    </Show>
                   </Show>
-                </Show>
+                </div>
               </div>
-            </div>
-          </Show>
+            </Show>
           </div>
         </>
       }>
@@ -198,14 +214,16 @@ export function CommitDetails(props: { commit: any; repoPath: string, branch: st
         </div>
       </Show>
       <Show when={modalUserProfileOpen()}>
-        <UserProfileDialog 
-          repoPath={props.repoPath} 
-          branch={props.branch || ""}
-          email={props.commit?.authorEmail}
-          fallbackName={props.commit?.authorName} 
-          open={modalUserProfileOpen()}
-          onClose={() => setModalUserProfileOpen(false)}
-        />
+        <Dialog open={modalUserProfileOpen()} onClose={() => setModalUserProfileOpen(false)} title="Perfil do Usuário" width={"90vw"}>
+          <UserProfileDialog 
+            repoPath={props.repoPath} 
+            branch={props.branch || ""}
+            email={props.commit?.authorEmail}
+            fallbackName={props.commit?.authorName} 
+            open={modalUserProfileOpen()}
+            onClose={() => setModalUserProfileOpen(false)}
+          />
+        </Dialog>
       </Show>
     </div>
   );

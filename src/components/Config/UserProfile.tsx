@@ -9,6 +9,7 @@ import CommitMessage from "../ui/CommitMessage";
 import { openBrowser } from "../../services/openService";
 import CommitTypeDistribution from "../Dashboard/CommitDistributionBar";
 import CommitsModalList from "../commits/CommitsModalList";
+import HotspotsTable from "../Dashboard/HotspotsTable";
 
 // Helper para formatar data curta
 const formatShortDate = (dateStr: string) => {
@@ -61,41 +62,58 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
   };
 
   return (
-    <Dialog open={props.open} onClose={props.onClose} title="Perfil do Usuário" width={"90vw"}>
       <div class="flex flex-col gap-6 overflow-y-auto max-h-[85vh] custom-scrollbar p-2">
         
         {/* CABEÇALHO */}
-        <div class="flex flex-col md:flex-row items-center gap-6 container-branch-list">
-          <img
-            src={getGravatarUrl(props.email, 120)}
-            alt={props.fallbackName}
-            class="w-28 h-28 rounded-full shadow-md border-2 border-blue-500/20"
-          />
-          <div class="flex-1 text-center md:text-left">
-            <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {profile()?.displayName || props.fallbackName}
-            </h3>
-            <p class="text-gray-500 dark:text-gray-400 text-sm font-mono">{props.email}</p>
-            <Show when={profile()?.aboutMe}>
-              <p class="text-sm text-gray-600 dark:text-gray-200">
-                {profile()?.aboutMe}
-              </p>
-            </Show>
-            <div class="mt-2 flex flex-wrap justify-center md:justify-start gap-4 items-center">
-              <Show when={profile()?.currentLocation}>
-                <span class="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                  <i class="fa fa-map-marker-alt text-red-500"></i>
-                  {profile()?.currentLocation}
-                </span>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div class="container-branch-list flex flex-col md:flex-row items-center gap-4 col-span-8">
+            <img
+              src={getGravatarUrl(props.email, 120)}
+              alt={props.fallbackName}
+              class="w-28 h-28 rounded-full shadow-md border-4 ml-2 border-blue-500/20 dark:border-blue-400/20"
+            />
+            <div class="flex-1 text-center md:text-left">
+              <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {profile()?.displayName || props.fallbackName}
+              </h3>
+              <p class="text-gray-500 dark:text-gray-400 text-sm font-mono">{props.email}</p>
+              <Show when={profile()?.aboutMe}>
+                <p class="text-sm text-gray-600 dark:text-gray-200">
+                  {profile()?.aboutMe}
+                </p>
               </Show>
-              <div class="flex gap-3 border-l dark:border-gray-700 pl-4">
-                <For each={profile()?.accounts}>
-                  {(account) => (
-                    <div onClick={() => openBrowser(account.url)} class="text-gray-400 hover:text-blue-500 transition-colors cursor-pointer text-lg">
-                      <i class={getAccountIcon(account.shortname)}></i>
-                    </div>
-                  )}
-                </For>
+              <div class="mt-2 flex flex-wrap justify-center md:justify-start gap-4 items-center">
+                <Show when={profile()?.currentLocation}>
+                  <span class="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                    <i class="fa fa-map-marker-alt text-red-500"></i>
+                    {profile()?.currentLocation}
+                  </span>
+                </Show>
+                <div class="flex gap-3 border-l dark:border-gray-700 pl-4">
+                  <For each={profile()?.accounts}>
+                    {(account) => (
+                      <div onClick={() => openBrowser(account.url)} class="text-gray-400 hover:text-blue-500 transition-colors cursor-pointer text-lg">
+                        <i class={getAccountIcon(account.shortname)}></i>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="container-branch-list p-4 flex-1 col-span-4">
+            <h4 class="text-[10px] font-bold text-gray-900 dark:text-gray-100 uppercase mb-3 tracking-widest text-center">Resumo</h4>
+            <div class="grid grid-cols-2 gap-2 text-center">
+              <div class="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border dark:border-gray-700">
+                  <span class="block text-xl font-bold text-blue-500">{userCommits()?.length || 0}</span>
+                  <span class="text-[10px] text-gray-900 dark:text-gray-100 uppercase">Commits</span>
+              </div>
+              <div class="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border dark:border-gray-700">
+                  <span class="block text-xl font-bold text-green-500">
+                      {new Set(userCommits()?.map(c => new Date(c.date).toISOString().split('T')[0])).size}
+                  </span>
+                  <span class="text-[10px] text-gray-900 dark:text-gray-100 uppercase">Dias Ativos</span>
               </div>
             </div>
           </div>
@@ -107,29 +125,17 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
             <div class="container-branch-list h-64 overflow-hidden">
                <ContributionGraph commits={userCommits() || []} openCommits={openModalWithCommits} />
             </div>
-            <div class="container-branch-list p-4 h-64">
+            <div class="container-branch-list p-1 h-64">
                <ActivityChart commits={userCommits() || []} openCommits={openModalWithCommits} />
             </div>
           </div>
 
           <div class="lg:col-span-4 space-y-4 flex flex-col">
-            <div class="container-branch-list p-4 h-64">
+            <div class="container-branch-list p-1 h-64">
                 <HourlyActivityChart commits={userCommits() || []} />
             </div>
-            <div class="container-branch-list p-4 flex-1">
-              <h4 class="text-[10px] font-bold text-gray-900 dark:text-gray-100 uppercase mb-3 tracking-widest text-center">Resumo</h4>
-              <div class="grid grid-cols-2 gap-2 text-center">
-                <div class="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border dark:border-gray-700">
-                    <span class="block text-xl font-bold text-blue-500">{userCommits()?.length || 0}</span>
-                    <span class="text-[10px] text-gray-900 dark:text-gray-100 uppercase">Commits</span>
-                </div>
-                <div class="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border dark:border-gray-700">
-                    <span class="block text-xl font-bold text-green-500">
-                        {new Set(userCommits()?.map(c => new Date(c.date).toISOString().split('T')[0])).size}
-                    </span>
-                    <span class="text-[10px] text-gray-900 dark:text-gray-100 uppercase">Dias Ativos</span>
-                </div>
-              </div>
+            <div class="container-branch-list p-1 h-64">
+                <HotspotsTable path={props.repoPath} branch={props.branch} email={props.email} />
             </div>
           </div>
         </div>
@@ -175,23 +181,21 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
             </div>
           </div>
           
-          <div class="lg:col-span-4 container-branch-list p-4 flex-1">
+          <div class="lg:col-span-4 container-branch-list p-1 flex-1">
               <CommitTypeDistribution commits={userCommits() || []} />
           </div>
         </div>
 
+        <Show when={showCommits()}>
+          <Dialog 
+            open={showCommits()} 
+            onClose={() => setShowCommits(false)} 
+            title="Histórico de Alterações"
+            width="550px" bodyClass="p-0"
+          >
+            <CommitsModalList commits={selectedCommits()} />
+          </Dialog>
+        </Show>
       </div>
-
-      <Show when={showCommits()}>
-        <Dialog 
-          open={showCommits()} 
-          onClose={() => setShowCommits(false)} 
-          title="Histórico de Alterações"
-          width="550px" bodyClass="p-0"
-        >
-          <CommitsModalList commits={selectedCommits()} />
-        </Dialog>
-      </Show>
-    </Dialog>
   );
 }

@@ -6,6 +6,11 @@ export const formatSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
+export function getExtension(filename: string): string {
+  const ext = filename.split('.').pop() || '';
+  return ext.toLowerCase();
+}
+
 export const commitColors: Record<string, string> = {
   feat: "text-green-600 dark:text-green-400 font-bold",
   fix: "text-amber-600 dark:text-amber-400 font-bold",
@@ -73,7 +78,7 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   ejs: "Ejs",
   // Rust
   rs: "Rust",
-  toml: "Toml",
+  toml: "Rust",
   go: "Go",
   mod: "Go",
   sum: "Go",
@@ -170,7 +175,6 @@ export const GROUP_COLORS: Record<string, string> = {
   "GraphQL": "#e10098",
   "SQL": "#e38c00",
   "Db": "#e38c00",
-  "Toml": "#9c4221",
   "Bat": "#1f1f1f",
   "Font": "#f7e03d",
   "Adobe Flash": "#f7e03d",
