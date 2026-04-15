@@ -1,10 +1,4 @@
-import { createSignal, createEffect, on, Show, For, onMount, onCleanup, createMemo, Switch, Match } from "solid-js";
-import { createCodeMirror } from "solid-codemirror";
-import { EditorView, lineNumbers } from "@codemirror/view";
-import { EditorState, StateEffect } from "@codemirror/state";
-import { javascript } from "@codemirror/lang-javascript"; // Exemplo, pode ser dinâmico
-import { oneDark } from "@codemirror/theme-one-dark";
-import { githubLight } from '@uiw/codemirror-theme-github';
+import { createSignal, createEffect, Show, For, onMount, onCleanup, createMemo, Switch, Match } from "solid-js";
 
 import { Repo } from "../models/Repo.model";
 import { FolderTreeView } from "../components/ui/FolderTreeview";
@@ -29,7 +23,6 @@ export default function FileList(props: { repo: Repo }) {
   const [branchFiles, setBranchFiles] = createSignal<{path: string, status: string}[]>([]);
   const [selectedFilePath, setSelectedFilePath] = createSignal<string[]>([]);
   const [fileContent, setFileContent] = createSignal<string | null>(null);
-  const [isDark, setIsDark] = createSignal(localStorage.getItem("theme") === "dark");
   const [lastCommit, setLastCommit] = createSignal<Commit | null>(null);
   const [directoryContent, setDirectoryContent] = createSignal<FileEntry[] | null>(null);
   const [pathHistory, setPathHistory] = createSignal<Commit[] | null>(null);
@@ -43,23 +36,13 @@ export default function FileList(props: { repo: Repo }) {
   const [searchTerm, setSearchTerm] = createSignal("");
   const [isBinary, setIsBinary] = createSignal(false);
 
-  const UNSUPPORTED_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.bin', '.mp4', '.mkv', '.mov', '.mp3', '.ogg', '.avi', '.ds_store', '.ifc'];
+  const UNSUPPORTED_EXTENSIONS = [
+    '.zip', '.rar', '.7z', '.tar', '.gz', 
+    '.exe', '.bin', '.mp4', '.mkv', '.mov', '.mp3', '.ogg', 
+    '.avi', '.ds_store', '.ifc', '.bim'
+  ];
 
   const { showLoading, hideLoading } = useLoading();
-
-  // --- Configuração CodeMirror ---
-  const { ref: codeMirrorRef, editorView } = createCodeMirror({
-    value: fileContent() ?? "",
-  });
-
-  onMount(() => {
-    const handleThemeChange = (e: any) => {
-      setIsDark(e.detail.theme === "dark");
-    };
-
-    window.addEventListener("theme-changed", handleThemeChange);
-    onCleanup(() => window.removeEventListener("theme-changed", handleThemeChange));
-  });
 
   let lastRepoPath = props.repo.path;
   createEffect(() => {
@@ -437,9 +420,9 @@ export default function FileList(props: { repo: Repo }) {
                   </div>
                 </Match>
 
-                {/* Caso 3: Texto (CodeMirror) */}
-                <Match when={true}>
-                  <div class="w-full overflow-auto rounded-b-xl" ref={codeMirrorRef} />
+                {/* Caso 3: Texto */}
+                <Match when={!isImage() && !isBinary()}>
+                  <CodePreviewer fileName={getSelectedFileName()} content={fileContent() || ''} />
                 </Match>
               </Switch>
 
