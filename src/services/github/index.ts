@@ -16,10 +16,12 @@ export const githubService = {
   async getToken(): Promise<string | null> {
     try {
       const store = await getAuthStore();
-      const token = await store.get<any>("github_token");
+      const tokenData = await store.get<any>("github_token");
       
-      if (!token) return null;
-      return typeof token === 'string' ? token : token.value;
+      if (!tokenData) return null;
+      
+      const token = typeof tokenData === 'string' ? tokenData : tokenData.value;
+      return token ? token.trim() : null;
     } catch (e) {
       return null;
     }

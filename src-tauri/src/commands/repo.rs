@@ -138,16 +138,28 @@ pub async fn clone_repo(url: String, target_path: String) -> Result<String, Stri
         .and_then(|n| n.to_str())
         .ok_or("Nome do repo inválido")?;
 
-    // Roda o clone criando a subpasta
-    let output = git_command(parent_dir)
+    let output = std::process::Command::new("git")
+        .current_dir(parent_dir)
         .args(["clone", &url, repo_name])
         .output()
         .map_err(|e| e.to_string())?;
 
-    if output.status.success() {
-        Ok(target_path)
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(stderr.trim().to_string())
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
+
+    std::thread::sleep(std::time::Duration::from_millis(200));
+
+    let has_commits = std::process::Command::new("git")
+        .current_dir(&target_path)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if !has_commits {
+        return Ok("EMPTY_REPO".to_string());
+    }
+
+    Ok(target_path)
 }

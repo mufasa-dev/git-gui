@@ -56,12 +56,20 @@ export default function WelcomeScreen(props: Props) {
     async function handleClone(url: string, targetPath: string) {
         showLoading("Clonando repositório remoto...");
         try {
-            let finalUrl = url;
             const token = await githubService.getToken();
+            let finalUrl = url;
             if (token && url.includes("github.com")) {
-                finalUrl = url.replace("https://", `https://${token}@`);
+                finalUrl = url.replace("https://", `https://${token.trim()}@`);
             }
-            await cloneRepository(finalUrl, targetPath);
+
+            const result = await cloneRepository(finalUrl, targetPath);
+
+            if (String(result) === "EMPTY_REPO") {
+                notify.error("Aviso", "Repositório clonado, mas está vazio (sem commits).");
+                // Aqui você pode abrir o repo, mas com uma UI limitada
+                return;
+            }
+
             await processAndOpenRepo(targetPath);
             setIsCloneModalOpen(false);
         } catch (err) {
