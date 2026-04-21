@@ -143,7 +143,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   }
 
   return (
-    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-4 pr-2"  style={{"height": "calc(100vh - 101px)"}} 
+    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container"
          onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
       <div class="container-branch-list flex-1 overflow-auto mb-1" style={{"height": "100px"}}>
         {/* Header com Busca e Paginação */}

@@ -4,6 +4,7 @@ import "./index.css";
 import { Toaster } from "solid-toast";
 import { LoadingProvider } from "./components/ui/LoadingContext";
 import LoginPage from "./pages/Login";
+import Titlebar from "./components/ui/Titlebar";
 
 export default function App() {
   const [token, setToken] = createSignal<string | null>(null);
@@ -19,6 +20,7 @@ export default function App() {
 
   return (
     <div class="h-screen w-screen flex flex-col">
+      <Titlebar />
       <Toaster position="bottom-right" gutter={8} />
       
       <LoadingProvider>

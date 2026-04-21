@@ -20,7 +20,7 @@ export default function LateralBar(props: {
   onChangeActive: (id: string) => void;
 }) {
   return (
-    <div class="flex flex-col border rounded-r-xl mt-2 mb-4 bg-white dark:bg-gray-800 dark:border-gray-700" style={{"width": "56px"}}>
+    <div class="flex flex-col border rounded-r-xl mt-2 mb-2 bg-white dark:bg-gray-800 dark:border-gray-700" style={{"width": "56px"}}>
       <img src={logo} class="px-2 h-10 mt-2 mb-4" />
       <Tooltip text="Commits" class="mb-2">
         <Button class={`left-btn w-full ${props.active === "commits" ? "selected" : ""}`} onClick={() => props.onChangeActive("commits")}>
