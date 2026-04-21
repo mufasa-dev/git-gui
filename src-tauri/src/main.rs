@@ -1,14 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use dotenvy::dotenv;
 mod commands;
 mod git_hub;
 mod models;
 mod utils;
 mod tests;
+mod authentication;
 
 use tauri::{Emitter, Listener};
 
 fn main() {
+    dotenv().ok();
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_os::init())
@@ -90,7 +93,8 @@ fn main() {
             git_hub::auth::exchange_code_for_token,
             tests::front_test::run_angular_tests,
             tests::project_type::detect_project_type,
-            tests::project_type::get_project_test_files
+            tests::project_type::get_project_test_files,
+            authentication::login::login_with_supabase
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
