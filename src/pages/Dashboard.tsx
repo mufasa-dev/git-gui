@@ -177,7 +177,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   const topContributors = createMemo(() => contributorStats().slice(0, 100));
 
   return (
-    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-4 pr-2"  style={{"height": "calc(100vh - 101px)"}} 
+    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container"
          onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
       <div class="grid grid-cols-4 grid-rows-3 gap-4 w-full h-full pl-4 bg-gray-200 dark:bg-gray-900">
   
