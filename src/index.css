@@ -207,3 +207,7 @@ html {
   background: rgba(156, 163, 175, 0.3); /* Cinza suave */
   border-radius: 4px;
 }
+
+.height-container {
+  height: calc(100vh - 128px);
+}
