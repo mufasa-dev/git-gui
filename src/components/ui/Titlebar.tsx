@@ -1,10 +1,13 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import logo from "../../assets/fork.png";
 import { createSignal, Show, onMount, onCleanup } from "solid-js";
+import { useApp } from "../../context/AppContext";
+import { LanguageSelector } from "./LanguageSelector";
 
 export default function Titlebar() {
   const [dark, setDark] = createSignal(localStorage.getItem("theme") == "dark");
   const [showAccountMenu, setShowAccountMenu] = createSignal(false);
+  const { t } = useApp();
   
   const appWindow = getCurrentWindow();
 
@@ -47,6 +50,7 @@ export default function Titlebar() {
       </div>
       
       <div class="flex h-full items-center">
+        <LanguageSelector />
         {/* Botão de Conta / Dropdown */}
         <div class="relative h-full" ref={menuRef}>
           <button
@@ -71,7 +75,7 @@ export default function Titlebar() {
                 onClick={handleLogout}
                 class="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2"
               >
-                <i class="fa-solid fa-right-from-bracket"></i> Sair
+                <i class="fa-solid fa-right-from-bracket"></i> {t().auth.logout()}
               </button>
             </div>
           </Show>
