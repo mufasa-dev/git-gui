@@ -1,0 +1,20 @@
+{
+  "auth": {
+    "login": "Login",
+    "email_label": "Email",
+    "password_label": "Password",
+    "error": "Authentication failed",
+    "logout": "Logout"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "settings": "Settings",
+    "sync_flow": "Sync Your Flow."
+  },
+  "git": {
+    "commit": "Commit",
+    "push": "Push",
+    "branch": "Branch"
+  }
+}

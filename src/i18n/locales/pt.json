@@ -1,0 +1,20 @@
+{
+  "auth": {
+    "login": "Entrar",
+    "email_label": "E-mail",
+    "password_label": "Senha",
+    "error": "Falha na autenticação",
+    "logout": "Sair"
+  },
+  "common": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "settings": "Configurações",
+    "sync_flow": "Sincronize seu fluxo."
+  },
+  "git": {
+    "commit": "Commit",
+    "push": "Push",
+    "branch": "Branch"
+  }
+}

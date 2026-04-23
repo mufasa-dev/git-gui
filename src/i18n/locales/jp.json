@@ -1,0 +1,20 @@
+{
+  "auth": {
+    "login": "ログイン",
+    "email_label": "メールアドレス",
+    "password_label": "パスワード",
+    "error": "ログインに失敗しました",
+    "logout": "ログアウト"
+  },
+  "common": {
+    "save": "保存",
+    "cancel": "キャンセル",
+    "settings": "設定",
+    "sync_flow": "フローを同期する。"
+  },
+  "git": {
+    "commit": "コミット",
+    "push": "プッシュ",
+    "branch": "ブランチ"
+  }
+}
