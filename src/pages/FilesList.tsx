@@ -373,9 +373,9 @@ export default function FileList(props: { repo: Repo }) {
                           </td>
                           <td class="p-2 text-gray-400 text-sm italic">
                             {/* Uso do ?. para evitar o erro de undefined */}
-                            {d.lastCommit?.message || <span class="text-gray-600">Sem histórico</span>}
+                            <CommitMessage message={d.lastCommit?.message || ''} />
                           </td>
-                          <td class="p-2 text-gray-500 text-xs text-right">
+                          <td class="p-2 text-gray-500 dark:text-gray-400 text-xs text-right">
                             {d.lastCommit?.date ? formatRelativeDate(d.lastCommit.date) : '--'}
                           </td>
                         </tr>
