@@ -36,7 +36,7 @@ export default function Titlebar() {
           class="inline-flex justify-center items-center w-12 h-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
           onClick={toggleDark}
         >
-          <i class={dark() ? 'fa fa-sun' : 'fa fa-moon'}/>
+          <i class={dark() ? 'fa-regular fa-sun' : 'fa fa-moon'}/>
         </button>
         <button 
           onClick={() => appWindow.minimize()}
