@@ -10,7 +10,7 @@ export default function App() {
   const [token, setToken] = createSignal<string | null>(null);
 
   onMount(() => {
-    const savedToken = localStorage.getItem("rivers_token");
+    const savedToken = localStorage.getItem("brook_token");
     if (savedToken) setToken(savedToken);
 
     // Lógica do Dark Mode (Manter o fundo bem escuro)
@@ -19,7 +19,7 @@ export default function App() {
   });
 
   return (
-    <div class="h-screen w-screen flex flex-col">
+    <div class="h-screen w-full flex flex-col">
       <Titlebar />
       <Toaster position="bottom-right" gutter={8} />
       

@@ -17,28 +17,18 @@ export default function LoginPage(props: LoginPageProps) {
     setError("");
 
     try {
-      // Chamando o comando Rust com segurança
-      const result: any = await invoke("login_with_supabase", { 
-        email: email(), 
-        password: password() 
-      });
-
-      if (result.access_token) {
-        localStorage.setItem("rivers_token", result.access_token);
-        props.onLoginSuccess(result.access_token);
-      } else if (result.error_description) {
-        setError(result.error_description);
-      }
-    } catch (err) {
-      console.error("Erro no comando Rust:", err);
-      setError("Falha na comunicação com o sistema.");
+      const result: any = await invoke("login_with_supabase", { email: email(), password: password() });
+      localStorage.setItem("brook_token", result.access_token);
+      props.onLoginSuccess(result.access_token);
+    } catch (err: any) {
+      setError(err); 
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div class="h-screen w-screen flex bg-[#0d1117] text-white">
+    <div class="h-screen w-full flex bg-[#0d1117] text-white">
       {/* LADO ESQUERDO: IMAGEM/ARTE DO RIO DE DADOS (50%) */}
       {/* Você pode usar uma imagem real ou um fundo gradiente profundo aqui */}
       <div class="w-1/2 h-full bg-cover bg-center border-r border-white/10" 
@@ -59,7 +49,7 @@ export default function LoginPage(props: LoginPageProps) {
               <span class="text-3xl font-bold text-white">R</span>
             </div>
             <div>
-              <h1 class="text-3xl font-bold">RIVERS</h1>
+              <h1 class="text-3xl font-bold">Git Brook</h1>
               <p class="text-sm text-gray-400">Sync Your Flow.</p>
             </div>
           </div>
