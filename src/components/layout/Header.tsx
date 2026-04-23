@@ -38,7 +38,6 @@ export default function Header(props: Props) {
     const [fetching, setFetching] = createSignal(false);
     const { showLoading, hideLoading } = useLoading();
     const [openModalNewBranch, setOpenModalNewBranch] = createSignal(false);
-    const [dark, setDark] = createSignal(localStorage.getItem("theme") == "dark");
     
     const [platform, setPlatform] = createSignal("");
     const [showModalPullOpts, setShowModalPullOpts] = createSignal(false);
@@ -47,21 +46,6 @@ export default function Header(props: Props) {
       branch: string;
       message: string;
     } | null>(null);
-
-    const toggleDark = () => {
-      const newDark = !dark();
-      setDark(newDark);
-      
-      if (newDark) {
-        document.documentElement.classList.add("dark");
-        localStorage.setItem("theme", "dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-        localStorage.setItem("theme", "light");
-      }
-
-      window.dispatchEvent(new CustomEvent("theme-changed", { detail: { theme: newDark ? "dark" : "light" } }));
-    };
 
     async function openRepo() {
         const selected = await open({ directory: true, multiple: false });
@@ -293,13 +277,6 @@ export default function Header(props: Props) {
             />
           </Show>
 
-          <Button
-            class={`top-btn ${props.active ? "ml-2" : "ml-auto"}`}
-            onClick={toggleDark}
-          >
-            <img src={dark() ? sunIcon : moonIcon} class="inline h-6" />
-            <small>{dark() ? "Claro" : "Escuro"}</small>
-          </Button>
           <NewBranchModal open={openModalNewBranch()} 
             onCancel={() => setOpenModalNewBranch(false)} 
             onCreate={(branchName: string, branchType: string, checkout: boolean, baseBranch: string) => doCreateBranch(branchName, branchType, checkout, baseBranch)}
