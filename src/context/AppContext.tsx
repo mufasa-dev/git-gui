@@ -1,11 +1,10 @@
-import { createSignal, createContext, useContext, JSX, createMemo } from "solid-js";
+import { createSignal, createContext, useContext, JSX } from "solid-js";
 import * as i18n from "@solid-primitives/i18n";
 import { dict, Locale } from "../i18n";
 
-type AppTranslator = i18n.ChainedTranslator<typeof dict.pt>;
-
 interface AppContextProps {
-  t: () => AppTranslator; // Mudamos para um Accessor (função)
+  // Voltamos para o tipo Translator padrão
+  t: i18n.Translator<typeof dict.pt>;
   locale: () => Locale;
   setLocale: (l: Locale) => void;
   isDark: () => boolean;
@@ -19,11 +18,8 @@ export function AppProvider(props: { children: JSX.Element }) {
     (localStorage.getItem("lang") as Locale) || "pt"
   );
 
-  // O createMemo garante que o tradutor seja recriado APENAS quando o locale mudar
-  const t = createMemo(() => {
-    const base = i18n.translator(() => dict[locale()], i18n.resolveTemplate);
-    return i18n.chainedTranslator(dict[locale()], base) as AppTranslator;
-  });
+  // Criamos o tradutor reativo simples
+  const t = i18n.translator(() => dict[locale()]);
 
   const [isDark, setIsDark] = createSignal(localStorage.getItem("theme") !== "light");
 
@@ -40,7 +36,6 @@ export function AppProvider(props: { children: JSX.Element }) {
   };
 
   return (
-    // Passamos a referência do memo 't' (sem executar aqui)
     <AppContext.Provider value={{ t, locale, setLocale: updateLocale, isDark, toggleTheme }}>
       {props.children}
     </AppContext.Provider>

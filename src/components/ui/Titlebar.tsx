@@ -69,13 +69,13 @@ export default function Titlebar() {
                 class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                 onClick={() => {/* Abrir Configurações */}}
               >
-                <i class="fa-solid fa-gear opacity-70"></i> Configurações
+                <i class="fa-solid fa-gear opacity-70"></i> {t("common").settings}
               </button>
               <button 
                 onClick={handleLogout}
                 class="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2"
               >
-                <i class="fa-solid fa-right-from-bracket"></i> {t().auth.logout()}
+                <i class="fa-solid fa-right-from-bracket"></i> {t("auth").logout}
               </button>
             </div>
           </Show>
