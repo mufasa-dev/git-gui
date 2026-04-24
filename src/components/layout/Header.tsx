@@ -23,6 +23,7 @@ import bashIcon from "../../assets/bash.png";
 import commandIcon from "../../assets/command.png";
 import internetIcon from "../../assets/worldwide.png";
 import { useLoading } from "../ui/LoadingContext";
+import { useApp } from "../../context/AppContext";
 
 type Props = {
     repos: Repo[];
@@ -38,6 +39,7 @@ export default function Header(props: Props) {
     const [fetching, setFetching] = createSignal(false);
     const { showLoading, hideLoading } = useLoading();
     const [openModalNewBranch, setOpenModalNewBranch] = createSignal(false);
+    const { t } = useApp();
     
     const [platform, setPlatform] = createSignal("");
     const [showModalPullOpts, setShowModalPullOpts] = createSignal(false);
@@ -174,7 +176,7 @@ export default function Header(props: Props) {
       try {
         showLoading("Criando branch...");
         await createBranch(branchName, branchType, checkout, baseBranch, props.active!);
-        notify.success('Nova Branch', `Branch ${branchName} criada com sucesso!`);
+        notify.success(t('git').new_branch, `Branch ${branchName} criada com sucesso!`);
         setOpenModalNewBranch(false);
         await props.refreshBranches(props.active!);
       } catch (err) {
@@ -232,10 +234,10 @@ export default function Header(props: Props) {
             </Button>
             <Button class="top-btn" onClick={() => setOpenModalNewBranch(true)} disabled={disabledButton()}>
               <img src={branchIcon} class="inline h-6" />
-              <small>Nova Branch</small>
+              <small>{t('git').new_branch}</small>
             </Button>
             <DropdownButton
-              label="Abrir"
+              label={t('common').open}
               class="ml-auto"
               img={newWindowIcon}
               options={[
