@@ -12,6 +12,7 @@ import configIcon from "../../assets/config_silver.png";
 import logo from "../../assets/fork.png";
 import Tooltip from "./Tooltip";
 import { Show } from "solid-js";
+import { useApp } from "../../context/AppContext";
 
 export default function LateralBar(props: {
   repos: Repo[];
@@ -19,20 +20,22 @@ export default function LateralBar(props: {
   isLogged: boolean;
   onChangeActive: (id: string) => void;
 }) {
+  const { t } = useApp();
+
   return (
     <div class="flex flex-col border rounded-r-xl mt-2 mb-2 bg-white dark:bg-gray-800 dark:border-gray-700" style={{"width": "56px"}}>
       <img src={logo} class="px-2 h-10 mt-2 mb-4" />
-      <Tooltip text="Commits" class="mb-2">
+      <Tooltip text={t('commits').commits} class="mb-2">
         <Button class={`left-btn w-full ${props.active === "commits" ? "selected" : ""}`} onClick={() => props.onChangeActive("commits")}>
           <img src={branchIcon} class="h-10" />
         </Button>
       </Tooltip>
-      <Tooltip text="Arquivos" class="mb-2">
+      <Tooltip text={t('file').files} class="mb-2">
         <Button class={`left-btn w-full ${props.active === "files" ? "selected" : ""}`} onClick={() => props.onChangeActive("files")}>
           <img src={fileIcon} class="h-10" />
         </Button>
       </Tooltip>
-      <Tooltip text="Testes" class="mb-2">
+      <Tooltip text={t('test').tests} class="mb-2">
         <Button class={`left-btn w-full ${props.active === "test" ? "selected" : ""}`} onClick={() => props.onChangeActive("test")}>
           <img src={testIcon} class="h-10" />
         </Button>
