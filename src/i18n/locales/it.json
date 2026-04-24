@@ -61,6 +61,7 @@
     "new_branch": "Nuova Branch",
     "name_branch": "Nome della Branch",
     "base_branch": "Basata su",
+    "checkout_new_branch": "Fai checkout sulla nuova branch",
     "create_branch": "Crea Branch",
     "delete_branch": "Elimina Branch",
     "switch_branch": "Cambia Branch",

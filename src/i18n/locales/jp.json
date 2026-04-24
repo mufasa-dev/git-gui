@@ -61,6 +61,7 @@
     "new_branch": "新しいブランチ",
     "name_branch": "ブランチ名",
     "base_branch": "ベース",
+    "checkout_new_branch": "新しいブランチにチェックアウト",
     "create_branch": "ブランチ作成",
     "delete_branch": "ブランチ削除",
     "switch_branch": "ブランチ切り替え",

@@ -2,6 +2,7 @@ import { createSignal, createMemo } from "solid-js";
 import Button from "../ui/Button";
 import Dialog from "../ui/Dialog";
 import { SearchableSelect } from "../ui/SearchableSelect"; // Ajuste o path conforme seu projeto
+import { useApp } from "../../context/AppContext";
 
 type Props = {
   open: boolean;
@@ -17,6 +18,7 @@ export default function BranchSwitchModal(props: Props) {
   const [branchType, setBranchType] = createSignal("branch");
   const [checkout, setCheckout] = createSignal(true);
   const [baseBranch, setBaseBranch] = createSignal("main");
+  const { t } = useApp();
 
   // Opções fixas para o Tipo de Branch
   const typeOptions = [
@@ -35,11 +37,11 @@ export default function BranchSwitchModal(props: Props) {
   });
 
   return (
-    <Dialog open={props.open} title="Nova Branch" onClose={props.onCancel}>
+    <Dialog open={props.open} title={t('git').new_branch} onClose={props.onCancel}>
       <div class="flex flex-col gap-4">
         {/* Nome da Branch */}
         <div>
-          <label class="block text-sm font-medium mb-1">Nome da branch:</label>
+          <label class="block text-sm font-medium mb-1">{t('git').name_branch}:</label>
           <input 
             type="text" 
             class="w-full input-text" 
@@ -58,7 +60,7 @@ export default function BranchSwitchModal(props: Props) {
 
         {/* Tipo da Branch */}
         <div>
-          <label class="block text-sm font-medium mb-1">Tipo:</label>
+          <label class="block text-sm font-medium mb-1">{t('common').type}:</label>
           <SearchableSelect 
             options={typeOptions}
             initialValue={branchType()}
@@ -68,7 +70,7 @@ export default function BranchSwitchModal(props: Props) {
 
         {/* Branch Base */}
         <div>
-          <label class="block text-sm font-medium mb-1">Baseada em:</label>
+          <label class="block text-sm font-medium mb-1">{t('git').base_branch}:</label>
           <SearchableSelect 
             options={branchOptions()}
             initialValue={baseBranch()}
@@ -87,7 +89,7 @@ export default function BranchSwitchModal(props: Props) {
             onChange={(e) => setCheckout(e.currentTarget.checked)}
           />
           <label for="checkout" class="text-sm cursor-pointer select-none">
-            Fazer checkout para a nova branch
+            {t('git').checkout_new_branch}
           </label>
         </div>
 
@@ -97,14 +99,14 @@ export default function BranchSwitchModal(props: Props) {
             class="border rounded border-gray-400 dark:border-gray-700 flex-1 py-2"
             onClick={props.onCancel}
           >
-            Cancelar
+            {t('common').cancel}
           </Button>
 
           <Button
             class="btn-primary flex-1 py-2 font-bold"
             onClick={() => props.onCreate(branchName(), branchType(), checkout(), baseBranch())}
           >
-            Criar Branch
+            {t('git').create_branch}
           </Button>
         </div>
       </div>

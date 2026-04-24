@@ -61,6 +61,7 @@
     "new_branch": "New Branch",
     "name_branch": "Branch Name",
     "base_branch": "Based on",
+    "checkout_new_branch": "Checkout New Branch",
     "create_branch": "Create Branch",
     "delete_branch": "Delete Branch",
     "switch_branch": "Switch Branch",
