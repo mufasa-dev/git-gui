@@ -5,6 +5,7 @@ import Dialog from "../ui/Dialog";
 import { getGravatarUrl } from "../../services/gravatarService";
 import { openBrowser } from "../../services/openService";
 import { notify } from "../../utils/notifications";
+import { useApp } from "../../context/AppContext";
 
 interface UserConfigModalProps {
   repoPath: string;
@@ -21,6 +22,8 @@ export default function UserConfigModal(props: UserConfigModalProps) {
   
   const [name, setName] = createSignal("");
   const [email, setEmail] = createSignal("");
+
+  const { t } = useApp();
 
   createEffect(async () => {
     if (props.isOpen && props.repoPath) {
@@ -155,7 +158,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
 
             <div class="flex-1 space-y-4">
               <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Nome</label>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{t('common').name}</label>
                 <input 
                   type="text" 
                   value={name()}
@@ -164,7 +167,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
                 />
               </div>
               <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">E-mail</label>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{t('auth').email_label}</label>
                 <input 
                   type="email" 
                   value={email()}
@@ -176,8 +179,8 @@ export default function UserConfigModal(props: UserConfigModalProps) {
                 * Configurações salvas apenas neste repositório (--local).
               </p>
               <div class="pt-4 flex justify-end gap-2">
-                 <button onClick={props.onClose} class="px-4 py-1.5 text-sm text-gray-500 hover:text-black dark:hover:text-white">Fechar</button>
-                 <button onClick={handleSaveUser} class="px-6 py-1.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">Salvar Perfil</button>
+                 <button onClick={props.onClose} class="px-4 py-1.5 text-sm text-gray-500 hover:text-black dark:hover:text-white">{t('common').close}</button>
+                 <button onClick={handleSaveUser} class="px-6 py-1.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">{t('auth').save_profile}</button>
               </div>
             </div>
           </div>

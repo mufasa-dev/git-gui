@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createSignal } from "solid-js";
+import { useApp } from "../context/AppContext";
 
 interface LoginPageProps {
   onLoginSuccess: (token: string) => void;
@@ -10,6 +11,7 @@ export default function LoginPage(props: LoginPageProps) {
   const [password, setPassword] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
+  const { t } = useApp();
 
   const handleLogin = async (e: Event) => {
     e.preventDefault();
@@ -75,7 +77,7 @@ export default function LoginPage(props: LoginPageProps) {
             )}
 
             <div>
-              <label class="block text-sm text-gray-500 mb-1.5">E-mail</label>
+              <label class="block text-sm text-gray-500 mb-1.5">{t('auth').email_label}</label>
               <input 
                 type="email" 
                 placeholder="seu@email.com"
@@ -86,7 +88,7 @@ export default function LoginPage(props: LoginPageProps) {
             </div>
 
             <div>
-              <label class="block text-sm text-gray-500 mb-1.5">Senha</label>
+              <label class="block text-sm text-gray-500 mb-1.5">{t('auth').password_label}</label>
               <input 
                 type="password" 
                 placeholder="••••••••"
