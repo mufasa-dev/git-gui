@@ -15,6 +15,7 @@ import { CommitDetails } from "../components/commits/CommitDetails";
 import CommitMessage from "../components/ui/CommitMessage";
 import { SearchableSelect, SearchableSelectOption } from "../components/ui/SearchableSelect";
 import CodePreviewer from "../components/ui/CodePreviewer";
+import { useApp } from "../context/AppContext";
 
 export default function FileList(props: { repo: Repo }) {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
@@ -35,6 +36,7 @@ export default function FileList(props: { repo: Repo }) {
   const [showHistory, setShowHistory] = createSignal(false);
   const [searchTerm, setSearchTerm] = createSignal("");
   const [isBinary, setIsBinary] = createSignal(false);
+  const { t } = useApp();
 
   const UNSUPPORTED_EXTENSIONS = [
     '.zip', '.rar', '.7z', '.tar', '.gz', 
@@ -262,7 +264,7 @@ export default function FileList(props: { repo: Repo }) {
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
               <input
                 type="text"
-                placeholder="Buscar arquivos..."
+                placeholder={t('file').search_files + '...'}
                 class="w-full pl-8 pr-2 py-1 text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                 value={searchTerm()}
                 onInput={(e) => setSearchTerm(e.currentTarget.value)}
@@ -311,12 +313,12 @@ export default function FileList(props: { repo: Repo }) {
                       setShowHistory(!showHistory());
                       getPathHistoryAsync(selectedFilePath()[0]);
                     }}>
-                    <i class="fa-solid fa-clock-rotate-left mr-2" /> Histórico
+                    <i class="fa-solid fa-clock-rotate-left mr-2" /> {t('file').history} 
                   </button>
                 </Show>
                 <Show when={showHistory()}>
                   <button class="bg-transparent border-0 ml-auto flex items-center hover:text-blue-500" onClick={() => setShowHistory(!showHistory())}>
-                    <i class="fa-solid fa-folder mr-2"></i> Arquivos
+                    <i class="fa-solid fa-folder mr-2"></i> {t('file').files} 
                   </button>
                 </Show>
               </Show>
@@ -346,9 +348,9 @@ export default function FileList(props: { repo: Repo }) {
                 <table class="w-full text-left border-collapse table-striped">
                   <thead class="sticky top-0 left-0">
                     <tr class="border-b border-gray-300 bg-gray-200 dark:border-gray-700 dark:bg-gray-700">
-                      <th class="p-2 font-semibold">Nome</th>
-                      <th class="p-2 font-semibold">Último Commit</th>
-                      <th class="p-2 font-semibold text-right">Data do Commit</th>
+                      <th class="p-2 font-semibold">{t('common').name}</th>
+                      <th class="p-2 font-semibold">{t('commits').last_commit}</th>
+                      <th class="p-2 font-semibold text-right">{t('commits').commit_date}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -393,7 +395,7 @@ export default function FileList(props: { repo: Repo }) {
                 <div class={`bg-gray-300 dark:bg-gray-700 p-2 w-full rounded-t-xl flex items-center gap-2 ${(isImage() || isBinary()) && 'mb-auto'}`}>
                   <FileIcon fileName={getSelectedFileName()} /> 
                   <Show when={!isImage() && !isBinary()}>
-                    <b>{(fileMeta()?.lines || 0)} linhas</b>
+                    <b>{(fileMeta()?.lines || 0)} {t('file').lines}</b>
                     <span>-</span>
                   </Show>
                   <span>{formatSize(fileMeta()?.size || 0)}</span>
