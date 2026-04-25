@@ -1,5 +1,6 @@
 import { Show } from "solid-js";
 import { Portal } from "solid-js/web";
+import { useApp } from "../../context/AppContext";
 
 type ConfirmModalProps = {
     isOpen: boolean;
@@ -13,6 +14,8 @@ type ConfirmModalProps = {
 };
 
 export default function ConfirmModal(props: ConfirmModalProps) {
+    const { t } = useApp();
+
     return (
         <Show when={props.isOpen}>
             <Portal>
@@ -35,14 +38,14 @@ export default function ConfirmModal(props: ConfirmModalProps) {
                                 onClick={props.onCancel}
                                 class="flex-1 px-4 py-3 text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                             >
-                                {props.cancelText || 'Cancelar'}
+                                {props.cancelText || t('common').cancel}
                             </button>
                             <button 
                                 onClick={props.onConfirm}
                                 class={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-widest text-white transition-all
                                     ${props.isDanger ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'}`}
                             >
-                                {props.confirmText || 'Confirmar'}
+                                {props.confirmText || t('common').confirm}
                             </button>
                         </div>
                     </div>

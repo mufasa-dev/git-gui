@@ -7,6 +7,7 @@ import { githubLight } from '@uiw/codemirror-theme-github';
 import { Transaction, Annotation } from "@codemirror/state";
 import { notify } from "../../utils/notifications";
 import { conflictHighlightPlugin } from "../../utils/conflictHighlight";
+import { useApp } from "../../context/AppContext";
 
 // Helper para identificar mudanças programáticas vs manuais
 const ExternalChange = Annotation.define<boolean>();
@@ -29,6 +30,7 @@ export default function VSMergeEditor(props: Props) {
   const [resolutions, setResolutions] = createSignal<Record<number, ("current" | "incoming")[]>>({});
   const [manualResult, setManualResult] = createSignal<string | null>(null);
   const [isDark, setIsDark] = createSignal(localStorage.getItem("theme") === "dark");
+  const { t } = useApp();
 
   let leftRef: HTMLDivElement | undefined;
   let rightRef: HTMLDivElement | undefined;
@@ -281,7 +283,7 @@ export default function VSMergeEditor(props: Props) {
             <Show when={manualResult() !== null}>
               <button onClick={() => setManualResult(null)} class="text-gray-400 hover:text-white underline italic">Reset to Auto</button>
             </Show>
-            <button onClick={props.onClose} class="hover:text-white text-gray-400">Cancelar</button>
+            <button onClick={props.onClose} class="hover:text-white text-gray-400">{t('common').cancel}</button>
             <button onClick={handleCompleteMerge} class="px-3 py-1 bg-blue-600 text-white rounded-xl font-bold">Completar Merge</button>
           </div>
         </div>

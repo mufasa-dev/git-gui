@@ -1,6 +1,7 @@
 import { For, Show, createMemo, createSignal } from "solid-js";
 import { highlightCode } from "../../utils/highlight";
 import { getExtension } from "../../utils/file";
+import { useApp } from "../../context/AppContext";
 
 type Props = {
   content: string;
@@ -12,6 +13,7 @@ export default function CodePreviewer(props: Props) {
 
     const extension = createMemo(() => getExtension(props.fileName));
     const [showFullFile, setShowFullFile] = createSignal(false);
+    const { t } = useApp();
 
     const allLines = createMemo(() => {
         if (!props.content) return [];
@@ -52,7 +54,7 @@ export default function CodePreviewer(props: Props) {
                 <Show when={isLargeFile() && !showFullFile()}>
                     <div class="p-4 bg-yellow-100 dark:bg-yellow-900/10 text-yellow-700 dark:text-yellow-500 text-xs text-center border-t dark:border-gray-800">
                         <i class="fa-solid fa-triangle-exclamation mr-2"></i>
-                        Arquivo grande ({allLines().length} linhas). Exibindo apenas as primeiras {MAX_INITIAL_LINES}.
+                        Arquivo grande ({allLines().length} {t('file').lines}). Exibindo apenas as primeiras {MAX_INITIAL_LINES}.
                         <button 
                             class="ml-2 underline font-bold hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors" 
                             onClick={() => setShowFullFile(true)}
