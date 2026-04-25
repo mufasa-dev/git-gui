@@ -139,6 +139,8 @@
     "tests": "Testes",
     "run": "Executar",
     "run_tests": "Executar testes",
+    "running": "Executando",
+    "running_tests": "Executando testes",
     "test_results": "Resultados dos testes",
     "coverage": "Cobertura",
     "test_report": "Relatório de testes",
@@ -147,7 +149,7 @@
     "passed": "Passou",
     "failed": "Falhou",
     "skipped": "Ignorado",
-    "rating_score": "Taxa de aprovação",
+    "rating_score": "Taxa de sucesso",
     "test_details": "Detalhes do teste"
   }
 }

@@ -139,6 +139,8 @@
     "tests": "テスト",
     "run": "実行",
     "run_tests": "テスト実行",
+    "running": "実行中",
+    "running_tests": "テストを実行中",
     "test_results": "テスト結果",
     "coverage": "カバレッジ",
     "test_report": "テストレポート",

@@ -139,6 +139,8 @@
     "tests": "Tests",
     "run": "Run",
     "run_tests": "Run tests",
+    "running": "Running",
+    "running_tests": "Running tests",
     "test_results": "Test results",
     "coverage": "Coverage",
     "test_report": "Test report",

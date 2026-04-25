@@ -6,6 +6,7 @@ import { getProjectType } from '../../services/testService';
 import { angularParser } from '../../lib/TestsPareser/AngularParser';
 import { formatDuration } from '../../utils/date';
 import FileIcon from '../ui/FileIcon';
+import { useApp } from '../../context/AppContext';
 
 interface TestSpec {
   id: string;
@@ -25,6 +26,7 @@ export const TestRunner = (props: { repo: any }) => {
   const [projectInfo, setProjectInfo] = createSignal<ProjectType | null>(null);
   const [searchQuery, setSearchQuery] = createSignal("");
   const [lastLoadedPath, setLastLoadedPath] = createSignal<string | null>(null);
+  const { t } = useApp();
 
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
   const storageKey = () => `trident_test_cache_${props.repo?.path}`;
@@ -207,21 +209,21 @@ export const TestRunner = (props: { repo: any }) => {
                     <Show when={isRunning()} fallback={<i class="fa-solid fa-play"></i>}>
                       <i class="fa-solid fa-circle-notch animate-spin"></i>
                     </Show>
-                    {isRunning() ? 'Executando' : 'Executar'}
+                    {isRunning() ? t('test').running : t('test').run}
                 </button>
             </div>
             
             <div class="grid grid-cols-3 gap-1 text-center">
               <div class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-1 rounded">
-                <div class="text-[10px] text-gray-500 dark:text-gray-400 uppercase">Total</div>
+                <div class="text-[10px] text-gray-500 dark:text-gray-400 uppercase">{t('test').total}</div>
                 <div class="text-xs font-bold">{stats().total}</div>
               </div>
               <div class="bg-green-500/10 p-1 rounded border border-green-500/20">
-                <div class="text-[10px] text-green-500 uppercase dark:text-green-500">Pass</div>
+                <div class="text-[10px] text-green-500 uppercase dark:text-green-500">{t('test').passed}</div>
                 <div class="text-xs font-bold text-green-500">{stats().passed}</div>
               </div>
               <div class="bg-red-500/10 p-1 rounded border border-red-500/20">
-                <div class="text-[10px] text-red-500 uppercase dark:text-red-500">Fail</div>
+                <div class="text-[10px] text-red-500 uppercase dark:text-red-500">{t('test').failed}</div>
                 <div class="text-xs font-bold text-red-500">{stats().failed}</div>
               </div>
             </div>
@@ -244,7 +246,7 @@ export const TestRunner = (props: { repo: any }) => {
             {/* Opcional: Porcentagem de Sucesso */}
             <Show when={stats().total > 0}>
               <div class="mt-1 text-[9px] text-right font-mono opacity-50 uppercase tracking-tighter">
-                {Math.round((stats().passed / stats().total) * 100)}% taxa de sucesso
+                {Math.round((stats().passed / stats().total) * 100)}% {t('test').rating_score}
               </div>
             </Show>
 
@@ -252,7 +254,7 @@ export const TestRunner = (props: { repo: any }) => {
               <i class={`fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[10px] transition-opacity ${isRunning() ? 'opacity-20' : 'opacity-50'}`}></i>
               <input 
                 type="text"
-                placeholder={isRunning() ? "Executando testes..." : "Procurar..."}
+                placeholder={isRunning() ? t('test').running + "..." : "Procurar..."}
                 disabled={isRunning()}
                 value={searchQuery()}
                 onInput={(e) => setSearchQuery(e.currentTarget.value)}

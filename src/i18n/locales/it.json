@@ -139,6 +139,8 @@
     "tests": "Test",
     "run": "Esegui",
     "run_tests": "Esegui test",
+    "running": "Esegui",
+    "running_tests": "Esegui test",
     "test_results": "Risultati test",
     "coverage": "Copertura",
     "test_report": "Rapporto test",
