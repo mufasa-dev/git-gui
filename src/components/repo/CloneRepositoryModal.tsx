@@ -1,5 +1,6 @@
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
+import { useApp } from "../../context/AppContext";
 
 export default function CloneRepositoryModal(props: { 
   isOpen: boolean, 
@@ -10,6 +11,7 @@ export default function CloneRepositoryModal(props: {
   const [url, setUrl] = createSignal(props.initialUrl || "");
   const [path, setPath] = createSignal("");
   const [loading, setLoading] = createSignal(false);
+  const { t } = useApp();
 
   const getRepoName = (u: string) => {
     const parts = u.split('/');
@@ -120,7 +122,7 @@ export default function CloneRepositoryModal(props: {
                 onClick={props.onClose}
                 class="flex-1 py-3 font-bold text-gray-500 hover:text-black dark:hover:text-white rounded-xl transition-all"
               >
-                Cancelar
+                {t('common').cancel}
               </button>
               <button 
                 type="submit"

@@ -1,3 +1,4 @@
+import { useApp } from "../../context/AppContext";
 import Button from "../ui/Button";
 import Dialog from "../ui/Dialog";
 
@@ -10,6 +11,8 @@ type Props = {
 };
 
 export default function BranchSwitchModal(props: Props) {
+  const { t } = useApp();
+
   return (
     <Dialog open={props.open} title="Mudar de Branch" onClose={props.onCancel}>
         <h2 class="text-lg font-semibold">
@@ -38,7 +41,7 @@ export default function BranchSwitchModal(props: Props) {
             class="border-gray-400 dark:border-gray-700"
             onClick={props.onCancel}
           >
-            Cancelar
+            {t('common').cancel}
           </Button>
         </div>
     </Dialog>
