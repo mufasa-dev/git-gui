@@ -2,10 +2,12 @@ import { createResource, createSignal, For, Show, createMemo } from "solid-js";
 import { githubService } from "../../services/github";
 import FileIcon from "../ui/FileIcon";
 import DiffViewer from "../ui/DiffViewer";
+import { useApp } from "../../context/AppContext";
 
 export default function PRFilesTab(props: { owner: string, repoName: string, prNumber: number }) {
   const [selectedFilePath, setSelectedFilePath] = createSignal<string | null>(null);
   const [searchTerm, setSearchTerm] = createSignal("");
+  const { t } = useApp();
 
   // 1. Busca a lista estruturada de arquivos (para a sidebar)
   const [files] = createResource(
@@ -56,7 +58,7 @@ export default function PRFilesTab(props: { owner: string, repoName: string, prN
              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[10px]"></i>
              <input 
               type="text" 
-              placeholder="Buscar arquivo..." 
+              placeholder={t('file').search_files + '...'}
               onInput={(e) => setSearchTerm(e.currentTarget.value)}
               class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg pl-8 pr-3 py-1.5 text-[11px] outline-none focus:border-blue-500 transition-all dark:text-white"
              />

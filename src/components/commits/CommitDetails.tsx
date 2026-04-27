@@ -9,6 +9,7 @@ import CommitMessage from "../ui/CommitMessage";
 import { UserProfileDialog } from "../Config/UserProfile";
 import { formatContributorName } from "../../utils/user";
 import Dialog from "../ui/Dialog";
+import { useApp } from "../../context/AppContext";
 
 type CommitDetailsProps = {
   commit: any;
@@ -25,6 +26,7 @@ export function CommitDetails(props: CommitDetailsProps) {
   const [lastProcessedHash, setLastProcessedHash] = createSignal<string | null>(null);
   const [loadingDiff, setLoadingDiff] = createSignal(false);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
+  const { t } = useApp();
 
   const fetchFileDiff = async (file: any) => {
     setSelectedFile(file);
@@ -98,7 +100,7 @@ export function CommitDetails(props: CommitDetailsProps) {
                 : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:dark:text-gray-300"
               }`}
             >
-              <i class="fa fa-copy"></i> Arquivos ({props.commit?.files?.length || 0})
+              <i class="fa fa-copy"></i> {t('file').files} ({props.commit?.files?.length || 0})
             </button>
           </div>
 
@@ -210,7 +212,7 @@ export function CommitDetails(props: CommitDetailsProps) {
         </>
       }>
         <div class="h-full flex items-center justify-center text-gray-400 italic">
-          Selecione um commit para ver os detalhes
+          {t('commits').select_commit} 
         </div>
       </Show>
       <Show when={modalUserProfileOpen()}>

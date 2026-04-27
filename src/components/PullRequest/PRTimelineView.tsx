@@ -7,6 +7,7 @@ import CommitMessage from "../ui/CommitMessage";
 import { useLoading } from "../ui/LoadingContext";
 import { getEmojiChar } from "../../utils/emoji";
 import ConfirmModal from "../ui/ConfirmModal";
+import { useApp } from "../../context/AppContext";
 
 type PRTimelineViewProps = {
     owner: string;
@@ -22,6 +23,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     const [commentText, setCommentText] = createSignal("");
     const { showLoading, hideLoading } = useLoading();
     const [confirmData, setConfirmData] = createSignal<{ id: string } | null>(null);
+    const { t } = useApp();
     
     const [timeline, { refetch }] = createResource(
         () => ({ owner: props.owner, name: props.repo, number: props.pr.number }),
@@ -114,7 +116,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                 <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-5">
                     <div class="flex justify-between items-end mb-3">
                         <span class="text-lg font-black text-gray-900 dark:text-white">
-                            {props.details?.changedFiles || 0} <span class="text-[10px] text-gray-400 font-black uppercase ml-1 tracking-widest">arquivos</span>
+                            {props.details?.changedFiles || 0} <span class="text-[10px] text-gray-400 font-black uppercase ml-1 tracking-widest">{t('file').files} </span>
                         </span>
                         <div class="flex gap-4 font-mono font-bold text-xs">
                             <span class="text-green-500">+{props.details?.additions || 0}</span>
