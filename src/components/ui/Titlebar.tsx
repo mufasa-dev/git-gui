@@ -12,13 +12,8 @@ export default function Titlebar() {
   const appWindow = getCurrentWindow();
 
   const handleLogout = () => {
-    // 1. Limpa os dados de autenticação (JWT, user info, etc)
-    localStorage.removeItem("token"); 
-    localStorage.removeItem("user_data");
+    localStorage.removeItem("brook_token");
 
-    // 2. Redirecionar para a tela de login
-    // Se você usa solid-app-router: useNavigate()("/login")
-    // Ou via window location para um reset completo:
     window.location.href = "/login";
   };
 
@@ -46,7 +41,7 @@ export default function Titlebar() {
     >
       <div class="flex items-center h-full">
         <img src={logo} class="px-2 h-7" />
-        <span class="text-xs font-semibold opacity-70">Rivers</span>
+        <span class="text-xs font-semibold opacity-70">Brook</span>
       </div>
       
       <div class="flex h-full items-center">
@@ -63,7 +58,7 @@ export default function Titlebar() {
           <Show when={showAccountMenu()}>
             <div class="absolute right-0 mt-0 w-48 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-lg rounded-b-md py-1 z-50">
               <div class="px-4 py-2 border-b dark:border-gray-700 text-[10px] uppercase tracking-wider opacity-50 font-bold">
-                Minha Conta
+                {t("auth").my_account}
               </div>
               <button 
                 class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
