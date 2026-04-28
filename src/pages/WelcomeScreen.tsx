@@ -11,6 +11,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { path } from "@tauri-apps/api";
 import RemoteRepoModal from "../components/Remote/RemoteRepoModal";
 import { useRepoContext } from "../context/RepoContext";
+import { useApp } from "../context/AppContext";
 
 type Props = {
     repos: Repo[];
@@ -22,6 +23,7 @@ export default function WelcomeScreen(props: Props) {
     const { showLoading, hideLoading } = useLoading();
     const [isCloneModalOpen, setIsCloneModalOpen] = createSignal(false);
     const [presetUrl, setPresetUrl] = createSignal("");
+    const { t } = useApp();
 
     const providersList = [
         { id: 'github', name: 'GitHub', icon: 'fa-brands fa-github' },
@@ -106,7 +108,7 @@ export default function WelcomeScreen(props: Props) {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-12 w-full max-w-4xl">
                 <div class="space-y-6">
-                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest px-1">Ações Rápidas</h2>
+                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest px-1">{t('repository').actions}</h2>
                     <LocalActions 
                         onOpenClone={() => { setPresetUrl(""); setIsCloneModalOpen(true); }} 
                         onOpenLocal={async () => {
@@ -117,13 +119,12 @@ export default function WelcomeScreen(props: Props) {
                 </div>
 
                 <div class="space-y-6">
-                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest px-1">Conexões de Provedor</h2>
+                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest px-1">{t('repository').provider_connections}</h2>
                     <div class="space-y-3">
                         <For each={providersList}>
                             {(provider) => <ProviderCard provider={provider} onSelectRepo={openCloneWithUrl} />}
                         </For>
                     </div>
-                    <button class="w-full text-[10px] uppercase font-bold text-gray-400 hover:text-blue-500 transition-colors py-2 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl">+ Adicionar Outro Provedor</button>
                 </div>
             </div>
 
@@ -142,6 +143,7 @@ export default function WelcomeScreen(props: Props) {
 function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => void }) {
     const { user, mutateUser, refetchUser } = useRepoContext();
     const [isRemoteModalOpen, setIsRemoteModalOpen] = createSignal(false);
+    const { t } = useApp();
 
     // Valida se o usuário logado no contexto pertence a este provedor específico
     const isLoggedHere = () => {
@@ -181,8 +183,8 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
                     </div>
                     <div>
                         <div class="text-sm font-bold dark:text-white">{props.provider.name}</div>
-                        <Show when={isLoggedHere()} fallback={<span class="text-[10px] text-gray-400 font-bold uppercase">Desconectado</span>}>
-                            <span class="text-[10px] text-green-500 font-bold uppercase">Conectado</span>
+                        <Show when={isLoggedHere()} fallback={<span class="text-[10px] text-gray-400 font-bold uppercase">{t('common').disconected}</span>}>
+                            <span class="text-[10px] text-green-500 font-bold uppercase">{t('common').connect}</span>
                         </Show>
                     </div>
                 </div>
@@ -195,13 +197,13 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
                 when={isLoggedHere()} 
                 fallback={
                     <button onClick={handleLogin} class="w-full py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-blue-600 hover:text-white transition-all">
-                        Conectar Conta
+                        {t('repository').connect_account}
                     </button>
                 }
             >
                 <div class="flex gap-2">
                     <button onClick={() => setIsRemoteModalOpen(true)} class="flex-1 py-1 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-                        Ver Meus Projetos
+                        {t('repository').see_projects}
                     </button>
                     <button onClick={handleLogout} title="Sair da conta" class="px-3 py-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors border border-gray-200 dark:border-gray-800 active:scale-95">
                         <i class="fa-solid fa-right-from-bracket text-xs"></i>
@@ -223,20 +225,22 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
 }
 
 function LocalActions(props: { onOpenClone: () => void, onOpenLocal: () => void }) {
+    const { t } = useApp();
+
     return (
         <div class="space-y-4">
             <button onClick={props.onOpenClone} class="w-full flex items-center gap-4 p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition-all group">
                 <i class="fa-solid fa-download text-2xl text-blue-500"></i>
                 <div class="text-left">
-                    <div class="font-bold dark:text-white group-hover:text-blue-500 transition-colors">Clonar Repositório</div>
-                    <p class="text-xs text-gray-500">Baixar de uma URL remota</p>
+                    <div class="font-bold dark:text-white group-hover:text-blue-500 transition-colors">{t('repository').clone_repository}</div>
+                    <p class="text-xs text-gray-500">{t('repository').clone_from_url}</p>
                 </div>
             </button>
             <button onClick={props.onOpenLocal} class="w-full flex items-center gap-4 p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition-all group">
                 <i class="fa-solid fa-folder-open text-2xl text-green-500"></i>
                 <div class="text-left">
-                    <div class="font-bold dark:text-white group-hover:text-green-500 transition-colors">Abrir Repositório Local</div>
-                    <p class="text-xs text-gray-500">Selecionar pasta no computador</p>
+                    <div class="font-bold dark:text-white group-hover:text-green-500 transition-colors">{t('repository').open_local_repository}</div>
+                    <p class="text-xs text-gray-500">{t('repository').select_pc_folder}</p>
                 </div>
             </button>
         </div>
