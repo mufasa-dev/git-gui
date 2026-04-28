@@ -1,12 +1,14 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import { GROUP_COLORS, IGNORED_EXTENSIONS, LANGUAGE_GROUPS } from "../../utils/file";
 import Dialog from "../ui/Dialog";
+import { useApp } from "../../context/AppContext";
 
 // O seu componente continua recebendo a lista do Rust: { path, size }
 export default function LanguageBar(props: { files: { path: string, size: number }[] }) {
 
   const [isModalOpen, setIsModalOpen] = createSignal(false);
   const [hiddenLanguages, setHiddenLanguages] = createSignal<string[]>([]);
+  const { t } = useApp();
 
   onMount(() => {
     const saved = localStorage.getItem("git-trident-hidden-langs");
@@ -107,7 +109,7 @@ export default function LanguageBar(props: { files: { path: string, size: number
       <div class="flex items-center justify-between mb-5">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-code text-blue-500 text-xs"></i>
-          <h4 class="font-bold text-gray-900 dark:text-white tracking-widest">Linguagens</h4>
+          <h4 class="font-bold text-gray-900 dark:text-white tracking-widest">{t('dashboard').languages}</h4>
         </div>
         
         <button 
@@ -156,12 +158,12 @@ export default function LanguageBar(props: { files: { path: string, size: number
       {/* MODAL DE CONFIGURAÇÃO */}
       <Dialog 
         open={isModalOpen()} 
-        title="Ocultar Linguagens" 
+        title={t('dashboard').hide_languages}
         onClose={() => setIsModalOpen(false)}
         width="400px"
       >
         <div class="space-y-4">
-          <p class="text-xs text-gray-400">Desmarque as linguagens que não deseja ver nas estatísticas (ex: JSON, Lockfiles):</p>
+          <p class="text-xs text-gray-400">{t('dashboard').hide_lanmguages_descri}</p>
           <div class="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto p-1">
             <For each={allAvailableLangs()}>
               {(langName) => (
@@ -183,7 +185,7 @@ export default function LanguageBar(props: { files: { path: string, size: number
           </div>
           <div class="pt-4 border-t border-gray-700 flex justify-end">
              <button onClick={() => setIsModalOpen(false)} class="btn-primary py-2 px-4 text-sm font-bold bg-blue-600 text-white rounded">
-               Salvar
+               {t('common').save}
              </button>
           </div>
         </div>

@@ -1,6 +1,9 @@
 import { createMemo, For, Show } from "solid-js";
+import { useApp } from "../../context/AppContext";
 
 export default function HourlyActivityChart(props: { commits: any[] }) {
+  const { t } = useApp();
+
   // Configurações de layout (seguindo o padrão do seu ActivityChart)
   const chartConfig = {
     svgWidth: 400,
@@ -50,7 +53,7 @@ export default function HourlyActivityChart(props: { commits: any[] }) {
       <div class="flex items-center gap-2 mb-4">
         <i class="fa-regular fa-clock text-blue-400 text-xs"></i>
         <h4 class="font-bold dark:text-gray-200 tracking-widest">
-          Atividade por Horário
+          {t('dashboard').hour_activity}
         </h4>
       </div>
 
@@ -138,8 +141,8 @@ export default function HourlyActivityChart(props: { commits: any[] }) {
       </div>
       
       <div class="mt-2 text-[9px] text-gray-900 dark:text-gray-200  flex justify-between items-center">
-        <span>Horário local do sistema</span>
-        <span class="text-blue-500/60 font-bold uppercase">Pico: {
+        <span>{t('dashboard').sytem_local_hour}</span>
+        <span class="text-blue-500/60 font-bold uppercase">{t('dashboard').peak}: {
             processedData().bars.sort((a,b) => b.value - a.value)[0]?.label
         }</span>
       </div>

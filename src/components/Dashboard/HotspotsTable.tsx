@@ -1,6 +1,7 @@
 import { createResource, For, Show } from "solid-js";
 import { getMostModifiedFiles, getUserMostModifiedFiles } from "../../services/gitService";
 import FileIcon from "../ui/FileIcon";
+import { useApp } from "../../context/AppContext";
 
 interface Props {
   path: string;
@@ -9,6 +10,8 @@ interface Props {
 }
 
 export default function HotspotsTable(props: Props) {
+  const { t } = useApp();
+
   const [hotspots] = createResource(
     () => ({ path: props.path, branch: props.branch }),
     async (params) => {
@@ -25,7 +28,7 @@ export default function HotspotsTable(props: Props) {
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold text-black dark:text-white tracking-widest flex items-center gap-2">
           <i class="fa-solid fa-fire text-orange-500"></i>
-          Arquivos Mais Modificados
+          {t('dashboard').hotspots}
         </h3>
         <Show when={hotspots.loading}>
           <div class="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
@@ -36,8 +39,8 @@ export default function HotspotsTable(props: Props) {
         <table class="table-striped">
           <thead>
             <tr>
-              <th class="text-[10px]">Arquivo</th>
-              <th class="text-right text-[10px]">Alterações</th>
+              <th class="text-[10px]">{t('file').file}</th>
+              <th class="text-right text-[10px]">{t('file').updates}</th>
             </tr>
           </thead>
           <tbody>
@@ -84,7 +87,7 @@ export default function HotspotsTable(props: Props) {
       </div>
 
       <div class="mt-3 text-[9px] text-gray-600 dark:text-gray-200 italic">
-        * Baseado no histórico total da branch ativa.
+        * {t('dashboard').basead_activit_branch}
       </div>
     </div>
   );

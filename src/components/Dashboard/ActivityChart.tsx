@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, Show, onMount } from "solid-js";
 import Dialog from "../ui/Dialog";
+import { useApp } from "../../context/AppContext";
 
 const formatDateAxis = (dateStr: string) => {
   const d = new Date(dateStr.replace(/-/g, '/')); 
@@ -20,6 +21,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
   const [daysToView, setDaysToView] = createSignal(30);
   const [isModalOpen, setIsModalOpen] = createSignal(false);
   const [hoveredPoint, setHoveredPoint] = createSignal<{x: number, y: number, value: number, date: string} | null>(null);
+  const { t } = useApp();
   
   // Estado para os dias ocultos (0 = Domingo, 6 = Sábado)
   const [hiddenDays, setHiddenDays] = createSignal<number[]>([]);
@@ -161,7 +163,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
       <div class="flex items-center justify-between mb-4">
         <h4 class="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2 ml-2">
            <i class="fa-solid fa-chart-line text-green-500"></i>
-           Atividade
+           {t('dashboard').activity}
         </h4>
         
         <div class="flex items-center gap-2">
@@ -190,12 +192,12 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
       {/* MODAL DE CONFIGURAÇÃO */}
       <Dialog 
         open={isModalOpen()} 
-        title="Configurar Gráfico" 
+        title={t('dashboard').config_Dash}
         onClose={() => setIsModalOpen(false)}
         width="350px"
       >
         <div class="space-y-4">
-          <p class="text-sm text-gray-400">Selecione os dias que deseja <b>ocultar</b> no gráfico caso não haja atividade:</p>
+          <p class="text-sm text-gray-400">{t('dashboard').select_days_to_hide}:</p>
           <div class="grid grid-cols-4 gap-2">
             <For each={WEEKDAYS}>
               {(day) => (
@@ -217,7 +219,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
                onClick={() => setIsModalOpen(false)}
                class="px-4 py-2 bg-green-600 text-white rounded text-sm font-bold"
              >
-               Pronto
+               {t('common').done}
              </button>
           </div>
         </div>
@@ -225,7 +227,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
       
       <div class="relative flex-1 min-h-[150px]">
         <Show when={props.commits.length > 0} fallback={
-          <div class="flex items-center justify-center h-full text-xs opacity-50 italic text-white">Sem atividades</div>
+          <div class="flex items-center justify-center h-full text-xs opacity-50 italic text-white">{t('dashboard').no_activity}</div>
         }>
           
           {/* 1. LEGENDAS DO EIXO Y (HTML Absoluto - Não distorce) */}
@@ -348,7 +350,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
             </div>
             <div class="flex items-center gap-1">
               <span class="w-2 h-2 rounded-full bg-green-500"></span>
-              {hoveredPoint()!.value} commits
+              {hoveredPoint()!.value} {t('commits').commits}
             </div>
           </div>
         </Show>

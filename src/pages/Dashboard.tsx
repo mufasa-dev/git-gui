@@ -15,6 +15,7 @@ import { UserProfileDialog } from "../components/Config/UserProfile";
 import { formatContributorName } from "../utils/user";
 import Dialog from "../components/ui/Dialog";
 import CommitsModalList from "../components/commits/CommitsModalList";
+import { useApp } from "../context/AppContext";
 
 declare module "solid-js" {
   namespace JSX {
@@ -38,6 +39,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
   const [showCommits, setShowCommits] = createSignal(false);
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
+  const { t } = useApp();
   
   // Estados para Paginação e Filtro
   const [searchTerm, setSearchTerm] = createSignal("");
@@ -183,19 +185,19 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   
         <div class="grid grid-cols-2 grid-rows-2 gap-2">
           <div class="container-branch-list items-center justify-center">
-            <span class="text-xs uppercase opacity-60">Total de Commits</span>
+            <span class="text-xs uppercase opacity-60">{t('dashboard').total_commits}</span>
             <h3 class="font-bold !text-5xl mb-2">{commits()?.length}</h3>
           </div>
           <div class="container-branch-list items-center justify-center">
-            <span class="text-xs uppercase opacity-60">Total de Branchs</span>
+            <span class="text-xs uppercase opacity-60">{t('dashboard').total_branches}</span>
             <h3 class="font-bold !text-5xl mb-2">{props.repo.remoteBranches?.length}</h3>
           </div>
           <div class="container-branch-list items-center justify-center">
-            <span class="text-xs uppercase opacity-60">Contribuidores</span>
+            <span class="text-xs uppercase opacity-60">{t('dashboard').contributors}</span>
             <h3 class="font-bold !text-5xl">{totalContributors()}</h3>
           </div>
           <div class="container-branch-list items-center justify-center">
-            <span class="text-xs uppercase opacity-60">Total de Arquivos</span>
+            <span class="text-xs uppercase opacity-60">{t('dashboard').total_files}</span>
             <h3 class="font-bold !text-5xl mb-2">{branchFiles()?.length}</h3>
           </div>
         </div>
@@ -219,15 +221,15 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         <div class="container-branch-list">
           <h4 class="font-bold mb-0 flex items-center gap-2">
             <i class="fa-solid fa-trophy text-yellow-500"></i>
-            Top Contribuidores
+            {t('dashboard').top_contributors}
           </h4>
           <div class="overflow-auto flex-1 rounded-lg border border-gray-300 dark:border-gray-700">
             <table class="w-full text-left text-xs table-striped">
               <thead class="sticky top-0 bg-white dark:bg-gray-800">
                 <tr class="border-b border-gray-200 dark:border-gray-700">
                   <th class="pb-2 !w-5"></th>
-                  <th class="pb-2">Autor</th>
-                  <th class="pb-2 text-right">Commits</th>
+                  <th class="pb-2">{t('commits').author}</th>
+                  <th class="pb-2 text-right">{t('commits').commits}</th>
                   <th class="pb-2 text-right text-gray-400">%</th>
                 </tr>
               </thead>
@@ -284,7 +286,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
             onClose={() => {
               setModalUserProfileOpen(false)
               setSelectedUser({ name: "", email: "" });
-            }} title="Perfil do Usuário" width={"90vw"}>
+            }} title={t('auth').user_profile} width={"90vw"}>
           <UserProfileDialog 
             repoPath={props.repo.path || ""} 
             branch={props.branch || ""}

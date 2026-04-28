@@ -140,7 +140,7 @@ export default function ContributionGraph(props: { commits: any[], openCommits: 
         {/* Rótulos Laterais (TODOS os dias da semana) */}
         <div class="grid grid-rows-7 text-[9px] text-gray-500 pr-1 mt-5 select-none">
           <For each={daysOfWeek}>
-            {(day) => <div class="flex items-center h-full leading-none h-[1fr]">{day}</div>}
+            {(day) => <div class="flex items-center leading-none h-[1fr]">{day}</div>}
           </For>
         </div>
 
