@@ -40,13 +40,13 @@ export default function LateralBar(props: {
           <img src={testIcon} class="h-10" />
         </Button>
       </Tooltip>
-      <Tooltip text="Dashboard" class="mb-2">
+      <Tooltip text={t('dashboard').dashboard} class="mb-2">
         <Button class={`left-btn w-full ${props.active === "dashboard" ? "selected" : ""}`} onClick={() => props.onChangeActive("dashboard")}>
           <img src={dashboardIcon} class="h-10" />
         </Button>
       </Tooltip>
       <Show when={props.isLogged}>
-        <Tooltip text="Pull Requests" class="mb-2">
+        <Tooltip text={t('pr').pull_requests} class="mb-2">
           <Button class={`left-btn w-full ${props.active === "pull-requests" ? "selected" : ""}`} onClick={() => props.onChangeActive("pull-requests")}>
             <img src={prIcon} class="h-10" />
           </Button>
@@ -62,7 +62,7 @@ export default function LateralBar(props: {
           </Button>
         </Tooltip>*/}
       </Show>
-      <Tooltip text="Perfil" class="mb-2 mt-auto">
+      <Tooltip text={t('auth').user_profile} class="mb-2 mt-auto">
         <Button class={`left-btn w-full ${props.active === "profile" ? "selected" : ""}`} onClick={() => props.onChangeActive("profile")}>
           <img src={profileIcon} class="h-10" />
         </Button>
