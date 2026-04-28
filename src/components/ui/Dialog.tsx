@@ -21,15 +21,15 @@ export default function Dialog(props: Props) {
         onClick={props.onClose}
       >
         <div
-          class="bg-white dark:bg-gray-800 rounded shadow-xl relative"
+          class="bg-white dark:bg-gray-800 rounded-xl shadow-xl relative"
           style={{ width, height }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div class="flex items-center justify-between bg-gray-600 dark:bg-gray-700 px-4 py-2 rounded-t">
-            <span class="text-white font-bold">{props.title}</span>
+          <div class="flex items-center justify-between border-b border-gray-600 dark:border-gray-700 p-4 rounded-t-xl">
+            <span class="text-gray-500 dark:text-white font-bold">{props.title}</span>
             <button
-              class="text-white hover:text-gray-300"
+              class="text-gray-500 dark:text-white hover:text-red-500 transition-colors"
               onClick={props.onClose}
             >
               <i class="fa-solid fa-xmark"></i>
