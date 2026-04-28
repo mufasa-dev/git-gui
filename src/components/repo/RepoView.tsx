@@ -10,6 +10,7 @@ import BranchSwitchModal from "../branch/BranchSwitchModal";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import UserConfigModal from "../Config/UserConfig";
+import { useApp } from "../../context/AppContext";
 
 export default function RepoView(props: { repo: Repo , refreshBranches: (path: string) => Promise<void> }) {
   const minWidth = 200;
@@ -24,6 +25,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   const [targetBranch, setTargetBranch] = createSignal<string | null>(null);
   const { showLoading, hideLoading } = useLoading();
   const [isUserConfigOpen, setIsUserConfigOpen] = createSignal(false);
+  const { t } = useApp();
 
   const startResize = () => setIsResizing(true);
   const stopResize = () => setIsResizing(false);
@@ -125,7 +127,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
             }`}
             onClick={() => setViewMode("changes")}
           >
-            <i class="fa fa-copy"></i> Alterações
+            <i class="fa fa-copy"></i> {t('file').updates}
             {props.repo.localChanges && props.repo.localChanges.length > 0 && (
               <span class="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                 {props.repo.localChanges.length}
@@ -138,7 +140,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
             }`}
             onClick={() => setViewMode("commits")}
           >
-            <i class="fa fa-code-branch"></i> Commits
+            <i class="fa fa-code-branch"></i> {t('commits').commits}
           </button>
         </div>
 
@@ -150,7 +152,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   
             <input
               type="text"
-              placeholder="Pesquisar branches..."
+              placeholder={t('repository').search_branch + '...'}
               value={search()}
               onInput={(e) => setSearch(e.currentTarget.value)}
               class="w-full pl-10 pr-2 py-1 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-900"
