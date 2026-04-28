@@ -308,7 +308,7 @@ export const TestRunner = (props: { repo: any }) => {
           <Show when={selectedSuite()} fallback={
             <div class="flex-1 flex flex-col items-center justify-center opacity-30">
               <i class="fa-solid fa-vials text-4xl mb-4"></i>
-              <span class="italic text-sm">Selecione uma suíte para detalhar os resultados</span>
+              <span class="italic text-sm">{t('test').select_suit}</span>
             </div>
           }>
             <div class="p-4 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800/30">
@@ -369,7 +369,7 @@ export const TestRunner = (props: { repo: any }) => {
 
                       <div class="flex flex-col items-end gap-1">
                         <div class={`text-[10px] font-bold uppercase ${spec.status === 'pass' ? 'text-green-600' : 'text-red-600'}`}>
-                          {spec.status === 'pass' ? 'Passed' : 'Failed'}
+                          {spec.status === 'pass' ? t('test').passed : t('test').failed}
                         </div>
                         <Show when={spec.duration}>
                           <span class="text-[9px] font-mono dark:text-white">{formatDuration(spec.duration)}</span>
