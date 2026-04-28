@@ -90,7 +90,7 @@ export function CommitDetails(props: CommitDetailsProps) {
                 : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:dark:text-gray-300"
               }`}
             >
-              <i class="fa fa-code-commit"></i> Geral
+              <i class="fa fa-code-commit"></i> {t('common').general}
             </button>
             <button
               onClick={() => setActiveTab("arquivos")}
@@ -216,7 +216,7 @@ export function CommitDetails(props: CommitDetailsProps) {
         </div>
       </Show>
       <Show when={modalUserProfileOpen()}>
-        <Dialog open={modalUserProfileOpen()} onClose={() => setModalUserProfileOpen(false)} title="Perfil do Usuário" width={"90vw"}>
+        <Dialog open={modalUserProfileOpen()} onClose={() => setModalUserProfileOpen(false)} title={t('auth').user_profile} width={"90vw"}>
           <UserProfileDialog 
             repoPath={props.repoPath} 
             branch={props.branch || ""}

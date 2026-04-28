@@ -2,15 +2,17 @@ import { For } from "solid-js";
 import CommitMessage from "../ui/CommitMessage";
 import { getGravatarUrl } from "../../services/gravatarService";
 import { Commit } from "../../models/Commit.model";
+import { useApp } from "../../context/AppContext";
 
 export default function CommitsModalList(props: { commits: Commit[] }) {
+  const { t } = useApp();
 
   return (
     <div class="flex flex-col h-full max-h-[500px] antialiased">
       {/* Header da Lista */}
       <div class="flex items-center justify-between mb-4 p-4 border-b border-gray-300 dark:border-gray-700">
         <span class="text-xs font-bold text-gray-500 dark:text-gray-200 uppercase tracking-widest">
-          {props.commits.length} Histórico de Commits
+          {props.commits.length} {t('file').commit_history}
         </span>
       </div>
 

@@ -8,6 +8,7 @@ import { notify } from "../../utils/notifications";
 import { getGravatarUrl } from "../../services/gravatarService";
 import CommitMessage from "../ui/CommitMessage";
 import { formatContributorName } from "../../utils/user";
+import { useApp } from "../../context/AppContext";
 
 declare module "solid-js" {
   namespace JSX {
@@ -26,6 +27,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   const [resizing, setResizing] = createSignal(false);
   const [startDate, setStartDate] = createSignal("");
   const [endDate, setEndDate] = createSignal("");
+  const { t } = useApp();
   
   // Estados para Paginação e Filtro
   const [searchTerm, setSearchTerm] = createSignal("");
@@ -151,7 +153,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
           <div class="flex gap-2 items-center">
             <input 
               type="text"
-              placeholder="Filtrar commits (mensagem, hash, autor)..."
+              placeholder={t('commits').search_placeholder}
               class="w-full p-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none focus:ring-1 ring-blue-500"
               value={searchTerm()}
               onInput={(e) => setSearchTerm(e.currentTarget.value)}
