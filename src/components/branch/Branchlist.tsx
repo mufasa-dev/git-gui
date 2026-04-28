@@ -4,6 +4,7 @@ import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
 import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, mergeBranch, openPullRequestUrl } from "../../services/gitService";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
+import { useApp } from "../../context/AppContext";
 
 type Props = {
   localTree: TreeNodeMap;
@@ -24,6 +25,7 @@ export default function BranchList(props: Props) {
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
   const [itemName, setItemName] = createSignal<string>("");
   const { showLoading, hideLoading } = useLoading();
+  const { t } = useApp();
 
   const openContextMenu = (e: MouseEvent, branch: string) => {
     e.preventDefault();
@@ -182,7 +184,7 @@ export default function BranchList(props: Props) {
     <div class="h-[100px]">
       <b onClick={() => setOpenBranch(!openBranch())} class="collapse-btn">
         <b>
-          <i class="fa fa-code-branch"></i> Branchs
+          <i class="fa fa-laptop"></i> {t("git").local}
         </b>
         <i class="fa-solid ml-auto" classList={{"fa-angle-down" : openBranch(), "fa-angle-right" : !openBranch()}}></i>
       </b>
@@ -198,7 +200,7 @@ export default function BranchList(props: Props) {
 
       <b onClick={() => setOpenRemote(!openRemote())} class="collapse-btn mt-2">
         <b>
-          <i class="fa fa-earth-americas"></i> Remotes
+          <i class="fa fa-earth-americas"></i> {t("git").remote}
         </b>
         <i class="fa-solid ml-auto" classList={{"fa-angle-down" : openRemote(), "fa-angle-right" : !openRemote()}}></i>
       </b>
