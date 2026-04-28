@@ -10,6 +10,7 @@ import { openBrowser } from "../../services/openService";
 import CommitTypeDistribution from "../Dashboard/CommitDistributionBar";
 import CommitsModalList from "../commits/CommitsModalList";
 import HotspotsTable from "../Dashboard/HotspotsTable";
+import { useApp } from "../../context/AppContext";
 
 // Helper para formatar data curta
 const formatShortDate = (dateStr: string) => {
@@ -30,6 +31,7 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
   const [profile] = createResource(() => props.email, getGravatarProfile);
   const [showCommits, setShowCommits] = createSignal(false);
   const [selectedCommits, setSelectedCommits] = createSignal<any[]>([]);
+  const { t } = useApp();
   
   const [userCommits] = createResource(
     () => ({ path: props.repoPath, branch: props.branch, email: props.email }),
@@ -103,17 +105,17 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
           </div>
 
           <div class="container-branch-list p-4 flex-1 col-span-4">
-            <h4 class="text-[10px] font-bold text-gray-900 dark:text-gray-100 uppercase mb-3 tracking-widest text-center">Resumo</h4>
+            <h4 class="text-[10px] font-bold text-gray-900 dark:text-gray-100 uppercase mb-3 tracking-widest text-center">{t('dashboard').sumary}</h4>
             <div class="grid grid-cols-2 gap-2 text-center">
               <div class="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border dark:border-gray-700">
                   <span class="block text-xl font-bold text-blue-500">{userCommits()?.length || 0}</span>
-                  <span class="text-[10px] text-gray-900 dark:text-gray-100 uppercase">Commits</span>
+                  <span class="text-[10px] text-gray-900 dark:text-gray-100 uppercase">{t('commits').commits}</span>
               </div>
               <div class="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border dark:border-gray-700">
                   <span class="block text-xl font-bold text-green-500">
                       {new Set(userCommits()?.map(c => new Date(c.date).toISOString().split('T')[0])).size}
                   </span>
-                  <span class="text-[10px] text-gray-900 dark:text-gray-100 uppercase">Dias Ativos</span>
+                  <span class="text-[10px] text-gray-900 dark:text-gray-100 uppercase">{t('dashboard').days_active}</span>
               </div>
             </div>
           </div>
@@ -145,15 +147,15 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
           <div class="lg:col-span-8 container-branch-list p-4">
             <h4 class="text-[10px] font-bold text-gray-900 dark:text-gray-100 uppercase mb-1 tracking-widest flex items-center gap-2">
               <i class="fa-solid fa-clock-rotate-left text-blue-500"></i>
-              Atividades recentes
+              {t('dashboard').recent_activity}
             </h4>
             <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700">
               <table class="table-striped">
                 <thead>
                   <tr class="text-[10px] uppercase text-gray-500">
-                    <th class="p-2 w-[100px]">Hash</th>
-                    <th class="p-2">Mensagem</th>
-                    <th class="p-2 text-right">Data</th>
+                    <th class="p-2 w-[100px]">{t('commits').hash}</th>
+                    <th class="p-2">{t('commits').message}</th>
+                    <th class="p-2 text-right">{t('commits').date}</th>
                   </tr>
                 </thead>
                 <tbody>

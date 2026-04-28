@@ -199,16 +199,16 @@ export default function Header(props: Props) {
         <div class="p-2 flex items-center px-4 dark:bg-gray-800 dark:text-white">
           <Button class="top-btn" onClick={openRepo}>
             <img src={folderIcon} class="inline h-6" />
-            <small>Abrir Repositório</small>
+            <small>{t('repository').open_repository}</small>
           </Button>
           <Show when={props.active}>
             <Button class="top-btn" onClick={async () => { await doFetch()}} disabled={disabledButton()}>
               <img src={fetchIcon} class="inline h-6" />
-              <small>{fetching() ? " Atualizando..." : " Fetch"}</small>
+              <small>{fetching() ? " Atualizando..." : " " + t('git').fetch}</small>
             </Button>
             <Button class="top-btn relative" onClick={async () => { await doPull()}} disabled={disabledButton()}>
               <img src={pullIcon} class="inline h-6" />
-              <small>{pulling() ? " Atualizando..." : " Pull"}</small>
+              <small>{pulling() ? " Atualizando..." : " " + t('git').pull}</small>
               {props.active && (() => {
                 const repo = props.repos.find(r => r.path === props.active);
                 const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
@@ -221,7 +221,7 @@ export default function Header(props: Props) {
             </Button>
             <Button class="top-btn relative" onClick={async () => { await doPush()}} disabled={disabledButton()}>
               <img src={pushIcon} class="inline h-6" />
-              <small>{pushing() ? " Enviando..." : " Push"}</small>
+              <small>{pushing() ? " Enviando..." : " " + t('git').push}</small>
               {props.active && (() => {
                 const repo = props.repos.find(r => r.path === props.active);
                 const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
@@ -243,7 +243,7 @@ export default function Header(props: Props) {
               options={[
                 {
                   img: commandIcon,
-                  label: "Abrir Console",
+                  label: t('repository').open_console,
                   action: () => {
                     try {
                       console.log("Abrindo console...", props);
@@ -262,17 +262,17 @@ export default function Header(props: Props) {
                 },
                 {
                   img: folderIcon,
-                  label: "Gerenciador de Arquivos",
+                  label: t('repository').manager_files,
                   action: () => openFileManager(props.active!)
                 },
                 {
                   img: internetIcon,
-                  label: "Navegador",
+                  label: t('repository').browser,
                   action: () => openRepositoryBrowser(props.active!)
                 },
                 {
                   img: vsCodeIcon,
-                  label: "Abrir no VSCode",
+                  label: t('repository').vs_code,
                   action: () => openVsCode(props.active!)
                 },
               ]}

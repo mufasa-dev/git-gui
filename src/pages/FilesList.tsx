@@ -308,7 +308,7 @@ export default function FileList(props: { repo: Repo }) {
                   }} 
                 />
                 <Show when={!showHistory()}>
-                  <button class="bg-transparent border-0 ml-auto flex items-center hover:text-blue-500" 
+                  <button class="bg-transparent border-0 ml-auto flex items-center justify-end w-[200px] hover:text-blue-500" 
                     onClick={() => {
                       setShowHistory(!showHistory());
                       getPathHistoryAsync(selectedFilePath()[0]);
@@ -317,7 +317,7 @@ export default function FileList(props: { repo: Repo }) {
                   </button>
                 </Show>
                 <Show when={showHistory()}>
-                  <button class="bg-transparent border-0 ml-auto flex items-center hover:text-blue-500" onClick={() => setShowHistory(!showHistory())}>
+                  <button class="bg-transparent border-0 ml-auto flex items-center justify-end w-[200px] hover:text-blue-500" onClick={() => setShowHistory(!showHistory())}>
                     <i class="fa-solid fa-folder mr-2"></i> {t('file').files} 
                   </button>
                 </Show>
@@ -437,7 +437,7 @@ export default function FileList(props: { repo: Repo }) {
             <Show when={showHistory() && pathHistory()}>
               <div class="mt-4 border border-gray-300 dark:border-gray-700 rounded-xl overflow-auto">
                 <div class="flex items-center bg-gray-200 dark:bg-gray-700 rounded-t-xl p-2 mb-2">
-                  <i class="fa-solid fa-clock-rotate-left mr-2" /> Histórico de Commits
+                  <i class="fa-solid fa-clock-rotate-left mr-2" /> {t('file').commit_history}
                 </div>
                 <div class="p-2">
                   <For each={pathHistory()}>
@@ -470,7 +470,7 @@ export default function FileList(props: { repo: Repo }) {
       </div>
 
       <Dialog open={showModalCommitDetails()}
-              title="Detalhes co Commit"
+              title={t('commits').details}
               onClose={() => setModalCommitDetails(false)}
               bodyClass="p-0 h-full"
               width={'calc(100vw - 40px)'}

@@ -101,7 +101,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
     <Dialog 
       open={props.isOpen} 
       onClose={props.onClose} 
-      title="Configurações do Repositório"
+      title={t('repository').config_repository}
       bodyClass="p-0"
       width={'600px'}
     >
@@ -115,7 +115,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
             : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
           }`}
         >
-          👤 Perfil do Usuário
+          👤{t('auth').user_profile}
         </button>
         <button 
           onClick={() => setActiveTab("merge")}
@@ -125,7 +125,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
             : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
           }`}
         >
-          🔀 Estratégia de Merge
+          🔀 {t('merge').merge_strategy}
         </button>
       </div>
 
@@ -144,14 +144,14 @@ export default function UserConfigModal(props: UserConfigModalProps) {
                   onClick={() => openBrowser("https://pt.gravatar.com/")} 
                   class="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
                 >
-                  Alterar Foto
+                  {t('auth').change_picture}
                 </button>
               </div>
               <button
                 onClick={() => openBrowser("https://pt.gravatar.com/")}
                 class="mt-3 text-[10px] text-blue-500 hover:underline flex items-center gap-1"
               >
-                <span>via Gravatar</span>
+                <span>{t('auth').from_gravatar}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
               </button>
             </div>
@@ -176,7 +176,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
                 />
               </div>
               <p class="text-[10px] text-amber-600 dark:text-amber-500/80">
-                * Configurações salvas apenas neste repositório (--local).
+                * {t('repository').config_repository_msg_local}
               </p>
               <div class="pt-4 flex justify-end gap-2">
                  <button onClick={props.onClose} class="px-4 py-1.5 text-sm text-gray-500 hover:text-black dark:hover:text-white">{t('common').close}</button>
@@ -191,15 +191,15 @@ export default function UserConfigModal(props: UserConfigModalProps) {
           <div class="space-y-4 animate-in slide-in-from-right-2 duration-200 p-4">
             <div class="">
                 <p>
-                    Escolha como o Git deve se comportar ao fazer um <strong>Pull</strong> quando houver divergências.
+                    {t('merge').merge_strategy_descri}
                 </p>
             </div>
 
             <div class="grid gap-3">
               <For each={[
-                { id: 'merge', icon: '🔀', title: 'Merge', desc: 'Combina histórias com um commit de merge.' },
-                { id: 'rebase', icon: '♻️', title: 'Rebase', desc: 'Mantém histórico linear movendo seus commits.' },
-                { id: 'ff', icon: '⚡', title: 'Fast-Forward Only', desc: 'Recusa o pull se houver divergência.' }
+                { id: 'merge', icon: '🔀', title: t('merge').merge, desc: t('merge').combine_stories },
+                { id: 'rebase', icon: '♻️', title: t('merge').rebase, desc: t('merge').rebase_descri },
+                { id: 'ff', icon: '⚡', title: t('merge').fast_forward, desc: t('merge').fast_forward_descri }
               ] as const}>
                 {(item) => (
                   <button
@@ -213,7 +213,7 @@ export default function UserConfigModal(props: UserConfigModalProps) {
                       </span>
                       <Show when={currentMode() === item.id}>
                         <span class="text-[10px] bg-blue-500 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                          Ativo
+                          {t('common').active}
                         </span>
                       </Show>
                     </div>
