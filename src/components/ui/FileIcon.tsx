@@ -108,7 +108,7 @@ export default function FileIcon(props: FileIconProps) {
     if (name === 'none') return alertIcon;
 
     // Checagem por arquivos de tradução
-    if (['pt.ts', 'pt.json', 'pt-br.ts', 'pt-br.json', 'pt_br.json', 'pt_br.asp'].includes(name.toLowerCase())) return brIcon;
+    if (['pt.ts', 'pt.json', 'pt-br.ts', 'pt-br.json', 'pt_br.json', 'br.json', 'pt_br.asp'].includes(name.toLowerCase())) return brIcon;
     if (['es.ts', 'es.json', 'es-es.ts', 'es-es.json', 'es_es.json', 'es_es.asp'].includes(name.toLowerCase())) return esIcon;
     if (['en.ts', 'en.json', 'en-us.ts', 'en-us.json', 'en_us.json', 'en_us.asp'].includes(name.toLowerCase())) return enIcon;
     if (['it.ts', 'it.json', 'it-it.ts', 'it-it.json', 'it_it.json', 'it_it.asp'].includes(name.toLowerCase())) return itIcon;
