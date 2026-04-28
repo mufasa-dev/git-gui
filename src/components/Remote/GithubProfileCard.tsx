@@ -6,10 +6,12 @@ import { marked } from "marked";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import UserConnectionsModal from "./UserConnectionsModal";
 import ContributionGraph from "./GithubContributionGraph";
+import { useApp } from "../../context/AppContext";
 
 export default function GithubProfileCard() {
   const { user, mutateUser } = useRepoContext();
   const [modalType, setModalType] = createSignal<"followers" | "following" | null>(null);
+  const { t } = useApp();
 
   const minWidth = 250;
   const maxWidth = 500;
@@ -71,11 +73,11 @@ export default function GithubProfileCard() {
           <div class="grid grid-cols-2 border-y border-gray-200 dark:border-gray-700/50 mb-6">
             <button onClick={() => setModalType("followers")} class="text-center hover:bg-gray-200 dark:hover:bg-gray-700 p-2 transition-colors">
               <span class="block text-lg font-black dark:text-white">{extraData()?.followers ?? '...'}</span>
-              <span class="text-[10px] uppercase text-gray-400 font-bold tracking-widest">Seguidores</span>
+              <span class="text-[10px] uppercase text-gray-400 font-bold tracking-widest">{t('auth').followers}</span>
             </button>
             <button onClick={() => setModalType("following")} class="text-center border-l dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 transition-colors">
               <span class="block text-lg font-black dark:text-white">{extraData()?.following ?? '...'}</span>
-              <span class="text-[10px] uppercase text-gray-400 font-bold tracking-widest">Seguindo</span>
+              <span class="text-[10px] uppercase text-gray-400 font-bold tracking-widest">{t('auth').following}</span>
             </button>
           </div>
 
@@ -113,7 +115,7 @@ export default function GithubProfileCard() {
             <button onClick={handleLogout} class="w-full py-2 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 
                                                   rounded-xl font-bold text-[10px] hover:bg-red-200 dark:hover:bg-red-900/40 
                                                   transition-colors uppercase tracking-widest">
-              Desconectar
+              {t('auth').disconnect}
             </button>
           </div>
         </div>
