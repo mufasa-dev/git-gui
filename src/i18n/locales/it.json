@@ -59,7 +59,11 @@
     "disconnect": "Disconnetti",
     "done": "Fatto",
     "active": "Ativo",
-    "inactive": "Inativo"
+    "inactive": "Inativo",
+    "start_date": "Inizio",
+    "end_date": "Fine",
+    "apply": "Applica",
+    "to_date": "fino a"
   },
   "git": {
     "commit": "Commit",
@@ -323,6 +327,43 @@
     "dismiss_review": "Respingi revisione",
     "confirm_dismiss_review": "Sei sicuro di voler respingere questa revisione?",
     "complete": "Completa"
+  },
+  "date": {
+    "just_now": "proprio ora",
+    "seconds_ago": "{{count}} secondi fa",
+    "a_minute_ago": "un minuto fa",
+    "minutes_ago": "{{count}} minuti fa",
+    "an_hour_ago": "un'ora fa",
+    "hours_ago": "{{count}} ore fa",
+    "a_day_ago": "un giorno fa",
+    "days_ago": "{{count}} giorni fa",
+    "a_month_ago": "un mese fa",
+    "months_ago": "{{count}} mesi fa",
+    "a_year_ago": "un anno fa",
+    "years_ago": "{{count}} anni fa",
+    "last_days": "ultimi {{count}} giorni",
+    "last_months": "ultimi {{count}} mesi",
+    "last_years": "ultimi {{count}} anni",
+    "sun": "Dom",
+    "mon": "Lun",
+    "tue": "Mar",
+    "wed": "Mer",
+    "thu": "Gio",
+    "fri": "Ven",
+    "sat": "Sab",
+    "jan": "Gen",
+    "feb": "Feb",
+    "mar": "Mar",
+    "apr": "Apr",
+    "may": "Mag",
+    "jun": "Giu",
+    "jul": "Lug",
+    "aug": "Ago",
+    "sep": "Set",
+    "oct": "Ott",
+    "nov": "Nov",
+    "dec": "Dic",
+    "less": "Meno",
+    "more": "Più"
   }
-
 }
