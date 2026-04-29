@@ -1,5 +1,6 @@
 import { createResource, createMemo, Show } from "solid-js";
 import { getCodeCoverageRatio } from "../../services/gitService";
+import { useApp } from "../../context/AppContext";
 
 interface Props {
   path: string;
@@ -7,6 +8,8 @@ interface Props {
 }
 
 export default function TestCoverageDonut(props: Props) {
+  const { t } = useApp();
+
   const [data] = createResource(
     () => ({ path: props.path, branch: props.branch }),
     async (params) => {
@@ -32,7 +35,7 @@ export default function TestCoverageDonut(props: Props) {
       <div class="flex items-center justify-between w-full mb-4">
         <h3 class="font-bold text-sm text-gray-800 dark:text-gray-100 tracking-widest uppercase flex items-center">
           <i class="fa-solid fa-flask text-purple-500 mr-2 text-base"></i> 
-          Cobertura de Testes
+          {t('dashboard').test_coverage}
         </h3>
         <Show when={data.loading}>
           <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -83,26 +86,26 @@ export default function TestCoverageDonut(props: Props) {
           <div class="group">
             <div class="flex items-center gap-2 text-gray-400 uppercase text-[10px] font-bold tracking-widest mb-1">
               <div class="w-2 h-2 rounded-full bg-green-500"></div>
-              Arquivos de Teste
+              {t('dashboard').test_files}
             </div>
             <div class="flex items-baseline gap-1">
               <span class="text-2xl font-mono font-bold text-gray-800 dark:text-gray-100 group-hover:text-green-500 transition-colors">
                 {data() ? data()?.testFiles : 0}
               </span>
-              <span class="text-xs text-gray-500 opacity-60">unidades</span>
+              <span class="text-xs text-gray-500 opacity-60">{t('dashboard').unit}</span>
             </div>
           </div>
 
           <div class="group">
             <div class="flex items-center gap-2 text-gray-400 uppercase text-[10px] font-bold tracking-widest mb-1">
               <div class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-              Arquivos de Lógica
+              {t('dashboard').logic_files}
             </div>
             <div class="flex items-baseline gap-1">
               <span class="text-2xl font-mono font-bold text-gray-800 dark:text-gray-100 group-hover:text-gray-400 transition-colors">
                 {data() ? data()?.codeFiles : 0}
               </span>
-              <span class="text-xs text-gray-500 opacity-60">unidades</span>
+              <span class="text-xs text-gray-500 opacity-60">{t('dashboard').unit}</span>
             </div>
           </div>
         </div>

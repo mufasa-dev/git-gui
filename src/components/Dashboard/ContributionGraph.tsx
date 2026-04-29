@@ -1,10 +1,12 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
+import { useApp } from "../../context/AppContext";
 
 export default function ContributionGraph(props: { commits: any[], openCommits: (commits: any[]) => void }) {
   const [yearFilter, setYearFilter] = createSignal("last_year");
+  const { t } = useApp();
   
-  const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-  const daysOfWeek = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const months = [t('date').jan, t('date').feb, t('date').mar, t('date').apr, t('date').may, t('date').jun, t('date').jul, t('date').aug, t('date').sep, t('date').oct, t('date').nov, t('date').dec];
+  const daysOfWeek = [t('date').sun, t('date').mon, t('date').tue, t('date').wed, t('date').thu, t('date').fri, t('date').sat];
 
   const handleDayClick = (dateStr: string, count: number) => {
     if (count <= 0) return;
@@ -120,7 +122,7 @@ export default function ContributionGraph(props: { commits: any[], openCommits: 
       <div class="flex items-center justify-between mb-4">
         <span class="text-gray-900 dark:text-gray-200">
           <i class="fa-solid fa-code-commit text-green-500 mr-2"></i>
-          {filteredTotal()} contribuições {yearFilter() === "last_year" ? "nos últimos 365 dias" : "em " + yearFilter()}
+          {filteredTotal()} {t('dashboard').contributions} {yearFilter() === "last_year" ? t('dashboard').last_365_days : t('dashboard').in + " " + yearFilter()}
         </span>
         
         <select 
@@ -128,7 +130,7 @@ export default function ContributionGraph(props: { commits: any[], openCommits: 
           onInput={(e) => setYearFilter(e.currentTarget.value)}
           class="input-select"
         >
-          <option value="last_year">Último ano</option>
+          <option value="last_year">{t('dashboard').last_year}</option>
           <For each={availableYears()}>
             {(year) => <option value={year}>{year}</option>}
           </For>

@@ -1,6 +1,7 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import { tagBaseColors } from "../../utils/file";
 import Dialog from "../ui/Dialog";
+import { useApp } from "../../context/AppContext";
 
 // 1. Dicionário de normalização para corrigir erros de digitação comuns
 const TAG_MAPPING: Record<string, string> = {
@@ -102,6 +103,7 @@ const CommitTypeDistribution = (props: Props) => {
 
   const [isModalOpen, setIsModalOpen] = createSignal(false);
   const [hiddenTypes, setHiddenTypes] = createSignal<string[]>([]);
+  const { t } = useApp();
 
   onMount(() => {
     const saved = localStorage.getItem("git-trident-hidden-commit-types");
@@ -184,7 +186,7 @@ const CommitTypeDistribution = (props: Props) => {
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-chart-pie text-blue-400 text-xs"></i>
           <h3 class="font-bold text-gray-900 dark:text-white tracking-widest">
-            Tipos de Commits
+            {t('dashboard').commit_types}
           </h3>
         </div>
         
@@ -251,13 +253,13 @@ const CommitTypeDistribution = (props: Props) => {
       {/* MODAL DE FILTRO DE COMMITS */}
       <Dialog 
         open={isModalOpen()} 
-        title="Filtrar Tipos de Commit" 
+        title={t('dashboard').filter_commit_type}
         onClose={() => setIsModalOpen(false)}
         width="380px"
       >
         <div class="space-y-4">
           <p class="text-[11px] text-gray-400">
-            Tipos detectados neste repositório:
+            {t('dashboard').commit_types_repo}:
           </p>
           <div class="flex flex-wrap gap-2">
             <For each={detectedTypes()}>
@@ -281,7 +283,7 @@ const CommitTypeDistribution = (props: Props) => {
           </div>
           <div class="pt-4 border-t border-gray-700 flex justify-end">
              <button onClick={() => setIsModalOpen(false)} class="px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold">
-               Aplicar Filtros
+               {t('dashboard').apply_filter}
              </button>
           </div>
         </div>

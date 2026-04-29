@@ -1,21 +1,12 @@
 import { createMemo, createSignal, For, Show, onMount } from "solid-js";
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
+import * as i18n from "@solid-primitives/i18n";
 
 const formatDateAxis = (dateStr: string) => {
   const d = new Date(dateStr.replace(/-/g, '/')); 
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
-
-const WEEKDAYS = [
-  { id: 0, label: "Dom" },
-  { id: 1, label: "Seg" },
-  { id: 2, label: "Ter" },
-  { id: 3, label: "Qua" },
-  { id: 4, label: "Qui" },
-  { id: 5, label: "Sex" },
-  { id: 6, label: "Sáb" },
-];
 
 export default function ActivityChart(props: { commits: any[], openCommits: (commits: any[]) => void }) {
   const [daysToView, setDaysToView] = createSignal(30);
@@ -25,6 +16,32 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
   
   // Estado para os dias ocultos (0 = Domingo, 6 = Sábado)
   const [hiddenDays, setHiddenDays] = createSignal<number[]>([]);
+
+  const WEEKDAYS = [
+    { id: 0, label: t('date').sun },
+    { id: 1, label: t('date').mon },
+    { id: 2, label: t('date').tue },
+    { id: 3, label: t('date').wed },
+    { id: 4, label: t('date').thu },
+    { id: 5, label: t('date').fri },
+    { id: 6, label: t('date').sat },
+  ];
+
+  const formatDateLabel = (value: number) => {
+    const d = t('date');
+    
+    if (value < 31) {
+      return d.last_days.replace("{{count}}", String(value));
+    } else if (value < 730) {
+      // Para 30, 90, 180 e 365 dias, convertemos para meses
+      const months = Math.round(value / 30);
+      return d.last_months.replace("{{count}}", String(months));
+    } else {
+      // Para 730 dias ou mais, convertemos para anos
+      const years = Math.round(value / 365);
+      return d.last_years.replace("{{count}}", String(years));
+    }
+  };
 
   // Carregar do localStorage ao iniciar
   onMount(() => {
@@ -172,12 +189,12 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
             onInput={(e) => setDaysToView(parseInt(e.currentTarget.value))}
             class="input-select mt-0"
           >
-            <option value={7}>Últimos 7 dias</option>
-            <option value={30}>Últimos 30 dias</option>
-            <option value={90}>Últimos 90 dias</option>
-            <option value={180}>Últimos 6 meses</option>
-            <option value={365}>Últimos 12 meses</option>
-            <option value={730}>Últimos 2 anos</option>
+            <option value={7}>{formatDateLabel(7)}</option>
+            <option value={30}>{formatDateLabel(30)}</option>
+            <option value={90}>{formatDateLabel(90)}</option>
+            <option value={180}>{formatDateLabel(180)}</option>
+            <option value={365}>{formatDateLabel(365)}</option>
+            <option value={730}>{formatDateLabel(730)}</option>
           </select>
           
           <button 
