@@ -1,4 +1,5 @@
 import { createSignal, createContext, useContext, Show, ParentComponent } from "solid-js";
+import { useApp } from "../../context/AppContext";
 
 // Definição do tipo para o contexto
 interface LoadingContextType {
@@ -9,8 +10,9 @@ interface LoadingContextType {
 const LoadingContext = createContext<LoadingContextType>();
 
 export const LoadingProvider: ParentComponent = (props) => {
+  const { t } = useApp();
   const [isVisible, setIsVisible] = createSignal(false);
-  const [message, setMessage] = createSignal("Carregando...");
+  const [message, setMessage] = createSignal(t('common').loading);
 
   const showLoading = (msg?: string) => {
     if (msg) setMessage(msg);

@@ -19,7 +19,7 @@ export function AppProvider(props: { children: JSX.Element }) {
   );
 
   // Criamos o tradutor reativo simples
-  const t = i18n.translator(() => dict[locale()]);
+  const t = i18n.translator(() => dict[locale()], i18n.resolveTemplate);
 
   const [isDark, setIsDark] = createSignal(localStorage.getItem("theme") !== "light");
 
