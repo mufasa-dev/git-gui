@@ -1,6 +1,7 @@
 import { Show, For, createResource } from "solid-js";
 import { githubService } from "../../services/github";
 import { open } from "@tauri-apps/plugin-shell"; // Importe o open do Tauri para manter consistência
+import { useApp } from "../../context/AppContext";
 
 interface UserConnectionsModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface UserConnectionsModalProps {
 }
 
 export default function UserConnectionsModal(props: UserConnectionsModalProps) {
+  const { t } = useApp();
   // O recurso agora precisa lidar com o objeto { users, pageInfo }
   const [data] = createResource(
     () => (props.isOpen ? { username: props.username, type: props.type } : null),
@@ -31,7 +33,7 @@ export default function UserConnectionsModal(props: UserConnectionsModalProps) {
           
           <div class="px-6 py-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/50">
             <h3 class="text-sm font-black dark:text-white uppercase tracking-widest">
-              {props.type === "followers" ? "Seguidores" : "Seguindo"}
+              {props.type === "followers" ? t('auth').followers : t('auth').following}
             </h3>
             <button onClick={props.onClose} class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors">
               <i class="fa-solid fa-xmark"></i>

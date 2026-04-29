@@ -126,7 +126,7 @@ export default function GithubProfileCard() {
       <div class="flex-1 flex flex-col overflow-hidden">
         <div class="overflow-y-auto custom-scrollbar" style={{ height: "calc(100vh - 124px)" }}>
           <div class="container-branch-list p-6 select-text mb-2">
-            <Show when={!extraData.loading} fallback={<div class="animate-pulse p-4">Carregando Perfil...</div>}>
+            <Show when={!extraData.loading} fallback={<div class="animate-pulse p-4">{t('common').loading}</div>}>
               <Show when={extraData()?.readme} fallback={<div class="py-20 text-center text-gray-400 italic">README não encontrado.</div>}>
                 <div class="flex items-center gap-2 mb-6 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">
                   <i class="fa-solid fa-terminal text-blue-500"></i>
