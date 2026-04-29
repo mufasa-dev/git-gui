@@ -10,6 +10,7 @@ import { openVsCodeDiff } from "../../services/openService";
 import { Diff } from "../../models/Diff.model";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
+import { useApp } from "../../context/AppContext";
 
 let isRefreshing = false;
 
@@ -36,6 +37,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [isMerging, setIsMerging] = createSignal(false);
   const [isVisualizingStaged, setIsVisualizingStaged] = createSignal(false);
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
+  const { t } = useApp();
 
   const loadChanges = async () => {
     if (!props.repo.path || isMerging() || isRefreshing) return;
@@ -241,7 +243,7 @@ export function LocalChanges(props: { repo: Repo; }) {
 
   const handleCommit = async () => {
     if (!commitMessage().trim()) {
-      notify.error('Ops!', "Digite uma mensagem de commit!");
+      notify.error('Ops!', t('commits').enter_commit_message);
       return;
     }
     try {
@@ -271,14 +273,14 @@ export function LocalChanges(props: { repo: Repo; }) {
       <div class="container-branch-list mb-4 overflow-auto border-r py-3 px-0" style={{ width: `${sidebarWidth()}px` }}>
         <div style={{"height": "40px"}} class="flex flex-col">
           <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 mb-3 flex items-center" onContextMenu={showContextMenu}>
-            <b>Alterações</b>
+            <b>{t('file').updates}</b>
             <button class="ml-auto px-3 py-1 text-sm bg-blue-500 text-white rounded-lg disabled:opacity-50" 
               disabled={selected().length === 0}
               onClick={() => prepare(selected())}>
-              Preparar
+              {t('git').prepare}
             </button>
           </div>
-          {unstaged().length === 0 && <div class="px-4 text-center text-gray-400">Nenhuma alteração local</div>}
+          {unstaged().length === 0 && <div class="px-4 text-center text-gray-400">{t('git').no_changes}</div>}
           <FolderTreeView items={unstaged()} selectMode="multi"
             selected={selected()} staged={false} showStatus={true}
             onToggle={toggleItem} onContextMenu={showContextMenu}
@@ -286,10 +288,10 @@ export function LocalChanges(props: { repo: Repo; }) {
           />
 
           <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 flex items-center mt-2 mb-3">
-            <b class="mr-1">Preparadas</b>
+            <b class="mr-1">{t('git').prepared}</b>
             <button class="ml-auto px-3 py-1 text-sm bg-green-500 text-white rounded-lg disabled:opacity-50" 
               disabled={staged().length === 0} onclick={() => unstage(stagedPreparedSelected())}>
-              Desfazer
+              {t('git').undo}
             </button>
           </div>
           
@@ -319,10 +321,10 @@ export function LocalChanges(props: { repo: Repo; }) {
             }} />
         </div>
         <div class="mt-2 container-branch-list mb-4">
-          <input type="text" class="w-full input-text" placeholder="Mensagem do commit"
+          <input type="text" class="w-full input-text" placeholder={t('commits').commit_message}
             value={commitMessage()}
             onInput={(e) => setCommitMessage(e.currentTarget.value)} />
-          <input type="text" class="w-full mt-2 input-text" placeholder="Descrição"
+          <input type="text" class="w-full mt-2 input-text" placeholder={t('common').description}
             value={commitDescription()}
             onInput={(e) => setCommitDescription(e.currentTarget.value)} />
           <div class="flex mt-2">
@@ -331,11 +333,11 @@ export function LocalChanges(props: { repo: Repo; }) {
                 type="checkbox" id="amend" name="amend"
                 checked={commitAmend()} onChange={(e) => setCommitAmend(e.currentTarget.checked)}
               />
-              <label for="amend" class="ml-1">Amend</label>
+              <label for="amend" class="ml-1">{t('git').amend}</label>
             </div>
             <button class="pl-2 pr-4 py-1 bg-blue-600 ml-auto text-white rounded-xl" onClick={handleCommit}
               disabled={staged().length === 0 || !commitMessage().trim()}>
-              <i class="fa fa-check"></i> Commit
+              <i class="fa fa-check"></i> {t('git').commit}
             </button>
           </div>
         </div>

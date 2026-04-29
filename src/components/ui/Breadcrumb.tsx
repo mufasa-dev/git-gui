@@ -1,5 +1,6 @@
 import { For, Show, createSignal } from "solid-js";
 import Tooltip from "./Tooltip";
+import { useApp } from "../../context/AppContext";
 
 interface BreadcrumbProps {
   path: string;
@@ -9,6 +10,7 @@ interface BreadcrumbProps {
 
 export function Breadcrumb(props: BreadcrumbProps) {
   const [copied, setCopied] = createSignal(false);
+  const { t } = useApp();
 
   // Divide o caminho e remove entradas vazias
   const pathParts = () => {
@@ -68,7 +70,7 @@ export function Breadcrumb(props: BreadcrumbProps) {
 
       {/* Botão de Copiar com Feedback Visual */}
       <button
-          title="Copiar caminho relativo"
+          title={t('file').copy_path}
           onClick={copyToClipboard}
           class="flex items-center gap-2 p-1.5 rounded transition-all active:scale-95 ml-1"
           classList={{
