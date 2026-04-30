@@ -45,7 +45,7 @@ export default function BranchSwitchModal(props: Props) {
           <input 
             type="text" 
             class="w-full input-text" 
-            placeholder="Exemplo: login-page"
+            placeholder={t("common").example + ": login-page"}
             value={branchName()}
             onInput={(e) => {
               const sanitized = e.currentTarget.value

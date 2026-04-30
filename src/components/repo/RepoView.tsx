@@ -69,13 +69,13 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
         setModalSwtBranchOpen(true);
         setTargetBranch(branch);
       } else {
-        showLoading(`Trocando para a branch ${branch}...`);
+        showLoading(t('branch').changing_branch.replace('{{branch}}', branch));
         await checkoutBranch(path, branch);
         await props.refreshBranches(path);
-        notify.success('Git Checkout', `✅ Mudou para a branch: ${branch}`);
+        notify.success(t('git').git_checkout, `✅ ${t('branch').changed_to_branch.replace('{{branch}}', branch)}`);
       }
     } catch (err) {
-      notify.error('Erro', `Erro ao trocar de branch`);
+      notify.error('Erro', t('branch').error_changing_branch);
     } finally {
       hideLoading();
     }

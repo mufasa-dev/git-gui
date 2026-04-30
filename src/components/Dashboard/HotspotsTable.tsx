@@ -47,7 +47,7 @@ export default function HotspotsTable(props: Props) {
             <For each={hotspots()} fallback={
               <tr>
                 <td colspan="2" class="text-center py-10 text-xs text-gray-500 italic">
-                  Nenhum dado disponível
+                  {t('common').no_data}
                 </td>
               </tr>
             }>

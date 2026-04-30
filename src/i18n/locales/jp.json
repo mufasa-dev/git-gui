@@ -125,6 +125,7 @@
     "git_reset": "Git Reset",
     "prepare": "準備",
     "prepared": "準備完了",
+    "prepare_all": "すべて準備",
     "undo": "元に戻す",
     "redo": "やり直す",
     "amend": "修正",
@@ -149,6 +150,21 @@
     "commit_date": "コミット日",
     "select_commit": "コミットを選択して詳細を表示",
     "search_placeholder": "フィルタ (メッセージ、ハッシュ、作成者)..."
+  },
+  "branch": {
+    "change_branch": "ブランチを切り替える",
+    "new_branch": "新しいブランチ",
+    "change_to_branch": "ブランチに切り替え",
+    "delete_branch": "ブランチを削除",
+    "current_branch": "現在のブランチ",
+    "default_branch": "デフォルトブランチ",
+    "you_have_changes": "ローカルに変更があります。どうしますか？",
+    "discart_changes": "変更を破棄する",
+    "stash_changes": "スタッシュして後で適用する",
+    "open_diff_vscode": "VS Codeで差分を表示",
+    "changed_to_branch": "ブランチ {{branch}} に切り替えました",
+    "changing_branch": "ブランチ {{branch}} に切り替えています...",
+    "error_changing_branch": "ブランチの切り替え中にエラーが発生しました"
   },
   "file": {
     "file": "ファイル",

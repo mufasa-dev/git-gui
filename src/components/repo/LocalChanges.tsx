@@ -174,21 +174,21 @@ export function LocalChanges(props: { repo: Repo; }) {
     let items = []
     if (item && item.path) {
       if (!item.staged) {
-        items.push({ label: "Preparar", action: () => prepare([item.path]) });
+        items.push({ label: t('git').prepare, action: () => prepare([item.path]) });
       }
       else {
-        items.push({ label: "Desfazer", action: () => unstage([item.path]) });
+        items.push({ label: t('git').undo, action: () => unstage([item.path]) });
       }
 
       items.push({
-        label: "Abrir diff no VSCode",
+        label: t('branch').open_diff_vscode,
         hr: true,
         action: () => openVsCodeDiff(props.repo.path, item.path),
       });
     }
-    items.push({ label: "Preparar tudo", action: () => prepareAll() });
+    items.push({ label: t('git').prepare_all, action: () => prepareAll() });
     items.push({
-      label: "Descartar alterações",
+      label: t('branch').discart_changes,
       action: () => discard(selected()),
     });
 

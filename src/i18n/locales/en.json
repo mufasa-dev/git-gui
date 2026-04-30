@@ -125,6 +125,7 @@
     "git_reset": "Git Reset",
     "prepare": "Prepare",
     "prepared": "Prepared",
+    "prepare_all": "Prepare all",
     "undo": "Undo",
     "redo": "Redo",
     "amend": "Amend",
@@ -149,6 +150,21 @@
     "commit_date": "Commit date",
     "select_commit": "Select a commit to see details",
     "search_placeholder": "Filter commits (message, hash, author)..."
+  },
+  "branch": {
+    "change_branch": "Switch branch",
+    "new_branch": "New branch",
+    "change_to_branch": "Switch to branch",
+    "delete_branch": "Delete branch",
+    "current_branch": "Current branch",
+    "default_branch": "Default branch",
+    "you_have_changes": "You have local changes. What would you like to do with them?",
+    "discart_changes": "Discard changes",
+    "stash_changes": "Stash and apply later",
+    "open_diff_vscode": "Open diff in VS Code",
+    "changed_to_branch": "Switched to branch {{branch}}",
+    "changing_branch": "Switching to branch {{branch}}...",
+    "error_changing_branch": "Error switching branch"
   },
   "file": {
     "file": "File",
