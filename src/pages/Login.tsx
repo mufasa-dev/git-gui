@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createSignal } from "solid-js";
 import { useApp } from "../context/AppContext";
+import logoImg from "../assets/fork.png";
 
 interface LoginPageProps {
   onLoginSuccess: (token: string) => void;
@@ -47,27 +48,21 @@ export default function LoginPage(props: LoginPageProps) {
           
           {/* LOGO E TÍTULO (Estilo Git River) */}
           <div class="flex items-center gap-4 mb-10">
-            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-              <span class="text-3xl font-bold text-white">R</span>
+            <div class="relative flex-shrink-0">
+                <div class="absolute -inset-4 bg-gradient-to-r from-blue-600 to-cyan-400 rounded-full blur-xl opacity-20 group-hover:opacity-60 group-hover:blur-2xl transition-all duration-500 group-hover:duration-300 will-change-[filter]"></div>
+                <img src={logoImg} alt="Git Trident Logo" class="relative h-32 w-auto drop-shadow-2xl transform-gpu will-change-transform transition-transform duration-500 group-hover:scale-110" />
             </div>
             <div>
-              <h1 class="text-3xl font-bold">Git Brook</h1>
-              <p class="text-sm text-gray-400">Sync Your Flow.</p>
+              <h1 class="text-6xl font-black tracking-tighter leading-none select-none">
+                  <span class="text-gray-900 dark:text-white">Dev</span>
+                  <span class="bg-clip-text text-transparent bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-cyan-300 ml-2">Brook</span>
+              </h1>
+              <div class="flex items-center gap-3 mt-2">
+                  <div class="h-[1px] w-8 bg-blue-500/50"></div>
+                  <p class="text-sm font-medium uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Visual Terminal</p>
+              </div>
             </div>
           </div>
-
-          <p class="text-sm text-gray-400 mb-6 font-medium">Login com conta:</p>
-
-          {/* BOTÕES SOCIAIS (Mockado, estilo da imagem) */}
-          <div class="flex gap-4 mb-10">
-            {['github', 'gitlab', 'bitbucket'].map(provider => (
-              <div class="w-16 h-16 bg-[#1a202c] border border-white/5 rounded-2xl flex items-center justify-center cursor-pointer hover:border-blue-500 transition-colors">
-                <span class="text-xs text-gray-600">[{provider}]</span>
-              </div>
-            ))}
-          </div>
-
-          <p class="text-sm text-gray-400 mb-6 font-medium">Ou acesse sua conta Rivers:</p>
 
           <form onSubmit={handleLogin} class="space-y-6">
             {error() && (

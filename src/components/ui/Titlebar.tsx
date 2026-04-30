@@ -41,7 +41,10 @@ export default function Titlebar() {
     >
       <div class="flex items-center h-full">
         <img src={logo} class="px-2 h-7" />
-        <span class="text-xs font-semibold opacity-70">Brook</span>
+        <span class="text-xs font-semibold opacity-70">
+          <span class="text-gray-900 dark:text-white">Dev</span>
+          <span class="bg-clip-text text-transparent bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-cyan-300 ml-2">Brook</span>
+        </span>
       </div>
       
       <div class="flex h-full items-center">
