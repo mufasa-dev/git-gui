@@ -27,7 +27,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   const [resizing, setResizing] = createSignal(false);
   const [startDate, setStartDate] = createSignal("");
   const [endDate, setEndDate] = createSignal("");
-  const { t } = useApp();
+  const { t, locale } = useApp();
   
   // Estados para Paginação e Filtro
   const [searchTerm, setSearchTerm] = createSignal("");
@@ -163,13 +163,13 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
             <div class="flex items-center gap-1">
               <input 
                 use:datepicker={{ value: startDate, onChange: setStartDate }}
-                placeholder="Início"
+                placeholder={t('common').start_date}
                 class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
               />
-              <span class="text-gray-400">até</span>
+              <span class="text-gray-400 whitespace-nowrap">{t('common').to_date}</span>
               <input 
                 use:datepicker={{ value: endDate, onChange: setEndDate }}
-                placeholder="Fim"
+                placeholder={t('common').end_date}
                 class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
               />
               
@@ -194,13 +194,13 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                 disabled={currentPage() === 1}
                 onClick={() => setCurrentPage(p => p - 1)}
                 class="px-4 py-1 bg-gray-300 dark:bg-gray-900 rounded-full disabled:opacity-30"
-              > Anterior </button>
+              > {t('common').previous} </button>
               <span>{currentPage()} / {totalPages() || 1}</span>
               <button 
                 disabled={currentPage() >= totalPages()}
                 onClick={() => setCurrentPage(p => p + 1)}
                 class="px-4 py-1 bg-gray-300 dark:bg-gray-900 rounded-full disabled:opacity-30"
-              > Próximo </button>
+              > {t('common').next} </button>
             </div>
           </div>
         </div>
@@ -208,7 +208,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
         {/* Lista de Commits */}
         <div class="flex-1 overflow-auto">
           <div>
-            <Show when={!loading()} fallback={<div class="p-4 text-center">Carregando...</div>}>
+            <Show when={!loading()} fallback={<div class="p-4 text-center">{t('common').loading}</div>}>
               <For each={paginatedCommits()}>
                 {(c) => (
                   <div
@@ -229,7 +229,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                       /> 
                       <span class="opacity-50 truncate">{formatContributorName(c.author)}</span>
                     </div>
-                    <div class="px-2 text-xs w-[182px] text-right truncate">{formatRelativeDate(c.date)}</div>
+                    <div class="px-2 text-xs w-[182px] text-right truncate">{formatRelativeDate(c.date, t, locale())}</div>
                   </div>
                 )}
               </For>

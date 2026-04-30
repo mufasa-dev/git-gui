@@ -1,30 +1,31 @@
-export function formatRelativeDate(dateStr: string) {
+import * as i18n from "@solid-primitives/i18n";
+
+// Tipagem para facilitar o uso do tradutor
+type Translator = any; 
+
+export function formatRelativeDate(dateStr: string, t: Translator, locale: string) {
   const date = new Date(dateStr);
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
   if (diffInSeconds < 60) {
-    return "agora mesmo";
+    return t("date").just_now;
   }
-
-  const rtf = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" });
 
   const minutes = Math.floor(diffInSeconds / 60);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
 
   if (days > 0) {
-    return formatDate(dateStr);
-  } else if (days >= 1) {
-    return rtf.format(-days, "day");
+    return formatDate(dateStr, locale);
   } else if (hours >= 1) {
-    return rtf.format(-hours, "hour");
+    return t("date").hours_ago.replace("{{count}}", String(hours));
   } else {
-    return rtf.format(-minutes, "minute");
+    return t("date").minutes_ago.replace("{{count}}", String(minutes));
   }
 }
 
-export function formatDate(dateStr: string) {
+export function formatDate(dateStr: string, locale: string) {
   const date = new Date(dateStr);
   const options: Intl.DateTimeFormatOptions = {
     day: "numeric",
@@ -34,20 +35,21 @@ export function formatDate(dateStr: string) {
     minute: "2-digit",
     hour12: false,
   };
-  return date.toLocaleString("pt-BR", options); // ou "en-US"
+  // Usamos o locale que vem do Context (ex: "pt", "en", "jp")
+  return date.toLocaleString(locale, options);
 }
 
-export const getRelativeTime = (dateStr: string) => {
+export const getRelativeTime = (dateStr: string, t: Translator) => {
     const date = new Date(dateStr);
     const now = new Date();
     const s = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (s < 3600) return `${Math.floor(s / 60)}m atrás`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h atrás`;
-    if (s < 604800) return `${Math.floor(s / 86400)}d atrás`;
+    if (s < 3600) return t("date").minutes_ago.replace("{{count}}", String(Math.floor(s / 60)));
+    if (s < 86400) return t("date").hours_ago.replace("{{count}}", String(Math.floor(s / 3600)));
+    if (s < 604800) return t("date").days_ago.replace("{{count}}", String(Math.floor(s / 86400)));
 
     const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // Meses começam em 0
+    const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
@@ -61,10 +63,9 @@ export const formatDuration = (msStr: string | undefined) => {
   if (isNaN(ms)) return msStr;
 
   if (ms < 1000) return `${ms}ms`;
-  
   const seconds = ms / 1000;
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  
   const minutes = seconds / 60;
+  // 'm' de minutos é universal no Git, mas se quiser traduzir, teria que passar o 't' aqui também.
   return `${minutes.toFixed(1)}m`;
 };

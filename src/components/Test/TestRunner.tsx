@@ -254,7 +254,7 @@ export const TestRunner = (props: { repo: any }) => {
               <i class={`fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[10px] transition-opacity ${isRunning() ? 'opacity-20' : 'opacity-50'}`}></i>
               <input 
                 type="text"
-                placeholder={isRunning() ? t('test').running + "..." : "Procurar..."}
+                placeholder={isRunning() ? t('test').running + "..." : t('common').search + '...'}
                 disabled={isRunning()}
                 value={searchQuery()}
                 onInput={(e) => setSearchQuery(e.currentTarget.value)}

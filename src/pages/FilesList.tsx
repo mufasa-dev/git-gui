@@ -36,7 +36,7 @@ export default function FileList(props: { repo: Repo }) {
   const [showHistory, setShowHistory] = createSignal(false);
   const [searchTerm, setSearchTerm] = createSignal("");
   const [isBinary, setIsBinary] = createSignal(false);
-  const { t } = useApp();
+  const { t, locale } = useApp();
 
   const UNSUPPORTED_EXTENSIONS = [
     '.zip', '.rar', '.7z', '.tar', '.gz', 
@@ -339,7 +339,7 @@ export default function FileList(props: { repo: Repo }) {
                 <span class="ml-auto clicked_label"  onClick={() => selectCommit(lastCommit()?.hash || '')}>
                   {lastCommit()?.hash.slice(0, 7)}
                 </span>
-                <div class="text-xs w-[220px] text-right truncate">{formatRelativeDate(lastCommit()?.date || '')}</div>
+                <div class="text-xs w-[220px] text-right truncate">{formatRelativeDate(lastCommit()?.date || '', t, locale())}</div>
               </div>
             )}
             {/* Folder list */}
@@ -378,7 +378,7 @@ export default function FileList(props: { repo: Repo }) {
                             <CommitMessage message={d.lastCommit?.message || ''} />
                           </td>
                           <td class="p-2 text-gray-500 dark:text-gray-400 text-xs text-right">
-                            {d.lastCommit?.date ? formatRelativeDate(d.lastCommit.date) : '--'}
+                            {d.lastCommit?.date ? formatRelativeDate(d.lastCommit.date, t, locale()) : '--'}
                           </td>
                         </tr>
                       )}
@@ -458,7 +458,7 @@ export default function FileList(props: { repo: Repo }) {
                           /> 
                           <span class="opacity-50 truncate">{c.author}</span>
                         </div>
-                        <div class="px-2 text-xs w-[182px] text-right truncate">{formatRelativeDate(c.date)}</div>
+                        <div class="px-2 text-xs w-[182px] text-right truncate">{formatRelativeDate(c.date, t, locale())}</div>
                       </div>
                     )}
                   </For>
