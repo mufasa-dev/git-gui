@@ -1,4 +1,4 @@
-import { createResource, For, Show, createSignal } from "solid-js";
+import { For, Show, createSignal } from "solid-js";
 import { githubService } from "../services/github";
 import logoImg from "../assets/fork.png";
 import CloneRepositoryModal from "../components/repo/CloneRepositoryModal";
@@ -96,8 +96,8 @@ export default function WelcomeScreen(props: Props) {
 
                 <div class="flex flex-col justify-center select-none transform-gpu">
                     <h1 class="text-6xl font-black tracking-tighter leading-none select-none">
-                        <span class="text-gray-900 dark:text-white">Git</span>
-                        <span class="bg-clip-text text-transparent bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-cyan-300 ml-2">Trident</span>
+                        <span class="text-gray-900 dark:text-white">Dev</span>
+                        <span class="bg-clip-text text-transparent bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-cyan-300 ml-2">Brook</span>
                     </h1>
                     <div class="flex items-center gap-3 mt-2">
                         <div class="h-[1px] w-8 bg-blue-500/50"></div>
