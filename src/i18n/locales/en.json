@@ -67,7 +67,10 @@
     "showing": "Showing",
     "of": "of",
     "results": "results",
-    "no_data": "No data to display"
+    "no_data": "No data to display",
+    "no_user": "No user found",
+    "no_commit": "No commit found",
+    "example": "Example"
   },
   "git": {
     "commit": "Commit",
@@ -334,7 +337,13 @@
     "other_reason": "Other reason",
     "dismiss_review": "Dismiss review",
     "confirm_dismiss_review": "Are you sure you want to dismiss this review?",
-    "complete": "Complete"
+    "complete": "Complete",
+    "by": "by",
+    "has_conflicts": "There are conflicts that need to be resolved",
+    "approving": "Approving...",
+    "checks_ci": "CHECKS & CI",
+    "validing_builds": "Validating builds...",
+    "no_pr": "No pull requests found"
   },
   "date": {
     "just_now": "just now",

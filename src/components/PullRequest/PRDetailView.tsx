@@ -111,12 +111,12 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
     }
   };
 
-  const tabs = [
-    { id: 'Visão Geral', label: 'Conversa', icon: 'fa-regular fa-comments' },
-    { id: 'Files', label: 'Arquivos', icon: 'fa-regular fa-file-code' },
-    { id: 'Commits', label: 'Commits', icon: 'fa-solid fa-code-commit' },
-    { id: 'Checks', label: 'Verificações', icon: 'fa-solid fa-list-check' }
-  ];
+  const tabs = createMemo(() => [
+    { id: 'Visão Geral', label: t('pr').conversation, icon: 'fa-regular fa-comments' },
+    { id: 'Files', label: t('file').files, icon: 'fa-regular fa-file-code' },
+    { id: 'Commits', label: t('commits').commits, icon: 'fa-solid fa-code-commit' },
+    { id: 'Checks', label: t('pr').checked, icon: 'fa-solid fa-list-check' }
+  ]);
 
   return (
     <div class="flex flex-col h-full select-text transition-colors">
@@ -139,7 +139,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
                     onClick={() => setActiveTab('Files')} // Redireciona para a aba de arquivos
                     class="bg-red-500 text-white px-3 py-1 rounded text-[9px] font-black uppercase hover:bg-red-600 transition-all"
                   >
-                    Resolver Conflitos
+                    {t('merge').resolve_conflicts}
                   </button>
                 </div>
               </Match>
@@ -154,8 +154,8 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
                       : 'bg-green-600 hover:bg-green-500 text-white shadow-green-500/20 active:scale-95'
                     } ${details()?.mergeable === 'CONFLICTING' ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                 >
-                  <Show when={isApproving()} fallback={<><i class="fa-solid fa-check"></i> Aprovar</>}>
-                    <i class="fa-solid fa-circle-notch animate-spin"></i> Aprovando...
+                  <Show when={isApproving()} fallback={<><i class="fa-solid fa-check"></i> {t('pr').approve}</>}>
+                    <i class="fa-solid fa-circle-notch animate-spin"></i> {t('pr').approving}
                   </Show>
                 </button>
               </Match>
@@ -184,7 +184,8 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
             
             {/* NAVEGAÇÃO DE ABAS */}
             <nav class="flex gap-6 border border-gray-100 dark:border-gray-700 rounded-t-xl px-4 bg-gray-300 dark:bg-gray-900">
-              <For each={tabs}>
+              {/* Adicione os parênteses em tabs() aqui */}
+              <For each={tabs()}>
                 {(tab) => (
                   <button 
                     onClick={() => setActiveTab(tab.id)}
@@ -247,7 +248,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
         <aside class="container-branch-list w-72 ml-2 p-4 space-y-10">
           <div>
             <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
-              <span>Reviewers</span>
+              <span>{t('pr').reviewers}</span>
               <i class="fa-solid fa-gear hover:text-blue-500 cursor-pointer transition-colors"></i>
             </div>
             
@@ -295,14 +296,14 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
               </For>
               
               <Show when={reviewersList().length === 0}>
-                <div class="text-[10px] text-gray-500 italic">Nenhum revisor solicitado</div>
+                <div class="text-[10px] text-gray-500 italic">{t('pr').no_reviewers}</div>
               </Show>
             </div>
           </div>
 
           <div>
             <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
-              <span>Participantes</span>
+              <span>{t('pr').participants}</span>
             </div>
             <div class="flex flex-col flex-wrap gap-2">
               <For each={details()?.participants?.nodes}>

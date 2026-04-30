@@ -67,7 +67,10 @@
     "showing": "Mostrando",
     "of": "de",
     "results": "resultados",
-    "no_data": "Sem dados para exibir"
+    "no_data": "Sem dados para exibir",
+    "no_user": "Nenhum usuário encontrado",
+    "no_commit": "Nenhum commit encontrado",
+    "example": "Exemplo"
   },
   "git": {
     "commit": "Commit",
@@ -334,7 +337,13 @@
     "other_reason": "Outro motivo",
     "dismiss_review": "Dispensar revisão",
     "confirm_dismiss_review": "Tem certeza que deseja dispensar esta revisão?",
-    "complete": "Completar"
+    "complete": "Completar",
+    "by": "por",
+    "has_conflicts": "Existem conflitos que devem ser resolvidos",
+    "approving": "Aprovando...",
+    "checks_ci": "CHECKS & CI",
+    "validing_builds": "Validando builds...",
+    "no_pr": "Nenhum pull request encontrado"
   },
   "date": {
     "just_now": "agora mesmo",

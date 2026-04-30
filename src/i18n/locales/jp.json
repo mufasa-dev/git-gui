@@ -67,7 +67,10 @@
     "showing": "表示中",
     "of": "の",
     "results": "結果",
-    "no_data": "データがありません"
+    "no_data": "データがありません",
+    "no_user": "ユーザーが見つかりません",
+    "no_commit": "コミットが見つかりません",
+    "example": "例"
   },
   "git": {
     "commit": "コミット",
@@ -334,7 +337,13 @@
     "other_reason": "その他の理由",
     "dismiss_review": "レビューを却下",
     "confirm_dismiss_review": "このレビューを却下してもよろしいですか？",
-    "complete": "完了"
+    "complete": "完了",
+    "by": "",
+    "has_conflicts": "解決する必要のある競合があります",
+    "approving": "承認中...",
+    "checks_ci": "チェックとCI",
+    "validing_builds": "ビルドを検証中...",
+    "no_pr": "プルリクエストが見つかりません"
   },
   "date": {
     "just_now": "たった今",

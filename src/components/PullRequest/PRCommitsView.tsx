@@ -2,6 +2,7 @@ import { createResource, For, Show } from "solid-js";
 import { githubService } from "../../services/github";
 import CommitMessage from "../ui/CommitMessage";
 import { useApp } from "../../context/AppContext";
+import { formatRelativeDate } from "../../utils/date";
 
 interface PRCommitsViewProps {
   owner: string;
@@ -11,20 +12,11 @@ interface PRCommitsViewProps {
 }
 
 export default function PRCommitsView(props: PRCommitsViewProps) {
-  const { t } = useApp();
+  const { t, locale } = useApp();
   const [commits] = createResource(
     () => ({ owner: props.owner, name: props.repoName, number: props.prNumber }),
     async (params) => await githubService.getPRCommits(params.owner, params.name, params.number)
   );
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   return (
     <div class="flex flex-col h-full bg-white dark:bg-gray-800 rounded-b-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-2xl overflow-y-auto custom-scrollbar">
@@ -59,7 +51,7 @@ export default function PRCommitsView(props: PRCommitsViewProps) {
                         {commit.author.user?.login || commit.author.name}
                       </span>
                       <span>•</span>
-                      <span>{formatDate(commit.committedDate)}</span>
+                      <span>{formatRelativeDate(commit.committedDate, t, locale())}</span>
                     </div>
                     
                     {/* Se houver descrição longa no commit */}

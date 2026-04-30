@@ -95,7 +95,7 @@ export default function PRFilesTab(props: { owner: string, repoName: string, prN
         <Show when={selectedFilePath()} fallback={
           <div class="h-full flex flex-col items-center justify-center text-gray-400 opacity-30">
             <i class="fa-solid fa-code-compare text-5xl mb-4"></i>
-            <p class="text-[10px] font-black uppercase tracking-[0.3em]">Selecione um arquivo para ver as mudanças</p>
+            <p class="text-[10px] font-black uppercase tracking-[0.3em]">{t('pr').select_file_see_changes}</p>
           </div>
         }>
           <div class="sticky top-0 z-10 bg-gray-100 dark:bg-gray-900 px-4 py-2 border-b dark:border-gray-700 flex justify-between items-center">
