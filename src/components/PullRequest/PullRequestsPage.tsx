@@ -5,11 +5,13 @@ import { getRelativeTime } from "../../utils/date";
 import { Repo } from "../../models/Repo.model";
 import CommitMessage from "../ui/CommitMessage";
 import PRStatusBadge from "./PRStatusBadge";
+import { useApp } from "../../context/AppContext";
 
 export default function PullRequestsPage(props: { repo: Repo, username: string, branch?: string }) {
   const [filter, setFilter] = createSignal("OPEN");
   const [searchTerm, setSearchTerm] = createSignal("");
   const [selectedPR, setSelectedPR] = createSignal<any>(null);
+  const { t, locale } = useApp();
 
   // Resize logic
   const [sidebarWidth, setSidebarWidth] = createSignal(350);
@@ -45,8 +47,8 @@ export default function PullRequestsPage(props: { repo: Repo, username: string, 
         <div class="container-branch-list p-0 flex flex-col h-full">
           <header class="p-4 border-b dark:border-gray-700/50 space-y-4">
             <div class="flex bg-gray-100 dark:bg-gray-800/50 p-1 rounded-lg border dark:border-gray-700">
-              <button onClick={() => setFilter("OPEN")} class={`flex-1 py-1 text-[9px] font-black uppercase rounded-md ${filter() === 'OPEN' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>Abertos</button>
-              <button onClick={() => setFilter("MERGED")} class={`flex-1 py-1 text-[9px] font-black uppercase rounded-md ${filter() === 'MERGED' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>Fechados</button>
+              <button onClick={() => setFilter("OPEN")} class={`flex-1 py-1 text-[9px] font-black uppercase rounded-md ${filter() === 'OPEN' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>{t('pr').open}</button>
+              <button onClick={() => setFilter("MERGED")} class={`flex-1 py-1 text-[9px] font-black uppercase rounded-md ${filter() === 'MERGED' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>{t('pr').merged}</button>
             </div>
 
             {/* Barra de Busca */}
@@ -54,7 +56,7 @@ export default function PullRequestsPage(props: { repo: Repo, username: string, 
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[10px]"></i>
               <input 
                 type="text"
-                placeholder="Buscar PR..."
+                placeholder={t('pr').search_pull_requests + '...'}
                 onInput={(e) => setSearchTerm(e.currentTarget.value)}
                 class="w-full bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 pl-8 pr-3 text-xs outline-none focus:border-blue-500 transition-colors dark:text-gray-200"
               />
@@ -85,7 +87,7 @@ export default function PullRequestsPage(props: { repo: Repo, username: string, 
                       </h4>
                       
                       <div class="text-[10px] text-gray-500 font-bold uppercase tracking-tight mb-2">
-                        #{pr.number} • por {pr.author.login}
+                        #{pr.number} • {t('pr').by} {pr.author.login}
                       </div>
 
                       <div class="flex items-center gap-3 text-[9px] font-black uppercase">
@@ -98,7 +100,7 @@ export default function PullRequestsPage(props: { repo: Repo, username: string, 
 
                         {/* Tempo */}
                         <span class="text-gray-400 flex items-center gap-1 ml-auto font-mono">
-                          <i class="fa-regular fa-clock text-[10px]"></i> {getRelativeTime(pr.createdAt)}
+                          <i class="fa-regular fa-clock text-[10px]"></i> {getRelativeTime(pr.createdAt, t, locale())}
                         </span>
                       </div>
                     </div>

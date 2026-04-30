@@ -23,7 +23,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     const [commentText, setCommentText] = createSignal("");
     const { showLoading, hideLoading } = useLoading();
     const [confirmData, setConfirmData] = createSignal<{ id: string } | null>(null);
-    const { t } = useApp();
+    const { t, locale } = useApp();
     
     const [timeline, { refetch }] = createResource(
         () => ({ owner: props.owner, name: props.repo, number: props.pr.number }),
@@ -144,7 +144,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                             <div class="flex justify-between items-center mb-2">
                                                 <span class="text-sm font-black text-gray-900 dark:text-white">
                                                     {props.details.author.login} 
-                                                    <span class="text-[9px] text-gray-400 font-normal ml-2 lowercase">{getRelativeTime(props.pr.createdAt)}</span>
+                                                    <span class="text-[9px] text-gray-400 font-normal ml-2 lowercase">{getRelativeTime(props.pr.createdAt, t, locale())}</span>
                                                 </span>
                                                 <span class="text-[10px] text-gray-400 font-mono">
                                                 {new Date(props.pr.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -189,7 +189,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         <p class="text-gray-500 dark:text-gray-400">
                                             <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
                                             <span class="ml-1">fechou este commit</span>
-                                            <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt)}</span>
+                                            <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt, t, locale())}</span>
                                         </p>
                                     </div>
                                 </Show>
@@ -206,7 +206,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         <p class="text-gray-500 dark:text-gray-400">
                                             <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
                                             <span class="ml-1">reabriu este commit</span>
-                                            <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt)}</span>
+                                            <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt, t, locale())}</span>
                                         </p>
                                     </div>
                                 </Show>
@@ -235,7 +235,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                 {item.author.login} 
                                                             </span>
                                                             <span class="text-[9px] text-gray-400 font-normal lowercase">
-                                                                {getRelativeTime(item.createdAt)}
+                                                                {getRelativeTime(item.createdAt, t, locale())}
                                                             </span>
                                                             
                                                             {/* BADGES OPCIONAIS (Owner/Author) */}

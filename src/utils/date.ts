@@ -47,7 +47,7 @@ export function formatDate(dateStr: string, locale: string) {
   return date.toLocaleString(currentLocale, options);
 }
 
-export const getRelativeTime = (dateStr: string, t: Translator) => {
+export const getRelativeTime = (dateStr: string, t: any, locale: string) => {
     const date = new Date(dateStr);
     const now = new Date();
     const s = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -56,13 +56,7 @@ export const getRelativeTime = (dateStr: string, t: Translator) => {
     if (s < 86400) return t("date").hours_ago.replace("{{count}}", String(Math.floor(s / 3600)));
     if (s < 604800) return t("date").days_ago.replace("{{count}}", String(Math.floor(s / 86400)));
 
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
+    return formatDate(dateStr, locale);
 };
 
 export const formatDuration = (msStr: string | undefined) => {

@@ -1,6 +1,7 @@
 import { createResource, For, Show } from "solid-js";
 import { githubService } from "../../services/github";
 import CommitMessage from "../ui/CommitMessage";
+import { useApp } from "../../context/AppContext";
 
 interface PRCommitsViewProps {
   owner: string;
@@ -10,6 +11,7 @@ interface PRCommitsViewProps {
 }
 
 export default function PRCommitsView(props: PRCommitsViewProps) {
+  const { t } = useApp();
   const [commits] = createResource(
     () => ({ owner: props.owner, name: props.repoName, number: props.prNumber }),
     async (params) => await githubService.getPRCommits(params.owner, params.name, params.number)
@@ -28,7 +30,7 @@ export default function PRCommitsView(props: PRCommitsViewProps) {
     <div class="flex flex-col h-full bg-white dark:bg-gray-800 rounded-b-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-2xl overflow-y-auto custom-scrollbar">
       <div class="flex-1 overflow-y-auto">
         <Show when={!commits.loading} fallback={
-          <div class="p-10 text-center text-gray-500 animate-pulse text-xs">Carregando commits...</div>
+          <div class="p-10 text-center text-gray-500 animate-pulse text-xs">{t('common').loading}</div>
         }>
           <div class="divide-y divide-gray-700 border-b boder-gray-300 dark:border-gray-700">
             <For each={commits()}>

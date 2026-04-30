@@ -15,6 +15,7 @@ import { formatContributorName } from "../../utils/user";
 import { UserProfileDialog } from "../Config/UserProfile";
 import PRStatusBadge from "./PRStatusBadge";
 import { notify } from "../../utils/notifications";
+import { useApp } from "../../context/AppContext";
 
 export default function PRDetailView(props: { pr: any, owner: string, repo: Repo, branch?: string }) {
   const [activeTab, setActiveTab] = createSignal("Visão Geral");
@@ -23,6 +24,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
   const [isApproving, setIsApproving] = createSignal(false);
+  const { t, locale } = useApp();
   
   const [details, { refetch }] = createResource(
     () => ({ owner: props.owner, name: props.repo.name, number: props.pr.number }),
@@ -171,7 +173,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
             <span class="text-gray-500 mx-2">→</span>
             <span class="font-mono text-blue-500 dark:text-blue-400">{props.pr.baseRefName}</span><br />
             <span class="font-bold text-gray-900 dark:text-white">{props.pr.author?.login}</span>
-            <span class="text-gray-400 uppercase ml-3 text-[9px] font-black italic">{getRelativeTime(props.pr.createdAt)}</span>
+            <span class="text-gray-400 uppercase ml-3 text-[9px] font-black italic">{getRelativeTime(props.pr.createdAt, t, locale())}</span>
           </div>
         </div>
       </header>
@@ -320,7 +322,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
         </aside>
       </div>
       <Dialog open={showModalCommitDetails()}
-              title="Detalhes co Commit"
+              title={t('commits').details}
               onClose={() => setModalCommitDetails(false)}
               bodyClass="p-0 h-full"
               width={'calc(100vw - 40px)'}
@@ -332,7 +334,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
             onClose={() => {
               setModalUserProfileOpen(false);
               setSelectedUser({ name: "", email: "" });
-            }} title="Perfil do Usuário" width={"90vw"}>
+            }} title={t('auth').user_profile} width={"90vw"}>
           <UserProfileDialog 
             repoPath={props.repo.path || ""} 
             branch={props.branch || ""}
