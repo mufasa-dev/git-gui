@@ -1,9 +1,6 @@
-import * as i18n from "@solid-primitives/i18n";
-
-// Tipagem para facilitar o uso do tradutor
 type Translator = any; 
 
-export function formatRelativeDate(dateStr: string, t: Translator, locale: string) {
+export function formatRelativeDate(dateStr: string, t: any, locale: string) {
   const date = new Date(dateStr);
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -27,6 +24,17 @@ export function formatRelativeDate(dateStr: string, t: Translator, locale: strin
 
 export function formatDate(dateStr: string, locale: string) {
   const date = new Date(dateStr);
+  
+  // Mapeamento simples para garantir que o Intl entenda o código do idioma
+  const localeMap: Record<string, string> = {
+    "pt": "pt-BR",
+    "en": "en-US",
+    "it": "it-IT",
+    "jp": "ja-JP"
+  };
+
+  const currentLocale = localeMap[locale] || locale;
+
   const options: Intl.DateTimeFormatOptions = {
     day: "numeric",
     month: "short",
@@ -35,8 +43,8 @@ export function formatDate(dateStr: string, locale: string) {
     minute: "2-digit",
     hour12: false,
   };
-  // Usamos o locale que vem do Context (ex: "pt", "en", "jp")
-  return date.toLocaleString(locale, options);
+
+  return date.toLocaleString(currentLocale, options);
 }
 
 export const getRelativeTime = (dateStr: string, t: Translator) => {
