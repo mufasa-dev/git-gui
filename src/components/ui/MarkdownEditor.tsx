@@ -1,5 +1,6 @@
 import { createSignal, Show, JSX } from "solid-js";
 import MarkdownViewer from "./MarkdownViewer";
+import { useApp } from "../../context/AppContext";
 
 type MarkdownEditorProps = {
   value?: string;
@@ -11,6 +12,8 @@ type MarkdownEditorProps = {
 export default function MarkdownEditor(props: MarkdownEditorProps) {
   const [text, setText] = createSignal(props.value || "");
   const [mode, setMode] = createSignal<"write" | "preview">("write");
+  const { t } = useApp();
+
   let textAreaRef: HTMLTextAreaElement | undefined;
 
   const handleInput = (val: string) => {
@@ -43,7 +46,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
               onClick={() => setMode(m as any)}
               class={`px-4 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors dark:border-gray-700 ${mode() === m ? 'bg-white dark:bg-gray-800 border-x text-blue-500' : 'text-gray-500 hover:text-gray-700 dark:hover:text-white'}`}
             >
-              {m}
+              {m === "write" ? t('pr').write : t('pr').preview}
             </button>
           ))}
         </div>

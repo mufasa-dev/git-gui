@@ -170,7 +170,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                             <p class="font-mono text-sm font-bold text-gray-500 dark:text-gray-400 flex items-center 
                                                       mt-1 hover:text-blue-500 dark:hover:text-blue-500 hover:underline cursor-pointer  transition-colors"
                                                     onClick={() => props.selectCommit(item.commit.oid)}>
-                                                <span>Commit</span>
+                                                <span>{t('git').commit}</span>
                                                 <CommitMessage message={item.commit.message} class="text-sm text-gray-600 dark:text-gray-300 ml-1" />
                                             </p>
                                             <span class="opacity-30 font-mono text-[10px]">{new Date(item.commit.committedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
@@ -188,7 +188,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         <img src={item.actor.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
                                         <p class="text-gray-500 dark:text-gray-400">
                                             <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
-                                            <span class="ml-1">fechou este commit</span>
+                                            <span class="ml-1">{t('pr').close_this_pr}</span>
                                             <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt, t, locale())}</span>
                                         </p>
                                     </div>
@@ -205,7 +205,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         <img src={item.actor.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
                                         <p class="text-gray-500 dark:text-gray-400">
                                             <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
-                                            <span class="ml-1">reabriu este commit</span>
+                                            <span class="ml-1">{t('pr').reopen_this_pr}</span>
                                             <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt, t, locale())}</span>
                                         </p>
                                     </div>
@@ -218,7 +218,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         fallback={
                                             <div class="ml-4 p-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg text-[10px] text-gray-500 italic border border-dashed border-gray-300 dark:border-gray-700 mr-4">
                                                 <i class="fa-solid fa-eye-slash mr-2"></i>
-                                                Este comentário foi escondido ({item.minimizedReason})
+                                                {t('pr').comment_hided} ({item.minimizedReason})
                                             </div>
                                         }
                                     >
@@ -259,10 +259,10 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                 <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute top-full right-0 pt-1 transition-all z-[60] min-w-[160px]">
                                                                     <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden py-1">
                                                                         <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                                                            <i class="fa-regular fa-copy opacity-60"></i> Copiar link
+                                                                            <i class="fa-regular fa-copy opacity-60"></i> {}{t('pr').copy_link}
                                                                         </button>
                                                                         <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                                                            <i class="fa-solid fa-quote-left opacity-60"></i> Quote reply
+                                                                            <i class="fa-solid fa-quote-left opacity-60"></i> {t('pr').quote_reply}
                                                                         </button>
                                                                         
                                                                         <div class="h-[1px] bg-gray-200 dark:bg-gray-700 my-1"></div>
@@ -271,17 +271,17 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                             onClick={() => handleEdit(item)}
                                                                             class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300"
                                                                         >
-                                                                            <i class="fa-regular fa-pen-to-square opacity-60"></i> Editar
+                                                                            <i class="fa-regular fa-pen-to-square opacity-60"></i> {t('common').edit}
                                                                         </button>
                                                                         <button onClick={() => handleHide(item.id)} 
                                                                             class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                                                            <i class="fa-regular fa-eye-slash opacity-60"></i> Esconder
+                                                                            <i class="fa-regular fa-eye-slash opacity-60"></i> {t('pr').hide}
                                                                         </button>
                                                                         <button 
                                                                             onClick={() => requestDelete(item.id)}
                                                                             class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-red-500 font-bold"
                                                                         >
-                                                                            <i class="fa-regular fa-trash-can"></i> Deletar
+                                                                            <i class="fa-regular fa-trash-can"></i> {t('common').delete}
                                                                         </button>
                                                                     </div>
                                                                 </div>
@@ -295,7 +295,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                     {/* BOTÕES DE AÇÃO */}
                                                     <div class="flex items-center gap-4 mt-4 text-[9px] font-black uppercase tracking-widest text-gray-400">
                                                         <button class="hover:text-blue-500 transition-colors flex items-center">
-                                                            <i class="fa-solid fa-reply mr-1"></i> Responder
+                                                            <i class="fa-solid fa-reply mr-1"></i> {t('pr').answer}
                                                         </button>
                                                         
                                                         {/* CONTAINER DAS REAÇÕES + BOTÃO REAGIR */}
@@ -373,14 +373,14 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                         <MarkdownEditor 
                             value={commentText()} 
                             onInput={setCommentText}
-                            placeholder="Deixe um comentário..."
+                            placeholder={t('pr').leave_a_comment + '...'}
                         >
                             <button 
                                 disabled={!commentText()}
                                 onClick={handleSaveComment}
                                 class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
                             >
-                                Comment
+                                {t('pr').comment}
                             </button>
                         </MarkdownEditor>
                     </div>
@@ -388,9 +388,9 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
                 <ConfirmModal 
                     isOpen={confirmData() !== null}
-                    title="Deletar Comentário"
-                    message="Tem certeza que deseja remover este comentário? Esta ação não pode ser desfeita."
-                    confirmText="Deletar"
+                    title={t('pr').delete_comment}
+                    message={t('pr').confirm_delete_comment}
+                    confirmText={t('common').delete}
                     isDanger={true}
                     onConfirm={executeDelete}
                     onCancel={() => setConfirmData(null)}
