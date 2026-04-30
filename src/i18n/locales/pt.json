@@ -63,7 +63,11 @@
     "start_date": "Início",
     "end_date": "Fim",
     "apply": "Aplicar",
-    "to_date": "até"
+    "to_date": "até",
+    "showing": "Mostrando",
+    "of": "de",
+    "results": "resultados",
+    "no_data": "Sem dados para exibir"
   },
   "git": {
     "commit": "Commit",

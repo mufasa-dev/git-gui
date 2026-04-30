@@ -188,7 +188,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
             <b class="text-green-600">
               <i class="fas fa-code-branch" />{props.branch}:
             </b>
-            <span class="text-gray-500 ml-2">Mostrando {paginatedCommits().length} de {filteredCommits().length}</span>
+            <span class="text-gray-500 ml-2">{t('common').showing} {paginatedCommits().length} {t('common').of} {filteredCommits().length}</span>
             <div class="flex gap-2 items-center ml-auto">
               <button 
                 disabled={currentPage() === 1}

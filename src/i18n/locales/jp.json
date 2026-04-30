@@ -63,7 +63,11 @@
     "start_date": "開始",
     "end_date": "終了",
     "apply": "適用",
-    "to_date": "まで"
+    "to_date": "まで",
+    "showing": "表示中",
+    "of": "の",
+    "results": "結果",
+    "no_data": "データがありません"
   },
   "git": {
     "commit": "コミット",
