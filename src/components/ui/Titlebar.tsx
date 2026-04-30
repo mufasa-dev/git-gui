@@ -3,18 +3,18 @@ import logo from "../../assets/fork.png";
 import { createSignal, Show, onMount, onCleanup } from "solid-js";
 import { useApp } from "../../context/AppContext";
 import { LanguageSelector } from "./LanguageSelector";
+import { authService } from "../../services/authService";
 
 export default function Titlebar() {
   const [dark, setDark] = createSignal(localStorage.getItem("theme") == "dark");
   const [showAccountMenu, setShowAccountMenu] = createSignal(false);
-  const { t } = useApp();
+  const { t, token } = useApp();
   
   const appWindow = getCurrentWindow();
 
   const handleLogout = () => {
-    localStorage.removeItem("brook_token");
-
-    window.location.href = "/login";
+    authService.logout();
+    window.location.reload(); 
   };
 
   const toggleDark = () => {
@@ -50,34 +50,36 @@ export default function Titlebar() {
       <div class="flex h-full items-center">
         <LanguageSelector />
         {/* Botão de Conta / Dropdown */}
-        <div class="relative h-full" ref={menuRef}>
-          <button
-            onClick={() => setShowAccountMenu(!showAccountMenu())}
-            class="px-3 h-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 text-xs"
-          >
-            <i class="fa-solid fa-circle-user text-sm"></i>
-          </button>
+        <Show when={token()}>
+          <div class="relative h-full" ref={menuRef}>
+            <button
+              onClick={() => setShowAccountMenu(!showAccountMenu())}
+              class="px-3 h-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 text-xs"
+            >
+              <i class="fa-solid fa-circle-user text-sm"></i>
+            </button>
 
-          <Show when={showAccountMenu()}>
-            <div class="absolute right-0 mt-0 w-48 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-lg rounded-b-md py-1 z-50">
-              <div class="px-4 py-2 border-b dark:border-gray-700 text-[10px] uppercase tracking-wider opacity-50 font-bold">
-                {t("auth").my_account}
+            <Show when={showAccountMenu()}>
+              <div class="absolute right-0 mt-0 w-48 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-lg rounded-b-md py-1 z-50">
+                <div class="px-4 py-2 border-b dark:border-gray-700 text-[10px] uppercase tracking-wider opacity-50 font-bold">
+                  {t("auth").my_account}
+                </div>
+                <button 
+                  class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                  onClick={() => {/* Abrir Configurações */}}
+                >
+                  <i class="fa-solid fa-gear opacity-70"></i> {t("common").settings}
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  class="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2"
+                >
+                  <i class="fa-solid fa-right-from-bracket"></i> {t("auth").logout}
+                </button>
               </div>
-              <button 
-                class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                onClick={() => {/* Abrir Configurações */}}
-              >
-                <i class="fa-solid fa-gear opacity-70"></i> {t("common").settings}
-              </button>
-              <button 
-                onClick={handleLogout}
-                class="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2"
-              >
-                <i class="fa-solid fa-right-from-bracket"></i> {t("auth").logout}
-              </button>
-            </div>
-          </Show>
-        </div>
+            </Show>
+          </div>
+        </Show>
 
         <div class="h-4 w-[1px] bg-gray-400 dark:bg-gray-600 mx-1"></div>
 

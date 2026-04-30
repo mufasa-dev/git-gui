@@ -9,6 +9,8 @@ interface AppContextProps {
   setLocale: (l: Locale) => void;
   isDark: () => boolean;
   toggleTheme: () => void;
+  token: () => string | null;
+  updateToken: (newToken: string | null) => void;
 }
 
 const AppContext = createContext<AppContextProps>();
@@ -22,6 +24,7 @@ export function AppProvider(props: { children: JSX.Element }) {
   const t = i18n.translator(() => dict[locale()], i18n.resolveTemplate);
 
   const [isDark, setIsDark] = createSignal(localStorage.getItem("theme") !== "light");
+  const [token, setToken] = createSignal<string | null>(localStorage.getItem("brook_token"));
 
   const toggleTheme = () => {
     const newDark = !isDark();
@@ -30,13 +33,22 @@ export function AppProvider(props: { children: JSX.Element }) {
     localStorage.setItem("theme", newDark ? "dark" : "light");
   };
 
+  const updateToken = (newToken: string | null) => {
+    if (newToken) {
+        localStorage.setItem("brook_token", newToken);
+    } else {
+        localStorage.removeItem("brook_token");
+    }
+    setToken(newToken);
+  };
+
   const updateLocale = (l: Locale) => {
     setLocale(l);
     localStorage.setItem("lang", l);
   };
 
   return (
-    <AppContext.Provider value={{ t, locale, setLocale: updateLocale, isDark, toggleTheme }}>
+    <AppContext.Provider value={{ t, locale, setLocale: updateLocale, isDark, toggleTheme, token, updateToken }}>
       {props.children}
     </AppContext.Provider>
   );
