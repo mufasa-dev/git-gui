@@ -1,7 +1,11 @@
 {
   "auth": {
     "login": "ログイン",
+    "name": "名前",
+    "full_name": "フルネーム",
+    "your_name": "あなたの名前",
     "email_label": "メールアドレス",
+    "email_placeholder": "example@gmail.com",
     "password_label": "パスワード",
     "error": "認証に失敗しました",
     "my_account": "マイアカウント",
@@ -12,7 +16,13 @@
     "from_gravatar": "Gravatar経由",
     "change_picture": "写真を変更",
     "followers": "フォロワー",
-    "following": "フォロー中"
+    "following": "フォロー中",
+    "not_have_account": "アカウントをお持ちでないですか？",
+    "create_now": "今すぐ作成",
+    "have_account": "アカウントをお持ちですか？",
+    "login_here": "ここからログイン",
+    "create_account": "アカウントを作成",
+    "Processing": "処理中..."
   },
   "common": {
     "save": "保存",

@@ -1,7 +1,11 @@
 {
   "auth": {
     "login": "Accedi",
+    "name": "Nome",
+    "full_name": "Nome completo",
+    "your_name": "Il tuo nome",
     "email_label": "E-mail",
+    "email_placeholder": "esempio@gmail.com",
     "password_label": "Password",
     "error": "Autenticazione fallita",
     "my_account": "Il mio Account",
@@ -12,7 +16,13 @@
     "from_gravatar": "Via Gravatar",
     "change_picture": "Cambia foto",
     "followers": "Seguaci",
-    "following": "Seguiti"
+    "following": "Seguiti",
+    "not_have_account": "Non hai un account?",
+    "create_now": "Crea ora!",
+    "have_account": "Hai già un account?",
+    "login_here": "Accedi qui!",
+    "create_account": "Crea Account",
+    "Processing": "Elaborazione..."
   },
   "common": {
     "save": "Salva",

@@ -37,7 +37,7 @@ export default function Titlebar() {
   return (
     <div 
       data-tauri-drag-region 
-      class="flex justify-between items-center dark:bg-gray-800 dark:text-white h-8 select-none border-b dark:border-gray-900 relative"
+      class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white h-8 select-none border-b dark:border-gray-900 relative"
     >
       <div class="flex items-center h-full">
         <img src={logo} class="px-2 h-7" />

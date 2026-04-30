@@ -27,7 +27,7 @@ export function LanguageSelector() {
       {/* Botão Principal */}
       <button
         onClick={() => setIsOpen(!isOpen())}
-        class="flex items-center gap-2 px-2 h-6 hover:bg-gray-700 rounded transition-colors text-[10px] uppercase font-bold text-gray-300"
+        class="flex items-center gap-2 px-2 h-6 hover:bg-gray-300 dark:hover:bg-gray-700 rounded transition-colors text-[10px] uppercase font-bold dark:text-gray-300"
       >
         <FileIcon fileName={flagMap[locale()]} size={14} />
         <span>{locale()}</span>
@@ -37,7 +37,7 @@ export function LanguageSelector() {
       {/* Menu de Opções */}
       <Show when={isOpen()}>
         <div 
-          class="absolute left-0 mt-1 w-32 bg-[#1a202c] border border-white/10 rounded-md shadow-xl z-[100] py-1"
+          class="absolute left-0 mt-1 w-32 bg-gray-300 dark:bg-[#1a202c] border border-white/10 rounded-md shadow-xl z-[100] py-1"
           onMouseLeave={() => setIsOpen(false)}
         >
           <For each={languages}>
@@ -47,7 +47,7 @@ export function LanguageSelector() {
                   setLocale(lang.id);
                   setIsOpen(false);
                 }}
-                class="w-full flex items-center gap-3 px-3 py-2 text-xs hover:bg-blue-600/20 text-gray-300 hover:text-white transition-colors"
+                class="w-full flex items-center gap-3 px-3 py-2 text-xs hover:bg-blue-600/20 dark:text-gray-300 hover:text-white transition-colors"
               >
                 <FileIcon fileName={flagMap[lang.id]} size={16} />
                 <span>{lang.label}</span>

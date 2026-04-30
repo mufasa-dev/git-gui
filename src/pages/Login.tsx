@@ -46,7 +46,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div class="h-screen w-full flex bg-[#0d1117] text-white">
+    <div class="h-screen w-full flex bg-white dark:bg-[#0d1117] text-gray-800 dark:text-white">
       {/* LADO ESQUERDO */}
       <div class="w-1/2 h-full bg-cover bg-center border-r border-white/10" 
            style="background-image: url('/src/assets/rivers_bg_galaxy.png');">
@@ -77,10 +77,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <h2 class="text-xl font-semibold mb-6">
-            {isRegister() ? "Crie sua conta no Brook" : "Bem-vindo de volta"}
-          </h2>
-
           <form onSubmit={handleSubmit} class="space-y-4">
             {error() && (
               <p class="text-red-400 text-sm bg-red-950/40 p-3 rounded-lg border border-red-500/10">
@@ -91,14 +87,14 @@ export default function LoginPage() {
             {/* CAMPO NOME COMPLETO (Apenas no Registro) */}
             <Show when={isRegister()}>
               <div class="animate-in fade-in slide-in-from-top-2 duration-300">
-                <label class="block text-sm text-gray-500 mb-1.5">Nome Completo</label>
+                <label class="block text-sm text-gray-500 mb-1.5">{t('auth').full_name}</label>
                 <input 
                   type="text" 
                   required
-                  placeholder="Seu nome"
+                  placeholder={t('auth').your_name}
                   value={fullName()}
                   onInput={(e) => setFullName(e.currentTarget.value)}
-                  class="w-full bg-[#1a202c] border border-white/5 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500 transition-all"
+                  class="w-full input-text px-4 py-3"
                 />
               </div>
             </Show>
@@ -108,10 +104,10 @@ export default function LoginPage() {
               <input 
                 type="email" 
                 required
-                placeholder="exemplo@gmail.com"
+                placeholder={t('auth').email_placeholder}
                 value={email()}
                 onInput={(e) => setEmail(e.currentTarget.value)}
-                class="w-full bg-[#1a202c] border border-white/5 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500 transition-all"
+                class="w-full input-text px-4 py-3"
               />
             </div>
 
@@ -124,7 +120,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password()}
                   onInput={(e) => setPassword(e.currentTarget.value)}
-                  class="w-full bg-[#1a202c] border border-white/5 rounded-lg px-4 py-3 pr-11 text-sm outline-none focus:border-blue-500 transition-all"
+                  class="w-full input-text px-4 py-3"
                 />
                 <button 
                   type="button"
@@ -141,15 +137,15 @@ export default function LoginPage() {
               disabled={loading()}
               class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-medium py-3 rounded-xl transition-all active:scale-[0.98] mt-4 text-sm"
             >
-              {loading() ? "Processando..." : (isRegister() ? "Criar Conta" : "Entrar")}
+              {loading() ? t('auth').Processing : (isRegister() ? t('auth').create_account : t('auth').login)}
             </button>
           </form>
           
           <div class="text-center text-xs text-gray-600 mt-10">
             {isRegister() ? (
-                <p>Já tem uma conta? <span onClick={() => setIsRegister(false)} class="text-blue-400 cursor-pointer hover:underline ml-1">Faça login</span></p>
+                <p>{t('auth').have_account} <span onClick={() => setIsRegister(false)} class="text-blue-400 cursor-pointer hover:underline ml-1">{t('auth').login_here}</span></p>
             ) : (
-                <p>Não tem uma conta? <span onClick={() => setIsRegister(true)} class="text-blue-400 cursor-pointer hover:underline ml-1">Crie agora</span></p>
+                <p>{t('auth').not_have_account} <span onClick={() => setIsRegister(true)} class="text-blue-400 cursor-pointer hover:underline ml-1">{t('auth').create_now}</span></p>
             )}
           </div>
         </div>

@@ -196,7 +196,7 @@ export default function Header(props: Props) {
     });
     
     return (
-        <div class="p-2 flex items-center px-4 dark:bg-gray-800 dark:text-white">
+        <div class="p-2 flex items-center px-4 bg-white dark:bg-gray-800 dark:text-white">
           <Button class="top-btn" onClick={openRepo}>
             <img src={folderIcon} class="inline h-6" />
             <small>{t('repository').open_repository}</small>
