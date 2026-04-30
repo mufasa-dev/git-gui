@@ -156,7 +156,11 @@
     "history": "Histórico",
     "commit_history": "Histórico de Commits",
     "copy_path": "Copiar caminho",
-    "updates": "Alterações"
+    "updates": "Alterações",
+    "big_file": "Arquivo grande",
+    "showing_first": "Exibindo as primeiras",
+    "load_complete_file": "Carregar arquivo completo (pode travar)",
+    "end_file": "Fim do arquivo"
   },
   "test": {
     "test": "Teste",

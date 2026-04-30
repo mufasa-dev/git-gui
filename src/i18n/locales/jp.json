@@ -156,7 +156,11 @@
     "history": "履歴",
     "commit_history": "コミット履歴",
     "copy_path": "パスをコピー",
-    "updates": "更新"
+    "updates": "更新",
+    "big_file": "大きなファイル",
+    "showing_first": "最初の",
+    "load_complete_file": "完全なファイルをロード (動作が遅れる場合あり)",
+    "end_file": "ファイルの終端"
   },
   "test": {
     "test": "テスト",

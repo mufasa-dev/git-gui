@@ -156,7 +156,11 @@
     "history": "History",
     "commit_history": "Commit History",
     "copy_path": "Copy path",
-    "updates": "Updates"
+    "updates": "Updates",
+    "big_file": "Big file",
+    "showing_first": "Showing first",
+    "load_complete_file": "Load complete file (may slow down)",
+    "end_file": "End of file"
   },
   "test": {
     "test": "Test",

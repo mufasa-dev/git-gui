@@ -156,7 +156,11 @@
     "history": "Cronologia",
     "commit_history": "Cronologia Commit",
     "copy_path": "Copia percorso",
-    "updates": "Aggiornamenti"
+    "updates": "Aggiornamenti",
+    "big_file": "File grande",
+    "showing_first": "Mostrando i primi",
+    "load_complete_file": "Carica file completo (può rallentare)",
+    "end_file": "Fine del file"
   },
   "test": {
     "test": "Test",

@@ -54,12 +54,12 @@ export default function CodePreviewer(props: Props) {
                 <Show when={isLargeFile() && !showFullFile()}>
                     <div class="p-4 bg-yellow-100 dark:bg-yellow-900/10 text-yellow-700 dark:text-yellow-500 text-xs text-center border-t dark:border-gray-800">
                         <i class="fa-solid fa-triangle-exclamation mr-2"></i>
-                        Arquivo grande ({allLines().length} {t('file').lines}). Exibindo apenas as primeiras {MAX_INITIAL_LINES}.
+                        {t('file').big_file} ({allLines().length} {t('file').lines}). {t('file').showing_first} {MAX_INITIAL_LINES} {t('file').lines}.
                         <button 
                             class="ml-2 underline font-bold hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors" 
                             onClick={() => setShowFullFile(true)}
                         >
-                            Carregar arquivo completo (pode travar)
+                            {t('file').load_complete_file}
                         </button>
                     </div>
                 </Show>
@@ -67,7 +67,7 @@ export default function CodePreviewer(props: Props) {
                 {/* Feedback visual de que o arquivo está completo (opcional) */}
                 <Show when={showFullFile() && isLargeFile()}>
                     <div class="p-2 text-center text-[10px] text-gray-400 italic opacity-50">
-                        Fim do arquivo
+                        {t('file').end_file}
                     </div>
                 </Show>
             </div>
