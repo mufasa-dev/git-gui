@@ -7,6 +7,15 @@ pub struct AuthResponse {
     error_description: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserProfile {
+    pub id: String,
+    pub email: String,
+    pub full_name: Option<String>,
+    pub is_vip: bool,
+    pub created_at: String,
+}
+
 #[tauri::command]
 pub async fn login_with_supabase(email: String, password: String) -> Result<AuthResponse, String> {
     let supabase_url = env::var("SUPABASE_URL").expect("SUPABASE_URL não definida");
@@ -89,4 +98,28 @@ pub async fn register_with_supabase(email: String, password: String, full_name: 
     }
 
     Ok(auth_data)
+}
+
+#[tauri::command]
+pub async fn get_my_profile(token: String) -> Result<UserProfile, String> {
+    let client = reqwest::Client::new();
+    let api_url = env::var("GO_API_URL").expect("GO_API_URL não definida");
+    let endpoint = format!("{}/api/v1/user/me", api_url);
+
+    let response = client
+        .get(endpoint)
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| format!("Erro na requisição: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Erro da API Go: Status {}", response.status()));
+    }
+
+    let profile: UserProfile = response.json().await.map_err(|e| {
+        format!("Erro ao processar perfil: {}", e)
+    })?;
+
+    Ok(profile)
 }

@@ -96,6 +96,7 @@ fn main() {
             tests::project_type::get_project_test_files,
             authentication::login::login_with_supabase,
             authentication::login::register_with_supabase,
+            authentication::login::get_my_profile,
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");
