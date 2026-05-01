@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { UserProfile } from "../models/User.model";
 
 // Tipagem para as respostas do Rust
 export interface AuthResponse {
@@ -48,5 +49,9 @@ export const authService = {
 
   getToken(): string | null {
     return localStorage.getItem("brook_token");
+  },
+
+  async getMyProfile(token: string): Promise<UserProfile> {
+    return await invoke<UserProfile>("get_my_profile", { token });
   }
 };
