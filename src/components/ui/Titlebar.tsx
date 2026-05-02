@@ -4,10 +4,13 @@ import { createSignal, Show, onMount, onCleanup } from "solid-js";
 import { useApp } from "../../context/AppContext";
 import { LanguageSelector } from "./LanguageSelector";
 import { authService } from "../../services/authService";
+import Dialog from "./Dialog";
+import ProfileModal from "../Config/ProfileModal";
 
 export default function Titlebar() {
   const [dark, setDark] = createSignal(localStorage.getItem("theme") == "dark");
   const [showAccountMenu, setShowAccountMenu] = createSignal(false);
+  const [showProfileModal, setShowProfileModal] = createSignal(false);
   const { t, token } = useApp();
   
   const appWindow = getCurrentWindow();
@@ -66,7 +69,7 @@ export default function Titlebar() {
                 </div>
                 <button 
                   class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                  onClick={() => {/* Abrir Configurações */}}
+                  onClick={() => setShowProfileModal(true)}
                 >
                   <i class="fa-solid fa-gear opacity-70"></i> {t("common").settings}
                 </button>
@@ -112,6 +115,11 @@ export default function Titlebar() {
           <i class="fa fa-times"></i>
         </button>
       </div>
+      <Show when={showProfileModal()}>
+        <Dialog open={showProfileModal()} onClose={() => setShowProfileModal(false)} title={t('auth').user_profile} width="400px">
+          <ProfileModal />
+        </Dialog>
+      </Show>
     </div>
   );
 }
