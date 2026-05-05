@@ -20,7 +20,7 @@ export default function ProfileModal() {
             onClick={() => refetch()} 
             class="mt-2 text-xs text-red-600 underline"
           >
-            Tentar novamente
+            {}{t('auth').try_again}
           </button>
         </div>
       }>
@@ -54,7 +54,7 @@ export default function ProfileModal() {
                 </div>
 
                 <div class="flex justify-between items-center">
-                  <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Membro desde</span>
+                  <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">{t('auth').user_since}</span>
                   <span class="text-sm dark:text-slate-200">
                     {profile()?.created_at ? new Date(profile()!.created_at).toLocaleDateString() : "-"}
                   </span>
@@ -63,7 +63,7 @@ export default function ProfileModal() {
 
               {/* Botão de Ação (Opcional) */}
               <button class="w-full mt-6 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-sm transition-colors">
-                Editar Perfil
+                {t('auth').edit_profile}
               </button>
             </Show>
           </div>
