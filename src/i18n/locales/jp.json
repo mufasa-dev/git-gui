@@ -246,7 +246,7 @@
     "open_local_repository": "ローカルリポジトリを開く",
     "clone_from_url": "リモートURLから取得",
     "select_pc_folder": "コンピューター上のフォルダを選択",
-    "respository_url": "リポジトリURL",
+    "repository_url": "リポジトリURL",
     "path_local": "ローカルディレクトリ",
     "start_clone": "クローンを開始",
     "cloning": "クローン中...",

@@ -246,7 +246,7 @@
     "open_local_repository": "Open local repository",
     "clone_from_url": "Fetch from a remote URL",
     "select_pc_folder": "Select a folder on your computer",
-    "respository_url": "Repository URL",
+    "repository_url": "Repository URL",
     "path_local": "Local directory",
     "start_clone": "Start cloning",
     "cloning": "Cloning...",

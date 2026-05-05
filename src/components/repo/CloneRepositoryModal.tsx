@@ -44,7 +44,7 @@ export default function CloneRepositoryModal(props: {
       await props.onClone(url(), path());
       props.onClose();
     } catch (err) {
-      alert("Erro ao clonar: " + err);
+      alert(t('repository').clone_error);
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,7 @@ export default function CloneRepositoryModal(props: {
   const selected = await open({
     directory: true,
     multiple: false,
-    title: "Selecionar pasta pai para o projeto"
+    title: t('repository').select_pc_folder
   });
   
   if (selected && typeof selected === "string") {
@@ -75,7 +75,7 @@ export default function CloneRepositoryModal(props: {
           <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
             <h3 class="text-xl font-bold dark:text-white flex items-center gap-2">
               <i class="fa-solid fa-cloud-arrow-down text-blue-500"></i>
-              Clonar Repositório
+              {t('repository').clone_repository}
             </h3>
             <button onClick={props.onClose} class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
               <i class="fa-solid fa-xmark"></i>
@@ -84,7 +84,7 @@ export default function CloneRepositoryModal(props: {
 
           <form onSubmit={handleSubmit} class="p-6 space-y-4">
             <div>
-              <label class="block text-xs font-bold text-gray-400 uppercase mb-1 ml-1">URL do Repositório</label>
+              <label class="block text-xs font-bold text-gray-400 uppercase mb-1 ml-1">{t('repository').repository_url}</label>
               <input 
                 type="text" 
                 placeholder="https://github.com/usuario/repo.git"
@@ -96,7 +96,7 @@ export default function CloneRepositoryModal(props: {
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-gray-400 uppercase mb-1 ml-1">Diretório Local</label>
+              <label class="block text-xs font-bold text-gray-400 uppercase mb-1 ml-1">{t('repository').path_local}</label>
               <div class="flex gap-2">
                 <input 
                   type="text" 
@@ -129,7 +129,7 @@ export default function CloneRepositoryModal(props: {
                 disabled={loading()}
                 class="flex-1 py-3 font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none shadow-lg shadow-blue-500/20 transition-all"
               >
-                {loading() ? "Clonando..." : "Iniciar Clone"}
+                {loading() ? t('repository').cloning : t('repository').start_clone}
               </button>
             </div>
           </form>
