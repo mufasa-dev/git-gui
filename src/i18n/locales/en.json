@@ -22,7 +22,18 @@
     "have_account": "Already have an account?",
     "login_here": "Login here!",
     "create_account": "Create Account",
-    "Processing": "Processing..."
+    "Processing": "Processing...",
+    "edit_profile": "Edit Profile",
+    "user_since": "User since",
+    "last_login": "Last login",
+    "change_password": "Change Password",
+    "current_password": "Current Password",
+    "new_password": "New Password",
+    "confirm_new_password": "Confirm New Password",
+    "passwords_do_not_match": "The passwords do not match",
+    "password_updated": "Password updated successfully",
+    "profile_updated": "Profile updated successfully",
+    "try_again": "Try again"
   },
   "common": {
     "save": "Save",

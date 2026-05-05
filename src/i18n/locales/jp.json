@@ -22,7 +22,18 @@
     "have_account": "アカウントをお持ちですか？",
     "login_here": "ここからログイン",
     "create_account": "アカウントを作成",
-    "Processing": "処理中..."
+    "Processing": "処理中...",
+    "edit_profile": "プロファイルを編集",
+    "user_since": "ユーザー since",
+    "last_login": "最終ログイン",
+    "change_password": "パスワードを変更",
+    "current_password": "現在のパスワード",
+    "new_password": "新しいパスワード",
+    "confirm_new_password": "新しいパスワードを確認",
+    "passwords_do_not_match": "パスワードが一致しません",
+    "password_updated": "パスワードが正常に更新されました",
+    "profile_updated": "プロファイルが正常に更新されました",
+    "try_again": "もう一度お試しください"
   },
   "common": {
     "save": "保存",

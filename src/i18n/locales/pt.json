@@ -22,7 +22,18 @@
     "have_account": "Já tem uma conta?",
     "login_here": "Faça login!",
     "create_account": "Criar Conta",
-    "Processing": "Processando..."
+    "Processing": "Processando...",
+    "edit_profile": "Editar perfil",
+    "user_since": "Usuário desde",
+    "last_login": "Último login",
+    "change_password": "Alterar senha",
+    "current_password": "Senha atual",
+    "new_password": "Nova senha",
+    "confirm_new_password": "Confirmar nova senha",
+    "passwords_do_not_match": "As senhas não coincidem",
+    "password_updated": "Senha atualizada com sucesso",
+    "profile_updated": "Perfil atualizado com sucesso",
+    "try_again": "Tente novamente"
   },
   "common": {
     "save": "Salvar",

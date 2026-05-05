@@ -22,7 +22,18 @@
     "have_account": "Hai già un account?",
     "login_here": "Accedi qui!",
     "create_account": "Crea Account",
-    "Processing": "Elaborazione..."
+    "Processing": "Elaborazione...",
+    "edit_profile": "Modifica Profilo",
+    "user_since": "Utente da",
+    "last_login": "Ultimo accesso",
+    "change_password": "Cambia Password",
+    "current_password": "Password Attuale",
+    "new_password": "Nuova Password",
+    "confirm_new_password": "Conferma Nuova Password",
+    "passwords_do_not_match": "Le password non coincidono",
+    "password_updated": "Password aggiornata con successo",
+    "profile_updated": "Profilo aggiornato con successo",
+    "try_again": "Riprova"
   },
   "common": {
     "save": "Salva",
