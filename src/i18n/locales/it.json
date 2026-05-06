@@ -150,7 +150,12 @@
     "merging": "Esecuzione merge...",
     "rebasing": "Esecuzione rebase...",
     "checking_out": "Cambio branch...",
-    "cloning": "Clonazione repository..."
+    "cloning": "Clonazione repository...",
+    "loading_file": "Caricamento file...",
+    "loading_commits": "Caricamento commits...",
+    "loading_branches": "Caricamento branches...",
+    "loading_repositories": "Caricamento repositories...",
+    "loading_pull_requests": "Caricamento pull requests..."
   },
   "git": {
     "commit": "Commit",

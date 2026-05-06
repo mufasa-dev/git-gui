@@ -150,7 +150,12 @@
     "merging": "Merging...",
     "rebasing": "Rebasing...",
     "checking_out": "Switching branch...",
-    "cloning": "Cloning repository..."
+    "cloning": "Cloning repository...",
+    "loading_file": "Loading file...",
+    "loading_commits": "Loading commits...",
+    "loading_branches": "Loading branches...",
+    "loading_repositories": "Loading repositories...",
+    "loading_pull_requests": "Loading pull requests..."
   },
   "git": {
     "commit": "Commit",
