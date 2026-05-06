@@ -9,7 +9,6 @@ import vsCodeIcon from "../../assets/vscode.png";
 import forkIcon from "../../assets/fork.png";
 import alertIcon from "../../assets/alert.png";
 import { openVsCodeDiff } from "../../services/openService";
-import { getExtension } from "../../utils/file";
 import { highlightCode } from "../../utils/highlight";
 import { useApp } from "../../context/AppContext";
 
@@ -129,7 +128,7 @@ export default function DiffViewer(props: Props) {
   const saveFileOnSave = async (resolvedContent: string) => {
     try {
       await saveFile(props.diff.newFile, resolvedContent);
-      notify.success("Sucesso", "Conflitos resolvidos e salvos!");
+      notify.success("Sucesso", t('merge').conflicts_resolved);
       setShowMergeResolver(false);
       if (props.diff.newFile) {
         props.onSaveSuccess?.(props.diff.newFile);
@@ -145,14 +144,14 @@ export default function DiffViewer(props: Props) {
         <div class="h-[100%] py-2">
           <div class="flex gap-4 p-4 border border-gray-300 dark:border-gray-900 rounded-md h-[100%] items-center">
             <div class="flex-1 flex flex-col items-center justify-center h-[100%] border-r dark:border-gray-900"> 
-              <p class="text-sm text-gray-500 mb-auto">Versão antiga</p>
-              <Show when={oldImg()} fallback={<p class="text-gray-400 mb-auto">Não disponível</p>}>
+              <p class="text-sm text-gray-500 mb-auto">{t('merge').old_version}</p>
+              <Show when={oldImg()} fallback={<p class="text-gray-400 mb-auto">{t('merge').not_avaliable}</p>}>
                 <img src={oldImg()} alt="Versão antiga" class="max-w-full max-h-96 object-contain mx-auto mb-auto" />
               </Show>
             </div>
             <div class="flex-1 flex flex-col items-center justify-center h-[100%] border-r-1 dark:border-r-gray-500">
-              <p class="text-sm text-gray-500 mb-auto">Versão nova</p>
-              <Show when={newImg()} fallback={<p class="text-gray-400 mb-auto">Não disponível</p>}>
+              <p class="text-sm text-gray-500 mb-auto">{t('merge').new_version}</p>
+              <Show when={newImg()} fallback={<p class="text-gray-400 mb-auto">{t('merge').not_avaliable}</p>}>
                 <img src={newImg()} alt="Versão nova" class="max-w-full max-h-96 object-contain mx-auto mb-auto" />
               </Show>
             </div>
@@ -206,9 +205,9 @@ export default function DiffViewer(props: Props) {
           </div>
 
           {/* Título e Descrição */}
-          <h2 class="text-3xl font-bold text-black dark:text-white mb-3">Conflito Detectado em README.md</h2>
+          <h2 class="text-3xl font-bold text-black dark:text-white mb-3">{t('merge').conflict_on.replace('{{file}}', props.file)}</h2>
           <p class="text-slate-400 text-lg max-w-xl mb-10">
-            As alterações na branch atual e na branch remota entram em conflito. Escolha como prosseguir.
+            {t('merge').select_merge_strategy}
           </p>
 
           {/* Grupo de Botões de Ação */}
@@ -217,7 +216,7 @@ export default function DiffViewer(props: Props) {
               onClick={() => setShowMergeResolver(true)}
               class="flex items-center gap-3 px-4 py-2 rounded-lg text-lg font-semibold bg-blue-500 hover:bg-blue-400 text-white transition-colors duration-200 shadow-md group"
             >
-              Resolver conflito
+              {t('merge').resolve_conflict}
             </button>
 
             <button
@@ -227,7 +226,7 @@ export default function DiffViewer(props: Props) {
               }}
             >
               <img src={vsCodeIcon} class="inline h-6" />
-              Ver merge no VS Code
+              {t('merge').show_on_vs_code}
             </button>
           </div>
         </div>
