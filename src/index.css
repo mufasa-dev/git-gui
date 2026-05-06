@@ -43,17 +43,42 @@ html {
   }
 
   .cm-commit-item {
-    @apply flex items-center border-b border-gray-200 py-2 pl-4 pr-2 cursor-pointer 
-          bg-gray-200 dark:bg-gray-700 dark:border-gray-900 rounded-full mb-2;
+    @apply flex items-center cursor-pointer
+          px-4 py-2 mb-2
+          rounded-xl
+
+          bg-gray-200 dark:bg-slate-800/60
+          border border-white/5
+
+          dark:text-gray-200
+
+          transition-all duration-200;
   }
+
   .cm-commit-item:hover {
-    @apply bg-gray-300 dark:bg-gray-600/50; 
+    @apply bg-gray-300 dark:bg-slate-700/60 border-white/10;
   }
   .cm-commit-item.selected {
-    @apply bg-blue-500 dark:text-black;
+    @apply relative rounded-xl
+          bg-gradient-to-r from-sky-400 to-green-500;
   }
-  .cm-commit-item.selected:hover {
-    @apply bg-blue-500 dark:text-black; 
+
+  /* conteúdo interno */
+  .cm-commit-item.selected > .content {
+    @apply flex items-center gap-2
+          px-3 py-2 rounded-lg
+
+          bg-slate-900/90
+          text-gray-100
+
+          shadow-[0_0_12px_rgba(56,189,248,0.25),0_0_20px_rgba(34,197,94,0.15)]
+
+          transition-all duration-200;
+  }
+
+  .cm-commit-item.selected:hover > .content {
+    @apply scale-[1.01]
+          shadow-[0_0_16px_rgba(56,189,248,0.35),0_0_28px_rgba(34,197,94,0.25)];
   }
 
   .resize-bar-vertical { 
