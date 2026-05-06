@@ -10,8 +10,6 @@ import folderIcon from "../../assets/folder_silver.png";
 import fetchIcon from "../../assets/reload_silver.png";
 import pullIcon from "../../assets/pull_silver.png";
 import pushIcon from "../../assets/push_silver.png";
-import sunIcon from "../../assets/sun.png";
-import moonIcon from "../../assets/moon_silver.png";
 import newWindowIcon from "../../assets/terminal_silver.png";
 import branchIcon from "../../assets/branch.png";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -21,6 +19,7 @@ import { notify } from "../../utils/notifications";
 import vsCodeIcon from "../../assets/vscode.png";
 import bashIcon from "../../assets/bash.png";
 import commandIcon from "../../assets/command.png";
+import openIcon from "../../assets/open_icon.png";
 import internetIcon from "../../assets/worldwide.png";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
@@ -239,10 +238,10 @@ export default function Header(props: Props) {
             <DropdownButton
               label={t('common').open}
               class="ml-auto"
-              img={newWindowIcon}
+              img={openIcon}
               options={[
                 {
-                  img: commandIcon,
+                  img: newWindowIcon,
                   label: t('repository').open_console,
                   action: () => {
                     try {
