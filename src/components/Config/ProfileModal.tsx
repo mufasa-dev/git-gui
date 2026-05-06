@@ -25,7 +25,7 @@ export default function ProfileModal() {
         </div>
       }>
       <Show when={!profile.loading} fallback={<p>{t('common').loading}</p>}>
-        <Show when={profile()} fallback={<p class="text-red-500">Erro ao carregar.</p>}>
+        <Show when={profile()} fallback={<p class="text-red-500">{t('error').loading}</p>}>
           {/* Agora o TS sabe que profile() é UserProfile */}
           <div class="p-2">
             <Show when={!profile.loading} fallback={<div class="animate-pulse flex space-x-4">...</div>}>

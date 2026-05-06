@@ -121,7 +121,7 @@ export default function FileList(props: { repo: Repo }) {
         setSelectedFilePath([path]);
         setDirectoryContent(null);
       } catch (e) {
-        setFileContent("Erro ao carregar arquivo.");
+        setFileContent(t('error').load_file);
       } finally {
         hideLoading();
       }

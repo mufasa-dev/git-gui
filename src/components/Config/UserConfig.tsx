@@ -61,10 +61,10 @@ export default function UserConfigModal(props: UserConfigModalProps) {
     try {
       await setGitConfig(props.repoPath, "user.name", name());
       await setGitConfig(props.repoPath, "user.email", email());
-      notify.success("Sucesso", "Perfil atualizado localmente.");
+      notify.success("Sucesso", t('auth').profile_updated);
       props.onClose();
     } catch (err) {
-      notify.error("Erro", "Falha ao salvar: " + err);
+      notify.error(t('error').error, "Falha ao salvar: " + err);
     } finally {
       hideLoading();
     }
@@ -77,9 +77,9 @@ export default function UserConfigModal(props: UserConfigModalProps) {
     try {
       await configPullMode(props.repoPath, mode);
       setCurrentMode(mode);
-      notify.success("Configuração", "Estratégia de pull atualizada!");
+      notify.success(t('common').settings, "Estratégia de pull atualizada!");
     } catch (err: any) {
-      notify.error("Erro", err.message);
+      notify.error(t('error').error, err.message);
     } finally {
       hideLoading();
     }

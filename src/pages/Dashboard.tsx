@@ -98,7 +98,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
       }
     } catch(e) {
       const errorMessage = typeof e === 'string' ? e : String(e);
-      notify.error('Erro ao carregar commits', errorMessage);
+      notify.error(t('error').load_commits, errorMessage);
     } finally {
       setLoading(false);
       isFetchingCommits = false;
@@ -131,7 +131,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
       setBranchFiles(mappedFiles);
     } catch (e) {
       console.error("Erro ao carregar arquivos do branch:", e);
-      notify.error("Erro ao carregar arquivos do branch", String(e));
+      notify.error(t('error').load_file, String(e));
     }
   }
 

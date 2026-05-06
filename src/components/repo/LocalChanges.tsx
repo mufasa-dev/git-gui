@@ -257,7 +257,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       await refreshBranches(props.repo.path);
     } catch (err) {
       console.error("Erro no commit:", err);
-      notify.error('Erro no Commit', `Erro ao realizar o commit: ${err}`);
+      notify.error(t('error').error, `${t('error').load_commits}: ${err}`);
     } finally {
       hideLoading();
     }

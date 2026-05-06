@@ -26,7 +26,7 @@ export function CommitDetails(props: CommitDetailsProps) {
   const [lastProcessedHash, setLastProcessedHash] = createSignal<string | null>(null);
   const [loadingDiff, setLoadingDiff] = createSignal(false);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
-  const { t } = useApp();
+  const { t, locale } = useApp();
 
   const fetchFileDiff = async (file: any) => {
     setSelectedFile(file);
@@ -37,7 +37,7 @@ export function CommitDetails(props: CommitDetailsProps) {
       setFileDiff(res);
     } catch (e) {
       console.error(e);
-      notify.error("Erro ao carregar diff", String(e));
+      notify.error(t('error').error, String(e));
     } finally {
       setLoadingDiff(false);
     }
@@ -120,7 +120,7 @@ export function CommitDetails(props: CommitDetailsProps) {
                       {formatContributorName(props.commit.authorName)}
                     </div>
                     <div class="text-gray-500 dark:text-gray-200 text-sm">{props.commit.authorEmail}</div>
-                    <div class="text-gray-500 dark:text-gray-400 text-sm">{formatDate(props.commit.authorDate)}</div>
+                    <div class="text-gray-500 dark:text-gray-400 text-sm">{formatDate(props.commit.authorDate, locale())}</div>
                   </div>
                 </div>
 

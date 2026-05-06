@@ -11,6 +11,7 @@ import alertIcon from "../../assets/alert.png";
 import { openVsCodeDiff } from "../../services/openService";
 import { getExtension } from "../../utils/file";
 import { highlightCode } from "../../utils/highlight";
+import { useApp } from "../../context/AppContext";
 
 type Props = {
   key?: string | null;
@@ -77,6 +78,7 @@ function parseDiff(diff: string): DiffLine[] {
 export default function DiffViewer(props: Props) {
   const diffLines = () => parseDiff(props.diff.diff);
   const [showMergeResolver, setShowMergeResolver] = createSignal(false);
+  const { t } = useApp();
 
   const isBinary = createMemo(() => {
     const d = props.diff.diff || "";
@@ -133,7 +135,7 @@ export default function DiffViewer(props: Props) {
         props.onSaveSuccess?.(props.diff.newFile);
       }
     } catch (err) {
-      notify.error("Erro ao salvar", String(err));
+      notify.error(t('error').saving, String(err));
     }
   }
 
