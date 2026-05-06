@@ -1,5 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import logo from "../../assets/fork.png";
+import logo from "../../assets/leaf_icon.png";
 import { createSignal, Show, onMount, onCleanup } from "solid-js";
 import { useApp } from "../../context/AppContext";
 import { LanguageSelector } from "./LanguageSelector";
@@ -43,7 +43,7 @@ export default function Titlebar() {
       class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white h-8 select-none border-b dark:border-gray-900 relative"
     >
       <div class="flex items-center h-full">
-        <img src={logo} class="px-2 h-7" />
+        <img src={logo} class="px-2 h-5" />
         <span class="text-xs font-semibold opacity-70">
           <span class="text-gray-900 dark:text-white">Dev</span>
           <span class="bg-clip-text text-transparent bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-cyan-300 ml-2">Brook</span>
