@@ -69,7 +69,7 @@ export default function FileList(props: { repo: Repo }) {
       setLastProcessedBranch(branch);
       setLastProcessedRepoPath(repoPath);
 
-      showLoading("Carregando arquivos...");
+      showLoading(t('loading').loading_file);
       try {
         const files: string[] = await listBranchFiles(repoPath, branch);
         const mappedFiles = files.map(f => ({ path: f, status: "A" })); 
@@ -104,14 +104,14 @@ export default function FileList(props: { repo: Repo }) {
         setIsImage(false);
         setSelectedFilePath([path]);
         setDirectoryContent(null);
-        showLoading("Carregando arquivo...");
+        showLoading(t('loading').loading_file);
         const data = await getBranchFileMetadata(props.repo.path, selectedBranch(), path);
         setFileMeta({size: data.size, lines: 0});
         hideLoading();
         return; 
       }
       
-      showLoading("Carregando arquivo...");
+      showLoading(t('loading').loading_file);
       try {
         const data = await getBranchFileContent(props.repo.path, selectedBranch(), path);
         

@@ -16,12 +16,14 @@ import WelcomeScreen from "./WelcomeScreen";
 import { githubService } from "../services/github";
 import PullRequestsPage from "../components/PullRequest/PullRequestsPage";
 import { TestRunner } from "../components/Test/TestRunner";
+import { useApp } from "../context/AppContext";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
   const [active, setActive] = createSignal<string | null>(null);
   const [activePage, setActivePage] = createSignal<string>('commits');
   const [user, { mutate, refetch }] = createResource(() => githubService.getCurrentUser());
+  const { t } = useApp();
 
   const closeRepo = (id: string) => {
     const currentRepos = repos();
@@ -167,7 +169,7 @@ export default function RepoTabsPage() {
             >
               {/* Caso: Página de Commits */}
               <Match when={active() && activePage() === 'commits'}>
-                <Show when={activeRepo()} fallback={<div>Carregando repositório...</div>}>
+                <Show when={activeRepo()} fallback={<div>{t('loading').loading_repositories}</div>}>
                   {(currentRepo) => (
                     <RepoView 
                       repo={currentRepo()} 
@@ -195,7 +197,7 @@ export default function RepoTabsPage() {
               </Match>
 
               <Match when={active() && activePage() === 'pull-requests'}>
-                <Show when={activeRepo()} fallback={<div>Carregando repositório...</div>}>
+                <Show when={activeRepo()} fallback={<div>{t('loading').loading_pull_requests}</div>}>
                   {(currentRepo) => (
                     <PullRequestsPage 
                       repo={currentRepo()} 
@@ -207,7 +209,7 @@ export default function RepoTabsPage() {
               </Match>
 
               <Match when={active() && activePage() === 'test'}>
-                <Show when={activeRepo()} fallback={<div>Carregando repositório...</div>}>
+                <Show when={activeRepo()} fallback={<div>{t('loading').loading_repositories}</div>}>
                   {(currentRepo) => (
                     <TestRunner 
                       repo={currentRepo()} 
