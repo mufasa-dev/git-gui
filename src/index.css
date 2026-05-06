@@ -44,7 +44,7 @@ html {
 
   .cm-commit-item {
     @apply flex items-center cursor-pointer
-          px-4 py-2 mb-2
+          px-4 py-2 mb-2 mr-1
           rounded-xl
 
           bg-gray-200 dark:bg-slate-800/60
@@ -59,8 +59,25 @@ html {
     @apply bg-gray-300 dark:bg-slate-700/60 border-white/10;
   }
   .cm-commit-item.selected {
-    @apply relative rounded-xl
-          bg-gradient-to-r from-sky-400 to-green-500;
+    @apply relative rounded-xl border border-transparent;
+    
+    /* Usamos as cores do Tailwind para o fundo interno */
+    background-image: 
+      linear-gradient(var(--bg-inner), var(--bg-inner)), 
+      linear-gradient(to right, #38bdf8, #22c55e);
+    
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  /* Definindo a cor do fundo interno baseada no tema */
+  .cm-commit-item {
+    --bg-inner: theme('colors.gray.200'); /* Modo claro padrão */
+  }
+
+  /* Se você usa a estratégia de classe 'dark' no html/body */
+  .dark .cm-commit-item {
+    --bg-inner: theme('colors.gray.800'); /* Modo escuro */
   }
 
   /* conteúdo interno */
