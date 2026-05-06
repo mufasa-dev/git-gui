@@ -338,7 +338,18 @@
     "rebase": "Rebase",
     "rebase_descri": "Maintains a linear history, applying current branch commits on top of the target branch",
     "fast_forward": "Fast-forward Only",
-    "fast_forward_descri": "Refuse the pull if there are divergences"
+    "fast_forward_descri": "Refuse the pull if there are divergences",
+    "conflict_on": "Conflict Detected in",
+    "select_merge_strategy": "The changes in the current branch and the remote branch are in conflict. Choose how to proceed.",
+    "resolve_conflict": "Resolve conflict",
+    "show_on_vs_code": "Show merge in VS Code",
+    "not_avaliable": "Not available",
+    "old_version": "Old version",
+    "new_version": "New version",
+    "merged_version": "Merged version",
+    "conflicts_resolved": "Conflicts resolved and saved!",
+    "pull_strategy_changed": "Pull strategy updated!",
+    "changing_to": "Changing to the {{strategy}} pull strategy..."
   },
   "dashboard": {
     "dashboard": "Dashboard",

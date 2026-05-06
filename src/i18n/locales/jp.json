@@ -338,7 +338,18 @@
     "rebase": "リベース",
     "rebase_descri": "現在のブランチのコミットをターゲットブランチの上に適用し、線形な履歴を維持する",
     "fast_forward": "Fast-forwardのみ",
-    "fast_forward_descri": "差分がある場合、プルを拒否する"
+    "fast_forward_descri": "差分がある場合、プルを拒否する",
+    "conflict_on": "{{file}}で競合が発生しました",
+    "select_merge_strategy": "現在のブランチとリモートブランチの変更に競合があります。処理方法を選択してください。",
+    "resolve_conflict": "競合を解決",
+    "show_on_vs_code": "VS Code でマージを表示します。",
+    "not_avaliable": "利用できません",
+    "old_version": "古いバージョン",
+    "new_version": "新しいバージョン",
+    "merged_version": "マージされたバージョン",
+    "conflicts_resolved": "競合が解決し保存されました！",
+    "pull_strategy_changed": "プル戦略が更新されました！",
+    "changing_to": "{{strategy}} プル戦略に変更しています..."
   },
   "dashboard": {
     "dashboard": "ダッシュボード",
