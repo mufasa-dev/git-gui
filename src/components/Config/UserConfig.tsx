@@ -73,11 +73,11 @@ export default function UserConfigModal(props: UserConfigModalProps) {
   const handleMergeChoice = async (mode: "merge" | "rebase" | "ff") => {
     if (mode === currentMode()) return;
 
-    showLoading(`Alterando para ${mode}...`);
+    showLoading(t('merge').changing_to.replace('{{mode}}', mode));
     try {
       await configPullMode(props.repoPath, mode);
       setCurrentMode(mode);
-      notify.success(t('common').settings, "Estratégia de pull atualizada!");
+      notify.success(t('common').settings, t('merge').pull_strategy_changed);
     } catch (err: any) {
       notify.error(t('error').error, err.message);
     } finally {
