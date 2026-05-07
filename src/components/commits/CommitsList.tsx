@@ -9,6 +9,7 @@ import { getGravatarUrl } from "../../services/gravatarService";
 import CommitMessage from "../ui/CommitMessage";
 import { formatContributorName } from "../../utils/user";
 import { useApp } from "../../context/AppContext";
+import CommitGraph from "./CommitGraph";
 
 declare module "solid-js" {
   namespace JSX {
@@ -95,6 +96,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
 
   const paginatedCommits = createMemo(() => {
     const start = (currentPage() - 1) * itemsPerPage;
+    console.log("Paginating commits:", filteredCommits().slice(start, start + itemsPerPage));
     return filteredCommits().slice(start, start + itemsPerPage);
   });
 
@@ -205,9 +207,13 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
           </div>
         </div>
 
+
         {/* Lista de Commits */}
-        <div class="flex-1 overflow-auto">
+        <div class="flex flex-1 overflow-auto">
           <div>
+            <CommitGraph commits={paginatedCommits()} rowHeight={41} />
+          </div>
+          <div class="flex-1">
             <Show when={!loading()} fallback={<div class="p-4 text-center">{t('common').loading}</div>}>
               <For each={paginatedCommits()}>
                 {(c) => (
