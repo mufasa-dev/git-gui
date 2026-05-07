@@ -61,7 +61,6 @@ html {
   .cm-commit-item.selected {
     @apply relative rounded-xl border border-transparent;
     
-    /* Usamos as cores do Tailwind para o fundo interno */
     background-image: 
       linear-gradient(var(--bg-inner), var(--bg-inner)), 
       linear-gradient(to right, #38bdf8, #22c55e);
@@ -70,12 +69,27 @@ html {
     background-clip: padding-box, border-box;
   }
 
+  .cm-commit-item.graph-only-line {
+    pointer-events: none;
+    border: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .gitgraph-container {
+    overflow: visible;
+  }
+
+  .gitgraph-container svg {
+    overflow: visible !important;
+  }
+  
   /* Definindo a cor do fundo interno baseada no tema */
   .cm-commit-item {
     --bg-inner: theme('colors.gray.200'); /* Modo claro padrão */
   }
 
-  /* Se você usa a estratégia de classe 'dark' no html/body */
   .dark .cm-commit-item {
     --bg-inner: theme('colors.gray.800'); /* Modo escuro */
   }
