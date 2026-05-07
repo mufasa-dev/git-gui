@@ -7,6 +7,7 @@ use rayon::prelude::*;
 #[derive(Serialize)]
 pub struct Commit {
     hash: String,
+    graph_symbol: Option<String>,
     message: String,
     author: String,
     email: String,
@@ -23,33 +24,71 @@ pub struct FileEntry
     last_commit: Option<Commit>,
 }
 
+#[derive(Serialize, Clone)]
+pub struct GraphLine {
+    pub graph_symbol: String,
+    pub is_commit: bool,
+    pub hash: String,
+    pub message: String,
+    pub author: String,
+    pub email: String,
+    pub date: String,
+    pub ref_names: String,     // Nomes das refs (branches/tags)
+    pub parent_hashes: String, // Hashes dos pais separados por espaço
+}
+
 #[tauri::command]
-pub fn list_commits(path: String, branch: String) -> Result<Vec<Commit>, String> {
+pub fn list_commits(path: String, branch: String) -> Result<Vec<GraphLine>, String> {
     let output = git_command(&path)
-        .args(&["log", "--pretty=format:%H|%an|%ae|%ad|%s", &branch, "--"])
+        .args(&[
+            "log",
+            "--graph",
+            "--pretty=format:SEP%H|%an|%ae|%ad|%s|%P|%D",
+            &branch,
+            "--"
+        ])
         .output()
         .map_err(|e| e.to_string())?;
 
-    if !output.status.success() {
-        return Ok(Vec::new());
-    }
-
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let commits: Vec<Commit> = stdout
+
+    let lines: Vec<GraphLine> = stdout
         .lines()
         .map(|line| {
-            let parts: Vec<&str> = line.splitn(5, '|').collect();
-            Commit {
-                hash: parts.get(0).unwrap_or(&"").to_string(),
-                author: parts.get(1).unwrap_or(&"").to_string(),
-                email: parts.get(2).unwrap_or(&"").to_string(),
-                date: parts.get(3).unwrap_or(&"").to_string(),
-                message: parts.get(4).unwrap_or(&"").to_string(),
+            if line.contains("SEP") {
+                let parts: Vec<&str> = line.splitn(2, "SEP").collect();
+                let graph_part = parts[0].to_string();
+                let data_part = parts[1];
+                let data: Vec<&str> = data_part.splitn(7, '|').collect();
+
+                GraphLine {
+                    graph_symbol: graph_part,
+                    is_commit: true,
+                    hash: data.get(0).unwrap_or(&"").to_string(),
+                    author: data.get(1).unwrap_or(&"").to_string(),
+                    email: data.get(2).unwrap_or(&"").to_string(),
+                    date: data.get(3).unwrap_or(&"").to_string(),
+                    message: data.get(4).unwrap_or(&"").to_string(),
+                    parent_hashes: data.get(5).unwrap_or(&"").to_string(),
+                    ref_names: data.get(6).unwrap_or(&"").to_string(),
+                }
+            } else {
+                GraphLine {
+                    graph_symbol: line.to_string(),
+                    is_commit: false,
+                    hash: String::new(),
+                    author: String::new(),
+                    email: String::new(),
+                    date: String::new(),
+                    message: String::new(),
+                    parent_hashes: String::new(),
+                    ref_names: String::new(),
+                }
             }
         })
         .collect();
 
-    Ok(commits)
+    Ok(lines)
 }
 
 #[tauri::command]
@@ -80,6 +119,7 @@ pub fn list_user_commits(path: String, branch: String, email: String) -> Result<
             
             Some(Commit {
                 hash: parts[0].to_string(),
+                graph_symbol: None,
                 author: parts[1].to_string(),
                 email: parts[2].to_string(),
                 date: parts[3].to_string(),
@@ -249,6 +289,7 @@ pub fn get_last_commit_for_path(path: String, branch: String, file_path: String)
         email: parts[2].to_string(),
         date: parts[3].to_string(),
         message: parts[4].to_string(),
+        graph_symbol: None,
     }))
 }
 
@@ -278,6 +319,7 @@ pub fn get_path_history(path: String, branch: String, file_path: String) -> Resu
                 email: parts[2].to_string(),
                 date: parts[3].to_string(),
                 message: parts[4].to_string(),
+                graph_symbol: None,
             })
         })
         .collect();
