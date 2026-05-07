@@ -210,7 +210,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
 
         {/* Lista de Commits */}
         <div class="flex flex-1 overflow-auto">
-          <div>
+          <div class="sticky left-0 z-10 flex-shrink-0">
             <CommitGraph commits={paginatedCommits()} rowHeight={41} />
           </div>
           <div class="flex-1">
