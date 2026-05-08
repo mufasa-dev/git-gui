@@ -18,8 +18,8 @@ export default function CommitGraph(props: CommitGraphProps) {
     const branchColors: Map<number, string> = new Map();
     let nextBranchId = 0;
     
-    // Mapa: coluna -> { branchId, parentBranchId? }
-    let activeBranches: Map<number, { id: number; parentId?: number }> = new Map();
+    // Ativo: coluna -> branchId
+    let activeBranches: Map<number, number> = new Map();
     let maxCol = 0;
 
     const rows: {
@@ -27,57 +27,64 @@ export default function CommitGraph(props: CommitGraphProps) {
       commitCol: number | null;
     }[] = [];
 
+    // Função para obter cor, criando se necessário
+    function getOrCreateColor(branchId: number, parentBranchId?: number): string {
+      if (branchColors.has(branchId)) return branchColors.get(branchId)!;
+
+      let color: string;
+      if (parentBranchId !== undefined) {
+        const parentColor = branchColors.get(parentBranchId) || colors[0];
+        const parentIdx = colors.indexOf(parentColor);
+        // Pula para a próxima cor (diferente do pai)
+        color = colors[(parentIdx + 1) % colors.length];
+        // Se por acaso for igual (só uma cor), use a primeira
+        if (color === parentColor) color = colors[0];
+      } else {
+        // Usa o próximo slot baseado no contador de branches
+        color = colors[branchId % colors.length];
+      }
+      branchColors.set(branchId, color);
+      return color;
+    }
+
     for (const commit of commits) {
       const chars = (commit.graph_symbol || "").split("");
-      const nextActive: Map<number, { id: number; parentId?: number }> = new Map();
+      const nextActive: Map<number, number> = new Map();
       const segments: { col: number; nextCol: number; color: string; char: string }[] = [];
       let commitCol: number | null = null;
 
       for (let col = 0; col < chars.length; col++) {
         const char = chars[col];
         if (char === " ") continue;
-        
         if (col > maxCol) maxCol = col;
 
         let branchId: number;
-        let parentId: number | undefined;
+        let parentBranchId: number | undefined;
 
-        if (char === "/") {
-          // Merge: usa o branchId existente na coluna
-          const existing = activeBranches.get(col);
-          branchId = existing ? existing.id : nextBranchId++;
-        } else if (char === "\\") {
-          // Nova branch: herda o ID do ramo pai (coluna atual)
-          const parent = activeBranches.get(col);
-          if (parent) {
-            // Cria um novo branchId para a nova branch
+        if (char === "\\") {
+          // Nova branch saindo do ramo à esquerda (col - 1)
+          const leftBranch = activeBranches.get(col - 1);
+          if (leftBranch !== undefined) {
+            // Cria um novo ID para a nova branch
             branchId = nextBranchId++;
-            parentId = parent.id;
+            parentBranchId = leftBranch; // define o pai
           } else {
+            // Fallback: não há ramo à esquerda (improvável)
             branchId = nextBranchId++;
           }
+        } else if (char === "/") {
+          // Merge: o ramo que termina é o desta coluna
+          branchId = activeBranches.get(col) ?? nextBranchId++;
+          // Não tem pai, pois está terminando
         } else if (activeBranches.has(col)) {
-          // Ramo existente
-          branchId = activeBranches.get(col)!.id;
+          // Continuação de ramo existente
+          branchId = activeBranches.get(col)!;
         } else {
-          // Novo ramo do nada (primeiro commit)
+          // Início isolado (primeiro commit ou ramo sem pai)
           branchId = nextBranchId++;
         }
 
-        // Atribui cor com base no branchId ou parentId
-        if (!branchColors.has(branchId)) {
-          if (parentId !== undefined && branchColors.has(parentId)) {
-            // Nova branch: usa a próxima cor disponível diferente do pai
-            const parentColor = branchColors.get(parentId)!;
-            const parentIndex = colors.indexOf(parentColor);
-            const nextColorIndex = (parentIndex + 1) % colors.length;
-            branchColors.set(branchId, colors[nextColorIndex]);
-          } else {
-            // Usa o próximo slot de cor
-            branchColors.set(branchId, colors[branchId % colors.length]);
-          }
-        }
-        const color = branchColors.get(branchId)!;
+        const color = getOrCreateColor(branchId, parentBranchId);
 
         let nextCol = col;
         let survives = true;
@@ -94,17 +101,17 @@ export default function CommitGraph(props: CommitGraphProps) {
             break;
           case "/":
             nextCol = col - 1;
-            survives = false;
+            survives = false; // ramo termina
             break;
         }
 
         segments.push({ col, nextCol, color, char });
 
         if (survives) {
+          // Se já existir um ramo em nextCol (merge), o ramo principal (esquerda) tem prioridade
           if (!nextActive.has(nextCol)) {
-            nextActive.set(nextCol, { id: branchId });
+            nextActive.set(nextCol, branchId);
           }
-          // Se já existe (merge), mantém o ramo principal
         }
       }
 
@@ -132,14 +139,12 @@ export default function CommitGraph(props: CommitGraphProps) {
 
           return (
             <g>
-              {/* Linhas e curvas */}
               <For each={row.segments}>
                 {(seg) => {
                   const x = seg.col * colWidth + xOffset;
                   const xNext = seg.nextCol * colWidth + xOffset;
 
                   if (seg.col === seg.nextCol) {
-                    // Linha vertical
                     return (
                       <line 
                         x1={x} y1={yTop} 
@@ -150,7 +155,6 @@ export default function CommitGraph(props: CommitGraphProps) {
                       />
                     );
                   } else {
-                    // Curva suave
                     const midY = (yTop + yBot) / 2;
                     return (
                       <path 
@@ -165,7 +169,6 @@ export default function CommitGraph(props: CommitGraphProps) {
                 }}
               </For>
 
-              {/* Círculo do commit */}
               {row.commitCol !== null && (
                 <circle 
                   cx={row.commitCol * colWidth + xOffset} 
