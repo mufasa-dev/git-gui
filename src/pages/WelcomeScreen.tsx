@@ -91,7 +91,7 @@ export default function WelcomeScreen(props: Props) {
             <div class="flex items-center gap-8 mb-2 group p-12 isolate transition-all">
                 <div class="relative flex-shrink-0">
                     <div class="absolute -inset-4 bg-gradient-to-r from-blue-600 to-cyan-400 rounded-full blur-xl opacity-20 group-hover:opacity-60 group-hover:blur-2xl transition-all duration-500 group-hover:duration-300 will-change-[filter]"></div>
-                    <img src={logoImg} alt="Git Trident Logo" class="relative h-32 w-auto drop-shadow-2xl transform-gpu will-change-transform transition-transform duration-500 group-hover:scale-110" />
+                    <img src={logoImg} alt="Dev Brook Logo" class="relative h-32 w-auto drop-shadow-2xl transform-gpu will-change-transform transition-transform duration-500 group-hover:scale-110" />
                 </div>
 
                 <div class="flex flex-col justify-center select-none transform-gpu">
@@ -135,7 +135,7 @@ export default function WelcomeScreen(props: Props) {
                 onClone={handleClone}
             />
 
-            <footer class="mt-20 text-gray-400 text-[11px] font-mono opacity-50">v1.0.4-beta | Git Trident Open Engine</footer>
+            <footer class="mt-20 text-gray-400 text-[11px] font-mono opacity-50">v1.0.4-beta | Dev Brook Open Engine</footer>
         </div>
     );
 }

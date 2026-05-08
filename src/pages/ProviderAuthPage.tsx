@@ -73,7 +73,7 @@ function LoginAction(props: { provider: GitProvider }) {
   return (
     <div class="flex flex-col gap-4">
       <h2 class="text-xl font-bold dark:text-white uppercase tracking-tight">Conectar ao {props.provider}</h2>
-      <p class="text-sm text-gray-500 dark:text-gray-400">Para visualizar seu perfil e README, você precisa autorizar o Trident.</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Para visualizar seu perfil e README, você precisa autorizar o Dev Brook.</p>
       <button 
         onClick={handleLogin}
         disabled={isLogging()}
