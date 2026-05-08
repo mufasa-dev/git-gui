@@ -35,32 +35,31 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   const [currentPage, setCurrentPage] = createSignal(1);
   const itemsPerPage = 40;
 
+  const commitsOnly = createMemo(() => 
+    commits().filter(c => c.is_commit)
+  );
+
   const filteredCommits = createMemo(() => {
     const term = searchTerm().toLowerCase();
     const start = startDate() ? new Date(startDate()) : null;
     const end = endDate() ? new Date(endDate()) : null;
 
-    return commits().filter(c => {
-      // 1. Filtro de Texto
+    return commitsOnly().filter(c => {
       const matchesText = !term || 
         c.message.toLowerCase().includes(term) || 
         c.hash.toLowerCase().includes(term) ||
         c.author.toLowerCase().includes(term);
 
-      // 2. Filtro de Data
       const commitDate = new Date(c.date);
       let matchesDate = true;
-      
       if (start) {
         matchesDate = matchesDate && commitDate >= start;
       }
       if (end) {
-        // Adicionamos 23:59:59 para garantir que pegue o dia final inteiro
         const endWithTime = new Date(end);
         endWithTime.setHours(23, 59, 59, 999);
         matchesDate = matchesDate && commitDate <= endWithTime;
       }
-
       return matchesText && matchesDate;
     });
   });
@@ -96,8 +95,22 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
 
   const paginatedCommits = createMemo(() => {
     const start = (currentPage() - 1) * itemsPerPage;
-    console.log("Paginating commits:", filteredCommits().slice(start, start + itemsPerPage));
     return filteredCommits().slice(start, start + itemsPerPage);
+  });
+
+  const graphLines = createMemo(() => {
+    const pageCommits = paginatedCommits();
+    if (!pageCommits.length || !commits().length) return [];
+
+    const firstHash = pageCommits[0].hash;
+    const lastHash = pageCommits[pageCommits.length - 1].hash;
+    
+    const all = commits(); // array original com linhas de gráfico
+    const firstIdx = all.findIndex(c => c.hash === firstHash);
+    const lastIdx = all.findIndex(c => c.hash === lastHash);
+    
+    if (firstIdx === -1 || lastIdx === -1) return pageCommits;
+    return all.slice(firstIdx, lastIdx + 1);
   });
 
   const totalPages = createMemo(() => Math.ceil(filteredCommits().length / itemsPerPage));
@@ -211,7 +224,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
         {/* Lista de Commits */}
         <div class="flex flex-1 overflow-auto">
           <div class="sticky left-0 z-10 flex-shrink-0">
-            <CommitGraph commits={paginatedCommits()} rowHeight={41} />
+            <CommitGraph commits={graphLines()} rowHeight={41} />
           </div>
           <div class="flex-1">
             <Show when={!loading()} fallback={<div class="p-4 text-center">{t('common').loading}</div>}>
