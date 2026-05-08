@@ -1,4 +1,4 @@
-# 🖥️ Git Trident
+# 🖥️ Dev Brook
 
 A **cross-platform desktop app** for managing **Git repositories**, built with **[Tauri](https://tauri.app/)** and **[SolidJS](https://www.solidjs.com/)**, styled using **TailwindCSS**.
 
