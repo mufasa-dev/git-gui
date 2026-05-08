@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "Trident"
+name = "DevBrook"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",

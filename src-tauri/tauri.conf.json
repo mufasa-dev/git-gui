@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Trident",
+  "productName": "Dev Brook",
   "version": "0.1.0",
-  "identifier": "com.git-trident.app",
+  "identifier": "com.dev-brook.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Git Trident",
+        "title": "Dev Brook",
         "width": 800,
         "height": 600,
         "resizable": true,
@@ -61,7 +61,7 @@
     "deep-link": {
       "protocols": [
         {
-          "scheme": "git-trident",
+          "scheme": "dev-brook",
           "role": "viewer"
         }
       ]
