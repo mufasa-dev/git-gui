@@ -106,7 +106,7 @@ const CommitTypeDistribution = (props: Props) => {
   const { t } = useApp();
 
   onMount(() => {
-    const saved = localStorage.getItem("git-trident-hidden-commit-types");
+    const saved = localStorage.getItem("dev-brook-hidden-commit-types");
     if (saved) setHiddenTypes(JSON.parse(saved));
   });
 
@@ -117,7 +117,7 @@ const CommitTypeDistribution = (props: Props) => {
       : [...current, type];
     
     setHiddenTypes(next);
-    localStorage.setItem("git-trident-hidden-commit-types", JSON.stringify(next));
+    localStorage.setItem("dev-brook-hidden-commit-types", JSON.stringify(next));
   };
 
   const stats = createMemo(() => {

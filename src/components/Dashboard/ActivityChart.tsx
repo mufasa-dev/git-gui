@@ -45,7 +45,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
 
   // Carregar do localStorage ao iniciar
   onMount(() => {
-    const saved = localStorage.getItem("git-trident-hidden-days");
+    const saved = localStorage.getItem("dev-brook-hidden-days");
     if (saved) setHiddenDays(JSON.parse(saved));
   });
 
@@ -63,7 +63,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
       : [...current, dayId];
     
     setHiddenDays(next);
-    localStorage.setItem("git-trident-hidden-days", JSON.stringify(next));
+    localStorage.setItem("dev-brook-hidden-days", JSON.stringify(next));
   };
 
   const chartConfig = {

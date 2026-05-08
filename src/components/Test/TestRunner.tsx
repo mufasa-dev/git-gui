@@ -29,7 +29,7 @@ export const TestRunner = (props: { repo: any }) => {
   const { t } = useApp();
 
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
-  const storageKey = () => `trident_test_cache_${props.repo?.path}`;
+  const storageKey = () => `brook_test_cache_${props.repo?.path}`;
 
   // 1. Persistência: Carregar dados ao trocar de repositório
   createEffect(() => {

@@ -11,7 +11,7 @@ export default function LanguageBar(props: { files: { path: string, size: number
   const { t } = useApp();
 
   onMount(() => {
-    const saved = localStorage.getItem("git-trident-hidden-langs");
+    const saved = localStorage.getItem("dev-brook-hidden-langs");
     if (saved) setHiddenLanguages(JSON.parse(saved));
   });
 
@@ -22,7 +22,7 @@ export default function LanguageBar(props: { files: { path: string, size: number
       : [...current, name];
     
     setHiddenLanguages(next);
-    localStorage.setItem("git-trident-hidden-langs", JSON.stringify(next));
+    localStorage.setItem("dev-brook-hidden-langs", JSON.stringify(next));
   };
   
   // 1. Memo intermediário para filtrar arquivos indesejados
