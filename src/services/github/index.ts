@@ -31,7 +31,7 @@ export const githubService = {
     const rootUrl = `https://github.com/login/oauth/authorize`;
     const options = {
       client_id: GITHUB_CLIENT_ID,
-      redirect_uri: "git-trident://auth",
+      redirect_uri: "dev-brook://auth",
       scope: "repo user",
     };
 
@@ -210,7 +210,7 @@ export const githubService = {
     return data.repository.pullRequest.timelineItems.nodes;
   },
 
-  async approvePullRequest(pullRequestId: string, body: string = "Approved via Git Trident") {
+  async approvePullRequest(pullRequestId: string, body: string = "Approved via Dev Brook") {
     try {
       return await this.fetchGraphQL(APROVE_PR, { prId: pullRequestId, body });
     } catch (error) {
