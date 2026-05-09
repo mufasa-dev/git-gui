@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { UserProfile } from "../models/User.model";
+import { LicenseDetails } from "../models/License.model";
 
 // Tipagem para as respostas do Rust
 export interface AuthResponse {
@@ -53,5 +54,9 @@ export const authService = {
 
   async getMyProfile(token: string): Promise<UserProfile> {
     return await invoke<UserProfile>("get_my_profile", { token });
+  },
+
+  async checkLicense(token: string): Promise<LicenseDetails> {
+    return await invoke<LicenseDetails>("check_license", { token });
   }
 };
