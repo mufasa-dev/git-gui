@@ -1,14 +1,4 @@
-use crate::utils::{git_command_async, git_command};
-use serde::Serialize;
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CoverageStats {
-    pub code_files: usize,
-    pub test_files: usize,
-    pub other_files: usize,
-    pub percent: f64,
-}
+use crate::{models::dashboard::{CoverageStats, FileHotspot}, utils::{git_command, git_command_async}};
 
 #[tauri::command]
 pub async fn get_code_coverage_ratio(path: String, branch: String) -> Result<CoverageStats, String> {
@@ -42,12 +32,6 @@ pub async fn get_code_coverage_ratio(path: String, branch: String) -> Result<Cov
     } else { 0.0 };
 
     Ok(CoverageStats { code_files: code, test_files: tests, other_files: others, percent })
-}
-
-#[derive(serde::Serialize)]
-pub struct FileHotspot {
-    pub name: String,
-    pub count: usize,
 }
 
 #[tauri::command]
