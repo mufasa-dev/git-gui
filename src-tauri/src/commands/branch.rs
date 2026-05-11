@@ -1,24 +1,7 @@
 use serde_json::{json};
-use serde::Serialize;
 use std::process::Stdio;
-use crate::utils::{git_command_async};
+use crate::{models::branch::{FileContentResponse, FileMetadataResponse}, utils::git_command_async};
 use base64::{Engine as _, engine::general_purpose};
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FileContentResponse {
-    pub is_image: bool,
-    pub content: String,
-    pub size: usize,
-    pub line_count: Option<usize>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FileMetadataResponse {
-    pub is_binary: bool,
-    pub size: usize,
-}
 
 #[tauri::command]
 pub async fn list_branches(path: String) -> Result<Vec<String>, String> {
