@@ -2,11 +2,12 @@ import { createSignal, For, onMount, Show, createMemo, createEffect } from 'soli
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { ParsedEvent, ProjectType } from '../../models/ProjectType.model';
-import { getProjectType } from '../../services/testService';
-import { angularParser } from '../../lib/TestsPareser/AngularParser';
+import { getProjectType, runTestTerminal } from '../../services/testService';
 import { formatDuration } from '../../utils/date';
 import FileIcon from '../ui/FileIcon';
 import { useApp } from '../../context/AppContext';
+import { angularParser } from '../../lib/TestsPareser/AngularParser';
+import { parseTrxToEvents } from '../../lib/TestsPareser/TrxParser';
 
 interface TestSpec {
   id: string;
@@ -31,7 +32,6 @@ export const TestRunner = (props: { repo: any }) => {
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
   const storageKey = () => `brook_test_cache_${props.repo?.path}`;
 
-  // 1. Persistência: Carregar dados ao trocar de repositório
   createEffect(() => {
     const path = props.repo?.path;
     if (path) {
@@ -41,24 +41,20 @@ export const TestRunner = (props: { repo: any }) => {
       } else {
         setSpecs([]);
       }
-      // Marcar que as specs atuais pertencem a este path
       setLastLoadedPath(path); 
       setSelectedSuite(null);
       setIsRunning(false);
     }
   });
 
-  // 2. Persistência: Salvar dados sempre que as specs mudarem
   createEffect(() => {
     const currentPath = props.repo?.path;
     const loadedPath = lastLoadedPath();
-
     if (currentPath && loadedPath === currentPath && specs().length > 0) {
       localStorage.setItem(storageKey(), JSON.stringify(specs()));
     }
   });
 
-  // Estatísticas Globais
   const stats = createMemo(() => {
     const total = specs().length;
     const passed = specs().filter(s => s.status === 'pass').length;
@@ -66,12 +62,9 @@ export const TestRunner = (props: { repo: any }) => {
     return { total, passed, failed };
   });
 
-  // Agrupamento
   const groupedSpecs = createMemo(() => {
     const groups: Record<string, { tests: TestSpec[], hasError: boolean }> = {};
-    const currentSpecs = specs();
-    
-    currentSpecs.forEach(spec => {
+    specs().forEach(spec => {
       const [suiteName] = spec.name.split(' > ');
       if (!groups[suiteName]) {
         groups[suiteName] = { tests: [], hasError: false };
@@ -79,16 +72,13 @@ export const TestRunner = (props: { repo: any }) => {
       groups[suiteName].tests.push(spec);
       if (spec.status === 'fail') groups[suiteName].hasError = true;
     });
-    
     return groups;
   });
 
   const suites = createMemo(() => {
     const allSuites = Object.keys(groupedSpecs());
     const query = searchQuery().toLowerCase().trim();
-    
     if (!query) return allSuites;
-    
     return allSuites.filter(suite => suite.toLowerCase().includes(query));
   });
 
@@ -102,6 +92,31 @@ export const TestRunner = (props: { repo: any }) => {
   onMount(async () => {
     let logBuffer: string[] = [];
 
+    // Função interna para atualizar o estado das specs
+    const updateSpecState = (parsed: ParsedEvent) => {
+      if (parsed.type === 'RESULT' && parsed.data) {
+        const specData = parsed.data;
+        setSpecs(prev => {
+          const existingIndex = prev.findIndex(s => s.name === specData.name);
+          const newSpec: TestSpec = {
+            id: existingIndex !== -1 ? prev[existingIndex].id : crypto.randomUUID(),
+            name: specData.name!,
+            status: specData.status!,
+            log: specData.log || [],
+            filePath: specData.filePath,
+            duration: specData.duration
+          };
+
+          if (existingIndex !== -1) {
+            const copy = [...prev];
+            copy[existingIndex] = newSpec;
+            return copy;
+          }
+          return [...prev, newSpec];
+        });
+      }
+    };
+
     await listen('test-event', (event: any) => {
       const rawLine = typeof event.payload === 'string' ? event.payload : event.payload.name;
       if (!rawLine) return;
@@ -114,48 +129,32 @@ export const TestRunner = (props: { repo: any }) => {
       const line = stripAnsi(rawLine).trim();
       if (!line) return;
 
-      let parsed: ParsedEvent;
       const type = projectInfo()?.framework;
-      
+
+      // Lógica Especial para Dotnet (TRX)
+      if (type === 'Dotnet' && line.startsWith('<?xml')) {
+        const results = parseTrxToEvents(line);
+        results.forEach(res => updateSpecState(res));
+        console.log('results', results)
+        return;
+      }
+
+      // Lógica para outros frameworks ou logs comuns
+      let parsed: ParsedEvent;
       if (type === 'Angular') {
         parsed = angularParser(line, logBuffer);
       } else {
-        parsed = { type: 'LOG' }; 
+        parsed = { type: 'LOG' };
       }
 
-      switch (parsed.type) {
-        case 'RESULT':
-          const specData = parsed.data!;
-          setSpecs(prev => {
-            // Se o teste já existe, atualizamos (importante para o Rerun não duplicar)
-            const existingIndex = prev.findIndex(s => s.name === specData.name);
-            const newSpec: TestSpec = {
-              id: existingIndex !== -1 ? prev[existingIndex].id : crypto.randomUUID(),
-              name: specData.name!,
-              status: specData.status!,
-              log: specData.log || [],
-              filePath: specData.filePath,
-              duration: specData.duration
-            };
-
-            if (existingIndex !== -1) {
-              const copy = [...prev];
-              copy[existingIndex] = newSpec;
-              return copy;
-            }
-            return [...prev, newSpec];
-          });
-          logBuffer = [];
-          break;
-
-        case 'LOG':
-          logBuffer.push(line);
-          if (logBuffer.length > 30) logBuffer.shift();
-          break;
-
-        case 'FINISH':
-          setIsRunning(false);
-          break;
+      if (parsed.type === 'LOG') {
+        logBuffer.push(line);
+        if (logBuffer.length > 30) logBuffer.shift();
+      } else if (parsed.type === 'FINISH') {
+        setIsRunning(false);
+      } else {
+        updateSpecState(parsed);
+        logBuffer = [];
       }
     });
   });
@@ -164,9 +163,8 @@ export const TestRunner = (props: { repo: any }) => {
     if (!props.repo?.path || isRunning()) return;
     setIsRunning(true);
     setSpecs([]);
-    
     try {
-      await invoke('run_angular_tests', { projectPath: props.repo.path });
+      await runTestTerminal(projectInfo()?.testRunner || 'dockerfile', props.repo.path);
     } catch (err) {
       setIsRunning(false);
       setSpecs([{ id: 'error', name: 'Erro > Falha', status: 'fail', log: [String(err)] }]);
@@ -176,15 +174,9 @@ export const TestRunner = (props: { repo: any }) => {
   const runSingleTest = async (filePath: string) => {
     if (!props.repo?.path || isRunning() || !filePath) return;
     setIsRunning(true);
-    
-    // Resetamos apenas os testes desse arquivo
     setSpecs(prev => prev.filter(s => s.filePath !== filePath));
-    
     try {
-      await invoke('run_angular_tests', { 
-        projectPath: props.repo.path, 
-        testFile: filePath 
-      });
+      await runTestTerminal(projectInfo()?.testRunner || 'dockerfile', props.repo.path, filePath);
     } catch (err) {
       setIsRunning(false);
     }

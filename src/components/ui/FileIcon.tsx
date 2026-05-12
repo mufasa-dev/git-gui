@@ -105,6 +105,7 @@ export default function FileIcon(props: FileIconProps) {
     if (name === 'vitest') return vitestIcon;
     if (name === 'gotest') return goIcon;
     if (name === 'pytest') return pythonIcon;
+    if (name === 'dotnet test') return cSharpIcon;
     if (name === 'none') return alertIcon;
 
     // Checagem por arquivos de tradução
