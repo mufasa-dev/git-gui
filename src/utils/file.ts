@@ -23,6 +23,7 @@ export const commitColors: Record<string, string> = {
   build: "text-emerald-600 dark:text-emerald-500",
   chore: "text-slate-500 dark:text-slate-400",
   ci: "text-indigo-500 dark:text-indigo-400",
+  ui: "text-yellow-500 dark:text-yellow-400",
   revert: "text-red-600 dark:text-red-500 line-through",
   translate: "text-blue-600 dark:text-blue-400 font-bold",
   error: "text-green-600 dark:text-green-400 font-bold",
@@ -45,6 +46,7 @@ export const tagBaseColors: Record<string, string> = {
   style: "#a855f7",      // purple-500
   refactor: "#0891b2",   // cyan-600
   perf: "#f43f5e",       // rose-500
+  test: "#ec4899",       // pink-500
   tests: "#ec4899",      // pink-500
   build: "#10b981",      // emerald-500
   chore: "#64748b",      // slate-500
@@ -55,6 +57,7 @@ export const tagBaseColors: Record<string, string> = {
   error: "#16a34a",      // green-600
   start: "#16a34a",      // green-600
   stop: "#dc2626",       // red-600
+  ui: "#fbbf24",         // yellow-600
   other: "#94a3b8",      // gray-400
   // Gamedev
   art: "#f97316",        // orange-500 (Vibrante para arte)
