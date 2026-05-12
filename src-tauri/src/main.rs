@@ -97,7 +97,9 @@ fn main() {
             authentication::login::login_with_supabase,
             authentication::login::register_with_supabase,
             authentication::login::get_my_profile,
-            authentication::license::check_license
+            authentication::license::check_license,
+            authentication::license::get_subscription_plans,
+            authentication::license::open_checkout
         ])
         .run(tauri::generate_context!())
         .expect("erro ao rodar o app");

@@ -1,6 +1,7 @@
 import { createResource, Show } from "solid-js";
 import { useApp } from "../../context/AppContext";
 import { authService } from "../../services/authService";
+import PricingSection from "./PricingSection";
 
 export default function ProfileModal() {
   const { t } = useApp();
@@ -70,10 +71,11 @@ export default function ProfileModal() {
               </div>
             </Show>
 
-            <Show when={license()?.isExpired}>
-              <button class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-bold transition-transform active:scale-95 shadow-md shadow-amber-500/20">
-                Assinar Dev Brook PRO
-              </button>
+            <Show when={license()?.isExpired || (license()?.status === "trialing")}>
+              <div class="border-t border-slate-800 mt-6 pt-2">
+                {/* Passamos o ID do usuário para o metadata do checkout */}
+                <PricingSection userId={profile()?.id || ""} />
+              </div>
             </Show>
 
             <div class="flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-3">

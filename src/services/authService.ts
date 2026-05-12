@@ -58,5 +58,12 @@ export const authService = {
 
   async checkLicense(token: string): Promise<LicenseDetails> {
     return await invoke<LicenseDetails>("check_license", { token });
+  },
+
+  async getPlans(): Promise<any[]> {
+    return await invoke("get_subscription_plans");
+  },
+  async openCheckout(userId: string): Promise<void> {
+    return await invoke("open_checkout", { userId });
   }
 };

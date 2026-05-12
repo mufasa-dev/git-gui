@@ -23,3 +23,36 @@ pub async fn check_license(token: String) -> Result<LicenseDetails, String> {
 
     Ok(details)
 }
+
+#[tauri::command]
+pub async fn get_subscription_plans() -> Result<serde_json::Value, String> {
+    let api_url = std::env::var("GO_API_URL").unwrap_or_else(|_| "https://sua-api.railway.app".to_string());
+    let endpoint = format!("{}/api/v1/plans", api_url);
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(endpoint)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let json = response.json::<serde_json::Value>().await.map_err(|e| e.to_string())?;
+    Ok(json)
+}
+
+#[tauri::command]
+pub async fn open_checkout(user_id: String) -> Result<(), String> {
+    let checkout_id = std::env::var("POLAR_CHECKOUT_ID")
+        .map_err(|_| "Variável POLAR_CHECKOUT_ID não definida no ambiente".to_string())?;
+
+    let url = format!(
+        "https://buy.polar.sh/{}?metadata[user_id]={}", 
+        checkout_id.trim(), 
+        user_id
+    );
+    
+    tauri_plugin_opener::open_url(url, None::<&str>)
+        .map_err(|e| e.to_string())?;
+        
+    Ok(())
+}
