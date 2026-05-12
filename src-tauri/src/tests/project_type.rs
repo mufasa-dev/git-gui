@@ -38,9 +38,20 @@ pub async fn detect_project_type(project_path: String) -> Result<ProjectType, St
     }
 
     // 4. Check C# (Arquivos .csproj ou .sln)
-    if std::fs::read_dir(path).map_err(|e| e.to_string())?
-        .any(|entry| entry.ok().map_or(false, |e| e.file_name().to_string_lossy().ends_with(".csproj"))) {
-        return Ok(ProjectType { framework: "Dotnet".into(), test_runner: "xUnit/NUnit".into() });
+    let is_dotnet = WalkDir::new(path)
+        .max_depth(3) 
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .any(|entry| {
+            let name = entry.file_name().to_string_lossy().to_lowercase();
+            name.ends_with(".csproj") || name.ends_with(".sln")
+        });
+
+    if is_dotnet {
+        return Ok(ProjectType { 
+            framework: "Dotnet".into(), 
+            test_runner: "dotnet test".into() 
+        });
     }
 
     Ok(ProjectType {
