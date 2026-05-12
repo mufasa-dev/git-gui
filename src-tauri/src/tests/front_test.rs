@@ -7,6 +7,8 @@ use std::fs;
 use std::path::Path;
 use serde_json::Value;
 use tauri::path::BaseDirectory;
+
+#[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
 #[derive(Clone, Serialize)]
@@ -70,13 +72,19 @@ pub async fn run_angular_tests(
         ("sh", "-c")
     };
 
-    let mut child = Command::new(shell)
-        .args([arg, &cmd_string])
+    let mut command = Command::new(shell);
+    command.args([arg, &cmd_string])
         .current_dir(&project_path) 
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .creation_flags(0x08000000)
-        .spawn()
+        .stderr(Stdio::piped());
+
+    // Aplica a flag de ocultar janela APENAS no Windows
+    #[cfg(target_os = "windows")]
+    {
+        command.creation_flags(0x08000000);
+    }
+
+    let mut child = command.spawn()
         .expect("Falha ao iniciar comando");
 
         let stdout = child.stdout.take().unwrap();
