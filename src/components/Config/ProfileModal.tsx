@@ -72,10 +72,7 @@ export default function ProfileModal() {
             </Show>
 
             <Show when={license()?.isExpired || (license()?.status === "trialing")}>
-              <div class="border-t border-slate-800 mt-6 pt-2">
-                {/* Passamos o ID do usuário para o metadata do checkout */}
-                <PricingSection userId={profile()?.id || ""} />
-              </div>
+              <PricingSection userId={profile()?.id || ""} />
             </Show>
 
             <div class="flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-3">

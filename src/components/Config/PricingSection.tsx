@@ -28,14 +28,14 @@ export default function PricingSection(props: { userId: string }) {
               });
 
               return (
-                <div class="group relative p-4 rounded-xl bg-slate-900/50 border border-slate-800 hover:border-blue-500/50 transition-all duration-300">
+                <div class="group relative p-4 rounded-xl bg-gray-100 dark:bg-slate-900/50 border dark:border-slate-800 hover:border-blue-500/50 transition-all duration-300">
                   <div class="flex justify-between items-start">
                     <div>
-                      <h4 class="text-white font-bold text-lg">{plan.name}</h4>
+                      <h4 class="text-gray-800 dark:text-white font-bold text-lg">{plan.name}</h4>
                       <p class="text-xs text-slate-400 mt-1">{plan.description || 'Acesso total aos recursos premium.'}</p>
                     </div>
                     <div class="text-right">
-                      <span class="text-xl font-black text-white">{displayPrice}</span>
+                      <span class="text-xl font-black text-gray-800 dark:text-white">{displayPrice}</span>
                       <span class="text-[10px] block text-slate-500 uppercase">/ mês</span>
                     </div>
                   </div>
