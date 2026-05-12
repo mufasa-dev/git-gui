@@ -7,6 +7,7 @@ use std::fs;
 use std::path::Path;
 use serde_json::Value;
 use tauri::path::BaseDirectory;
+use std::os::windows::process::CommandExt;
 
 #[derive(Clone, Serialize)]
 pub struct Payload {
@@ -52,24 +53,31 @@ pub async fn run_angular_tests(
         }
 
         let include_arg = match test_file {
-            Some(file) => format!("--include '{}'", file),
-            None => "".to_string(),
-        };
+        Some(file) => format!("--include '{}'", file),
+        None => "".to_string(),
+    };
 
-        // 5. O comando agora aponta para o arquivo que está NA RAIZ do projeto
-        let cmd_string = format!(
-            "npx ng test --watch=false --progress=false --karma-config='{}' {}", 
-            temp_bridge_name, 
-            include_arg
-        );
+    let cmd_string = format!(
+        "npx ng test --watch=false --progress=false --karma-config='{}' {}", 
+        temp_bridge_name, 
+        include_arg
+    );
 
-        let mut child = Command::new("sh")
-            .args(["-c", &cmd_string])
-            .current_dir(&project_path) 
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .expect("Falha ao iniciar comando");
+    // DETERMINA O SHELL BASEADO NO SO
+    let (shell, arg) = if cfg!(target_os = "windows") {
+        ("cmd", "/C")
+    } else {
+        ("sh", "-c")
+    };
+
+    let mut child = Command::new(shell)
+        .args([arg, &cmd_string])
+        .current_dir(&project_path) 
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .creation_flags(0x08000000)
+        .spawn()
+        .expect("Falha ao iniciar comando");
 
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
