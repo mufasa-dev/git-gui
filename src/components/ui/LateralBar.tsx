@@ -23,8 +23,7 @@ export default function LateralBar(props: {
   const { t } = useApp();
 
   return (
-    <div class="flex flex-col border rounded-r-xl mt-2 mb-2 bg-white dark:bg-gray-800 dark:border-gray-700" style={{"width": "56px"}}>
-      <img src={logo} class="px-2 h-10 mt-2 mb-4" />
+    <div class="flex flex-col mt-2 mb-2" style={{"width": "56px"}}>
       <Tooltip text={t('commits').commits} class="mb-2">
         <Button class={`left-btn w-full ${props.active === "commits" ? "selected" : ""}`} onClick={() => props.onChangeActive("commits")}>
           <img src={branchIcon} class="h-10" />

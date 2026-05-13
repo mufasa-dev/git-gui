@@ -20,7 +20,7 @@ html {
           border-0 py-1 cursor-pointer border-l-4 border-transparent;
   }
   .left-btn.selected {
-    @apply bg-gray-300 dark:bg-gray-900 border-blue-500 dark:border-blue-400 grayscale-0;
+    @apply bg-gray-300 dark:bg-gray-700 border-blue-500 dark:border-blue-400 grayscale-0 rounded-r-xl;
   }
 
   .btn-primary {
