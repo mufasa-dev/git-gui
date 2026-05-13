@@ -80,11 +80,6 @@ export default function ProfileModal() {
               <span class="text-sm dark:text-slate-200">{formatDate(profile()?.created_at)}</span>
             </div>
           </div>
-
-          <button class="w-full mt-6 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-sm transition-colors">
-            {t('auth').edit_profile}
-          </button>
-
         </Show>
       </Show>
     </div>
