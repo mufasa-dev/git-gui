@@ -93,6 +93,7 @@ fn main() {
             git_hub::auth::exchange_code_for_token,
             tests::front_test::run_angular_tests,
             tests::back_test::run_dotnet_tests,
+            tests::golang_test::run_go_tests,
             tests::project_type::detect_project_type,
             tests::project_type::get_project_test_files,
             authentication::login::login_with_supabase,
