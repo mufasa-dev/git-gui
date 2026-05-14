@@ -141,7 +141,6 @@ export const TestRunner = (props: { repo: any }) => {
 
       // Lógica para outros frameworks ou logs comuns
       let parsed: ParsedEvent;
-      console.log('type', type)
       if (type === 'Angular') {
         parsed = angularParser(line, logBuffer);
       } if (type === 'Go') {
