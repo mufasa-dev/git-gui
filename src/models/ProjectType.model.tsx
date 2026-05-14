@@ -7,7 +7,7 @@ export interface ParsedEvent {
   type: 'RESULT' | 'LOG' | 'FINISH' | 'IGNORE';
   data?: {
     name?: string;
-    status?: 'pass' | 'fail';
+    status?: 'pass' | 'fail' | 'skip' ;
     filePath?: string;
     duration?: string;
     log?: string[];

@@ -1,6 +1,5 @@
 import { createSignal, For, onMount, Show, createMemo, createEffect } from 'solid-js';
 import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
 import { ParsedEvent, ProjectType } from '../../models/ProjectType.model';
 import { getProjectType, runTestTerminal } from '../../services/testService';
 import { formatDuration } from '../../utils/date';
@@ -8,11 +7,12 @@ import FileIcon from '../ui/FileIcon';
 import { useApp } from '../../context/AppContext';
 import { angularParser } from '../../lib/TestsPareser/AngularParser';
 import { parseTrxToEvents } from '../../lib/TestsPareser/TrxParser';
+import { goParser } from '../../lib/TestsPareser/goParser';
 
 interface TestSpec {
   id: string;
   name: string;
-  status: 'pass' | 'fail' | 'running';
+  status: 'pass' | 'fail' | 'running' | 'skip';
   log: string[];
   filePath?: string;
   duration?: string;
@@ -141,8 +141,11 @@ export const TestRunner = (props: { repo: any }) => {
 
       // Lógica para outros frameworks ou logs comuns
       let parsed: ParsedEvent;
+      console.log('type', type)
       if (type === 'Angular') {
         parsed = angularParser(line, logBuffer);
+      } if (type === 'Go') {
+        parsed = goParser(line);
       } else {
         parsed = { type: 'LOG' };
       }

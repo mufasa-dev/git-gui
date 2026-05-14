@@ -15,4 +15,7 @@ export async function runTestTerminal(projectType: string, path: string, filePat
   if (projectType === "dotnet test") {
     return await invoke('run_dotnet_tests', data);
   }
+  if (projectType === "gotest") {
+    return await invoke('run_go_tests', data);
+  }
 }
