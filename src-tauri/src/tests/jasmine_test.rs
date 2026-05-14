@@ -7,9 +7,13 @@ use std::fs;
 use std::path::Path;
 use serde_json::Value;
 use tauri::path::BaseDirectory;
+use regex::Regex;
+use walkdir::WalkDir;
+use crate::models::test::{TestCase, TestFile};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+
 
 #[derive(Clone, Serialize)]
 pub struct Payload {
@@ -155,4 +159,50 @@ fn is_angular_legacy(project_path: &str) -> bool {
         }
     }
     false
+}
+
+#[tauri::command]
+pub async fn get_angular_test_files(project_path: String) -> Result<Vec<TestFile>, String> {
+    let mut test_files = Vec::new();
+    let src_path = format!("{}/src", project_path);
+
+    // Regex para capturar describes e its (suporta aspas simples, duplas e crase)
+    let describe_re = Regex::new(r#"describe\s*\(\s*['"\x60](.*?)['"\x60][\s\S]*?\{"#).unwrap();
+    let it_re = Regex::new(r#"it\s*\(\s*['"\x60](.*?)['"\x60][\s\S]*?\{"#).unwrap();
+
+    for entry in WalkDir::new(src_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.is_file() && path.to_string_lossy().contains(".spec.ts") {
+            let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+            let mut found_tests = Vec::new();
+            
+            // Lógica simplificada: Pegamos o primeiro describe como Suite principal
+            // e todos os its abaixo dele.
+            let suite_name = describe_re.captures(&content)
+                .map(|cap| cap[1].to_string())
+                .unwrap_or_else(|| "Unknown Suite".to_string());
+
+            for cap in it_re.captures_iter(&content) {
+                found_tests.push(TestCase {
+                    name: cap[1].to_string(),
+                    suite: suite_name.clone(),
+                });
+            }
+
+            let full_path = path.to_str().unwrap().replace("\\", "/");
+            let relative_path = full_path.replace(&project_path.replace("\\", "/"), "");
+            let relative_clean = relative_path.trim_start_matches('/').to_string();
+
+            test_files.push(TestFile {
+                name: path.file_name().unwrap().to_string_lossy().into(),
+                path: relative_clean,
+                label: path.file_stem().unwrap().to_string_lossy().replace(".spec", ""),
+                tests: found_tests,
+            });
+        }
+    }
+    Ok(test_files)
 }
