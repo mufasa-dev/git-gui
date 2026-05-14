@@ -11,6 +11,7 @@ export default function Titlebar() {
   const [dark, setDark] = createSignal(localStorage.getItem("theme") == "dark");
   const [showAccountMenu, setShowAccountMenu] = createSignal(false);
   const [showProfileModal, setShowProfileModal] = createSignal(false);
+  const [isMaximized, setIsMaximized] = createSignal(false);
   const { t, token } = useApp();
   
   const appWindow = getCurrentWindow();
@@ -34,8 +35,22 @@ export default function Titlebar() {
   const clickOutside = (e: any) => {
     if (menuRef && !menuRef.contains(e.target)) setShowAccountMenu(false);
   };
-  onMount(() => document.addEventListener("click", clickOutside));
   onCleanup(() => document.removeEventListener("click", clickOutside));
+
+  onMount(async () => {
+    document.addEventListener("click", clickOutside);
+    // 1. Verifica o estado inicial ao abrir
+    const maximized = await appWindow.isMaximized();
+    setIsMaximized(maximized);
+
+    // 2. Escuta mudanças de redimensionamento/maximização
+    const unlisten = await appWindow.onResized(async () => {
+      const maximized = await appWindow.isMaximized();
+      setIsMaximized(maximized);
+    });
+
+    onCleanup(() => unlisten());
+  });
 
   return (
     <div 
@@ -105,7 +120,7 @@ export default function Titlebar() {
           onClick={() => appWindow.toggleMaximize()}
           class="inline-flex justify-center items-center w-10 h-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
         >
-          <i class="fa-regular fa-window-restore text-[10px]"></i>
+          <i class={`fa-regular ${isMaximized() ? 'fa-window-restore' : 'fa-window-maximize'} text-[10px]`}></i>
         </button>
 
         <button 
