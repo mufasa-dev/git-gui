@@ -95,6 +95,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
 
   const paginatedCommits = createMemo(() => {
     const start = (currentPage() - 1) * itemsPerPage;
+    console.log('paginatedCommits', filteredCommits().slice(start, start + itemsPerPage))
     return filteredCommits().slice(start, start + itemsPerPage);
   });
 
@@ -108,7 +109,6 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
     const all = commits(); // array original com linhas de gráfico
     const firstIdx = all.findIndex(c => c.hash === firstHash);
     const lastIdx = all.findIndex(c => c.hash === lastHash);
-    
     if (firstIdx === -1 || lastIdx === -1) return pageCommits;
     return all.slice(firstIdx, lastIdx + 1);
   });
@@ -224,7 +224,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
         {/* Lista de Commits */}
         <div class="flex flex-1 overflow-auto">
           <div class="sticky left-0 z-10 flex-shrink-0">
-            <CommitGraph commits={graphLines()} rowHeight={41} />
+            <CommitGraph commits={paginatedCommits()} rowHeight={41} />
           </div>
           <div class="flex-1">
             <Show when={!loading()} fallback={<div class="p-4 text-center">{t('common').loading}</div>}>
@@ -237,7 +237,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                     onClick={() => selectCommit(c.hash)}
                   >
                     <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
-                    <div class="font-semibold px-2 flex-1 truncate">
+                    <div class="font-semibold px-2 flex-1">
                       <CommitMessage message={c.message} />
                     </div>
                     <div class="text-xs ml-auto whitespace-nowrap flex items-center gap-2 w-[200px]">

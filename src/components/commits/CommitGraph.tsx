@@ -7,7 +7,7 @@ interface CommitGraphProps {
 
 export default function CommitGraph(props: CommitGraphProps) {
   const colors = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4"];
-  const colWidth = 14;
+  const colWidth = 14; 
   const xOffset = 12;
   const circleRadius = 4;
 
@@ -15,122 +15,92 @@ export default function CommitGraph(props: CommitGraphProps) {
     const commits = props.commits;
     if (!commits.length) return { rows: [], maxCol: 0 };
 
-    const branchColors: Map<number, string> = new Map();
-    let nextBranchId = 0;
-    
-    // Ativo: coluna -> branchId
-    let activeBranches: Map<number, number> = new Map();
-    let maxCol = 0;
+    let globalMaxCol = 0;
 
-    const rows: {
-      segments: { col: number; nextCol: number; color: string; char: string }[];
-      commitCol: number | null;
-    }[] = [];
+    const rows = commits.map((commit, i) => {
+      const rawSymbol = (commit.graph_symbol || "").replace(/ /g, "");
+      const cleanChars = rawSymbol.split("");
+      
+      const nextCommitRaw = commits[i + 1]?.graph_symbol?.replace(/ /g, "") || "";
+      const prevCommitRaw = commits[i - 1]?.graph_symbol?.replace(/ /g, "") || "";
+      
+      const currentColCount = cleanChars.length;
+      const nextColCount = nextCommitRaw.length;
+      const prevColCount = prevCommitRaw.length;
 
-    // Função para obter cor, criando se necessário
-    function getOrCreateColor(branchId: number, parentBranchId?: number): string {
-      if (branchColors.has(branchId)) return branchColors.get(branchId)!;
-
-      let color: string;
-      if (parentBranchId !== undefined) {
-        const parentColor = branchColors.get(parentBranchId) || colors[0];
-        const parentIdx = colors.indexOf(parentColor);
-        // Pula para a próxima cor (diferente do pai)
-        color = colors[(parentIdx + 1) % colors.length];
-        // Se por acaso for igual (só uma cor), use a primeira
-        if (color === parentColor) color = colors[0];
-      } else {
-        // Usa o próximo slot baseado no contador de branches
-        color = colors[branchId % colors.length];
-      }
-      branchColors.set(branchId, color);
-      return color;
-    }
-
-    for (const commit of commits) {
-      const chars = (commit.graph_symbol || "").split("");
-      const nextActive: Map<number, number> = new Map();
-      const segments: { col: number; nextCol: number; color: string; char: string }[] = [];
+      const segments: { col: number; nextCol: number; color: string; isBranch: boolean; isMerge: boolean }[] = [];
       let commitCol: number | null = null;
 
-      for (let col = 0; col < chars.length; col++) {
-        const char = chars[col];
-        if (char === " ") continue;
-        if (col > maxCol) maxCol = col;
-
-        let branchId: number;
-        let parentBranchId: number | undefined;
-
-        if (char === "\\") {
-          // Nova branch saindo do ramo à esquerda (col - 1)
-          const leftBranch = activeBranches.get(col - 1);
-          if (leftBranch !== undefined) {
-            // Cria um novo ID para a nova branch
-            branchId = nextBranchId++;
-            parentBranchId = leftBranch; // define o pai
-          } else {
-            // Fallback: não há ramo à esquerda (improvável)
-            branchId = nextBranchId++;
-          }
-        } else if (char === "/") {
-          // Merge: o ramo que termina é o desta coluna
-          branchId = activeBranches.get(col) ?? nextBranchId++;
-          // Não tem pai, pois está terminando
-        } else if (activeBranches.has(col)) {
-          // Continuação de ramo existente
-          branchId = activeBranches.get(col)!;
-        } else {
-          // Início isolado (primeiro commit ou ramo sem pai)
-          branchId = nextBranchId++;
-        }
-
-        const color = getOrCreateColor(branchId, parentBranchId);
+      for (let col = 0; col < currentColCount; col++) {
+        const char = cleanChars[col];
+        if (char === "*") commitCol = col;
 
         let nextCol = col;
-        let survives = true;
+        let isMerge = false;
+        let isBranch = false;
 
-        switch (char) {
-          case "|":
-          case "*":
-            nextCol = col;
-            if (char === "*") commitCol = col;
-            break;
-          case "\\":
-            nextCol = col + 1;
-            if (nextCol > maxCol) maxCol = nextCol;
-            break;
-          case "/":
-            nextCol = col - 1;
-            survives = false; // ramo termina
-            break;
+        // 1. Detecção e cálculo estrutural do Branching (\)
+        if (nextColCount > currentColCount && col === currentColCount - 1) {
+          isBranch = true;
+          // Não muda nextCol da linha principal, mas adicionaremos um segmento extra abaixo
+        } 
+        
+        // 2. Detecção e cálculo estrutural do Merging (/)
+        if (prevColCount > currentColCount && col === currentColCount - 1) {
+          isMerge = true;
+          // Injeta a curva de merge vindo de col+1 para col (nextCol é herdado do loop principal)
         }
 
-        segments.push({ col, nextCol, color, char });
+        if (col > globalMaxCol) globalMaxCol = col;
+        if (nextCol > globalMaxCol) globalMaxCol = nextCol;
 
-        if (survives) {
-          // Se já existir um ramo em nextCol (merge), o ramo principal (esquerda) tem prioridade
-          if (!nextActive.has(nextCol)) {
-            nextActive.set(nextCol, branchId);
-          }
+        // Adiciona a linha principal (reta, a menos que o merge mude nextCol no loop principal)
+        segments.push({
+          col,
+          nextCol,
+          color: colors[nextCol % colors.length], // Cor estável do destino para a linha principal
+          isBranch: false, // Esta é a linha principal, não o novo ramo
+          isMerge: false // Esta é a linha principal que recebe o merge, não a perna de curva
+        });
+
+        // Adiciona o segmento extra de branch (\) vindo da última coluna
+        if (isBranch) {
+          const targetCol = col + 1;
+          segments.push({ 
+            col, 
+            nextCol: targetCol, 
+            color: colors[targetCol % colors.length], // Nova cor para o novo ramo
+            isBranch: true,
+            isMerge: false
+          });
+        }
+
+        // Adiciona o segmento extra de merge (/) vindo da coluna externa para a última atual
+        if (isMerge) {
+          const originCol = col + 1;
+          // Lógica de cor para Merge (/): Usa a PRÓXIMA cor do array baseada na coluna de origem
+          const mergeColorIndex = (originCol + 0) % colors.length;
+          
+          segments.push({
+            col: originCol,
+            nextCol: col,
+            color: colors[mergeColorIndex], // Pega explicitamente a próxima cor
+            isBranch: false,
+            isMerge: true
+          });
         }
       }
 
-      rows.push({ segments, commitCol });
-      activeBranches = nextActive;
-    }
+      return { segments, commitCol };
+    });
 
-    return { rows, maxCol };
+    return { rows, maxCol: globalMaxCol };
   });
 
-  const svgWidth = (graphData().maxCol + 2) * colWidth + xOffset;
-  const svgHeight = props.commits.length * props.rowHeight;
+  const svgWidth = (graphData().maxCol + 1) * colWidth + xOffset * 2;
 
   return (
-    <svg 
-      width={svgWidth} 
-      height={svgHeight} 
-      class="pointer-events-none overflow-visible flex-shrink-0"
-    >
+    <svg width={svgWidth} height="100%" class="pointer-events-none overflow-visible flex-shrink-0">
       <For each={graphData().rows}>
         {(row, i) => {
           const yTop = i() * props.rowHeight;
@@ -144,28 +114,41 @@ export default function CommitGraph(props: CommitGraphProps) {
                   const x = seg.col * colWidth + xOffset;
                   const xNext = seg.nextCol * colWidth + xOffset;
 
+                  // Se a coluna não muda, desenha linha reta do topo até a base da célula
                   if (seg.col === seg.nextCol) {
                     return (
                       <line 
                         x1={x} y1={yTop} 
                         x2={x} y2={yBot} 
-                        stroke={seg.color} 
-                        stroke-width="2" 
-                        stroke-linecap="round"
+                        stroke={seg.color} stroke-width="2" stroke-linecap="round"
                       />
                     );
-                  } else {
-                    const midY = (yTop + yBot) / 2;
-                    return (
-                      <path 
-                        d={`M ${x} ${yTop} C ${x} ${midY}, ${xNext} ${midY}, ${xNext} ${yBot}`}
-                        fill="none" 
-                        stroke={seg.color} 
-                        stroke-width="2" 
-                        stroke-linecap="round"
-                      />
-                    );
+                  } 
+                  
+                  // Configuração de Origem/Destino para a curva
+                  let xOrigin = x;
+                  let yOrigin = yTop;
+                  let xDest = xNext;
+                  let yDest = yBot;
+
+                  // Lógica de Saída/Entrada centralizada solicitada
+                  if (seg.isBranch) {
+                    // Saída (\): A linha nasce do centro da trilha vertical atual
+                    yOrigin = yMid;
                   }
+                  if (seg.isMerge) {
+                    // Entrada (/): A linha termina no centro da trilha vertical receptora (baleadinha)
+                    yDest = yMid;
+                  }
+
+                  // Desenha a curva de transição (\ ou /) com os pontos de controle ajustados
+                  // C <xControl1> <yControl1>, <xControl2> <yControl2>, <xDest> <yDest>
+                  return (
+                    <path 
+                      d={`M ${xOrigin} ${yOrigin} C ${xOrigin} ${yMid}, ${xDest} ${yMid}, ${xDest} ${yDest}`}
+                      fill="none" stroke={seg.color} stroke-width="2" stroke-linecap="round"
+                    />
+                  );
                 }}
               </For>
 
@@ -174,10 +157,10 @@ export default function CommitGraph(props: CommitGraphProps) {
                   cx={row.commitCol * colWidth + xOffset} 
                   cy={yMid} 
                   r={circleRadius}
-                  fill={row.segments.find(s => s.col === row.commitCol)?.color || "#6b7280"} 
-                  stroke="currentColor" 
+                  // Círculo com a cor estável da coluna onde o commit está
+                  fill={colors[row.commitCol % colors.length]} 
+                  stroke="white" 
                   stroke-width="1.5"
-                  class="text-white dark:text-gray-900"
                 />
               )}
             </g>
