@@ -1,7 +1,7 @@
 import { createSignal, For, onMount, Show, createMemo, createEffect } from 'solid-js';
 import { listen } from '@tauri-apps/api/event';
 import { ParsedEvent, ProjectType } from '../../models/ProjectType.model';
-import { getProjectType, runTestTerminal } from '../../services/testService';
+import { getProjectType, runTestTerminal, getTestsFiles } from '../../services/testService';
 import { formatDuration } from '../../utils/date';
 import FileIcon from '../ui/FileIcon';
 import { useApp } from '../../context/AppContext';
@@ -18,6 +18,18 @@ interface TestSpec {
   duration?: string;
 }
 
+interface MappedTestCase {
+  name: string;
+  suite: string;
+}
+
+interface MappedTestFile {
+  name: string;
+  path: string;
+  label: string;
+  tests: MappedTestCase[];
+}
+
 export const TestRunner = (props: { repo: any }) => {
   const [specs, setSpecs] = createSignal<TestSpec[]>([]);
   const [selectedSuite, setSelectedSuite] = createSignal<string | null>(null);
@@ -27,6 +39,7 @@ export const TestRunner = (props: { repo: any }) => {
   const [projectInfo, setProjectInfo] = createSignal<ProjectType | null>(null);
   const [searchQuery, setSearchQuery] = createSignal("");
   const [lastLoadedPath, setLastLoadedPath] = createSignal<string | null>(null);
+  const [mappedFiles, setMappedFiles] = createSignal<MappedTestFile[]>([]); // Guarda o mapa do Rust
   const { t } = useApp();
 
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
@@ -52,6 +65,24 @@ export const TestRunner = (props: { repo: any }) => {
     const loadedPath = lastLoadedPath();
     if (currentPath && loadedPath === currentPath && specs().length > 0) {
       localStorage.setItem(storageKey(), JSON.stringify(specs()));
+    }
+  });
+
+  // Carrega as informações do projeto E mapeia os arquivos fisicos usando Rust
+  createEffect(async () => {
+    if (props.repo?.path) {
+      const info = await getProjectType(props.repo.path);
+      setProjectInfo(info);
+
+      if (info?.testRunner) {
+        try {
+          const files = await getTestsFiles(props.repo.path, info.testRunner);
+          console.log("Arquivos de teste mapeados:", files);
+          setMappedFiles(files);
+        } catch (e) {
+          console.error("Erro ao mapear arquivos de testes:", e);
+        }
+      }
     }
   });
 
@@ -82,20 +113,28 @@ export const TestRunner = (props: { repo: any }) => {
     return allSuites.filter(suite => suite.toLowerCase().includes(query));
   });
 
-  createEffect(async () => {
-    if (props.repo?.path) {
-      const info = await getProjectType(props.repo.path);
-      setProjectInfo(info);
-    }
-  });
+  // Helper que cruza os dados do log com o mapeamento em memória
+  const findFilePathForTest = (suite: string, testName: string): string | undefined => {
+    const foundFile = mappedFiles().find(file => 
+      file.tests.some(t => t.suite.trim() === suite.trim() && t.name.trim() === testName.trim())
+    );
+    return foundFile?.path;
+  };
 
   onMount(async () => {
     let logBuffer: string[] = [];
 
-    // Função interna para atualizar o estado das specs
     const updateSpecState = (parsed: ParsedEvent) => {
       if (parsed.type === 'RESULT' && parsed.data) {
         const specData = parsed.data;
+        const [suite, testName] = specData.name!.split(' > ');
+
+        // Se o parser não capturar o filePath nativamente (como no Angular), nós injetamos usando o mapa
+        let resolvedFilePath = specData.filePath;
+        if (!resolvedFilePath && suite && testName) {
+          resolvedFilePath = findFilePathForTest(suite, testName);
+        }
+
         setSpecs(prev => {
           const existingIndex = prev.findIndex(s => s.name === specData.name);
           const newSpec: TestSpec = {
@@ -103,7 +142,7 @@ export const TestRunner = (props: { repo: any }) => {
             name: specData.name!,
             status: specData.status!,
             log: specData.log || [],
-            filePath: specData.filePath,
+            filePath: resolvedFilePath, // Arquivo associado com sucesso!
             duration: specData.duration
           };
 
@@ -131,19 +170,16 @@ export const TestRunner = (props: { repo: any }) => {
 
       const type = projectInfo()?.framework;
 
-      // Lógica Especial para Dotnet (TRX)
       if (type === 'Dotnet' && line.startsWith('<?xml')) {
         const results = parseTrxToEvents(line);
         results.forEach(res => updateSpecState(res));
-        console.log('results', results)
         return;
       }
 
-      // Lógica para outros frameworks ou logs comuns
       let parsed: ParsedEvent;
       if (type === 'Angular') {
         parsed = angularParser(line, logBuffer);
-      } if (type === 'Go') {
+      } else if (type === 'Go') {
         parsed = goParser(line);
       } else {
         parsed = { type: 'LOG' };
@@ -173,15 +209,51 @@ export const TestRunner = (props: { repo: any }) => {
     }
   };
 
-  const runSingleTest = async (filePath: string) => {
+  const runSingleTest = async (filePath: string, suiteName: string) => {
+    console.log(`[Git River] Executando arquivo: ${filePath} | Limpando suíte: ${suiteName}`);
+    
     if (!props.repo?.path || isRunning() || !filePath) return;
+    
     setIsRunning(true);
-    setSpecs(prev => prev.filter(s => s.filePath !== filePath));
+    
+    // LIMPEZA CORRETA: Filtra pelo nome da Suite que extraímos do "Suite > Teste"
+    setSpecs(prev => prev.filter(spec => {
+      const [specSuite] = spec.name.split(' > ');
+      return specSuite.trim() !== suiteName.trim();
+    }));
+    
     try {
       await runTestTerminal(projectInfo()?.testRunner || 'dockerfile', props.repo.path, filePath);
     } catch (err) {
       setIsRunning(false);
     }
+  };
+
+  const runSuiteTest = async () => {
+    const currentSuite = selectedSuite();
+    if (!currentSuite || isRunning() || !props.repo?.path) return;
+
+    // 1. Descobre o arquivo físico usando o mapa reativo do Rust
+    const filePath = findFilePathBySuite(currentSuite);
+
+    if (!filePath) {
+      console.error(`Não foi possível associar a suíte "${currentSuite}" a nenhum arquivo físico.`);
+      return;
+    }
+
+    // 2. Dispara a execução passando o arquivo para o terminal, mas o nome da suíte para limpar a tela
+    await runSingleTest(filePath, currentSuite);
+  };
+
+  const findFilePathBySuite = (suiteName: string): string | undefined => {
+    if (!suiteName) return undefined;
+    
+    // Procura em todos os arquivos se algum teste pertence a essa suíte
+    const foundFile = mappedFiles().find(file => 
+      file.tests.some(t => t.suite.trim().toLowerCase() === suiteName.trim().toLowerCase())
+    );
+
+    return foundFile?.path;
   };
 
   return (
@@ -224,20 +296,11 @@ export const TestRunner = (props: { repo: any }) => {
 
             <div class="mt-3 h-1.5 w-full bg-gray-300 dark:bg-gray-800 rounded-full overflow-hidden flex">
               <Show when={stats().total > 0}>
-                {/* Segmento de Sucesso */}
-                <div 
-                  class="h-full bg-green-500 transition-all duration-500 ease-out" 
-                  style={{ width: `${(stats().passed / stats().total) * 100}%` }}
-                />
-                {/* Segmento de Falha */}
-                <div 
-                  class="h-full bg-red-500 transition-all duration-500 ease-out" 
-                  style={{ width: `${(stats().failed / stats().total) * 100}%` }}
-                />
+                <div class="h-full bg-green-500 transition-all duration-500 ease-out" style={{ width: `${(stats().passed / stats().total) * 100}%` }} />
+                <div class="h-full bg-red-500 transition-all duration-500 ease-out" style={{ width: `${(stats().failed / stats().total) * 100}%` }} />
               </Show>
             </div>
 
-            {/* Opcional: Porcentagem de Sucesso */}
             <Show when={stats().total > 0}>
               <div class="mt-1 text-[9px] text-right font-mono opacity-50 uppercase tracking-tighter">
                 {Math.round((stats().passed / stats().total) * 100)}% {t('test').rating_score}
@@ -254,14 +317,6 @@ export const TestRunner = (props: { repo: any }) => {
                 onInput={(e) => setSearchQuery(e.currentTarget.value)}
                 class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md py-1.5 pl-8 pr-3 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               />
-              <Show when={searchQuery() && !isRunning()}>
-                <button 
-                  onClick={() => setSearchQuery("")}
-                  class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                >
-                  <i class="fa-solid fa-xmark text-[10px]"></i>
-                </button>
-              </Show>
             </div>
           </div>
 
@@ -284,12 +339,6 @@ export const TestRunner = (props: { repo: any }) => {
                 </div>
               )}
             </For>
-
-            <Show when={suites().length === 0 && searchQuery()}>
-              <div class="p-4 text-center dark:text-gray-400 italic text-[10px]">
-                Nenhuma suíte encontrada
-              </div>
-            </Show>
           </div>
         </div>
       </div>
@@ -311,20 +360,15 @@ export const TestRunner = (props: { repo: any }) => {
                 {selectedSuite()}
               </h2>
               
-              <Show when={
-                  (() => {
-                    const path = groupedSpecs()[selectedSuite()!]?.tests[0]?.filePath;
-                    // Valida se existe e se não é um dos placeholders genéricos
-                    return path && !['unknown', 'spec 0', 'spec 1'].includes(path) && path.includes('.');
-                  })()
-                }>
-                  <button 
-                    onClick={() => runSingleTest(groupedSpecs()[selectedSuite()!]?.tests[0]?.filePath!)}
-                    disabled={isRunning()}
-                    class="bg-gray-200 dark:bg-gray-700 hover:bg-blue-600 hover:text-white text-[10px] px-2 py-1 rounded font-bold transition-all flex items-center gap-1 disabled:opacity-50"
-                  >
-                    <i class="fa-solid fa-rotate-right"></i> RERUN SUITE
-                  </button>
+              {/* Rerun da Suíte Inteira */}
+              <Show when={selectedSuite()}>
+                <button 
+                  onClick={() => runSuiteTest()}
+                  disabled={isRunning()}
+                  class="bg-gray-200 dark:bg-gray-700 hover:bg-blue-600 hover:text-white text-[10px] px-2 py-1 rounded font-bold transition-all flex items-center gap-1 disabled:opacity-50"
+                >
+                  <i class="fa-solid fa-rotate-right"></i> RERUN SUITE
+                </button>
               </Show>
             </div>
 
@@ -361,13 +405,27 @@ export const TestRunner = (props: { repo: any }) => {
                         </Show>
                       </div>
 
-                      <div class="flex flex-col items-end gap-1">
-                        <div class={`text-[10px] font-bold uppercase ${spec.status === 'pass' ? 'text-green-600' : 'text-red-600'}`}>
-                          {spec.status === 'pass' ? t('test').passed : t('test').failed}
-                        </div>
-                        <Show when={spec.duration}>
-                          <span class="text-[9px] font-mono dark:text-white">{formatDuration(spec.duration)}</span>
+                      <div class="flex items-center gap-3">
+                        {/* Botão Play Individual por Teste (Aparece ao passar o mouse ou se tiver filePath) */}
+                        <Show when={spec.filePath}>
+                          <button 
+                            onClick={() => runSingleTest(spec.filePath!, selectedSuite()!)}
+                            disabled={isRunning()}
+                            title={`Executar apenas este arquivo: ${spec.filePath}`}
+                            class="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded bg-gray-300 dark:bg-gray-700 hover:bg-blue-500 hover:text-white text-[10px] disabled:opacity-30"
+                          >
+                            <i class="fa-solid fa-play"></i>
+                          </button>
                         </Show>
+
+                        <div class="flex flex-col items-end gap-1 min-w-[50px]">
+                          <div class={`text-[10px] font-bold uppercase ${spec.status === 'pass' ? 'text-green-600' : 'text-red-600'}`}>
+                            {spec.status === 'pass' ? t('test').passed : t('test').failed}
+                          </div>
+                          <Show when={spec.duration}>
+                            <span class="text-[9px] font-mono dark:text-white">{formatDuration(spec.duration)}</span>
+                          </Show>
+                        </div>
                       </div>
                     </div>
                   )}
