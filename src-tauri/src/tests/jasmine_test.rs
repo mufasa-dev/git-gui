@@ -27,7 +27,8 @@ pub struct Payload {
 pub async fn run_angular_tests(
     app: AppHandle, 
     project_path: String, 
-    test_file: Option<String>
+    test_file: Option<String>,
+    test_name: Option<String>
 ) -> Result<String, String> {
     let window = app.get_webview_window("main")
         .ok_or_else(|| "Janela principal não encontrada".to_string())?;
@@ -37,70 +38,70 @@ pub async fn run_angular_tests(
     let is_legacy = is_angular_legacy(&project_path);
 
     thread::spawn(move || {
-        // 1. Define qual arquivo de bridge usar
         let config_name = if is_legacy {
             "karma-bridge-legacy.conf.js"
         } else {
             "karma-bridge.conf.cjs"
         };
 
-        // 2. Localiza o arquivo nos assets do app
         let source_bridge = app_handle.path()
             .resolve(format!("assets/{}", config_name), BaseDirectory::Resource)
             .expect("Falha ao resolver assets");
 
-        // 3. Define um nome temporário e o caminho de destino (raiz do projeto do usuário)
         let temp_bridge_name = ".trident-karma-bridge.tmp.js";
         let target_bridge = Path::new(&project_path).join(temp_bridge_name);
 
-        // 4. Copia o arquivo para garantir que o Angular/Karma consigam ler (evita erros de path no v15)
         if let Err(e) = fs::copy(&source_bridge, &target_bridge) {
             eprintln!("Erro ao copiar bridge para o projeto: {}", e);
         }
 
         let include_arg = match test_file {
-        Some(file) => format!("--include '{}'", file),
-        None => "".to_string(),
-    };
+            Some(file) => format!("--include=\"{}\"", file),
+            None => "".to_string(),
+        };
 
-    let cmd_string = format!(
-        "npx ng test --watch=false --progress=false --karma-config='{}' {}", 
-        temp_bridge_name, 
-        include_arg
-    );
+        // O comando fica apenas com o include (que o Angular aceita perfeitamente)
+        let cmd_string = format!(
+            "npx ng test --watch=false --progress=false --karma-config=\"{}\" {}", 
+            temp_bridge_name, 
+            include_arg
+        );
 
-    // DETERMINA O SHELL BASEADO NO SO
-    let (shell, arg) = if cfg!(target_os = "windows") {
-        ("cmd", "/C")
-    } else {
-        ("sh", "-c")
-    };
+        let (shell, arg) = if cfg!(target_os = "windows") {
+            ("cmd", "/C")
+        } else {
+            ("sh", "-c")
+        };
 
-    let mut command = Command::new(shell);
-    command.args([arg, &cmd_string])
-        .current_dir(&project_path) 
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        let mut command = Command::new(shell);
+        command.args([arg, &cmd_string])
+            .current_dir(&project_path) 
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
-    // Aplica a flag de ocultar janela APENAS no Windows
-    #[cfg(target_os = "windows")]
-    {
-        command.creation_flags(0x08000000);
-    }
+        // 👇 AQUI ESTÁ O SEGREDO: Injeta o teste no ambiente do processo se ele existir
+        if let Some(name) = test_name {
+            let safe_name = name.replace("\"", "");
+            command.env("GIT_RIVER_TEST_GREP", safe_name); 
+        }
 
-    let mut child = command.spawn()
-        .expect("Falha ao iniciar comando");
+        #[cfg(target_os = "windows")]
+        {
+            command.creation_flags(0x08000000);
+        }
 
+        println!("[Git River] Executando via Env: {}", cmd_string);
+        let mut child = command.spawn().expect("Falha ao iniciar comando");
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
         let win_out = window_clone.clone();
         let win_err = window_clone.clone();
 
-        // Thread para STDOUT
         thread::spawn(move || {
             let reader = BufReader::new(stdout);
             for line in reader.lines() {
                 if let Ok(l) = line {
+                    println!("[Rust STDOUT]: {}", l);
                     let _ = win_out.emit("test-event", Payload { 
                         file: "STDOUT".into(), status: "running".into(), name: l, error: None 
                     });
@@ -108,11 +109,11 @@ pub async fn run_angular_tests(
             }
         });
 
-        // Thread para STDERR
         thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines() {
                 if let Ok(l) = line {
+                    println!("[Rust STDOUT]: {}", l);
                     let _ = win_err.emit("test-event", Payload { 
                         file: "STDERR".into(), status: "running".into(), name: l, error: None 
                     });
@@ -122,12 +123,10 @@ pub async fn run_angular_tests(
 
         let _ = child.wait();
 
-        // 6. LIMPEZA: Remove o arquivo temporário da pasta do usuário
         if let Err(e) = fs::remove_file(target_bridge) {
             eprintln!("Erro ao remover bridge temporária: {}", e);
         }
 
-        // Avisa que terminou
         let _ = window_clone.emit("test-event", Payload { 
             file: "SYSTEM".into(), 
             status: "finished".into(), 

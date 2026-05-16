@@ -39,7 +39,9 @@ export const TestRunner = (props: { repo: any }) => {
   const [projectInfo, setProjectInfo] = createSignal<ProjectType | null>(null);
   const [searchQuery, setSearchQuery] = createSignal("");
   const [lastLoadedPath, setLastLoadedPath] = createSignal<string | null>(null);
-  const [mappedFiles, setMappedFiles] = createSignal<MappedTestFile[]>([]); // Guarda o mapa do Rust
+  const [mappedFiles, setMappedFiles] = createSignal<MappedTestFile[]>([]); 
+  // Novo sinal para gerenciar o estado do filtro atual: 'all' | 'pass' | 'fail'
+  const [filterStatus, setFilterStatus] = createSignal<'all' | 'pass' | 'fail'>('all');
   const { t } = useApp();
 
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
@@ -57,6 +59,7 @@ export const TestRunner = (props: { repo: any }) => {
       setLastLoadedPath(path); 
       setSelectedSuite(null);
       setIsRunning(false);
+      setFilterStatus('all'); // Reseta o filtro ao trocar de repositório
     }
   });
 
@@ -68,7 +71,6 @@ export const TestRunner = (props: { repo: any }) => {
     }
   });
 
-  // Carrega as informações do projeto E mapeia os arquivos fisicos usando Rust
   createEffect(async () => {
     if (props.repo?.path) {
       const info = await getProjectType(props.repo.path);
@@ -106,14 +108,25 @@ export const TestRunner = (props: { repo: any }) => {
     return groups;
   });
 
+  // Alterado para suportar a filtragem combinada com a busca por texto
   const suites = createMemo(() => {
-    const allSuites = Object.keys(groupedSpecs());
+    let allSuites = Object.keys(groupedSpecs());
+    const currentFilter = filterStatus();
+
+    // Aplica o filtro dos botões interativos
+    if (currentFilter === 'pass') {
+      // Traz apenas suítes onde todos os testes passaram e não há erros
+      allSuites = allSuites.filter(suite => !groupedSpecs()[suite].hasError && groupedSpecs()[suite].tests.some(t => t.status === 'pass'));
+    } else if (currentFilter === 'fail') {
+      // Traz apenas as suítes que possuem falhas
+      allSuites = allSuites.filter(suite => groupedSpecs()[suite].hasError);
+    }
+
     const query = searchQuery().toLowerCase().trim();
     if (!query) return allSuites;
     return allSuites.filter(suite => suite.toLowerCase().includes(query));
   });
 
-  // Helper que cruza os dados do log com o mapeamento em memória
   const findFilePathForTest = (suite: string, testName: string): string | undefined => {
     const foundFile = mappedFiles().find(file => 
       file.tests.some(t => t.suite.trim() === suite.trim() && t.name.trim() === testName.trim())
@@ -129,7 +142,6 @@ export const TestRunner = (props: { repo: any }) => {
         const specData = parsed.data;
         const [suite, testName] = specData.name!.split(' > ');
 
-        // Se o parser não capturar o filePath nativamente (como no Angular), nós injetamos usando o mapa
         let resolvedFilePath = specData.filePath;
         if (!resolvedFilePath && suite && testName) {
           resolvedFilePath = findFilePathForTest(suite, testName);
@@ -142,7 +154,7 @@ export const TestRunner = (props: { repo: any }) => {
             name: specData.name!,
             status: specData.status!,
             log: specData.log || [],
-            filePath: resolvedFilePath, // Arquivo associado com sucesso!
+            filePath: resolvedFilePath,
             duration: specData.duration
           };
 
@@ -200,7 +212,9 @@ export const TestRunner = (props: { repo: any }) => {
   const runAllTests = async () => {
     if (!props.repo?.path || isRunning()) return;
     setIsRunning(true);
-    setSpecs([]);
+    
+    setSpecs(prev => prev.map(s => ({ ...s, status: 'running', log: [] })));
+    
     try {
       await runTestTerminal(projectInfo()?.testRunner || 'dockerfile', props.repo.path);
     } catch (err) {
@@ -209,21 +223,34 @@ export const TestRunner = (props: { repo: any }) => {
     }
   };
 
-  const runSingleTest = async (filePath: string, suiteName: string) => {
-    console.log(`[Git River] Executando arquivo: ${filePath} | Limpando suíte: ${suiteName}`);
-    
-    if (!props.repo?.path || isRunning() || !filePath) return;
-    
+  const runIndividualTest = async (specName: string) => {
+    const currentSuite = selectedSuite();
+    if (!currentSuite || isRunning() || !specName || !props.repo?.path) return;
+
+    const pureItName = specName.split(' > ')[1] || specName;
+    const filePath = findFilePathBySuite(currentSuite);
+
+    if (!filePath) {
+      console.error(`Não foi possível mapear o arquivo para o teste individual: ${pureItName}`);
+      return;
+    }
+
     setIsRunning(true);
-    
-    // LIMPEZA CORRETA: Filtra pelo nome da Suite que extraímos do "Suite > Teste"
-    setSpecs(prev => prev.filter(spec => {
-      const [specSuite] = spec.name.split(' > ');
-      return specSuite.trim() !== suiteName.trim();
+
+    setSpecs(prev => prev.map(s => {
+      if (s.name === specName) {
+        return { ...s, status: 'running', log: [], duration: undefined };
+      }
+      return s;
     }));
-    
+
     try {
-      await runTestTerminal(projectInfo()?.testRunner || 'dockerfile', props.repo.path, filePath);
+      await runTestTerminal(
+        projectInfo()?.testRunner || 'angular', 
+        props.repo.path, 
+        filePath, 
+        pureItName
+      );
     } catch (err) {
       setIsRunning(false);
     }
@@ -233,7 +260,6 @@ export const TestRunner = (props: { repo: any }) => {
     const currentSuite = selectedSuite();
     if (!currentSuite || isRunning() || !props.repo?.path) return;
 
-    // 1. Descobre o arquivo físico usando o mapa reativo do Rust
     const filePath = findFilePathBySuite(currentSuite);
 
     if (!filePath) {
@@ -241,18 +267,28 @@ export const TestRunner = (props: { repo: any }) => {
       return;
     }
 
-    // 2. Dispara a execução passando o arquivo para o terminal, mas o nome da suíte para limpar a tela
-    await runSingleTest(filePath, currentSuite);
+    setIsRunning(true);
+
+    setSpecs(prev => prev.map(spec => {
+      const [specSuite] = spec.name.split(' > ');
+      if (specSuite.trim() === currentSuite.trim()) {
+        return { ...spec, status: 'running', log: [], duration: undefined };
+      }
+      return spec;
+    }));
+
+    try {
+      await runTestTerminal(projectInfo()?.testRunner || 'angular', props.repo.path, filePath);
+    } catch (err) {
+      setIsRunning(false);
+    }
   };
 
   const findFilePathBySuite = (suiteName: string): string | undefined => {
     if (!suiteName) return undefined;
-    
-    // Procura em todos os arquivos se algum teste pertence a essa suíte
     const foundFile = mappedFiles().find(file => 
       file.tests.some(t => t.suite.trim().toLowerCase() === suiteName.trim().toLowerCase())
     );
-
     return foundFile?.path;
   };
 
@@ -279,22 +315,46 @@ export const TestRunner = (props: { repo: any }) => {
                 </button>
             </div>
             
+            {/* Cards transformados em botões com feedbacks de active e hover integrados ao tema dark */}
             <div class="grid grid-cols-3 gap-1 text-center">
-              <div class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-1 rounded">
+              <button 
+                onClick={() => setFilterStatus('all')}
+                class={`p-1 rounded border transition-all text-center focus:outline-none ${
+                  filterStatus() === 'all' 
+                    ? 'bg-gray-300 dark:bg-gray-600 border-gray-400 dark:border-gray-500 ring-1 ring-blue-500/30' 
+                    : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300/70 dark:hover:bg-gray-700/70 border-gray-300 dark:border-gray-600'
+                }`}
+              >
                 <div class="text-[10px] text-gray-500 dark:text-gray-400 uppercase">{t('test').total}</div>
                 <div class="text-xs font-bold">{stats().total}</div>
-              </div>
-              <div class="bg-green-500/10 p-1 rounded border border-green-500/20">
+              </button>
+              
+              <button 
+                onClick={() => setFilterStatus('pass')}
+                class={`p-1 rounded border transition-all text-center focus:outline-none ${
+                  filterStatus() === 'pass' 
+                    ? 'bg-green-500/20 border-green-500/50 ring-1 ring-green-500/30' 
+                    : 'bg-green-500/10 hover:bg-green-500/15 border-green-500/20'
+                }`}
+              >
                 <div class="text-[10px] text-green-500 uppercase dark:text-green-500">{t('test').passed}</div>
                 <div class="text-xs font-bold text-green-500">{stats().passed}</div>
-              </div>
-              <div class="bg-red-500/10 p-1 rounded border border-red-500/20">
+              </button>
+              
+              <button 
+                onClick={() => setFilterStatus('fail')}
+                class={`p-1 rounded border transition-all text-center focus:outline-none ${
+                  filterStatus() === 'fail' 
+                    ? 'bg-red-500/20 border-red-500/50 ring-1 ring-red-500/30' 
+                    : 'bg-red-500/10 hover:bg-red-500/15 border-red-500/20'
+                }`}
+              >
                 <div class="text-[10px] text-red-500 uppercase dark:text-red-500">{t('test').failed}</div>
                 <div class="text-xs font-bold text-red-500">{stats().failed}</div>
-              </div>
+              </button>
             </div>
 
-            <div class="mt-3 h-1.5 w-full bg-gray-300 dark:bg-gray-800 rounded-full overflow-hidden flex">
+            <div class="mt-3 h-1.5 w-full bg-gray-300 dark:bg-gray-900 rounded-full overflow-hidden flex">
               <Show when={stats().total > 0}>
                 <div class="h-full bg-green-500 transition-all duration-500 ease-out" style={{ width: `${(stats().passed / stats().total) * 100}%` }} />
                 <div class="h-full bg-red-500 transition-all duration-500 ease-out" style={{ width: `${(stats().failed / stats().total) * 100}%` }} />
@@ -321,7 +381,11 @@ export const TestRunner = (props: { repo: any }) => {
           </div>
 
           <div class="flex-1 overflow-y-auto p-1">
-            <For each={suites()}>
+            <For each={suites()} fallback={
+              <div class="text-center p-4 text-[11px] opacity-40 italic">
+                Nenhuma suíte encontrada com este filtro
+              </div>
+            }>
               {(suite) => (
                 <div 
                   onClick={() => setSelectedSuite(suite)}
@@ -329,9 +393,17 @@ export const TestRunner = (props: { repo: any }) => {
                     selectedSuite() === suite ? 'bg-blue-500 text-white' : 'hover:bg-gray-300 dark:hover:bg-gray-800'
                   }`}
                 >
-                  <Show when={groupedSpecs()[suite].hasError} fallback={<i class="fa-solid fa-circle-check text-green-500 text-[12px]"></i>}>
-                    <i class="fa-solid fa-circle-xmark text-red-500 text-[12px] animate-pulse"></i>
+                  <Show 
+                    when={groupedSpecs()[suite].tests.some(t => t.status === 'running')} 
+                    fallback={
+                      <Show when={groupedSpecs()[suite].hasError} fallback={<i class="fa-solid fa-circle-check text-green-500 text-[12px]"></i>}>
+                        <i class="fa-solid fa-circle-xmark text-red-500 text-[12px]"></i>
+                      </Show>
+                    }
+                  >
+                    <i class="fa-solid fa-circle-notch text-blue-400 text-[12px] animate-spin"></i>
                   </Show>
+                  
                   <span class={`text-xs truncate ${selectedSuite() === suite ? 'font-bold' : 'font-medium'}`}>{suite}</span>
                   <span class={`ml-auto text-[10px] px-1.5 py-0.5 rounded ${selectedSuite() === suite ? 'bg-white/20' : 'bg-gray-300 dark:bg-gray-700'}`}>
                     {groupedSpecs()[suite].tests.length}
@@ -360,14 +432,16 @@ export const TestRunner = (props: { repo: any }) => {
                 {selectedSuite()}
               </h2>
               
-              {/* Rerun da Suíte Inteira */}
               <Show when={selectedSuite()}>
                 <button 
                   onClick={() => runSuiteTest()}
                   disabled={isRunning()}
                   class="bg-gray-200 dark:bg-gray-700 hover:bg-blue-600 hover:text-white text-[10px] px-2 py-1 rounded font-bold transition-all flex items-center gap-1 disabled:opacity-50"
                 >
-                  <i class="fa-solid fa-rotate-right"></i> RERUN SUITE
+                  <Show when={isRunning() && groupedSpecs()[selectedSuite()!]?.tests.some(t => t.status === 'running')} fallback={<i class="fa-solid fa-rotate-right"></i>}>
+                    <i class="fa-solid fa-circle-notch animate-spin"></i>
+                  </Show>
+                  RERUN SUITE
                 </button>
               </Show>
             </div>
@@ -378,18 +452,29 @@ export const TestRunner = (props: { repo: any }) => {
                   {(spec) => (
                     <div class={`group flex items-center gap-4 px-3 py-1 rounded-lg border transition-all ${
                       spec.status === 'pass' 
-                      ? 'bg-green-500/5 border-green-500/20' 
-                      : 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
+                        ? 'bg-green-500/5 border-green-500/20' 
+                        : spec.status === 'running'
+                        ? 'bg-blue-500/5 border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]'
+                        : 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
                     }`}>
-                      <div class={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
-                        spec.status === 'pass' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                      
+                      <div class={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                        spec.status === 'pass' 
+                          ? 'bg-green-500 text-white' 
+                          : spec.status === 'running'
+                          ? 'bg-blue-500 text-white animate-pulse'
+                          : 'bg-red-500 text-white'
                       }`}>
-                        <i class={`fa-solid text-[10px] ${spec.status === 'pass' ? 'fa-check' : 'fa-xmark'}`}></i>
+                        <Show when={spec.status === 'running'} fallback={<i class={`fa-solid text-[10px] ${spec.status === 'pass' ? 'fa-check' : 'fa-xmark'}`}></i>}>
+                          <i class="fa-solid fa-circle-notch text-[10px] animate-spin"></i>
+                        </Show>
                       </div>
                       
                       <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2">
-                          <div class="text-xs font-bold font-mono truncate">{spec.name.split(' > ')[1] || spec.name}</div>
+                          <div class={`text-xs font-bold font-mono truncate transition-opacity ${spec.status === 'running' ? 'opacity-60' : 'opacity-100'}`}>
+                            {spec.name.split(' > ')[1] || spec.name}
+                          </div>
                         </div>
 
                         <Show when={spec.status === 'fail' && spec.log.length > 0}>
@@ -406,23 +491,22 @@ export const TestRunner = (props: { repo: any }) => {
                       </div>
 
                       <div class="flex items-center gap-3">
-                        {/* Botão Play Individual por Teste (Aparece ao passar o mouse ou se tiver filePath) */}
-                        <Show when={spec.filePath}>
-                          <button 
-                            onClick={() => runSingleTest(spec.filePath!, selectedSuite()!)}
-                            disabled={isRunning()}
-                            title={`Executar apenas este arquivo: ${spec.filePath}`}
-                            class="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded bg-gray-300 dark:bg-gray-700 hover:bg-blue-500 hover:text-white text-[10px] disabled:opacity-30"
-                          >
-                            <i class="fa-solid fa-play"></i>
-                          </button>
-                        </Show>
+                        <button 
+                          onClick={() => runIndividualTest(spec.name)}
+                          disabled={isRunning()}
+                          title={`Executar apenas o teste: ${spec.name.split(' > ')[1] || spec.name}`}
+                          class="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded bg-gray-300 dark:bg-gray-700 hover:bg-blue-500 hover:text-white text-[10px] disabled:opacity-30"
+                        >
+                          <i class="fa-solid fa-play"></i>
+                        </button>
 
-                        <div class="flex flex-col items-end gap-1 min-w-[50px]">
-                          <div class={`text-[10px] font-bold uppercase ${spec.status === 'pass' ? 'text-green-600' : 'text-red-600'}`}>
-                            {spec.status === 'pass' ? t('test').passed : t('test').failed}
+                        <div class="flex flex-col items-end gap-1 min-w-[60px]">
+                          <div class={`text-[10px] font-bold uppercase ${
+                            spec.status === 'pass' ? 'text-green-600' : spec.status === 'running' ? 'text-blue-500 animate-pulse' : 'text-red-600'
+                          }`}>
+                            {spec.status === 'pass' ? t('test').passed : spec.status === 'running' ? t('test').running : t('test').failed}
                           </div>
-                          <Show when={spec.duration}>
+                          <Show when={spec.duration && spec.status !== 'running'}>
                             <span class="text-[9px] font-mono dark:text-white">{formatDuration(spec.duration)}</span>
                           </Show>
                         </div>

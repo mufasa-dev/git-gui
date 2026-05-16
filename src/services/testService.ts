@@ -15,17 +15,26 @@ export async function getTestsFiles(path: string, projectType: string): Promise<
   return [];
 }
 
-export async function runTestTerminal(projectType: string, path: string, filePath: string = ""): Promise<void> {
-  projectType = projectType.toLocaleLowerCase();
-  let data = filePath?.length > 0 ? { projectPath: path, testFile: filePath } : { projectPath: path };
+export async function runTestTerminal(
+  projectType: string, 
+  path: string, 
+  filePath: string = "", 
+  testName: string = "" // <- Novo argumento opcional
+): Promise<void> {
+  projectType = projectType.toLowerCase();
 
-  if (projectType === "karma/jasmine") {
-    return await invoke('run_angular_tests', data);
+  // Cria o objeto de argumentos dinamicamente
+  let args: any = { projectPath: path };
+  if (filePath?.length > 0) args.testFile = filePath;
+  if (testName?.length > 0) args.testName = testName;
+
+  if (projectType === "karma/jasmine" || projectType === "angular") {
+    return await invoke('run_angular_tests', args);
   }
   if (projectType === "dotnet test") {
-    return await invoke('run_dotnet_tests', data);
+    return await invoke('run_dotnet_tests', args);
   }
   if (projectType === "gotest") {
-    return await invoke('run_go_tests', data);
+    return await invoke('run_go_tests', args);
   }
 }
