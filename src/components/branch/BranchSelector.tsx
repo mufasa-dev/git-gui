@@ -98,7 +98,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
         {/* CARD SELETOR - Cores dinâmicas baseadas na sua UI (Light / Dark Mode) */}
         <div
           onClick={() => setIsOpen(!isOpen())}
-          class="flex items-center h-[54px] min-w-[220px] max-w-[280px] bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700/40 border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 transition-all cursor-pointer select-none group shadow-sm"
+          class="flex items-center h-[48px] min-w-[220px] max-w-[280px] bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700/40 border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 transition-all cursor-pointer select-none group shadow-sm"
         >
           {/* Badge Lateral do Ícone */}
           <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-600/10 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-all mr-3 shrink-0">
