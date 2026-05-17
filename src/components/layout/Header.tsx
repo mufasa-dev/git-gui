@@ -4,6 +4,7 @@ import { openBash, openConsole, openFileManager, openRepositoryBrowser, openVsCo
 import Button from "../ui/Button";
 import DropdownButton from "../ui/DropdownButton";
 import NewBranchModal from "../branch/NewBranchModal";
+import BranchSelector from "../branch/BranchSelector"; // 🌟 Import do novo seletor customizado
 import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch, configPullMode } from "../../services/gitService";
 import { saveRepos } from "../../services/storeService";
 import folderIcon from "../../assets/folder_silver.png";
@@ -27,6 +28,7 @@ import { useApp } from "../../context/AppContext";
 type Props = {
     repos: Repo[];
     active: string | null;
+    activePage: string | null;
     refreshBranches: (repoPath: string) => Promise<void>;
     setActive: (path: string | null) => void;
     setRepos: (repos: Repo[]) => void;
@@ -47,6 +49,9 @@ export default function Header(props: Props) {
       branch: string;
       message: string;
     } | null>(null);
+
+    // 🌟 Memoizador para obter o repositório ativo completo exigido pelo BranchSelector
+    const currentActiveRepo = () => props.repos.find(r => r.path === props.active) || null;
 
     async function openRepo() {
         const selected = await open({ directory: true, multiple: false });
@@ -201,40 +206,51 @@ export default function Header(props: Props) {
             <small>{t('repository').open_repository}</small>
           </Button>
           <Show when={props.active}>
-            <Button class="top-btn" onClick={async () => { await doFetch()}} disabled={disabledButton()}>
-              <img src={fetchIcon} class="inline h-6" />
-              <small>{fetching() ? " Atualizando..." : " " + t('git').fetch}</small>
-            </Button>
-            <Button class="top-btn relative" onClick={async () => { await doPull()}} disabled={disabledButton()}>
-              <img src={pullIcon} class="inline h-6" />
-              <small>{pulling() ? " Atualizando..." : " " + t('git').pull}</small>
-              {props.active && (() => {
-                const repo = props.repos.find(r => r.path === props.active);
-                const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
-                return branch && branch.behind > 0
-                  ? <span class="text-red-700 dark:text-red-200 font-bold rounded-full ml-1 absolute px-2 right-0">
-                    {branch.behind}
-                  </span>
-                  : null;
-              })()}
-            </Button>
-            <Button class="top-btn relative" onClick={async () => { await doPush()}} disabled={disabledButton()}>
-              <img src={pushIcon} class="inline h-6" />
-              <small>{pushing() ? " Enviando..." : " " + t('git').push}</small>
-              {props.active && (() => {
-                const repo = props.repos.find(r => r.path === props.active);
-                const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
-                return branch && branch.ahead > 0
-                  ? <span class="text-green-700 dark:text-green-200 font-bold rounded-full ml-1 absolute px-2 left-0">
-                    {branch.ahead}
-                  </span>
-                  : null;
-              })()}
-            </Button>
-            <Button class="top-btn" onClick={() => setOpenModalNewBranch(true)} disabled={disabledButton()}>
-              <img src={branchIcon} class="inline h-6" />
-              <small>{t('git').new_branch}</small>
-            </Button>
+            <Show when={props.activePage === "commits"}>
+              <Button class="top-btn" onClick={async () => { await doFetch()}} disabled={disabledButton()}>
+                <img src={fetchIcon} class="inline h-6" />
+                <small>{fetching() ? " Atualizando..." : " " + t('git').fetch}</small>
+              </Button>
+              <Button class="top-btn relative" onClick={async () => { await doPull()}} disabled={disabledButton()}>
+                <img src={pullIcon} class="inline h-6" />
+                <small>{pulling() ? " Atualizando..." : " " + t('git').pull}</small>
+                {props.active && (() => {
+                  const repo = props.repos.find(r => r.path === props.active);
+                  const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
+                  return branch && branch.behind > 0
+                    ? <span class="text-red-700 dark:text-red-200 font-bold rounded-full ml-1 absolute px-2 right-0">
+                      {branch.behind}
+                    </span>
+                    : null;
+                })()}
+              </Button>
+              <Button class="top-btn relative" onClick={async () => { await doPush()}} disabled={disabledButton()}>
+                <img src={pushIcon} class="inline h-6" />
+                <small>{pushing() ? " Enviando..." : " " + t('git').push}</small>
+                {props.active && (() => {
+                  const repo = props.repos.find(r => r.path === props.active);
+                  const branch = repo?.branches.find(b => b.name === repo?.activeBranch);
+                  return branch && branch.ahead > 0
+                    ? <span class="text-green-700 dark:text-green-200 font-bold rounded-full ml-1 absolute px-2 left-0">
+                      {branch.ahead}
+                    </span>
+                    : null;
+                })()}
+              </Button>
+              <Button class="top-btn" onClick={() => setOpenModalNewBranch(true)} disabled={disabledButton()}>
+                <img src={branchIcon} class="inline h-6" />
+                <small>{t('git').new_branch}</small>
+              </Button>
+            </Show>
+
+            {/* 🌟 O seletor de branch customizado integrado ao ecossistema de proteção contra perda de dados */}
+            <Show when={["dashboard", "test", "files"].includes(props.activePage || "")}>
+              <BranchSelector 
+                activeRepo={currentActiveRepo()} 
+                refreshBranches={props.refreshBranches} 
+              />
+            </Show>
+
             <DropdownButton
               label={t('common').open}
               class="ml-auto"

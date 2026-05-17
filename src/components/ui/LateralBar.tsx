@@ -9,7 +9,6 @@ import rocketIcon from "../../assets/rocket_silver.png";
 import tableIcon from "../../assets/table_silver.png";
 import profileIcon from "../../assets/profile_silver.png";
 import configIcon from "../../assets/config_silver.png";
-import logo from "../../assets/fork.png";
 import Tooltip from "./Tooltip";
 import { Show } from "solid-js";
 import { useApp } from "../../context/AppContext";

@@ -147,7 +147,7 @@ export default function RepoTabsPage() {
         <div class="flex flex-col flex-1">
           <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
 
-          <Header repos={repos()} active={active()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
+          <Header repos={repos()} active={active()} activePage={activePage()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
 
           <div class="flex flex-1 overflow-auto bg-gray-200 dark:bg-gray-900">
             <Show when={repos().length > 0 && active()}>
