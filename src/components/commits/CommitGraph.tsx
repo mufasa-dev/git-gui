@@ -97,10 +97,12 @@ export default function CommitGraph(props: CommitGraphProps) {
     return { rows, maxCol: globalMaxCol };
   });
 
-  const svgWidth = (graphData().maxCol + 1) * colWidth + xOffset * 2;
+  const svgWidth = createMemo(() => {
+    return (graphData().maxCol + 1) * (colWidth - 3) + xOffset * 2;
+  });
 
   return (
-    <svg width={svgWidth} height="100%" class="pointer-events-none overflow-visible flex-shrink-0">
+    <svg width={svgWidth()} height="100%" class="pointer-events-none overflow-visible flex-shrink-0">
       <For each={graphData().rows}>
         {(row, i) => {
           const yTop = i() * props.rowHeight;
