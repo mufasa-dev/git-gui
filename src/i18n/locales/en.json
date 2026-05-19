@@ -457,6 +457,14 @@
     "validing_builds": "Validating builds...",
     "no_pr": "No pull requests found"
   },
+  "carousel": {
+    "carousel_git_title": "Smart Control",
+    "carousel_git_desc": "Execute push and merge operations, and manage branches natively with fluid clicks.",
+    "carousel_tests_title": "Real-Time Unit Testing",
+    "carousel_tests_desc": "Visualize your test suite execution with instant visual feedback directly on the dashboard.",
+    "carousel_dash_title": "Metrics & Analytics",
+    "carousel_dash_desc": "Track your workspace health, commits, and productivity with intelligent dashboards."
+  },
   "date": {
     "just_now": "just now",
     "seconds_ago": "{{count}} seconds ago",

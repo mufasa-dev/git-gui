@@ -457,6 +457,14 @@
     "validing_builds": "Validando builds...",
     "no_pr": "Nenhum pull request encontrado"
   },
+  "carousel": {
+    "carousel_git_title": "Controle Inteligente",
+    "carousel_git_desc": "Execute operações de push, merge e gerencie branches de forma totalmente integrada com cliques fluidos.",
+    "carousel_tests_title": "Testes Unitários em Tempo Real",
+    "carousel_tests_desc": "Visualize a execução de suas suítes de testes com feedbacks visuais instantâneos diretamente no painel.",
+    "carousel_dash_title": "Métricas e Analytics",
+    "carousel_dash_desc": "Acompanhe a saúde do seu ambiente corporativo, commits e produtividade com dashboards inteligentes."
+  },
   "date": {
     "just_now": "agora mesmo",
     "seconds_ago": "há {{count}} segundos",

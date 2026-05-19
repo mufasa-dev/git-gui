@@ -457,6 +457,14 @@
     "validing_builds": "ビルドを検証中...",
     "no_pr": "プルリクエストが見つかりません"
   },
+  "carousel": {
+    "carousel_git_title": "スマートコントロール",
+    "carousel_git_desc": "直感的な操作でプッシュやマージを実行し、ブランチを完全に統合された環境で管理できます。",
+    "carousel_tests_title": "リアルタイム単体テスト",
+    "carousel_tests_desc": "テストスイートの実行結果を、パネル上で直感的なビジュアルフィードバックとして即座に確認できます。",
+    "carousel_dash_title": "メトリクス ＆ アナリティクス",
+    "carousel_dash_desc": "インテリジェントなダッシュボードにより、開発環境のステータス、コミット、生産性を追跡します。"
+  },
   "date": {
     "just_now": "たった今",
     "seconds_ago": "{{count}}秒前",

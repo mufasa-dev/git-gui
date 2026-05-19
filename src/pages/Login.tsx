@@ -2,6 +2,7 @@ import { createSignal, Show } from "solid-js";
 import { useApp } from "../context/AppContext";
 import logoImg from "../assets/fork.png";
 import { authService } from "../services/authService";
+import FeaturesCarousel from "../components/ui/FeaturesCarousel";
 
 export default function LoginPage() {
   const [isRegister, setIsRegister] = createSignal(false);
@@ -47,17 +48,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div class="h-screen w-full flex bg-white dark:bg-[#0d1117] text-gray-800 dark:text-white">
+    <div class="w-full flex bg-[#080b10] dark:bg-[#070a0e] text-gray-800 dark:text-white transition-colors duration-300 overflow-hidden" style={"height: calc(100vh - 30px);"}>
       {/* LADO ESQUERDO */}
-      <div class="w-1/2 h-full bg-cover bg-center border-r border-white/10" 
-           style="background-image: url('/src/assets/rivers_bg_galaxy.png');">
-           <div class="w-full h-full flex items-center justify-center bg-black/40 backdrop-blur-sm">
-             <p class="text-xs text-gray-500 font-mono tracking-widest uppercase">The flow starts here</p>
-           </div>
+      <div class="hidden md:flex w-1/2 h-full relative items-center justify-center overflow-hidden bg-[#f4f5f6] dark:bg-[#090d12] transition-colors duration-300">
+        
+        {/* 🌌 Efeito "Aura Glow" Adaptativo: Azul suave no dark, e um reflexo ciano ultra discreto no light */}
+        <div class="absolute w-[70%] h-[60%] rounded-full bg-blue-500/5 dark:bg-blue-500/10 blur-[120px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+        <div class="absolute w-[40%] h-[40%] rounded-full bg-cyan-500/5 dark:bg-cyan-500/5 blur-[80px] top-1/3 left-1/2 -translate-x-1/2 pointer-events-none"></div>
+
+        {/* Conteúdo do Carrossel */}
+        <div class="relative z-10 w-full flex items-center justify-center p-8 lg:p-12">
+          <FeaturesCarousel />
+        </div>
+
+        {/* Linha divisória vertical sutil */}
+        <div class="absolute right-0 top-[10%] bottom-[10%] w-[1px] bg-gradient-to-b from-transparent via-gray-200 dark:via-white/10 to-transparent"></div>
       </div>
 
-      {/* LADO DIREITO */}
-      <div class="w-1/2 h-full flex items-center justify-center p-16">
+      {/* LADO DIREITO: Formulário de Autenticação */}
+      <div class="w-full md:w-1/2 h-full flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-white dark:bg-[#0b0f17] transition-colors duration-300">
         <div class="w-full max-w-[420px]">
           
           {/* LOGO SECTION */}
