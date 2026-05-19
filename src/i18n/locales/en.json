@@ -465,6 +465,14 @@
     "carousel_dash_title": "Metrics & Analytics",
     "carousel_dash_desc": "Track your workspace health, commits, and productivity with intelligent dashboards."
   },
+  "legal": {
+    "agree_text": "By creating your account, you agree to our",
+    "and": "and",
+    "terms": "Terms of Use",
+    "privacy": "Privacy Policy",
+    "got_it": "Got it",
+    "last_update": "Last update: May 16, 2026"
+  },
   "date": {
     "just_now": "just now",
     "seconds_ago": "{{count}} seconds ago",

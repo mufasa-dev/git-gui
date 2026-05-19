@@ -465,6 +465,14 @@
     "carousel_dash_title": "Métricas e Analytics",
     "carousel_dash_desc": "Acompanhe a saúde do seu ambiente corporativo, commits e produtividade com dashboards inteligentes."
   },
+  "legal": {
+    "agree_text": "Ao criar sua conta, você concorda com nossos",
+    "and": "e",
+    "terms": "Termos de Uso",
+    "privacy": "Política de Privacidade",
+    "got_it": "Entendido",
+    "last_update": "Última atualização: 16 de Maio de 2026"
+  },
   "date": {
     "just_now": "agora mesmo",
     "seconds_ago": "há {{count}} segundos",

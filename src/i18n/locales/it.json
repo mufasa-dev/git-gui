@@ -465,6 +465,14 @@
     "carousel_dash_title": "Metriche e Analytics",
     "carousel_dash_desc": "Monitora lo stato del tuo ambiente di sviluppo, i commit e la produttività con dashboard intelligenti."
   },
+  "legal": {
+    "agree_text": "Creando il tuo account, accetti i nostri",
+    "and": "e la",
+    "terms": "Termini di Utilizzo",
+    "privacy": "Informativa sulla Privacy",
+    "got_it": "Ho capito",
+    "last_update": "Ultimo aggiornamento: 16 maggio 2026"
+  },
   "date": {
     "just_now": "proprio ora",
     "seconds_ago": "{{count}} secondi fa",

@@ -3,6 +3,7 @@ import { useApp } from "../context/AppContext";
 import logoImg from "../assets/fork.png";
 import { authService } from "../services/authService";
 import FeaturesCarousel from "../components/ui/FeaturesCarousel";
+import LegalDialog from "../components/auth/LegalDialog";
 
 export default function LoginPage() {
   const [isRegister, setIsRegister] = createSignal(false);
@@ -12,6 +13,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = createSignal(false);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
+  const [legalOpen, setLegalOpen] = createSignal(false);
+  const [legalType, setLegalType] = createSignal<"terms" | "privacy">("terms");
+  const [accepted, setAccepted] = createSignal(false);
   const { t, locale, updateToken } = useApp();
 
   const handleSubmit = async (e: Event) => {
@@ -45,6 +49,11 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openLegal = (type: "terms" | "privacy") => {
+    setLegalType(type);
+    setLegalOpen(true);
   };
 
   return (
@@ -142,12 +151,48 @@ export default function LoginPage() {
               </div>
             </div>
 
+            <Show when={isRegister()}>
+              <div class="flex items-center gap-2.5 px-1 py-1 select-none animate-in fade-in slide-in-from-top-1 duration-200">
+                <input 
+                  type="checkbox" 
+                  id="legal-accept"
+                  checked={accepted()}
+                  onChange={(e) => setAccepted(e.currentTarget.checked)}
+                  class="w-4 h-4 rounded border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-slate-950 text-blue-600 focus:ring-blue-500/50 focus:ring-offset-0 transition-all cursor-pointer"
+                />
+                <label for="legal-accept" class="text-xs text-gray-500 dark:text-gray-400 cursor-pointer leading-tight">
+                  {t('legal').agree_text}{" "}
+                  <button 
+                    type="button"
+                    onClick={() => openLegal("terms")}
+                    class="text-blue-600 dark:text-blue-400 font-medium hover:underline focus:outline-none inline"
+                  >
+                    {t('legal').terms}
+                  </button>
+                  {" "}{t('legal').and}{" "}
+                  <button 
+                    type="button"
+                    onClick={() => openLegal("privacy")}
+                    class="text-blue-600 dark:text-blue-400 font-medium hover:underline focus:outline-none inline"
+                  >
+                    {t('legal').privacy}
+                  </button>.
+                </label>
+              </div>
+            </Show>
+
+            {/* BOTÃO DE SUBMIT: Inteligente e Reativo */}
             <button 
-              type="submit"
-              disabled={loading()}
-              class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-medium py-3 rounded-xl transition-all active:scale-[0.98] mt-4 text-sm"
+              type="submit" 
+              disabled={loading() || (isRegister() && !accepted())}
+              class={`w-full py-3 font-medium rounded-lg transition-all ${
+                !isRegister() || accepted()
+                  ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/10 cursor-pointer" 
+                  : "bg-gray-200 dark:bg-white/5 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+              }`}
             >
-              {loading() ? t('auth').Processing : (isRegister() ? t('auth').create_account : t('auth').login)}
+              {/* Texto do botão dinâmico de acordo com o estado da tela */}
+              {isRegister() ? t('auth').create_account : t('auth').login || "Entrar"}
             </button>
           </form>
           
@@ -160,6 +205,11 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+      <LegalDialog 
+        open={legalOpen()} 
+        type={legalType()} 
+        onClose={() => setLegalOpen(false)} 
+      />
     </div>
   );
 }
