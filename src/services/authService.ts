@@ -12,6 +12,7 @@ export interface RegisterParams {
   email: string;
   password: string;
   full_name: string;
+  lang: string;
 }
 
 export interface LoginParams {
@@ -32,12 +33,13 @@ export const authService = {
     }
   },
 
-  async register({ email, password, full_name }: RegisterParams): Promise<AuthResponse> {
+  async register({ email, password, full_name, lang }: RegisterParams): Promise<AuthResponse> {
     try {
       return await invoke<AuthResponse>("register_with_supabase", { 
         email, 
         password, 
-        full_name 
+        fullName: full_name,
+        lang
       });
     } catch (error) {
       throw error;

@@ -59,43 +59,58 @@ pub async fn login_with_supabase(email: String, password: String) -> Result<Auth
 }
 
 #[tauri::command]
-pub async fn register_with_supabase(email: String, password: String, full_name: String) -> Result<AuthResponse, String> {
+pub async fn register_with_supabase(email: String, password: String, full_name: String, lang: String) -> Result<AuthResponse, String> {
     let client = reqwest::Client::new();
     let supabase_url = env::var("SUPABASE_URL").expect("SUPABASE_URL não definida");
     let anon_key = env::var("SUPABASE_ANON_KEY").expect("SUPABASE_ANON_KEY não definida");
     
     // 1. Registro no Supabase
-    let auth_endpoint = format!("{}/auth/v1/signup", supabase_url);
+    let auth_endpoint = format!(
+        "{}/auth/v1/signup?redirect_to=https://dev-brook-landing-page.vercel.app/confirm-email", 
+        supabase_url
+    );
+    
+    // Passamos o full_name nos user_metadata do Supabase para não perder a informação,
+    // já que não podemos chamar a API Go ainda.
     let auth_res = client
         .post(auth_endpoint)
         .header("apikey", &anon_key)
         .header("Authorization", format!("Bearer {}", anon_key))
-        .json(&serde_json::json!({ "email": email, "password": password }))
+        .json(&serde_json::json!({ 
+            "email": email, 
+            "password": password,
+            "data": { 
+                "full_name": full_name,
+                "locale": lang
+            }
+        }))
         .send()
         .await
         .map_err(|e| e.to_string())?;
 
-    let auth_data: AuthResponse = auth_res.json().await.map_err(|e| e.to_string())?;
-
-    // 2. Sincronização com sua API Go (se houver token)
-    if let Some(token) = &auth_data.access_token {
-
-        let api_url = env::var("GO_API_URL").expect("GO_API_URL não definida");
-        let api_url = format!("{}/api/v1/user/register", api_url);
+    if !auth_res.status().is_success() {
+        let status_code = auth_res.status();
         
-        let api_res = client
-            .post(api_url)
-            .header("Authorization", format!("Bearer {}", token)) // Token que o Go vai validar
-            .json(&serde_json::json!({ "full_name": full_name }))
-            .send()
-            .await;
+        // 1. Pegamos a resposta estritamente como texto/string bruta para não estourar o erro com '?'
+        let raw_body = auth_res.text().await.unwrap_or_else(|_| "Não foi possível ler o corpo do erro".to_string());
+        
+        // 2. Printamos IMEDIATAMENTE no terminal o status e o body real enviado pelo Supabase
+        println!("--- ERRO SUPABASE (Status: {}) ---", status_code);
+        println!("{}", raw_body);
+        println!("-----------------------------------");
 
-        match api_res {
-            Ok(res) if res.status().is_success() => println!("Perfil sincronizado com Go!"),
-            Ok(res) => return Err(format!("Erro na API Go: Status {}", res.status())),
-            Err(e) => return Err(format!("Falha ao conectar na API Go: {}", e)),
+        // 3. Tentamos parsear como JSON apenas para extrair a mensagem amigável para a UI
+        if let Ok(error_json) = serde_json::from_str::<serde_json::Value>(&raw_body) {
+            if let Some(message) = error_json["message"].as_str() {
+                return Err(message.to_string());
+            }
         }
+
+        // Se não for um JSON ou não tiver "message", devolvemos o status HTTP
+        return Err(format!("Erro ao criar conta (Status: {})", status_code));
     }
+
+    let auth_data: AuthResponse = auth_res.json().await.map_err(|e| e.to_string())?;
 
     Ok(auth_data)
 }

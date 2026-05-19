@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = createSignal(false);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
-  const { t, updateToken } = useApp();
+  const { t, locale, updateToken } = useApp();
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
@@ -25,7 +25,8 @@ export default function LoginPage() {
         result = await authService.register({ 
           email: email(), 
           password: password(), 
-          full_name: fullName() 
+          full_name: fullName(),
+          lang: locale()
         });
       } else {
         result = await authService.login({ 
