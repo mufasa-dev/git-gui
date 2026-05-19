@@ -52,16 +52,17 @@ pub fn list_commits(path: String, branch: String) -> Result<Vec<GraphLine>, Stri
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
+    // Mudamos para filter_map para ignorar as linhas estruturais/vazias do Git
     let lines: Vec<GraphLine> = stdout
         .lines()
-        .map(|line| {
+        .filter_map(|line| {
             if line.contains("SEP") {
                 let parts: Vec<&str> = line.splitn(2, "SEP").collect();
                 let graph_part = parts[0].to_string();
                 let data_part = parts[1];
                 let data: Vec<&str> = data_part.splitn(7, '|').collect();
 
-                GraphLine {
+                Some(GraphLine {
                     graph_symbol: graph_part,
                     is_commit: true,
                     hash: data.get(0).unwrap_or(&"").to_string(),
@@ -71,19 +72,10 @@ pub fn list_commits(path: String, branch: String) -> Result<Vec<GraphLine>, Stri
                     message: data.get(4).unwrap_or(&"").to_string(),
                     parent_hashes: data.get(5).unwrap_or(&"").to_string(),
                     ref_names: data.get(6).unwrap_or(&"").to_string(),
-                }
+                })
             } else {
-                GraphLine {
-                    graph_symbol: line.to_string(),
-                    is_commit: false,
-                    hash: String::new(),
-                    author: String::new(),
-                    email: String::new(),
-                    date: String::new(),
-                    message: String::new(),
-                    parent_hashes: String::new(),
-                    ref_names: String::new(),
-                }
+                // Linha sem commit (apenas barras, espaços, etc.) -> Ignorada!
+                None
             }
         })
         .collect();
