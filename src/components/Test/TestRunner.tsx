@@ -144,11 +144,36 @@ export const TestRunner = (props: { repo: any }) => {
   };
 
   const syncSpecsWithPhysicalCode = () => {
-    const scope = executionScope();
-    const currentSuite = selectedSuite();
-    const singleTest = runningSingleTest();
+  const scope = executionScope();
+  const currentSuite = selectedSuite();
+  const singleTest = runningSingleTest();
+  const framework = projectInfo()?.framework;
 
-    setSpecs(prev => {
+  setSpecs(prev => {
+      // SE FOR GO OU DOTNET
+      if (framework === 'Go' || framework === 'Dotnet') {
+        return prev
+          .map(spec => {
+            // Se rodou um teste individual, bota os outros que estavam rodando em skip
+            if (scope === 'single' && spec.name !== singleTest && spec.status === 'running') {
+              return { ...spec, status: 'skip' as const };
+            }
+            return spec;
+          })
+          .filter(spec => {
+            // Se uma suíte inteira rodou, remove do estado qualquer teste 
+            // dessa suíte que tenha ficado travado em 'running' (sinal de que foi renomeado/removido)
+            const [specSuite] = spec.name.split(' > ');
+            if ((scope === 'suite' && specSuite.trim() === currentSuite?.trim()) || scope === 'all') {
+              if (spec.status === 'running') {
+                return false; // Remove fantasmas/renomeados
+              }
+            }
+            return true;
+          });
+      }
+
+      // REGRA PADRÃO PARA ANGULAR / JEST (Mantém idêntico ao que já funciona)
       const validTestsInCode = new Set<string>();
       mappedFiles().forEach(file => {
         file.tests.forEach(t => {
@@ -167,7 +192,7 @@ export const TestRunner = (props: { repo: any }) => {
           const [specSuite] = spec.name.split(' > ');
           if (!validTestsInCode.has(spec.name.trim())) {
             if (scope === 'all' || (scope === 'suite' && specSuite.trim() === currentSuite?.trim())) {
-              return false;
+              return false; 
             }
           }
           return true;
@@ -238,15 +263,19 @@ export const TestRunner = (props: { repo: any }) => {
       compileLogBuffer.push(line);
       if (compileLogBuffer.length > 50) compileLogBuffer.shift();
 
-      // DETECTOR DE FALHA CRÍTICA DO COMPILADOR (TypeScript / Karma Launcher)
-      if (line.includes('ERROR [karma-server]') || line.includes('error TS23') || line.includes('Found 1 load error')) {
+      // DETECTOR DE FALHA CRÍTICA DO COMPILADOR
+      const isAngularError = line.includes('ERROR [karma-server]') || line.includes('error TS23') || line.includes('Found 1 load error');
+      const isGoError = line.includes('build failed') || /:\d+:\d+: undefined:/.test(line) || /syntax error:/.test(line);
+      const isDotnetError = /: error CS\d+:/.test(line) || line.includes('Build FAILED.');
+
+      if (isAngularError || isGoError || isDotnetError) {
         setIsRunning(false);
         
         // Clona e salva o rastro do erro de compilação para renderizar na tela
         setCompilationError([...compileLogBuffer]);
         
-        // Desmarca os testes que ficaram travados em loading de volta para o estado normal ou falha limpa
-        setSpecs(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'fail' as const, log: ["Falha devido a erro de compilação."] } : s));
+        // Desmarca os testes que ficaram travados em loading de volta para o estado de falha
+        setSpecs(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'fail' as const, log: ["Falha crítica devido a erro de compilação do projeto."] } : s));
         return;
       }
 
@@ -490,15 +519,19 @@ export const TestRunner = (props: { repo: any }) => {
           <Show 
             when={!compilationError()} 
             fallback={
-              /* VIEW DE ERRO DE COMPILAÇÃO (DUMP DO CONSOLE) */
+              /* VIEW DE ERRO DE COMPILAÇÃO GENÉRICA E DINÂMICA */
               <div class="flex-1 flex flex-col overflow-hidden bg-red-950/10 p-6 animate-fadeIn">
                 <div class="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl mb-4">
                   <div class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white text-sm shrink-0 shadow-[0_0_15px_rgba(239,68,68,0.3)]">
                     <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
                   </div>
                   <div>
-                    <h3 class="text-sm font-bold text-red-500 uppercase tracking-wide">Erro de Compilação Detectado</h3>
-                    <p class="text-[11px] opacity-70">O TypeScript ou o Karma barrou a execução antes de iniciar os specs físicos.</p>
+                    <h3 class="text-sm font-bold text-red-500 uppercase tracking-wide">
+                      Erro de Compilação ({projectInfo()?.framework || 'Build Error'})
+                    </h3>
+                    <p class="text-[11px] opacity-70">
+                      O compilador do {projectInfo()?.framework || 'sistema'} barrou a execução antes de conseguir iniciar a suíte de testes.
+                    </p>
                   </div>
                 </div>
 
@@ -509,11 +542,15 @@ export const TestRunner = (props: { repo: any }) => {
                   </div>
                   <div class="flex-1 overflow-auto p-4 text-[11px] text-red-600 dark:text-red-300 leading-relaxed whitespace-pre selection:bg-red-500/30">
                     <For each={compilationError()}>
-                      {(line) => (
-                        <div class={`${line.includes('error TS') ? 'font-bold bg-red-500/5 px-1 py-0.5 rounded text-red-500' : ''}`}>
-                          {line}
-                        </div>
-                      )}
+                      {(line) => {
+                        // Destaca linhas com assinaturas conhecidas de erro de build
+                        const isTargetError = line.includes('error TS') || line.includes('error CS') || line.includes('undefined:') || line.includes('FAILED');
+                        return (
+                          <div class={`${isTargetError ? 'font-bold bg-red-500/5 px-1 py-0.5 rounded text-red-500' : ''}`}>
+                            {line}
+                          </div>
+                        );
+                      }}
                     </For>
                   </div>
                 </div>

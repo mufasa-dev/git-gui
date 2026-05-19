@@ -11,8 +11,10 @@ interface GoTestEvent {
 export const goParser = (line: string): ParsedEvent => {
   try {
     const event: GoTestEvent = JSON.parse(line);
+    console.log('Parsed Go event:', event);
 
-    if (event.Action === 'output' || !event.Test) {
+    // ALTERAÇÃO AQUI: Só processa se event.Test existir E começar com "Test"
+    if (event.Action === 'output' || !event.Test || !event.Test.startsWith('Test')) {
       return { type: 'LOG' };
     }
 
@@ -26,21 +28,19 @@ export const goParser = (line: string): ParsedEvent => {
       if (event.Test.includes('/')) {
         // Ex: "TestSubscribeToNewsletter/Falha_ao_se_inscrever"
         const parts = event.Test.split('/');
-        suiteName = parts[0]; // "TestSubscribeToNewsletter"
-        testName = parts.slice(1).join(' / '); // "Falha_ao_se_inscrever"
+        suiteName = parts[0]; 
+        testName = parts.slice(1).join('/'); 
       } else {
-        // Se não tem barra, é o teste pai. 
-        // Para não duplicar na lista, podemos colocar o nome do pacote simplificado como suíte
-        const packageParts = event.Package.split('/');
-        suiteName = packageParts[packageParts.length - 1]; // ex: "repository"
+        // Se não tem barra, é a função de teste principal (ex: "TestUserRepository")
+        // que mapeamos como a própria Suite/Arquivo na listagem física
+        suiteName = event.Test;
         testName = event.Test;
       }
 
       return {
         type: 'RESULT',
         data: {
-          // Resultado final: "TestSubscribeToNewsletter > Falha_ao_se_inscrever"
-          name: `${suiteName} > ${testName}`,
+          name: `${suiteName.trim()} > ${testName.trim()}`,
           status: event.Action === 'pass' ? 'pass' : (event.Action === 'skip' ? 'skip' : 'fail'),
           duration: event.Elapsed ? `${(event.Elapsed * 1000).toFixed(2)}ms` : '0ms',
           log: []
