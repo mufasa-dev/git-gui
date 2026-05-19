@@ -95,6 +95,7 @@ fn main() {
             tests::jasmine_test::get_angular_test_files,
             tests::dotnet_test::run_dotnet_tests,
             tests::golang_test::run_go_tests,
+            tests::golang_test::get_go_test_files,
             tests::project_type::detect_project_type,
             authentication::login::login_with_supabase,
             authentication::login::register_with_supabase,

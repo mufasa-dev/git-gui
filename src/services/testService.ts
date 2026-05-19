@@ -11,6 +11,12 @@ export async function getTestsFiles(path: string, projectType: string): Promise<
   if (projectType === "karma/jasmine" || projectType === "angular") {
     return await invoke("get_angular_test_files", { projectPath: path });
   }
+  if (projectType === "dotnet test") {
+    return await invoke("get_dotnet_test_files", { projectPath: path });
+  }
+  if (projectType === "gotest") {
+    return await invoke("get_go_test_files", { projectPath: path });
+  }
   
   return [];
 }
