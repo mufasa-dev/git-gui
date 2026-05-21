@@ -3,6 +3,7 @@
 use dotenvy::dotenv;
 mod commands;
 mod git_hub;
+mod azure;
 mod models;
 mod utils;
 mod tests;
@@ -91,6 +92,7 @@ fn main() {
             commands::dashboard::get_most_modified_files,
             commands::dashboard::get_user_most_modified_files,
             git_hub::auth::exchange_code_for_token,
+            azure::auth::request_azure_device_code,
             tests::jasmine_test::run_angular_tests,
             tests::jasmine_test::get_angular_test_files,
             tests::dotnet_test::run_dotnet_tests,
