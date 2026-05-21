@@ -1,5 +1,6 @@
 import { For, Show, createSignal } from "solid-js";
 import { githubService } from "../services/github";
+import { azureService } from "../services/azure"; // Injetando o novo serviço
 import logoImg from "../assets/fork.png";
 import CloneRepositoryModal from "../components/repo/CloneRepositoryModal";
 import { notify } from "../utils/notifications";
@@ -58,17 +59,28 @@ export default function WelcomeScreen(props: Props) {
     async function handleClone(url: string, targetPath: string) {
         showLoading("Clonando repositório remoto...");
         try {
-            const token = await githubService.getToken();
             let finalUrl = url;
-            if (token && url.includes("github.com")) {
-                finalUrl = url.replace("https://", `https://${token.trim()}@`);
+
+            // Tratativa de Token do GitHub
+            if (url.includes("github.com")) {
+                const token = await githubService.getToken();
+                if (token) {
+                    finalUrl = url.replace("https://", `https://${token.trim()}@`);
+                }
+            } 
+            // Tratativa de Token da Azure DevOps
+            else if (url.includes("dev.azure.com")) {
+                const token = await azureService.getToken();
+                if (token) {
+                    // No Azure DevOps, passamos qualquer string no username (ex: oauth2) e o token como password
+                    finalUrl = url.replace("https://", `https://oauth2:${token.trim()}@`);
+                }
             }
 
             const result = await cloneRepository(finalUrl, targetPath);
 
             if (String(result) === "EMPTY_REPO") {
                 notify.error("Aviso", "Repositório clonado, mas está vazio (sem commits).");
-                // Aqui você pode abrir o repo, mas com uma UI limitada
                 return;
             }
 
@@ -144,38 +156,69 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
     const { user, mutateUser, refetchUser } = useRepoContext();
     const [isRemoteModalOpen, setIsRemoteModalOpen] = createSignal(false);
     const { t } = useApp();
+    const [isLoggingAzure, setIsLoggingAzure] = createSignal(false);
 
-    // Valida se o usuário logado no contexto pertence a este provedor específico
+    // Valida se o usuário logado pertence a este provedor específico
     const isLoggedHere = () => {
         const u = user();
         if (!u) return false;
         
-        // Se o provedor do card é github e o objeto tem campos típicos do github (como login ou avatar_url)
         if (props.provider.id === 'github') {
-            return u.provider === 'github' || u.login !== undefined; 
+            return u.provider === 'github' || (u.provider === undefined && u.login !== undefined); 
         }
         
-        // Para os outros, por enquanto, retorna falso até você implementar os serviços
         return u.provider === props.provider.id;
     };
 
     const handleLogin = async () => {
-        if (props.provider.id === 'github') {
-            await githubService.login();
-            refetchUser();
+        try {
+            if (props.provider.id === 'github') {
+                await githubService.login();
+                refetchUser();
+            } 
+            else if (props.provider.id === 'azure') {
+                setIsLoggingAzure(true);
+                // 1. Inicia o Device Flow requisitando os códigos temporários
+                const deviceCodeData = await azureService.requestDeviceCode();
+                
+                // 2. Alerta o usuário com o código para ele colar no navegador da MS
+                // Como estamos na WelcomeScreen, um prompt ou notify resolve antes de abrir a URL
+                notify.success(
+                    "Autenticação Azure", 
+                    `Copie o código de ativação: ${deviceCodeData.user_code}. O navegador será aberto.`
+                );
+                
+                // Abre o link oficial de login de dispositivos da MS
+                import("@tauri-apps/plugin-shell").then(async (shell) => {
+                    await shell.open(deviceCodeData.verification_uri);
+                });
+
+                // 3. Trava em loop aguardando a resposta no background
+                await azureService.pollForToken(deviceCodeData.device_code, deviceCodeData.interval);
+                
+                // 4. Autenticado! Atualiza o contexto global do usuário
+                refetchUser();
+            }
+        } catch (err) {
+            notify.error("Falha na autenticação", String(err));
+        } finally {
+            setIsLoggingAzure(false);
         }
-        // Implementar outros conforme necessário
     };
 
     const handleLogout = async () => {
         if (props.provider.id === 'github') {
             await githubService.logout();
             mutateUser(null);
+        } 
+        else if (props.provider.id === 'azure') {
+            await azureService.logout();
+            mutateUser(null);
         }
     };
 
     return (
-        <div class={`p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm flex flex-col gap-3 ${user.loading ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div class={`p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm flex flex-col gap-3 ${user.loading || isLoggingAzure() ? 'opacity-50 pointer-events-none' : ''}`}>
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
@@ -196,8 +239,11 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
             <Show 
                 when={isLoggedHere()} 
                 fallback={
-                    <button onClick={handleLogin} class="w-full py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-blue-600 hover:text-white transition-all">
-                        {t('repository').connect_account}
+                    <button onClick={handleLogin} class="w-full py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                        <Show when={isLoggingAzure()} fallback={<span>{t('repository').connect_account}</span>}>
+                            <i class="fa-solid fa-circle-notch animate-spin text-xs"></i>
+                            <span>Aguardando ativação...</span>
+                        </Show>
                     </button>
                 }
             >
