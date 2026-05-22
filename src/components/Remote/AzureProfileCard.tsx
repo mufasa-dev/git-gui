@@ -75,7 +75,7 @@ export default function AzureProfileCard() {
 
           <div class="mb-4 px-4 text-center">
             <h3 class="text-xl font-bold dark:text-white truncate">
-                {user()?.name || "Usuário Azure"}
+                {user()?.login || "Usuário Azure"}
             </h3>
             <p class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{user()?.login}</p>
           </div>
