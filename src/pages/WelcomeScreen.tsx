@@ -391,7 +391,6 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
     );
 }
 
-// Componente Local do Modal de Ajuda
 function PatHelpModal(props: { isOpen: boolean; onClose: () => void }) {
     return (
         <Show when={props.isOpen}>
@@ -417,33 +416,42 @@ function PatHelpModal(props: { isOpen: boolean; onClose: () => void }) {
                         </div>
                         <div class="flex gap-2.5">
                             <span class="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 font-bold flex items-center justify-center shrink-0">2</span>
-                            <p>No canto superior direito, clique no ícone de <span class="font-semibold text-gray-800 dark:text-gray-100">Configurações do Usuário</span> (engrenagem ao lado do seu avatar).</p>
+                            <p>No canto superior direito, clique no ícone de <span class="font-semibold text-gray-800 dark:text-gray-100">User Settings</span> (ícone de engrenagem e usuário ao lado do seu avatar).</p>
                         </div>
                         <div class="flex gap-2.5">
                             <span class="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 font-bold flex items-center justify-center shrink-0">3</span>
-                            <p>Selecione a opção <span class="font-semibold text-gray-800 dark:text-gray-100">Personal access tokens</span> e clique em <span class="text-blue-500 font-semibold">+ New Token</span>.</p>
+                            <p>Selecione <span class="font-semibold text-gray-800 dark:text-gray-100">Personal access tokens</span> e clique no botão <span class="text-blue-500 font-semibold">+ New Token</span>.</p>
                         </div>
                         <div class="flex gap-2.5">
                             <span class="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 font-bold flex items-center justify-center shrink-0">4</span>
                             <div>
                                 <p>Defina as configurações obrigatórias do Token:</p>
-                                <ul class="list-disc pl-4 mt-1 space-y-1 text-gray-400 font-mono text-[11px]">
-                                    <li><b class="text-gray-300">Organization:</b> All accessible organizations</li>
-                                    <li><b class="text-gray-300">Scopes:</b> Marque <span class="text-blue-400">Custom defined</span></li>
-                                    <li><b class="text-gray-300">Code:</b> Selecione <span class="text-blue-400">Read & Write</span></li>
+                                <ul class="list-disc pl-4 mt-1.5 space-y-1.5 text-gray-500 dark:text-gray-400 font-mono text-[11px]">
+                                    <li>
+                                        <b class="text-gray-700 dark:text-gray-300">Organization:</b> Selecione a sua organização específica (Não use "All accessible organizations", pois tokens globais são revogados automaticamente pela plataforma).
+                                    </li>
+                                    <li>
+                                        <b class="text-gray-700 dark:text-gray-300">Scopes:</b> Marque a opção <span class="text-blue-400">Custom defined</span>.
+                                    </li>
+                                    <li>
+                                        <b class="text-gray-700 dark:text-gray-300">Code:</b> Marque a caixa <span class="text-blue-400">Read & Write</span>.
+                                    </li>
+                                    <li>
+                                        <b class="text-gray-700 dark:text-gray-300">Project and Team:</b> Marque a caixa <span class="text-blue-400">Read</span> (necessário para que o Git River organize seus repositórios por projetos).
+                                    </li>
                                 </ul>
                             </div>
                         </div>
                         <div class="flex gap-2.5">
                             <span class="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 font-bold flex items-center justify-center shrink-0">5</span>
-                            <p>Clique em <span class="font-semibold text-gray-800 dark:text-gray-100">Create</span> no fim da página e <span class="text-yellow-500 font-semibold">copie o token imediatamente</span>. Ele não será exibido de novo!</p>
+                            <p>Clique em <span class="font-semibold text-gray-800 dark:text-gray-100">Create</span> no final da página e <span class="text-yellow-500 font-semibold">copie o código gerado imediatamente</span>. Guarde-o bem, pois ele não será exibido novamente!</p>
                         </div>
                     </div>
 
                     <div class="mt-2 pt-3 border-t border-gray-100 dark:border-gray-700/60 flex justify-end">
                         <button 
                             onClick={props.onClose} 
-                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs transition-colors"
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs transition-colors shadow-md shadow-blue-500/10"
                         >
                             ENTENDI, CONTINUAR
                         </button>
