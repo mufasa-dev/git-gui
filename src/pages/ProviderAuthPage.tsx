@@ -1,4 +1,4 @@
-import { createResource, Show, createSignal } from "solid-js";
+import { createResource, Show, createSignal, createMemo } from "solid-js";
 import { getProviderFromUrl, GitProvider } from "../utils/gitProvider";
 import { getRemoteUrl } from "../services/gitService"; 
 import { githubService } from "../services/github";
@@ -8,7 +8,7 @@ import { azureService } from "../services/azure";
 import AzureProfileCard from "../components/Remote/AzureProfileCard";
 
 export default function ProviderAuthPage(props: { repoPath: string }) {
-  const { user, mutateUser, refetchUser } = useRepoContext();
+  const { user } = useRepoContext();
   
   const [remoteUrl] = createResource(() => getRemoteUrl(props.repoPath));
   const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
@@ -59,41 +59,64 @@ function ProviderIcon(props: { type: GitProvider }) {
   );
 }
 
-function LoginAction(props: { provider: GitProvider }) {
+function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
   const [isLogging, setIsLogging] = createSignal(false);
-  
-  // Sinais específicos para o Device Flow da Azure
-  const [azurePairCode, setAzurePairCode] = createSignal<string | null>(null);
-  const [verificationUrl, setVerificationUrl] = createSignal<string>("");
+  const [patToken, setPatToken] = createSignal("");
+  const [orgName, setOrgName] = createSignal(""); // Novo estado para a Organização
+  const [authError, setAuthError] = createSignal<string | null>(null);
 
-  const handleLogin = async () => {
+  const { refetchUser } = useRepoContext();
+  const [remoteUrl] = createResource(() => props.repoPath ? getRemoteUrl(props.repoPath) : null);
+
+  createMemo(() => {
+    const url = remoteUrl();
+    if (props.provider === 'azure' && url) {
+      try {
+        if (url.includes("dev.azure.com/")) {
+          const parts = url.split("dev.azure.com/");
+          if (parts[1]) setOrgName(parts[1].split("/")[0]);
+        } else if (url.includes(".visualstudio.com")) {
+          const parts = url.split(".visualstudio.com");
+          const subDomain = parts[0].replace("https://", "").replace("http://", "").split("@").pop();
+          if (subDomain) setOrgName(subDomain);
+        }
+      } catch (e) {
+        console.warn("Não foi possível auto-detectar a organização pela URL remota:", e);
+      }
+    }
+  });
+
+  const handleLogin = async (e: Event) => {
+    e.preventDefault();
+    if (props.provider === 'azure' && (!patToken() || !orgName())) {
+      setAuthError("Por favor, insira o nome da Organização e o seu Personal Access Token.");
+      return;
+    }
+
     setIsLogging(true);
+    setAuthError(null);
+
     try {
       if (props.provider === 'github') {
         await githubService.login();
-        window.location.reload(); 
+        refetchUser(); // Atualiza o resource global em vez de dar reload na página inteira
       } 
       
       else if (props.provider === 'azure') {
-        // 1. Pede o código de pareamento para a Azure
-        const deviceCodeData = await azureService.requestDeviceCode();
+        // Agora envia o token E a organização informada (ou auto-detectada)
+        const response = await azureService.loginWithPAT(patToken().trim(), orgName().trim());
         
-        setAzurePairCode(deviceCodeData.user_code);
-        setVerificationUrl(deviceCodeData.verification_uri);
-
-        // 2. Abre o navegador automaticamente na rota de login da MS
-        await open(deviceCodeData.verification_uri);
-
-        // 3. Fica escutando (polling) até o usuário validar as credenciais
-        await azureService.pollForToken(deviceCodeData.device_code, deviceCodeData.interval);
-        
-        // 4. Sucesso! Recarrega o estado global
-        window.location.reload();
+        if (response.success) {
+          refetchUser(); // Acende a luz verde no app todo reavaliando o createResource global
+        } else {
+          setAuthError("Token inválido, organização incorreta ou falta de permissões.");
+          setIsLogging(false);
+        }
       }
     } catch (e) {
       console.error(`Falha no login do ${props.provider}`, e);
+      setAuthError("Ocorreu um erro de rede ao tentar conectar.");
       setIsLogging(false);
-      setAzurePairCode(null);
     }
   };
 
@@ -104,37 +127,67 @@ function LoginAction(props: { provider: GitProvider }) {
         Para visualizar seu perfil e gerenciar repositórios, você precisa autorizar sua conta.
       </p>
 
-      {/* Condicional para o Device Code Flow (Azure) */}
-      <Show when={props.provider === 'azure' && azurePairCode()}>
-        <div class="mt-2 p-4 bg-gray-50 dark:bg-gray-900 border border-dashed border-blue-500/40 rounded-xl flex flex-col items-center gap-2">
-          <span class="text-xs font-semibold text-blue-500 uppercase tracking-wider">Código de Ativação</span>
-          <div class="text-2xl font-mono font-bold tracking-widest text-gray-800 dark:text-blue-400 select-all selection:bg-blue-500/20 px-4 py-1 bg-white dark:bg-gray-950 rounded-lg shadow-sm">
-            {azurePairCode()}
+      <Show when={props.provider === 'azure'} fallback={
+        <button 
+          onClick={handleLogin}
+          disabled={isLogging()}
+          class="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
+        >
+          <Show when={isLogging()} fallback={<span>EFETUAR LOGIN</span>}>
+            <i class="fa-solid fa-circle-notch animate-spin text-sm"></i>
+            <span>Aguardando autenticação...</span>
+          </Show>
+        </button>
+      }>
+        <form onSubmit={handleLogin} class="mt-2 text-left flex flex-col gap-3">
+          
+          {/* NOVO CAMPO: Organização do Azure */}
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Organização</label>
+            <input 
+              type="text" 
+              placeholder="Ex: devbrook"
+              value={orgName()}
+              onInput={(e) => setOrgName(e.currentTarget.value)}
+              disabled={isLogging()}
+              class="w-full px-4 py-2.5 rounded-xl border bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-sans"
+            />
           </div>
-          <p class="text-xs text-gray-400 text-center max-w-[280px] mt-1">
-            Cole o código acima na janela aberta no seu navegador para liberar o acesso.
-          </p>
-          <button 
-            onClick={() => open(verificationUrl())} 
-            class="text-xs text-blue-500 underline hover:text-blue-400 mt-1"
-          >
-            Não abriu? Clique aqui.
-          </button>
-        </div>
-      </Show>
 
-      <button 
-        onClick={handleLogin}
-        disabled={isLogging() && props.provider !== 'azure'} // Permite clicar novamente para ver o código se for azure
-        class="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
-      >
-        <Show when={isLogging() && !azurePairCode()} fallback={
-          <span>{azurePairCode() ? "REVERIFICAR CÓDIGO" : "EFETUAR LOGIN"}</span>
-        }>
-          <i class="fa-solid fa-circle-notch animate-spin text-sm"></i>
-          <span>Aguardando autenticação...</span>
-        </Show>
-      </button>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Personal Access Token (PAT)</label>
+            <input 
+              type="password" 
+              placeholder="Cole seu token do Azure DevOps aqui..."
+              value={patToken()}
+              onInput={(e) => setPatToken(e.currentTarget.value)}
+              disabled={isLogging()}
+              class="w-full px-4 py-2.5 rounded-xl border bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono"
+            />
+          </div>
+
+          <p class="text-xs text-gray-400 leading-relaxed">
+            Como gerar? Vá em <span class="text-gray-300 font-medium">User Settings &gt; Personal Access Tokens</span> no Azure DevOps e crie um token com escopo para <span class="text-blue-400">Code (Read & Write)</span>.
+          </p>
+
+          <Show when={authError()}>
+            <span class="text-xs font-medium text-red-500 flex items-center gap-1">
+              <i class="fa-solid fa-triangle-exclamation"></i> {authError()}
+            </span>
+          </Show>
+
+          <button 
+            type="submit"
+            disabled={isLogging() || !patToken() || !orgName()}
+            class="mt-2 w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
+          >
+            <Show when={isLogging()} fallback={<span>CONECTAR COM TOKEN</span>}>
+              <i class="fa-solid fa-circle-notch animate-spin text-sm"></i>
+              <span>Validando Token...</span>
+            </Show>
+          </button>
+        </form>
+      </Show>
     </div>
   );
 }
