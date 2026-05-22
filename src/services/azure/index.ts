@@ -81,6 +81,89 @@ export const azureService = {
     }
   },
 
+  // 1. Busca os Projetos da Organização
+  async getUserProjects(): Promise<any[]> {
+    try {
+      const store = await getAuthStore();
+      const token = await store.get<string>("azure_token");
+      const org = await store.get<string>("azure_org");
+
+      if (!token || !org) return [];
+
+      const credentials = btoa(`:${token.trim()}`);
+      const url = `https://dev.azure.com/${org}/_apis/projects?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return (data.value || []).map((proj: any) => ({
+          id: proj.id,
+          name: proj.name,
+          description: proj.description || "Sem descrição disponível.",
+          isProject: true // Flag para a UI saber que é um projeto, não um repo
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error("Falha ao buscar projetos do Azure:", error);
+      return [];
+    }
+  },
+
+  // 2. Busca os Repositórios de um Projeto Específico (E limpa a URL de clone)
+  async getProjectRepositories(projectName: string): Promise<any[]> {
+    try {
+      const store = await getAuthStore();
+      const token = await store.get<string>("azure_token");
+      const org = await store.get<string>("azure_org");
+
+      if (!token || !org) return [];
+
+      const credentials = btoa(`:${token.trim()}`);
+      const url = `https://dev.azure.com/${org}/${encodeURIComponent(projectName)}/_apis/git/repositories?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return (data.value || []).map((repo: any) => {
+          
+          // Transforma "https://user@dev.azure.com/..." em "https://dev.azure.com/..."
+          let cleanUrl = repo.remoteUrl || "";
+          if (cleanUrl.includes("@dev.azure.com")) {
+            cleanUrl = cleanUrl.replace(/https:\/\/.*@dev\.azure\.com/, "https://dev.azure.com");
+          }
+
+          return {
+            name: repo.name,
+            description: ``,
+            language: 'Azure Git',
+            private: true,
+            html_url: cleanUrl, // URL perfeita e limpa para o Git clonar sem erro!
+            updated_at: null
+          };
+        });
+      }
+      return [];
+    } catch (error) {
+      console.error(`Falha ao buscar repositórios do projeto ${projectName}:`, error);
+      return [];
+    }
+  },
+
   async logout() {
     const store = await getAuthStore();
     await store.delete("azure_token");
