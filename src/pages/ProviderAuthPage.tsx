@@ -6,6 +6,7 @@ import { useRepoContext } from "../context/RepoContext";
 import GithubProfileCard from "../components/Remote/GithubProfileCard";
 import { azureService } from "../services/azure";
 import AzureProfileCard from "../components/Remote/AzureProfileCard";
+import PatHelpModal from "../components/auth/PatHelpModal";
 
 export default function ProviderAuthPage(props: { repoPath: string }) {
   const { user } = useRepoContext();
@@ -28,7 +29,7 @@ export default function ProviderAuthPage(props: { repoPath: string }) {
                 <div class="mb-6 flex justify-center">
                   <ProviderIcon type={provider()} />
                 </div>
-                <LoginAction provider={provider()} />
+                <LoginAction provider={provider()} repoPath={props.repoPath} />
               </div>
             </div>
           }
@@ -62,8 +63,9 @@ function ProviderIcon(props: { type: GitProvider }) {
 function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
   const [isLogging, setIsLogging] = createSignal(false);
   const [patToken, setPatToken] = createSignal("");
-  const [orgName, setOrgName] = createSignal(""); // Novo estado para a Organização
+  const [orgName, setOrgName] = createSignal(""); 
   const [authError, setAuthError] = createSignal<string | null>(null);
+  const [showHelp, setShowHelp] = createSignal(false);
 
   const { refetchUser } = useRepoContext();
   const [remoteUrl] = createResource(() => props.repoPath ? getRemoteUrl(props.repoPath) : null);
@@ -99,15 +101,14 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
     try {
       if (props.provider === 'github') {
         await githubService.login();
-        refetchUser(); // Atualiza o resource global em vez de dar reload na página inteira
+        refetchUser(); 
       } 
       
       else if (props.provider === 'azure') {
-        // Agora envia o token E a organização informada (ou auto-detectada)
         const response = await azureService.loginWithPAT(patToken().trim(), orgName().trim());
         
         if (response.success) {
-          refetchUser(); // Acende a luz verde no app todo reavaliando o createResource global
+          refetchUser(); 
         } else {
           setAuthError("Token inválido, organização incorreta ou falta de permissões.");
           setIsLogging(false);
@@ -141,7 +142,7 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
       }>
         <form onSubmit={handleLogin} class="mt-2 text-left flex flex-col gap-3">
           
-          {/* NOVO CAMPO: Organização do Azure */}
+          {/* Campo: Organização */}
           <div class="flex flex-col gap-1.5">
             <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Organização</label>
             <input 
@@ -154,8 +155,19 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
             />
           </div>
 
+          {/* Campo: PAT com o botão de Ajuda integrado */}
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Personal Access Token (PAT)</label>
+            <div class="flex justify-between items-center">
+              <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Personal Access Token (PAT)</label>
+              <button 
+                type="button"
+                onClick={() => setShowHelp(true)}
+                class="text-xs font-medium text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 transition-colors outline-none"
+              >
+                <i class="fa-solid fa-circle-question"></i>
+                <span>Como gerar?</span>
+              </button>
+            </div>
             <input 
               type="password" 
               placeholder="Cole seu token do Azure DevOps aqui..."
@@ -167,7 +179,7 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
           </div>
 
           <p class="text-xs text-gray-400 leading-relaxed">
-            Como gerar? Vá em <span class="text-gray-300 font-medium">User Settings &gt; Personal Access Tokens</span> no Azure DevOps e crie um token com escopo para <span class="text-blue-400">Code (Read & Write)</span>.
+            O token inserido precisa de escopo de <span class="text-blue-400 font-medium">Code (Read & Write)</span> e de <span class="text-blue-400 font-medium">Project and Team (Read)</span>.
           </p>
 
           <Show when={authError()}>
@@ -188,6 +200,8 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
           </button>
         </form>
       </Show>
+
+      <PatHelpModal isOpen={showHelp()} onClose={() => setShowHelp(false)} />
     </div>
   );
 }
