@@ -1,6 +1,6 @@
-import { For, Show, createSignal } from "solid-js";
+import { For, Show, createEffect, createSignal } from "solid-js";
 import { githubService } from "../services/github";
-import { azureService } from "../services/azure"; // Injetando o novo serviço
+import { azureService } from "../services/azure"; 
 import logoImg from "../assets/fork.png";
 import CloneRepositoryModal from "../components/repo/CloneRepositoryModal";
 import { notify } from "../utils/notifications";
@@ -11,6 +11,7 @@ import { Repo } from "../models/Repo.model";
 import { open } from "@tauri-apps/plugin-dialog";
 import { path } from "@tauri-apps/api";
 import RemoteRepoModal from "../components/Remote/RemoteRepoModal";
+import defaultAvatarImg from "../assets/default_avatar.png";
 import { useRepoContext } from "../context/RepoContext";
 import { useApp } from "../context/AppContext";
 
@@ -61,18 +62,15 @@ export default function WelcomeScreen(props: Props) {
         try {
             let finalUrl = url;
 
-            // Tratativa de Token do GitHub
             if (url.includes("github.com")) {
                 const token = await githubService.getToken();
                 if (token) {
                     finalUrl = url.replace("https://", `https://${token.trim()}@`);
                 }
             } 
-            // Tratativa de Token da Azure DevOps
-            else if (url.includes("dev.azure.com")) {
+            else if (url.includes("dev.azure.com") || url.includes("visualstudio.com")) {
                 const token = await azureService.getToken();
                 if (token) {
-                    // No Azure DevOps, passamos qualquer string no username (ex: oauth2) e o token como password
                     finalUrl = url.replace("https://", `https://oauth2:${token.trim()}@`);
                 }
             }
@@ -155,73 +153,130 @@ export default function WelcomeScreen(props: Props) {
 function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => void }) {
     const { user, mutateUser, refetchUser } = useRepoContext();
     const [isRemoteModalOpen, setIsRemoteModalOpen] = createSignal(false);
+    const [isHelpModalOpen, setIsHelpModalOpen] = createSignal(false);
+    const [orgValue, setOrgValue] = createSignal("");
     const { t } = useApp();
-    const [isLoggingAzure, setIsLoggingAzure] = createSignal(false);
+    
+    const [showPatInput, setShowPatInput] = createSignal(false);
+    const [patValue, setPatValue] = createSignal("");
+    const [isLogging, setIsLogging] = createSignal(false);
 
-    // Valida se o usuário logado pertence a este provedor específico
-    const isLoggedHere = () => {
+    // === CORREÇÃO 1: ESTADO INDEPENDENTE POR CARD ===
+    // Evita que o ciclo de re-render ou refetch de um limpe o estado visual do outro
+    const [isLocalConnected, setIsLocalConnected] = createSignal(false);
+
+    // Sincroniza o estado inicial vindo do contexto global
+    createEffect(() => {
         const u = user();
-        if (!u) return false;
-        
-        if (props.provider.id === 'github') {
-            return u.provider === 'github' || (u.provider === undefined && u.login !== undefined); 
+        if (!u) {
+            setIsLocalConnected(false);
+            return;
         }
-        
-        return u.provider === props.provider.id;
+
+        if (props.provider.id === 'github') {
+            const hasGitHub = u.github !== undefined || u.provider === 'github' || (u.provider === undefined && u.login !== undefined);
+            setIsLocalConnected(hasGitHub);
+        } 
+        else if (props.provider.id === 'azure') {
+            const hasAzure = u.azure !== undefined || u.provider === 'azure';
+            setIsLocalConnected(hasAzure);
+        }
+    });
+
+    const isLoggedHere = () => isLocalConnected();
+
+    const handleLoginClick = async () => {
+        if (props.provider.id === 'github') {
+            setIsLogging(true);
+            try {
+                await githubService.login();
+                // Sinaliza sucesso local instantaneamente para travar a UI logada
+                setIsLocalConnected(true);
+                refetchUser();
+            } catch (err) {
+                notify.error("Falha na autenticação", String(err));
+            } finally {
+                setIsLogging(false);
+            }
+        } 
+        else if (props.provider.id === 'azure') {
+            setShowPatInput(!showPatInput());
+        }
     };
 
-    const handleLogin = async () => {
-        try {
-            if (props.provider.id === 'github') {
-                await githubService.login();
-                refetchUser();
-            } 
-            else if (props.provider.id === 'azure') {
-                setIsLoggingAzure(true);
-                // 1. Inicia o Device Flow requisitando os códigos temporários
-                const deviceCodeData = await azureService.requestDeviceCode();
-                
-                // 2. Alerta o usuário com o código para ele colar no navegador da MS
-                // Como estamos na WelcomeScreen, um prompt ou notify resolve antes de abrir a URL
-                notify.success(
-                    "Autenticação Azure", 
-                    `Copie o código de ativação: ${deviceCodeData.user_code}. O navegador será aberto.`
-                );
-                
-                // Abre o link oficial de login de dispositivos da MS
-                import("@tauri-apps/plugin-shell").then(async (shell) => {
-                    await shell.open(deviceCodeData.verification_uri);
-                });
+    const handlePatSubmit = async (e: Event) => {
+        e.preventDefault();
+        if (!patValue()) return;
 
-                // 3. Trava em loop aguardando a resposta no background
-                await azureService.pollForToken(deviceCodeData.device_code, deviceCodeData.interval);
+        setIsLogging(true);
+        try {
+            const tokenClean = patValue().trim();
+            // Desestrutura a resposta dinâmica da nossa nova função
+            const { success, login, display_name } = await azureService.loginWithPAT(tokenClean, orgValue().trim());
+            
+            if (success) {
+                const remoteAvatar = await azureService.getUserAvatar(tokenClean, orgValue().trim());
+                const finalAvatar = remoteAvatar || defaultAvatarImg;
+
+                notify.success("Sucesso", "Conta do Azure DevOps conectada!");
+                setShowPatInput(false);
+                setPatValue("");
                 
-                // 4. Autenticado! Atualiza o contexto global do usuário
-                refetchUser();
+                setIsLocalConnected(true);
+
+                mutateUser((prev: any) => {
+                    const base = prev && typeof prev === 'object' ? prev : {};
+                    return {
+                        ...base,
+                        provider: base.provider || 'azure',
+                        avatar_url: base.avatar_url || defaultAvatarImg,
+                        azure: {
+                            login: login, // Organização real do usuário! (ex: "joaosilva")
+                            name: display_name, // Nome real do usuário! (ex: "João Silva")
+                            token: tokenClean,
+                            avatar_url: finalAvatar
+                        }
+                    };
+                });
+            } else {
+                notify.error("Erro", "Token inválido ou sem permissões necessárias.");
             }
         } catch (err) {
             notify.error("Falha na autenticação", String(err));
         } finally {
-            setIsLoggingAzure(false);
+            setIsLogging(false);
         }
     };
 
     const handleLogout = async () => {
+        setIsLocalConnected(false);
         if (props.provider.id === 'github') {
             await githubService.logout();
-            mutateUser(null);
+            mutateUser((prev: any) => {
+                if (!prev) return null;
+                const updated = { ...prev };
+                delete updated.github;
+                if (updated.provider === 'github') updated.provider = updated.azure ? 'azure' : undefined;
+                return updated;
+            });
         } 
         else if (props.provider.id === 'azure') {
             await azureService.logout();
-            mutateUser(null);
+            mutateUser((prev: any) => {
+                if (!prev) return null;
+                const updated = { ...prev };
+                delete updated.azure;
+                if (updated.provider === 'azure') updated.provider = updated.github ? 'github' : undefined;
+                return updated;
+            });
         }
     };
 
     return (
-        <div class={`p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm flex flex-col gap-3 ${user.loading || isLoggingAzure() ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div class={`p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm flex flex-col gap-3 transition-all duration-300 ${user.loading ? 'opacity-50 pointer-events-none' : ''}`}>
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300">
                         <i class={props.provider.icon}></i>
                     </div>
                     <div>
@@ -232,19 +287,80 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
                     </div>
                 </div>
                 <Show when={isLoggedHere()}>
-                    <img src={user().avatar_url} class="w-8 h-8 rounded-full border-2 border-blue-500" />
+                    <img src={(props.provider.id === 'github' ? user()?.avatar_url : user()?.azure?.avatar_url) || "https://avatar.iran.liara.run/public/60"} class="w-8 h-8 rounded-full border-2 border-blue-500" />
                 </Show>
             </div>
 
             <Show 
                 when={isLoggedHere()} 
                 fallback={
-                    <button onClick={handleLogin} class="w-full py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-2">
-                        <Show when={isLoggingAzure()} fallback={<span>{t('repository').connect_account}</span>}>
-                            <i class="fa-solid fa-circle-notch animate-spin text-xs"></i>
-                            <span>Aguardando ativação...</span>
+                    <div class="flex flex-col gap-2 w-full">
+                        <Show when={!showPatInput()}>
+                            <button 
+                                onClick={handleLoginClick} 
+                                disabled={isLogging()}
+                                class="w-full py-2 text-xs font-bold rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-2"
+                            >
+                                <Show when={isLogging()} fallback={<span>{t('repository').connect_account}</span>}>
+                                    <i class="fa-solid fa-circle-notch animate-spin text-xs"></i>
+                                    <span>Conectando...</span>
+                                </Show>
+                            </button>
                         </Show>
-                    </button>
+
+                        <Show when={props.provider.id === 'azure' && showPatInput()}>
+                            <form onSubmit={handlePatSubmit} class="flex flex-col gap-2 pt-1 border-t border-gray-100 dark:border-gray-700/60 transition-all">
+                                
+                                {/* NOVO CAMPO: Organização */}
+                                <input 
+                                    type="text"
+                                    placeholder="Sua Organização (Ex: devbrook)..."
+                                    value={orgValue()}
+                                    onInput={(e) => setOrgValue(e.currentTarget.value)}
+                                    disabled={isLogging()}
+                                    class="px-3 py-1.5 text-xs font-sans rounded-lg border bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+
+                                <div class="flex items-center gap-2 w-full">
+                                    <input 
+                                        type="password"
+                                        placeholder="Cole seu Personal Access Token (PAT)..."
+                                        value={patValue()}
+                                        onInput={(e) => setPatValue(e.currentTarget.value)}
+                                        disabled={isLogging()}
+                                        class="flex-1 px-3 py-1.5 text-xs font-mono rounded-lg border bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <button 
+                                        type="button"
+                                        title="Como pegar este token?"
+                                        onClick={() => setIsHelpModalOpen(true)}
+                                        class="p-1.5 text-xs rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-blue-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 transition-colors flex items-center justify-center w-8 h-8 shrink-0"
+                                    >
+                                        <i class="fa-solid fa-circle-question text-sm"></i>
+                                    </button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button 
+                                        type="submit"
+                                        disabled={isLogging() || !patValue() || !orgValue()}
+                                        class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                    >
+                                        <Show when={isLogging()} fallback={<span>CONFIRMAR</span>}>
+                                            <i class="fa-solid fa-circle-notch animate-spin text-[10px]"></i>
+                                            <span>Validando...</span>
+                                        </Show>
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setShowPatInput(false)}
+                                        class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 hover:bg-red-500 hover:text-white transition-colors"
+                                    >
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </Show>
+                    </div>
                 }
             >
                 <div class="flex gap-2">
@@ -266,7 +382,75 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
                     props.onSelectRepo(url);
                 }}
             />
+
+            <PatHelpModal 
+                isOpen={isHelpModalOpen()} 
+                onClose={() => setIsHelpModalOpen(false)} 
+            />
         </div>
+    );
+}
+
+// Componente Local do Modal de Ajuda
+function PatHelpModal(props: { isOpen: boolean; onClose: () => void }) {
+    return (
+        <Show when={props.isOpen}>
+            <div class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden p-6 text-left flex flex-col gap-4">
+                    <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700/60 pb-3">
+                        <div class="flex items-center gap-2 text-blue-500">
+                            <i class="fa-solid fa-circle-info text-lg"></i>
+                            <h3 class="font-bold text-sm dark:text-white uppercase tracking-wider">Como obter o Token (PAT)?</h3>
+                        </div>
+                        <button 
+                            onClick={props.onClose}
+                            class="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-lg"
+                        >
+                            <i class="fa-solid fa-xmark text-sm"></i>
+                        </button>
+                    </div>
+
+                    <div class="text-xs space-y-3.5 text-gray-600 dark:text-gray-300 leading-relaxed font-sans">
+                        <div class="flex gap-2.5">
+                            <span class="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 font-bold flex items-center justify-center shrink-0">1</span>
+                            <p>Acesse o painel do <a href="https://dev.azure.com" target="_blank" class="text-blue-500 hover:underline inline-flex items-center gap-0.5">Azure DevOps <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></a> com sua conta.</p>
+                        </div>
+                        <div class="flex gap-2.5">
+                            <span class="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 font-bold flex items-center justify-center shrink-0">2</span>
+                            <p>No canto superior direito, clique no ícone de <span class="font-semibold text-gray-800 dark:text-gray-100">Configurações do Usuário</span> (engrenagem ao lado do seu avatar).</p>
+                        </div>
+                        <div class="flex gap-2.5">
+                            <span class="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 font-bold flex items-center justify-center shrink-0">3</span>
+                            <p>Selecione a opção <span class="font-semibold text-gray-800 dark:text-gray-100">Personal access tokens</span> e clique em <span class="text-blue-500 font-semibold">+ New Token</span>.</p>
+                        </div>
+                        <div class="flex gap-2.5">
+                            <span class="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 font-bold flex items-center justify-center shrink-0">4</span>
+                            <div>
+                                <p>Defina as configurações obrigatórias do Token:</p>
+                                <ul class="list-disc pl-4 mt-1 space-y-1 text-gray-400 font-mono text-[11px]">
+                                    <li><b class="text-gray-300">Organization:</b> All accessible organizations</li>
+                                    <li><b class="text-gray-300">Scopes:</b> Marque <span class="text-blue-400">Custom defined</span></li>
+                                    <li><b class="text-gray-300">Code:</b> Selecione <span class="text-blue-400">Read & Write</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="flex gap-2.5">
+                            <span class="w-5 h-5 rounded-full bg-blue-500/10 text-blue-500 font-bold flex items-center justify-center shrink-0">5</span>
+                            <p>Clique em <span class="font-semibold text-gray-800 dark:text-gray-100">Create</span> no fim da página e <span class="text-yellow-500 font-semibold">copie o token imediatamente</span>. Ele não será exibido de novo!</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-2 pt-3 border-t border-gray-100 dark:border-gray-700/60 flex justify-end">
+                        <button 
+                            onClick={props.onClose} 
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs transition-colors"
+                        >
+                            ENTENDI, CONTINUAR
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Show>
     );
 }
 
