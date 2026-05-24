@@ -30,8 +30,8 @@ export default function WelcomeScreen(props: Props) {
 
     const providersList = [
         { id: 'github', name: 'GitHub', icon: 'fa-brands fa-github' },
-        { id: 'gitlab', name: 'GitLab', icon: 'fa-brands fa-gitlab' },
-        { id: 'azure', name: 'Azure DevOps', icon: 'fa-solid fa-cloud' }
+        { id: 'azure', name: 'Azure DevOps', icon: 'fa-solid fa-cloud' },
+        //{ id: 'gitlab', name: 'GitLab', icon: 'fa-brands fa-gitlab' },
     ];
 
     async function processAndOpenRepo(selected: string) {
@@ -59,7 +59,7 @@ export default function WelcomeScreen(props: Props) {
     }
 
     async function handleClone(url: string, targetPath: string) {
-        showLoading("Clonando repositório remoto...");
+        showLoading(t('loading').cloning);
         try {
             let finalUrl = url;
 
@@ -79,14 +79,14 @@ export default function WelcomeScreen(props: Props) {
             const result = await cloneRepository(finalUrl, targetPath);
 
             if (String(result) === "EMPTY_REPO") {
-                notify.error("Aviso", "Repositório clonado, mas está vazio (sem commits).");
+                notify.error(t('common').warning, "Repositório clonado, mas está vazio (sem commits).");
                 return;
             }
 
             await processAndOpenRepo(targetPath);
             setIsCloneModalOpen(false);
         } catch (err) {
-            notify.error('Erro ao Clonar', String(err));
+            notify.error(t('error').clone, String(err));
         } finally {
             hideLoading();
         }
