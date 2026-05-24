@@ -1,76 +1,8 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
-import { tagBaseColors } from "../../utils/file";
+import { INFERENCE_RULES, TAG_MAPPING, tagBaseColors } from "../../utils/file";
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
 
-// 1. Dicionário de normalização para corrigir erros de digitação comuns
-const TAG_MAPPING: Record<string, string> = {
-  // Assets
-  assts: "assets",
-  asets: "assets",
-  asset: "assets",
-  static: "assets",
-  // Features
-  feature: "feat",
-  ft: "feat",
-  fet: "feat",
-  featt: "feat",
-  fewat: "feat",
-  // Fixes
-  bug: "fix",
-  fixed: "fix",
-  hotfix: "fix",
-  fixx: "fix",
-  // Tests
-  test: "tests",
-  testing: "tests",
-  unit: "tests",
-  // Docs
-  doc: "docs",
-  documentation: "docs",
-  readme: "docs",
-  // Refactor
-  refactoring: "refactor",
-  ref: "refactor",
-  // Chore
-  chores: "chore",
-  chord: "chore",
-  // Translate
-  i18n: "translate",
-  // Outros
-  srtle: "other",
-  other: "other",
-  // Audio
-  adio: "audio",
-  som: "audio",
-  music: "audio",
-  wav: "audio",
-  ogg: "audio",
-  mp3: "audio",
-  // art
-  sfx: "art",
-  fbx: "art",
-  shaders: "art",
-  // lvl
-  map: "lvl",
-  pref: "lvl",
-  tscn: "lvl"
-};
-
-const INFERENCE_RULES: Record<string, string[]> = {
-  merge: ["merge", "mesclagem"],
-  tests: ["test", "spec", "coverage"],
-  style: ["debugger", "css", "identa"],
-  chore: ["event", "chord", "environ", ".config", "global", "build", "dependen", "depen", "release", "version", "versão"],
-  ui: ["layout", "tela", "visual", "css", "color", "ux", "fundo", "font"],
-  assets: ["image", "img", "icon", "video", "vídeo", "svg", "font"],
-  anim: ["animma", "animação"],
-  fix: ["ajuste", "fix", "corrig", "bug", "erro", "consert", "resolv", "patch", "correc", "correç", "att", "remoç", "remov", "hotfix", "update"],
-  feat: ["adicao", "adiç", "novo", "new", "add", "cria", "implement", "feat", "improve", "finaliza"],
-  docs: ["doc", "readme", "ajuda", "help", "coment", "text", "logs"],
-  refactor: ["refactor", "limpeza", "clean", "melhoria", "otimiz"],
-  translate: ["traduc", "traduç", "translate", "idioma", "i18n", "pt", "en", "es"],
-};
 
 // Função auxiliar para normalizar a tag
 const normalizeTag = (tag: string): string => {

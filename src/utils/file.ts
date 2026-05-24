@@ -145,6 +145,74 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   asa: "Config"
 };
 
+export const INFERENCE_RULES: Record<string, string[]> = {
+  merge: ["merge", "mesclagem"],
+  tests: ["test", "spec", "coverage"],
+  style: ["debugger", "css", "identa"],
+  chore: ["event", "chord", "environ", ".config", "global", "build", "dependen", "depen", "release", "version", "versão"],
+  ui: ["layout", "tela", "visual", "css", "color", "ux", "fundo", "font"],
+  assets: ["image", "img", "icon", "video", "vídeo", "svg", "font"],
+  anim: ["animma", "animação"],
+  fix: ["ajuste", "fix", "corrig", "bug", "erro", "consert", "resolv", "patch", "correc", "correç", "att", "remoç", "remov", "hotfix", "update"],
+  feat: ["adicao", "adiç", "novo", "new", "add", "cria", "implement", "feat", "improve", "finaliza"],
+  docs: ["doc", "readme", "ajuda", "help", "coment", "text", "logs"],
+  refactor: ["refactor", "limpeza", "clean", "melhoria", "otimiz"],
+  translate: ["traduc", "traduç", "translate", "idioma", "i18n", "pt", "en", "es"],
+};
+
+export const TAG_MAPPING: Record<string, string> = {
+  // Assets
+  assts: "assets",
+  asets: "assets",
+  asset: "assets",
+  static: "assets",
+  // Features
+  feature: "feat",
+  ft: "feat",
+  fet: "feat",
+  featt: "feat",
+  fewat: "feat",
+  // Fixes
+  bug: "fix",
+  fixed: "fix",
+  hotfix: "fix",
+  fixx: "fix",
+  // Tests
+  test: "tests",
+  testing: "tests",
+  unit: "tests",
+  // Docs
+  doc: "docs",
+  documentation: "docs",
+  readme: "docs",
+  // Refactor
+  refactoring: "refactor",
+  ref: "refactor",
+  // Chore
+  chores: "chore",
+  chord: "chore",
+  // Translate
+  i18n: "translate",
+  // Outros
+  srtle: "other",
+  other: "other",
+  // Audio
+  adio: "audio",
+  som: "audio",
+  music: "audio",
+  wav: "audio",
+  ogg: "audio",
+  mp3: "audio",
+  // art
+  sfx: "art",
+  fbx: "art",
+  shaders: "art",
+  // lvl
+  map: "lvl",
+  pref: "lvl",
+  tscn: "lvl"
+};
+
 // Cores baseadas no NOME DO GRUPO agora
 export const GROUP_COLORS: Record<string, string> = {
   "TypeScript": "#3178c6",

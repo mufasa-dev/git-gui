@@ -1,5 +1,5 @@
 import { For, Show, createMemo } from "solid-js";
-import { commitColors } from "../../utils/file";
+import { commitColors, TAG_MAPPING } from "../../utils/file";
 
 interface Props {
   message: string;
@@ -9,7 +9,6 @@ interface Props {
 }
 
 const CommitMessage = (props: Props) => {
-  // 1. Criamos um "memo" para processar a mensagem apenas quando props.message mudar
   const parsed = createMemo(() => {
     const msg = props.message || "";
 
@@ -23,9 +22,18 @@ const CommitMessage = (props: Props) => {
     const tagRegex = /^(\w+)(?:\(([^)]+)\))?:\s*(.*)$/;
     const tagMatch = msg.match(tagRegex);
 
+    let type = tagMatch ? tagMatch[1] : null;
+
+    if (type) {
+      const lowerType = type.toLowerCase();
+      if (TAG_MAPPING[lowerType]) {
+        type = TAG_MAPPING[lowerType];
+      }
+    }
+
     return {
       isMerge: false,
-      type: tagMatch ? tagMatch[1] : null,
+      type,
       scope: tagMatch ? tagMatch[2] : null,
       mainContent: tagMatch ? tagMatch[3] : msg,
       fullMessage: msg
@@ -37,7 +45,7 @@ const CommitMessage = (props: Props) => {
     return (
       <For each={parts}>
         {(part) => (
-          <Show when={part.startsWith("#")} fallback={<span >{part}</span>}>
+          <Show when={part.startsWith("#")} fallback={<span>{part}</span>}>
             <span
               onClick={() => props.canClickOnCard && props.onClickCard?.(part.replace("#", ""))}
               class={`text-blue-600 dark:text-blue-400 font-medium ${
