@@ -24,6 +24,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
   const [isApproving, setIsApproving] = createSignal(false);
+  const [isMerging, setIsMerging] = createSignal(false);
   const { t, locale } = useApp();
   
   const [details, { refetch }] = createResource(
@@ -111,6 +112,27 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
     }
   };
 
+  const handleMerge = async () => {
+    const prId = props.pr.node_id || props.pr.id; 
+    
+    if (!prId) {
+      notify.error("Erro", "ID do Pull Request não encontrado.");
+      return;
+    }
+
+    setIsMerging(true);
+    try {
+      await githubService.mergePullRequest(prId);
+      notify.success("Sucesso", "Pull Request mesclado com sucesso!");
+      
+      refetch();
+    } catch (err) {
+      notify.error("Falha no Merge", String(err));
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
   const tabs = createMemo(() => [
     { id: 'Visão Geral', label: t('pr').conversation, icon: 'fa-regular fa-comments' },
     { id: 'Files', label: t('file').files, icon: 'fa-regular fa-file-code' },
@@ -136,7 +158,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
                     Existem conflitos que devem ser resolvidos
                   </span>
                   <button 
-                    onClick={() => setActiveTab('Files')} // Redireciona para a aba de arquivos
+                    onClick={() => setActiveTab('Files')} 
                     class="bg-red-500 text-white px-3 py-1 rounded text-[9px] font-black uppercase hover:bg-red-600 transition-all"
                   >
                     {t('merge').resolve_conflicts}
@@ -145,19 +167,37 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
               </Match>
               
               <Match when={details()?.mergeable === 'MERGEABLE'}>
-                <button 
-                  onClick={handleApprove}
-                  disabled={isApproving() || details()?.mergeable === 'CONFLICTING'}
-                  class={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all shadow-lg 
-                    ${isApproving() 
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-green-600 hover:bg-green-500 text-white shadow-green-500/20 active:scale-95'
-                    } ${details()?.mergeable === 'CONFLICTING' ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-                >
-                  <Show when={isApproving()} fallback={<><i class="fa-solid fa-check"></i> {t('pr').approve}</>}>
-                    <i class="fa-solid fa-circle-notch animate-spin"></i> {t('pr').approving}
-                  </Show>
-                </button>
+                <div class="flex items-center gap-2">
+                  {/* Botão de Aprovar existente */}
+                  <button 
+                    onClick={handleApprove}
+                    disabled={isApproving() || isMerging()}
+                    class={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all border dark:border-gray-700
+                      ${isApproving() 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95'
+                      }`}
+                  >
+                    <Show when={isApproving()} fallback={<><i class="fa-solid fa-check"></i> {t('pr').approve}</>}>
+                      <i class="fa-solid fa-circle-notch animate-spin"></i> {t('pr').approving}
+                    </Show>
+                  </button>
+
+                  {/* NOVO: Botão de Merge */}
+                  <button 
+                    onClick={handleMerge}
+                    disabled={isMerging() || isApproving()}
+                    class={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all shadow-lg
+                      ${isMerging() 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-500/20 active:scale-95'
+                      }`}
+                  >
+                    <Show when={isMerging()} fallback={<><i class="fa-solid fa-code-merge"></i> {t('pr').merge_pull_request}</>}>
+                      <i class="fa-solid fa-circle-notch animate-spin"></i> {t('loading').merging}
+                    </Show>
+                  </button>
+                </div>
               </Match>
             </Switch>
           </div>

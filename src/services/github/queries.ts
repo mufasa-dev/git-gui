@@ -404,3 +404,14 @@ export const REMOVE_REACTION = `
     }
   }
 `;
+
+export const MERGE_PR = `
+  mutation MergePullRequest($prId: ID!) {
+    mergePullRequest(input: { pullRequestId: $prId, mergeMethod: MERGE }) {
+      pullRequest {
+        state
+        mergedAt
+      }
+    }
+  }
+`;
