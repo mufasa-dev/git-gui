@@ -16,8 +16,9 @@ import { UserProfileDialog } from "../Config/UserProfile";
 import PRStatusBadge from "./PRStatusBadge";
 import { notify } from "../../utils/notifications";
 import { useApp } from "../../context/AppContext";
+import { azureService } from "../../services/azure";
 
-export default function PRDetailView(props: { pr: any, owner: string, repo: Repo, branch?: string }) {
+export default function PRDetailView(props: { pr: any, owner: string, repo: Repo, branch?: string, provider: string }) {
   const [activeTab, setActiveTab] = createSignal("Visão Geral");
   const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
@@ -28,8 +29,13 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
   const { t, locale } = useApp();
   
   const [details, { refetch }] = createResource(
-    () => ({ owner: props.owner, name: props.repo.name, number: props.pr.number }),
-    async (p) => await githubService.getPullRequestDescription(p.owner, p.name, p.number)
+    () => ({ owner: props.owner, name: props.repo.name, number: props.pr.number, provider: props.provider }),
+    async (p) => {
+      if (p.provider === 'azure') {
+        return await azureService.getPullRequestDescription(p.owner, p.name, p.number);
+      }
+      return await githubService.getPullRequestDescription(p.owner, p.name, p.number);
+    }
   );
 
   const additionsWidth = () => {
@@ -40,6 +46,10 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
   const reviewersList = createMemo(() => {
     const data = details();
     if (!data) return [];
+
+    if (props.provider === 'azure' && (data as any).reviewers) {
+      return (data as any).reviewers;
+    }
 
     const list: any[] = [];
 

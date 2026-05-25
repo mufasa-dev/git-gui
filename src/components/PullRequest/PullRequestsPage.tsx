@@ -6,6 +6,9 @@ import { Repo } from "../../models/Repo.model";
 import CommitMessage from "../ui/CommitMessage";
 import PRStatusBadge from "./PRStatusBadge";
 import { useApp } from "../../context/AppContext";
+import { getProviderFromUrl } from "../../utils/gitProvider";
+import { getRemoteUrl } from "../../services/gitService";
+import { azureService } from "../../services/azure";
 
 export default function PullRequestsPage(props: { repo: Repo, username: string, branch?: string }) {
   const [filter, setFilter] = createSignal("OPEN");
@@ -17,10 +20,18 @@ export default function PullRequestsPage(props: { repo: Repo, username: string, 
   const [sidebarWidth, setSidebarWidth] = createSignal(350);
   const [isResizing, setIsResizing] = createSignal(false);
 
+  const [remoteUrl] = createResource(() => getRemoteUrl(props.repo.path));
+  const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
+
   const [prs] = createResource(
-    () => ({ owner: props.username, name: props.repo.name, state: filter() }),
+    () => ({ owner: props.username, name: props.repo.name, state: filter(), currentProvider: provider() }),
     async (params) => {
       if (!params.name) return [];
+      
+      if (params.currentProvider === 'azure') {
+        return await azureService.getRepoPullRequests(params.owner, params.name, params.state);
+      }
+      
       return await githubService.getRepoPullRequests(params.owner, params.name, params.state);
     }
   );
@@ -127,6 +138,7 @@ export default function PullRequestsPage(props: { repo: Repo, username: string, 
                 owner={props.username} 
                 repo={props.repo} 
                 branch={props.branch}
+                provider={provider()}
               />
             </Show>
           </div>

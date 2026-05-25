@@ -1,5 +1,6 @@
 import { load } from "@tauri-apps/plugin-store";
 import { fetch } from "@tauri-apps/plugin-http";
+import { UnifiedPR } from "../../models/PR.model";
 
 async function getAuthStore() {
   return await load("auth.bin");
@@ -162,6 +163,131 @@ export const azureService = {
       console.error(`Falha ao buscar repositórios do projeto ${projectName}:`, error);
       return [];
     }
+  },
+
+  // Pull requests
+  async getRepoPullRequests(organization: string, repoName: string, state: string): Promise<UnifiedPR[]> {
+    try {
+      const token = await this.getToken();
+      if (!token) return [];
+      const credentials = btoa(`:${token.trim()}`);
+      
+      // Converte o estado para o formato do Azure (active, completed, abandoned)
+      let statusParam = "active";
+      if (state === "MERGED") statusParam = "completed";
+      if (state === "CLOSED") statusParam = "abandoned";
+
+      const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests?searchCriteria.status=${statusParam}&api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+
+      if (!response.ok) return [];
+      const data = await response.json();
+
+      return (data.value || []).map((pr: any) => ({
+        id: pr.pullRequestId.toString(),
+        number: pr.pullRequestId,
+        title: pr.title,
+        state: pr.status === 'active' ? 'OPEN' : (pr.status === 'completed' ? 'MERGED' : 'CLOSED'),
+        createdAt: pr.creationDate,
+        author: {
+          login: pr.createdBy.uniqueName,
+          name: pr.createdBy.displayName,
+          avatarUrl: pr.createdBy._links?.avatar?.href || ""
+        },
+        headRefName: pr.sourceRefName.replace("refs/heads/", ""),
+        baseRefName: pr.targetRefName.replace("refs/heads/", ""),
+        comments: { totalCount: 0 } // Azure trata comentários em threads separadas, mapeado como 0 inicialmente
+      }));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  },
+
+  async getPullRequestDescription(organization: string, repoName: string, prNumber: number): Promise<Partial<UnifiedPR & { mergeable: string, reviewers: any[] }>> {
+    try {
+      const token = await this.getToken();
+      if (!token) return {};
+      const credentials = btoa(`:${token.trim()}`);
+      
+      const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests/${prNumber}?api-version=7.0`;
+      const response = await window.fetch(url, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+
+      if (!response.ok) return {};
+      const pr = await response.json();
+
+      // Mapeia os revisores do Azure para o formato esperado pelo seu reviewersList()
+      const reviewers = (pr.reviewers || []).map((rev: any) => {
+        let state = "PENDING";
+        if (rev.vote === 10) state = "APPROVED";
+        if (rev.vote === 5) state = "APPROVED"; // Aprovado com sugestões
+        if (rev.vote === -5) state = "CHANGES_REQUESTED"; // Esperando autor
+        if (rev.vote === -10) state = "CHANGES_REQUESTED"; // Rejeitado
+
+        return {
+          login: rev.uniqueName,
+          name: rev.displayName,
+          avatarUrl: rev._links?.avatar?.href || "",
+          state: state
+        };
+      });
+
+      return {
+        mergeable: pr.mergeStatus === 'conflicts' ? 'CONFLICTING' : 'MERGEABLE',
+        reviewers: reviewers
+        // Você pode mockar ou buscar participantes adicionais aqui se julgar necessário
+      } as any;
+    } catch (e) {
+      console.error(e);
+      return {};
+    }
+  },
+
+  async approvePullRequest(organization: string, repoName: string, prNumber: number): Promise<boolean> {
+    const token = await this.getToken();
+    if (!token) return false;
+    const credentials = btoa(`:${token.trim()}`);
+    
+    // No Azure, você se aprova dando um "voto" positivo (10 = Approved)
+    const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests/${prNumber}/reviewers/me?api-version=7.0`;
+    const response = await window.fetch(url, {
+      method: 'PUT',
+      headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vote: 10 })
+    });
+    return response.ok;
+  },
+
+  async mergePullRequest(organization: string, repoName: string, prNumber: number): Promise<boolean> {
+    const token = await this.getToken();
+    if (!token) return false;
+    const credentials = btoa(`:${token.trim()}`);
+    
+    const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests/${prNumber}?api-version=7.0`;
+    
+    // Precisamos pegar o status atual para mandar o lastMergeSourceCommitId protetor
+    const prRes = await window.fetch(url, { headers: { 'Authorization': `Basic ${credentials}` } });
+    const prData = await prRes.json();
+
+    const response = await window.fetch(url, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: "completed",
+        completionOptions: {
+          deleteSourceBranch: false,
+          mergeCommitMessage: "Merged via Dev Brook",
+          squashMerge: false
+        },
+        lastMergeSourceCommitId: prData.lastMergeSourceCommitId
+      })
+    });
+    return response.ok;
   },
 
   async logout() {
