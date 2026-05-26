@@ -28,7 +28,7 @@ export default function ProfileModal() {
         </div>
       }>
         
-        <Show when={!profile.loading && !license.loading} fallback={<div class="animate-pulse p-10 text-center text-gray-400">Carregando...</div>}>
+        <Show when={!profile.loading && !license.loading} fallback={<div class="animate-pulse p-10 text-center text-gray-400">{t('loading').loading}</div>}>
           
           {/* Header com Avatar */}
           <div class="flex flex-col items-center mb-6">
@@ -41,9 +41,9 @@ export default function ProfileModal() {
             <div class="mt-1">
               <Show when={license()?.status === "active"} fallback={
                 <Show when={license()?.status === "trialing" && !license()?.isExpired} fallback={
-                  <span class="text-[10px] bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded-full font-bold">EXPIRADO</span>
+                  <span class="text-[10px] bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded-full font-bold">{t('auth').expired}</span>
                 }>
-                  <span class="text-[10px] bg-blue-500/10 text-blue-500 border border-blue-500/20 px-2 py-0.5 rounded-full font-bold uppercase">Período de Teste</span>
+                  <span class="text-[10px] bg-blue-500/10 text-blue-500 border border-blue-500/20 px-2 py-0.5 rounded-full font-bold uppercase">{t('auth').trialing}</span>
                 </Show>
               }>
                 <span class="text-[10px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold tracking-wider">✨ MEMBRO PRO</span>
@@ -66,7 +66,7 @@ export default function ProfileModal() {
 
             <Show when={license()?.status === "trialing" && !license()?.isExpired}>
               <div class="flex justify-between items-center text-blue-500 bg-blue-500/5 p-2 rounded-md border border-blue-500/10">
-                <span class="text-[10px] font-bold uppercase">Expira em</span>
+                <span class="text-[10px] font-bold uppercase">{t('auth').expire_in}</span>
                 <span class="text-xs font-bold">{formatDate(license()?.trialEndsAt)}</span>
               </div>
             </Show>
