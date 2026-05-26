@@ -33,7 +33,17 @@
     "passwords_do_not_match": "Le password non coincidono",
     "password_updated": "Password aggiornata con successo",
     "profile_updated": "Profilo aggiornato con successo",
-    "try_again": "Riprova"
+    "try_again": "Riprova",
+    "plan_annual": "Abbonamento Annuale",
+    "plan_monthly": "Abbonamento Mensile",
+    "plans_available": "Piani Disponibili",
+    "select_plan": "Seleziona un piano per continuare",
+    "sign_now": "Abbonati Ora",
+    "expire_in": "Scade il",
+    "expired": "Scaduto",
+    "trialing": "Periodo di Prova",
+    "active": "Attivo",
+    "inactive": "Inattivo"
   },
   "common": {
     "save": "Salva",
@@ -155,7 +165,8 @@
     "loading_commits": "Caricamento commits...",
     "loading_branches": "Caricamento branches...",
     "loading_repositories": "Caricamento repositories...",
-    "loading_pull_requests": "Caricamento pull requests..."
+    "loading_pull_requests": "Caricamento pull requests...",
+    "offers": "Caricamento offerte"
   },
   "git": {
     "commit": "Commit",

@@ -33,7 +33,17 @@
     "passwords_do_not_match": "The passwords do not match",
     "password_updated": "Password updated successfully",
     "profile_updated": "Profile updated successfully",
-    "try_again": "Try again"
+    "try_again": "Try again",
+    "plan_annual": "Annual Subscription",
+    "plan_monthly": "Monthly Subscription",
+    "plans_available": "Available Plans",
+    "select_plan": "Select a plan to continue",
+    "sign_now": "Subscribe Now",
+    "expire_in": "Expires in",
+    "expired": "Expired",
+    "trialing": "Trial Period",
+    "active": "Active",
+    "inactive": "Inactive"
   },
   "common": {
     "save": "Save",
@@ -155,7 +165,8 @@
     "loading_commits": "Loading commits...",
     "loading_branches": "Loading branches...",
     "loading_repositories": "Loading repositories...",
-    "loading_pull_requests": "Loading pull requests..."
+    "loading_pull_requests": "Loading pull requests...",
+    "offers": "Loading offers..."
   },
   "git": {
     "commit": "Commit",

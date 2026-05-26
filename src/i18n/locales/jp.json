@@ -33,7 +33,17 @@
     "passwords_do_not_match": "パスワードが一致しません",
     "password_updated": "パスワードが正常に更新されました",
     "profile_updated": "プロファイルが正常に更新されました",
-    "try_again": "もう一度お試しください"
+    "try_again": "もう一度お試しください",
+    "plan_annual": "年額プラン",
+    "plan_monthly": "月額プラン",
+    "plans_available": "利用可能なプラン",
+    "select_plan": "続けるにはプランを選択してください",
+    "sign_now": "今すぐ購入",
+    "expire_in": "有効期限:",
+    "expired": "期限切れ",
+    "trialing": "無料トライアル",
+    "active": "有効",
+    "inactive": "無効"
   },
   "common": {
     "save": "保存",
@@ -155,7 +165,8 @@
     "loading_commits": "コミットを読み込み中...",
     "loading_branches": "ブランチを読み込み中...",
     "loading_repositories": "リポジトリを読み込み中...",
-    "loading_pull_requests": "プルリクエストを読み込み中..."
+    "loading_pull_requests": "プルリクエストを読み込み中...",
+    "offers": "オファーを読み込み中"
   },
   "git": {
     "commit": "コミット",
