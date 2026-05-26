@@ -172,18 +172,25 @@ export const azureService = {
       if (!token) return [];
       const credentials = btoa(`:${token.trim()}`);
       
-      // Converte o estado para o formato do Azure (active, completed, abandoned)
       let statusParam = "active";
       if (state === "MERGED") statusParam = "completed";
       if (state === "CLOSED") statusParam = "abandoned";
 
-      const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests?searchCriteria.status=${statusParam}&api-version=7.0`;
+      // 🛠️ Injetamos o escopo do projeto {repoName} antes de /_apis/
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests?searchCriteria.status=${statusParam}&api-version=7.0`;
 
       const response = await window.fetch(url, {
-        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Accept': 'application/json' 
+        }
       });
 
-      if (!response.ok) return [];
+      if (!response.ok) {
+        console.error("Erro na resposta do Azure:", response.status);
+        return [];
+      }
+      
       const data = await response.json();
 
       return (data.value || []).map((pr: any) => ({
