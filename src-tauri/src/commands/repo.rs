@@ -2,6 +2,7 @@ use std::path::Path;
 use crate::models::pull::GitPullResult;
 use tauri::command;
 use crate::utils::git_command;
+use base64::{engine::general_purpose, Engine as _};
 
 #[tauri::command]
 pub fn open_repo(path: String) -> Result<String, String> {
@@ -17,20 +18,47 @@ pub fn push_repo(
     path: String,
     remote: Option<String>,
     branch: Option<String>,
+    token: Option<String>,
 ) -> Result<String, String> {
 
     let remote_name = remote.unwrap_or("origin".to_string());
     let branch_name = branch.unwrap_or("HEAD".to_string());
 
-    let output = git_command(&path)
-        .args(["push", &remote_name, &branch_name])
+    let mut cmd = git_command(&path);
+    
+    // 🛠️ Bloqueia TODOS os tipos de prompt interativo e helpers de credenciais gráficos
+    cmd.env("GIT_TERMINAL_PROMPT", "0");
+    cmd.env("GIT_ASKPASS", "true");       // No Linux/Unix, 'true' funciona como um comando que retorna sucesso vazio immediately
+    cmd.env("SSH_ASKPASS", "true");
+    cmd.env("GCM_INTERACTIVE", "never");  // Se o Git Credential Manager estiver instalado, diz para ele nunca abrir o browser
+
+    if let Some(t) = token {
+        if !t.trim().is_empty() {
+            let auth_string = format!(":{}", t.trim());
+            let encoded_auth = general_purpose::STANDARD.encode(auth_string);
+            let header = format!("Authorization: Basic {}", encoded_auth);
+
+            cmd.args(["-c", &format!("http.extraHeader={}", header)]);
+        }
+    }
+
+    let output = cmd
+        .args(["push", "-u", &remote_name, &branch_name])
         .output()
         .map_err(|e| e.to_string())?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+        let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
+        
+        if err_msg.contains("fatal: could not read Password") || 
+           err_msg.contains("Authentication failed") ||
+           err_msg.contains("terminal prompts disabled") {
+            return Err("Erro de Autenticação: Seu token do Azure expirou ou é inválido para este repositório.".to_string());
+        }
+        
+        Err(err_msg)
     }
 }
 
