@@ -85,7 +85,9 @@ pub async fn run_go_tests(
 
         #[cfg(target_os = "windows")]
         {
-            command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            use std::os::windows::process::CommandExt;
+
+            command.creation_flags(0x08000000);
         }
 
         println!("[Git River] Executando comando Go: {}", cmd_string);
