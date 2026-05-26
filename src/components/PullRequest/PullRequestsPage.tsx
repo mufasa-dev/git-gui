@@ -10,7 +10,7 @@ import { getProviderFromUrl } from "../../utils/gitProvider";
 import { getRemoteUrl } from "../../services/gitService";
 import { azureService } from "../../services/azure";
 
-export default function PullRequestsPage(props: { repo: Repo, username: string, branch?: string }) {
+export default function PullRequestsPage(props: { repo: Repo,  branch?: string }) {
   const [filter, setFilter] = createSignal("OPEN");
   const [searchTerm, setSearchTerm] = createSignal("");
   const [selectedPR, setSelectedPR] = createSignal<any>(null);
@@ -20,19 +20,69 @@ export default function PullRequestsPage(props: { repo: Repo, username: string, 
   const [sidebarWidth, setSidebarWidth] = createSignal(350);
   const [isResizing, setIsResizing] = createSignal(false);
 
-  const [remoteUrl] = createResource(() => getRemoteUrl(props.repo.path));
-  const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
+  const [remoteUrl] = createResource(
+    () => props.repo?.path || false,
+    async (path) => {
+      if (!path) return "";
+      return await getRemoteUrl(path);
+    }
+  );
 
-  const [prs] = createResource(
-    () => ({ owner: props.username, name: props.repo.name, state: filter(), currentProvider: provider() }),
-    async (params) => {
-      if (!params.name) return [];
+  // 2. Memoizador para descobrir o Provider (github ou azure)
+  const provider = createMemo(() => {
+    const url = remoteUrl();
+    return url ? getProviderFromUrl(url) : 'unknown';
+  });
+
+  // 3. Memoizador para extrair cirurgicamente o Owner/Organização direto da URL remota
+  const repoOwner = createMemo(() => {
+    const url = remoteUrl();
+    if (!url) return "";
+
+    try {
+      // Caso Azure DevOps (dev.azure.com/organizacao/...)
+      if (url.includes("dev.azure.com/")) {
+        return url.split("dev.azure.com/")[1]?.split("/")[0] || "";
+      }
       
+      // Caso Azure DevOps Antigo (...visualstudio.com)
+      if (url.includes(".visualstudio.com/")) {
+        return url.split(".visualstudio.com/")[0].replace("https://", "").split("@").pop() || "";
+      }
+
+      // Caso GitHub (github.com/owner/repo)
+      if (url.includes("github.com/")) {
+        return url.split("github.com/")[1]?.split("/")[0] || "";
+      }
+    } catch (e) {
+      console.error("Erro ao fazer o parse da URL remota:", e);
+    }
+    return "";
+  });
+
+  // 4. O Resource unificado agora monitora o owner dinâmico e o provider!
+  const [prs] = createResource(
+    () => ({ 
+      owner: repoOwner(), 
+      name: props.repo?.name, 
+      state: filter(), 
+      currentProvider: provider() 
+    }),
+    async (params) => {
+      // Só dispara a requisição HTTP se tivermos o nome do repo e o dono identificados
+      if (!params.name || !params.owner) return [];
+      
+      console.log(`Buscando PRs do ${params.currentProvider}. Org/Owner: ${params.owner}, Repo: ${params.name}`);
+
       if (params.currentProvider === 'azure') {
         return await azureService.getRepoPullRequests(params.owner, params.name, params.state);
       }
       
-      return await githubService.getRepoPullRequests(params.owner, params.name, params.state);
+      if (params.currentProvider === 'github') {
+        return await githubService.getRepoPullRequests(params.owner, params.name, params.state);
+      }
+      
+      return [];
     }
   );
 
@@ -135,7 +185,7 @@ export default function PullRequestsPage(props: { repo: Repo, username: string, 
               {/* Aqui entra o componente de detalhes */}
               <PRDetailView 
                 pr={selectedPR()} 
-                owner={props.username} 
+                owner={repoOwner()} 
                 repo={props.repo} 
                 branch={props.branch}
                 provider={provider()}
