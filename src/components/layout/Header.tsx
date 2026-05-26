@@ -1,11 +1,11 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createResource, createSignal, onMount, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { openBash, openConsole, openFileManager, openRepositoryBrowser, openVsCode } from "../../services/openService";
 import Button from "../ui/Button";
 import DropdownButton from "../ui/DropdownButton";
 import NewBranchModal from "../branch/NewBranchModal";
 import BranchSelector from "../branch/BranchSelector"; // 🌟 Import do novo seletor customizado
-import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch, configPullMode } from "../../services/gitService";
+import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch, configPullMode, getRemoteUrl } from "../../services/gitService";
 import { saveRepos } from "../../services/storeService";
 import folderIcon from "../../assets/folder_silver.png";
 import fetchIcon from "../../assets/reload_silver.png";
@@ -24,6 +24,9 @@ import openIcon from "../../assets/open_icon.png";
 import internetIcon from "../../assets/worldwide.png";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
+import { githubService } from "../../services/github";
+import { azureService } from "../../services/azure";
+import { getProviderFromUrl } from "../../utils/gitProvider";
 
 type Props = {
     repos: Repo[];
@@ -52,6 +55,15 @@ export default function Header(props: Props) {
 
     // 🌟 Memoizador para obter o repositório ativo completo exigido pelo BranchSelector
     const currentActiveRepo = () => props.repos.find(r => r.path === props.active) || null;
+
+    const [remoteUrl] = createResource(
+      () => props.active || false, 
+      async (path) => {
+        if (!path) return "";
+        return await getRemoteUrl(path);
+      }
+    );
+    const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
 
     async function openRepo() {
         const selected = await open({ directory: true, multiple: false });
@@ -84,14 +96,24 @@ export default function Header(props: Props) {
     const doPush = async () => {
       if (!props.active) return;
       setPushing(true);
-      showLoading("Realizando push...");
+      showLoading(t("loading").pushing);
       try {
         const branch = await getCurrentBranch(props.active!);
-        await pushRepo(props.active!, "origin", branch);
+        
+        let tokenToSend = "";
+        if (provider() === 'azure') {
+          tokenToSend = await azureService.getToken() || "";
+        } else if (provider() === 'github') {
+          tokenToSend = await githubService.getToken() || "";
+        }
+
+        // Envia o token para o comando Rust fazer a autenticação silenciosa
+        await pushRepo(props.active!, "origin", branch, tokenToSend);
+        
         notify.success('Git Push', `Push realizado com sucesso!`);
         await props.refreshBranches(props.active!);
       } catch (err) {
-        notify.error('Erro no Push', `Erro ao realizar o push: ${err}`);
+        notify.error('Erro no Push', `${err}`);
       } finally {
         setPushing(false);
         hideLoading();
