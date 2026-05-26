@@ -141,9 +141,10 @@ export async function getCommitFileDiff(
 export async function pushRepo(
   repoPath: string,
   remote: string = "origin",
-  branch: string = "HEAD"
+  branch: string = "HEAD",
+  token?: string
 ): Promise<string> {
-  return await invoke("push_repo", { path: repoPath, remote, branch });
+  return await invoke("push_repo", { path: repoPath, remote, branch, token });
 }
 
 export async function pull(repoPath: string, branch: string): Promise<GitPullResult> {
