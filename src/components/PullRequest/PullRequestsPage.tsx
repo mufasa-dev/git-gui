@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show, createMemo } from "solid-js";
+import { createResource, createSignal, For, Show, createMemo, createEffect } from "solid-js";
 import { githubService } from "../../services/github";
 import PRDetailView from "./PRDetailView";
 import { getRelativeTime } from "../../utils/date";
@@ -6,11 +6,10 @@ import { Repo } from "../../models/Repo.model";
 import CommitMessage from "../ui/CommitMessage";
 import PRStatusBadge from "./PRStatusBadge";
 import { useApp } from "../../context/AppContext";
-import { getProviderFromUrl } from "../../utils/gitProvider";
-import { getRemoteUrl } from "../../services/gitService";
+import { GitProvider } from "../../utils/gitProvider";
 import { azureService } from "../../services/azure";
 
-export default function PullRequestsPage(props: { repo: Repo,  branch?: string }) {
+export default function PullRequestsPage(props: { repo: Repo,  branch?: string, provider: GitProvider, remoteUrl: string }) {
   const [filter, setFilter] = createSignal("OPEN");
   const [searchTerm, setSearchTerm] = createSignal("");
   const [selectedPR, setSelectedPR] = createSignal<any>(null);
@@ -20,23 +19,9 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string }
   const [sidebarWidth, setSidebarWidth] = createSignal(350);
   const [isResizing, setIsResizing] = createSignal(false);
 
-  const [remoteUrl] = createResource(
-    () => props.repo?.path || false,
-    async (path) => {
-      if (!path) return "";
-      return await getRemoteUrl(path);
-    }
-  );
-
-  // 2. Memoizador para descobrir o Provider (github ou azure)
-  const provider = createMemo(() => {
-    const url = remoteUrl();
-    return url ? getProviderFromUrl(url) : 'unknown';
-  });
-
   // 3. Memoizador para extrair cirurgicamente o Owner/Organização direto da URL remota
   const repoOwner = createMemo(() => {
-    const url = remoteUrl();
+    const url = props.remoteUrl;
     if (!url) return "";
 
     try {
@@ -66,13 +51,11 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string }
       owner: repoOwner(), 
       name: props.repo?.name, 
       state: filter(), 
-      currentProvider: provider() 
+      currentProvider: props.provider 
     }),
     async (params) => {
       // Só dispara a requisição HTTP se tivermos o nome do repo e o dono identificados
       if (!params.name || !params.owner) return [];
-      
-      console.log(`Buscando PRs do ${params.currentProvider}. Org/Owner: ${params.owner}, Repo: ${params.name}`);
 
       if (params.currentProvider === 'azure') {
         return await azureService.getRepoPullRequests(params.owner, params.name, params.state);
@@ -85,6 +68,13 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string }
       return [];
     }
   );
+
+  createEffect(() => {
+    if (props.repo?.path) {
+      setSelectedPR(null);
+      setSearchTerm("");
+    }
+  });
 
   // Filtro de busca local
   const filteredPRList = createMemo(() => {
@@ -188,7 +178,7 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string }
                 owner={repoOwner()} 
                 repo={props.repo} 
                 branch={props.branch}
-                provider={provider()}
+                provider={props.provider}
               />
             </Show>
           </div>
