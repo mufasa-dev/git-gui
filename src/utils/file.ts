@@ -172,6 +172,7 @@ export const TAG_MAPPING: Record<string, string> = {
   fet: "feat",
   featt: "feat",
   fewat: "feat",
+  bcfmarkup: "feat",
   // Fixes
   bug: "fix",
   fixed: "fix",
@@ -193,6 +194,9 @@ export const TAG_MAPPING: Record<string, string> = {
   chord: "chore",
   // Translate
   i18n: "translate",
+  transalte: "translate",
+  traducao: "translate",
+  traduc: "translate",
   // Outros
   srtle: "other",
   other: "other",
