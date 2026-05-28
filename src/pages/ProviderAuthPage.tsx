@@ -7,6 +7,7 @@ import GithubProfileCard from "../components/Remote/GithubProfileCard";
 import { azureService } from "../services/azure";
 import AzureProfileCard from "../components/Remote/AzureProfileCard";
 import PatHelpModal from "../components/auth/PatHelpModal";
+import { useApp } from "../context/AppContext";
 
 export default function ProviderAuthPage(props: { repoPath: string }) {
   const { user } = useRepoContext();
@@ -66,6 +67,7 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
   const [orgName, setOrgName] = createSignal(""); 
   const [authError, setAuthError] = createSignal<string | null>(null);
   const [showHelp, setShowHelp] = createSignal(false);
+  const { t } = useApp();
 
   const { refetchUser } = useRepoContext();
   const [remoteUrl] = createResource(() => props.repoPath ? getRemoteUrl(props.repoPath) : null);
@@ -91,7 +93,7 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
   const handleLogin = async (e: Event) => {
     e.preventDefault();
     if (props.provider === 'azure' && (!patToken() || !orgName())) {
-      setAuthError("Por favor, insira o nome da Organização e o seu Personal Access Token.");
+      setAuthError(t('provider').please_enter_org_pat);
       return;
     }
 
@@ -110,22 +112,22 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
         if (response.success) {
           refetchUser(); 
         } else {
-          setAuthError("Token inválido, organização incorreta ou falta de permissões.");
+          setAuthError(t('provider').error_token);
           setIsLogging(false);
         }
       }
     } catch (e) {
       console.error(`Falha no login do ${props.provider}`, e);
-      setAuthError("Ocorreu um erro de rede ao tentar conectar.");
+      setAuthError(t('provider').error_authentication);
       setIsLogging(false);
     }
   };
 
   return (
     <div class="flex flex-col gap-4">
-      <h2 class="text-xl font-bold dark:text-white uppercase tracking-tight">Conectar ao {props.provider}</h2>
+      <h2 class="text-xl font-bold dark:text-white uppercase tracking-tight">{t('provider').connect_to} {props.provider}</h2>
       <p class="text-sm text-gray-500 dark:text-gray-400">
-        Para visualizar seu perfil e gerenciar repositórios, você precisa autorizar sua conta.
+        {t("provider").title_descri}
       </p>
 
       <Show when={props.provider === 'azure'} fallback={
@@ -134,9 +136,9 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
           disabled={isLogging()}
           class="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
         >
-          <Show when={isLogging()} fallback={<span>EFETUAR LOGIN</span>}>
+          <Show when={isLogging()} fallback={<span>{t('provider').do_login}</span>}>
             <i class="fa-solid fa-circle-notch animate-spin text-sm"></i>
-            <span>Aguardando autenticação...</span>
+            <span>{t('provider').waiting_authentication}</span>
           </Show>
         </button>
       }>
@@ -144,7 +146,7 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
           
           {/* Campo: Organização */}
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Organização</label>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('provider').organization}</label>
             <input 
               type="text" 
               placeholder="Ex: devbrook"
@@ -158,19 +160,19 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
           {/* Campo: PAT com o botão de Ajuda integrado */}
           <div class="flex flex-col gap-1.5">
             <div class="flex justify-between items-center">
-              <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Personal Access Token (PAT)</label>
+              <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('provider').personal_access_token}</label>
               <button 
                 type="button"
                 onClick={() => setShowHelp(true)}
                 class="text-xs font-medium text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 transition-colors outline-none"
               >
                 <i class="fa-solid fa-circle-question"></i>
-                <span>Como gerar?</span>
+                <span>{t('provider').how_generate}</span>
               </button>
             </div>
             <input 
               type="password" 
-              placeholder="Cole seu token do Azure DevOps aqui..."
+              placeholder={t('provider').paste_token_azure_here}
               value={patToken()}
               onInput={(e) => setPatToken(e.currentTarget.value)}
               disabled={isLogging()}
@@ -179,7 +181,7 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
           </div>
 
           <p class="text-xs text-gray-400 leading-relaxed">
-            O token inserido precisa de escopo de <span class="text-blue-400 font-medium">Code (Read & Write)</span> e de <span class="text-blue-400 font-medium">Project and Team (Read)</span>.
+            {t('provider').token_needs_to} <span class="text-blue-400 font-medium">Code (Read & Write)</span> e de <span class="text-blue-400 font-medium">Project and Team (Read)</span>.
           </p>
 
           <Show when={authError()}>
@@ -193,9 +195,9 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
             disabled={isLogging() || !patToken() || !orgName()}
             class="mt-2 w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
           >
-            <Show when={isLogging()} fallback={<span>CONECTAR COM TOKEN</span>}>
+            <Show when={isLogging()} fallback={<span>{t('provider').connect_with_token}</span>}>
               <i class="fa-solid fa-circle-notch animate-spin text-sm"></i>
-              <span>Validando Token...</span>
+              <span>{t('provider').validateting}</span>
             </Show>
           </button>
         </form>
