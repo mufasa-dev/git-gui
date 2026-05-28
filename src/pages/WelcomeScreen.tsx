@@ -304,7 +304,7 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
                             >
                                 <Show when={isLogging()} fallback={<span>{t('repository').connect_account}</span>}>
                                     <i class="fa-solid fa-circle-notch animate-spin text-xs"></i>
-                                    <span>Conectando...</span>
+                                    <span>{t('loading').connecting}</span>
                                 </Show>
                             </button>
                         </Show>
@@ -315,7 +315,7 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
                                 {/* NOVO CAMPO: Organização */}
                                 <input 
                                     type="text"
-                                    placeholder="Sua Organização (Ex: devbrook)..."
+                                    placeholder={t('provider').organization + " (Ex: devbrook)..."}
                                     value={orgValue()}
                                     onInput={(e) => setOrgValue(e.currentTarget.value)}
                                     disabled={isLogging()}
@@ -325,7 +325,7 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
                                 <div class="flex items-center gap-2 w-full">
                                     <input 
                                         type="password"
-                                        placeholder="Cole seu Personal Access Token (PAT)..."
+                                        placeholder={t('provider').paste_token_azure_here}
                                         value={patValue()}
                                         onInput={(e) => setPatValue(e.currentTarget.value)}
                                         disabled={isLogging()}
@@ -346,9 +346,9 @@ function ProviderCard(props: { provider: any, onSelectRepo: (url: string) => voi
                                         disabled={isLogging() || !patValue() || !orgValue()}
                                         class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                                     >
-                                        <Show when={isLogging()} fallback={<span>CONFIRMAR</span>}>
+                                        <Show when={isLogging()} fallback={<span>{t('common').confirm}</span>}>
                                             <i class="fa-solid fa-circle-notch animate-spin text-[10px]"></i>
-                                            <span>Validando...</span>
+                                            <span>{t('loading').validating}</span>
                                         </Show>
                                     </button>
                                     <button 
