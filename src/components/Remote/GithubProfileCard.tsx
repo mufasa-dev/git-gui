@@ -99,7 +99,7 @@ export default function GithubProfileCard() {
 
             <Show when={extraData()?.orgs && (extraData()?.orgs?.length ?? 0) > 0}>
               <div class="mt-8">
-                <p class="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest">Organizations</p>
+                <p class="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest">{t('provider').organization}</p>
                 <div class="flex gap-2 flex-wrap">
                   <For each={extraData()?.orgs || []}>
                     {(org: any) => (
@@ -146,7 +146,7 @@ export default function GithubProfileCard() {
       <UserConnectionsModal 
         isOpen={modalType() !== null} 
         onClose={() => setModalType(null)} 
-        username={user()?.login} 
+        username={user()?.login || ""} 
         type={modalType() as any} 
       />
     </div>
