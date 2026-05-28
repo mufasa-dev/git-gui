@@ -3,6 +3,7 @@ import { githubService } from "../../services/github";
 import Dialog from "../ui/Dialog";
 import { GROUP_COLORS } from "../../utils/file";
 import { azureService } from "../../services/azure";
+import { useApp } from "../../context/AppContext";
 
 export default function RemoteRepoModal(props: { 
   isOpen: boolean, 
@@ -12,6 +13,7 @@ export default function RemoteRepoModal(props: {
 }) {
   const [search, setSearch] = createSignal("");
   const [selectedProject, setSelectedProject] = createSignal<string | null>(null);
+  const { t } = useApp();
 
   // Toda vez que fechar ou mudar de provedor, limpa o projeto selecionado
   createEffect(() => {
@@ -90,7 +92,7 @@ export default function RemoteRepoModal(props: {
             class="px-3 py-1.5 text-xs font-bold rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 transition-all flex items-center gap-1.5 shrink-0"
           >
             <i class="fa-solid fa-arrow-left"></i>
-            <span>PROJETOS</span>
+            <span>{t('provider').projects}</span>
           </button>
         </Show>
 
@@ -116,7 +118,7 @@ export default function RemoteRepoModal(props: {
         <Show when={!items.loading} fallback={
           <div class="flex flex-col items-center justify-center p-20 gap-3 text-gray-500">
             <i class="fa-solid fa-circle-notch animate-spin text-2xl"></i>
-            <span class="text-sm font-medium">Carregando dados...</span>
+            <span class="text-sm font-medium">{t('loading').data}</span>
           </div>
         }>
           <For each={filteredItems()}>
