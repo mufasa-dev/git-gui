@@ -166,7 +166,8 @@
     "loading_branches": "Loading branches...",
     "loading_repositories": "Loading repositories...",
     "loading_pull_requests": "Loading pull requests...",
-    "offers": "Loading offers..."
+    "offers": "Loading offers...",
+    "data": "Loading data..."
   },
   "git": {
     "commit": "Commit",
@@ -483,6 +484,31 @@
     "privacy": "Privacy Policy",
     "got_it": "Got it",
     "last_update": "Last update: May 16, 2026"
+  },
+  "provider": {
+    "azure": "Azure DevOps",
+    "title_descri": "To view your profile and manage repositories, you need to authorize your account.",
+    "connect_to": "Connect to",
+    "organization": "Organization",
+    "project": "Project",
+    "projects": "Projects",
+    "repository": "Repository",
+    "personal_access_token": "Personal Access Token",
+    "validateting": "Validating token...",
+    "waiting_authentication": "Waiting for authentication...",
+    "error_authentication": "Authentication error, please check your credentials and try again.",
+    "select_repository": "Select a repository to continue",
+    "connect_with_token": "Connect with token",
+    "how_generate": "How to generate?",
+    "do_login": "LOG IN",
+    "paste_token_azure_here": "Paste your Azure DevOps token here...",
+    "error_token": "Invalid token, incorrect organization, or missing permissions.",
+    "token_needs_to": "The entered token requires scope for",
+    "please_enter_org_pat": "Please enter the Organization name and your Personal Access Token.",
+    "activated_colections": "Active Collections",
+    "azure_enviremont": "Azure Repositories Workspace",
+    "azure_repo_descri": "You have successfully connected. Use the app's main sidebar to navigate and manage this repository's branches and Pull Requests.",
+    "provider_identified": "Identity Provider"
   },
   "date": {
     "just_now": "just now",

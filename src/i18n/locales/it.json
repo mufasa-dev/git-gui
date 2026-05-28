@@ -166,7 +166,8 @@
     "loading_branches": "Caricamento branches...",
     "loading_repositories": "Caricamento repositories...",
     "loading_pull_requests": "Caricamento pull requests...",
-    "offers": "Caricamento offerte"
+    "offers": "Caricamento offerte",
+    "data": "Caricamento dati..."
   },
   "git": {
     "commit": "Commit",
@@ -483,6 +484,31 @@
     "privacy": "Informativa sulla Privacy",
     "got_it": "Ho capito",
     "last_update": "Ultimo aggiornamento: 16 maggio 2026"
+  },
+  "provider": {
+    "azure": "Azure DevOps",
+    "title_descri": "Per visualizzare il tuo profilo e gestire i repository, devi autorizzare il tuo account.",
+    "connect_to": "Connetti a",
+    "organization": "Organizzazione",
+    "project": "Progetto",
+    "projects": "Progetti",
+    "repository": "Repository",
+    "personal_access_token": "Token di Accesso Personale",
+    "validateting": "Validazione del token in corso...",
+    "waiting_authentication": "In attesa di autenticazione...",
+    "error_authentication": "Errore di autenticazione, verifica le tue credenziali e riprova.",
+    "select_repository": "Seleziona un repository per continuare",
+    "connect_with_token": "Connetti con token",
+    "how_generate": "Come generarlo?",
+    "do_login": "EFFETTUA IL LOGIN",
+    "paste_token_azure_here": "Incolla qui il tuo token di Azure DevOps...",
+    "error_token": "Token non valido, organizzazione errata o autorizzazioni mancanti.",
+    "token_needs_to": "Il token inserito richiede l'ambito per",
+    "please_enter_org_pat": "Per favore, inserisci il nome dell'Organizzazione e il tuo Token di Accesso Personale.",
+    "activated_colections": "Collezioni Attive",
+    "azure_enviremont": "Ambiente di Lavoro Azure Repositories",
+    "azure_repo_descri": "Ti sei connesso con successo. Usa la barra laterale principale dell'applicazione per navigare e gestire i branch e le Pull Request di questo repository.",
+    "provider_identified": "Provider di Identità"
   },
   "date": {
     "just_now": "proprio ora",

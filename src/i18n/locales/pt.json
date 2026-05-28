@@ -166,7 +166,8 @@
     "loading_branches": "Carregando branches...",
     "loading_repositories": "Carregando repositórios...",
     "loading_pull_requests": "Carregando pull requests...",
-    "offers": "Carregando ofertas..."
+    "offers": "Carregando ofertas...",
+    "data": "Carregando dados..."
   },
   "git": {
     "commit": "Commit",
@@ -483,6 +484,31 @@
     "privacy": "Política de Privacidade",
     "got_it": "Entendido",
     "last_update": "Última atualização: 16 de Maio de 2026"
+  },
+  "provider": {
+    "azure": "Azure DevOps",
+    "title_descri": "Para visualizar seu perfil e gerenciar repositórios, você precisa autorizar sua conta.",
+    "connect_to": "Conectar ao",
+    "organization": "Organização",
+    "project": "Projeto",
+    "projects": "Projetos",
+    "repository": "Repositório",
+    "personal_access_token": "Token de Acesso Pessoal",
+    "validateting": "Validando token...",
+    "waiting_authentication": "Aguardando autenticação...",
+    "error_authentication": "Erro na autenticação, verifique suas credenciais e tente novamente.",
+    "select_repository": "Selecione um repositório para continuar",
+    "connect_with_token": "Conectar com token",
+    "how_generate": "Como gerar?",
+    "do_login": "EFETUAR LOGIN",
+    "paste_token_azure_here": "Cole seu token do Azure DevOps aqui...",
+    "error_token": "Token inválido, organização incorreta ou falta de permissões.",
+    "token_needs_to": "O token inserido precisa de escopo de",
+    "please_enter_org_pat": "Por favor, insira o nome da Organização e o seu Personal Access Token.",
+    "activated_colections": "Coleções Ativas",
+    "azure_enviremont": "Ambiente de Trabalho Azure Repositórios",
+    "azure_repo_descri": "Você está conectado com sucesso. Use a barra lateral principal do aplicativo para navegar e gerenciar as ramificações e os Pull Requests deste repositório.",
+    "provider_identified": "Provedor de Identidade"
   },
   "date": {
     "just_now": "agora mesmo",

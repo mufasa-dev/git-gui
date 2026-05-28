@@ -166,7 +166,8 @@
     "loading_branches": "ブランチを読み込み中...",
     "loading_repositories": "リポジトリを読み込み中...",
     "loading_pull_requests": "プルリクエストを読み込み中...",
-    "offers": "オファーを読み込み中"
+    "offers": "オファーを読み込み中",
+    "data": "データを読み込み中..."
   },
   "git": {
     "commit": "コミット",
@@ -483,6 +484,31 @@
     "privacy": "プライバシーポリシーに同意したものとみなされます。",
     "got_it": "了解しました",
     "last_update": "最終更新日：2026年5月16日"
+  },
+  "provider": {
+    "azure": "Azure DevOps",
+    "title_descri": "プロフィールを表示してリポジトリを管理するには、アカウントを認証する必要があります。",
+    "connect_to": "接続先:",
+    "organization": "組織",
+    "project": "プロジェクト",
+    "projects": "プロジェクト一覧",
+    "repository": "リポジトリ",
+    "personal_access_token": "個人アクセストークン (PAT)",
+    "validateting": "トークンを検証中...",
+    "waiting_authentication": "認証を待機中...",
+    "error_authentication": "認証エラーが発生しました。資格情報を確認して再試行してください。",
+    "select_repository": "続けるにはリポジトリを選択してください",
+    "connect_with_token": "トークンで接続",
+    "how_generate": "生成方法は？",
+    "do_login": "ログインする",
+    "paste_token_azure_here": "ここにAzure DevOpsトークンを貼り付けてください...",
+    "error_token": "トークンが無効であるか、組織名が間違っているか、権限が不足しています。",
+    "token_needs_to": "入力されたトークンには以下のスコープが必要です:",
+    "please_enter_org_pat": "組織名と個人アクセストークンを入力してください。",
+    "activated_colections": "アクティブなコレクション",
+    "azure_enviremont": "Azure Repos ワークスペース",
+    "azure_repo_descri": "正常に接続されました。このリポジトリのブランチやプルリクエストの移動・管理には、アプリのメインサイドバーを使用してください。",
+    "provider_identified": "アイデンティティプロバイダー"
   },
   "date": {
     "just_now": "たった今",
