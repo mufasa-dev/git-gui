@@ -81,7 +81,7 @@ export default function AzureProfileCard() {
           </div>
 
           <div class="border-y border-gray-200 dark:border-gray-700/50 py-3 px-4 mb-6 bg-gray-50/50 dark:bg-gray-800/30">
-            <span class="text-[9px] uppercase text-gray-400 font-bold tracking-widest block mb-1">Provedor de Identidade</span>
+            <span class="text-[9px] uppercase text-gray-400 font-bold tracking-widest block mb-1">{t('provider').provider_identified}</span>
             <div class="flex items-center gap-2 text-xs font-semibold text-blue-500 dark:text-blue-400">
               <i class="fa-brands fa-microsoft text-sm"></i>
               <span>Microsoft Entra ID</span>
@@ -104,7 +104,7 @@ export default function AzureProfileCard() {
 
             {/* SEÇÃO DE ORGANIZAÇÕES / COLLECTIONS DA AZURE */}
             <div class="pt-4">
-              <p class="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest">Coleções Ativas</p>
+              <p class="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest">{t('provider').activated_colections}</p>
               <div class="space-y-2">
                 <For each={extraData()?.organizations || []}>
                   {(org: any) => (
@@ -141,9 +141,9 @@ export default function AzureProfileCard() {
             <div class="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 border border-blue-500/20 shadow-inner">
               <i class="fa-solid fa-folder-tree"></i>
             </div>
-            <h4 class="text-md font-bold dark:text-white mb-1">Ambiente de Trabalho Azure Repos</h4>
+            <h4 class="text-md font-bold dark:text-white mb-1">{t('provider').azure_enviremont}</h4>
             <p class="text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
-              Você está conectado com sucesso. Use a barra lateral principal do aplicativo para navegar e gerenciar as ramificações e os Pull Requests deste repositório.
+              {t('provider').azure_repo_descri}
             </p>
           </div>
         </div>
