@@ -108,7 +108,7 @@ export default function Header(props: Props) {
         }
 
         // Envia o token para o comando Rust fazer a autenticação silenciosa
-        await pushRepo(props.active!, "origin", branch, tokenToSend);
+        await pushRepo(props.active!, "origin", branch, tokenToSend, provider());
         
         notify.success('Git Push', `Push realizado com sucesso!`);
         await props.refreshBranches(props.active!);

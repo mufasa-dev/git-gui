@@ -19,6 +19,7 @@ pub fn push_repo(
     remote: Option<String>,
     branch: Option<String>,
     token: Option<String>,
+    provider: Option<String>,
 ) -> Result<String, String> {
 
     let remote_name = remote.unwrap_or("origin".to_string());
@@ -26,17 +27,22 @@ pub fn push_repo(
 
     let mut cmd = git_command(&path);
     
-    // 🛠️ Bloqueia TODOS os tipos de prompt interativo e helpers de credenciais gráficos
     cmd.env("GIT_TERMINAL_PROMPT", "0");
-    cmd.env("GIT_ASKPASS", "true");       // No Linux/Unix, 'true' funciona como um comando que retorna sucesso vazio immediately
+    cmd.env("GIT_ASKPASS", "true");       
     cmd.env("SSH_ASKPASS", "true");
-    cmd.env("GCM_INTERACTIVE", "never");  // Se o Git Credential Manager estiver instalado, diz para ele nunca abrir o browser
+    cmd.env("GCM_INTERACTIVE", "never");  
 
     if let Some(t) = token {
         if !t.trim().is_empty() {
-            let auth_string = format!(":{}", t.trim());
-            let encoded_auth = general_purpose::STANDARD.encode(auth_string);
-            let header = format!("Authorization: Basic {}", encoded_auth);
+            let current_provider = provider.unwrap_or_else(|| "github".to_string());
+            
+            let header = if current_provider == "azure" {
+                let auth_string = format!(":{}", t.trim());
+                let encoded_auth = general_purpose::STANDARD.encode(auth_string);
+                format!("Authorization: Basic {}", encoded_auth)
+            } else {
+                format!("Authorization: Bearer {}", t.trim())
+            };
 
             cmd.args(["-c", &format!("http.extraHeader={}", header)]);
         }
@@ -55,7 +61,7 @@ pub fn push_repo(
         if err_msg.contains("fatal: could not read Password") || 
            err_msg.contains("Authentication failed") ||
            err_msg.contains("terminal prompts disabled") {
-            return Err("Erro de Autenticação: Seu token do Azure expirou ou é inválido para este repositório.".to_string());
+            return Err("Erro de Autenticação: Seu token expirou ou é inválido para este repositório.".to_string());
         }
         
         Err(err_msg)

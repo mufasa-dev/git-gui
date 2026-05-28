@@ -142,9 +142,10 @@ export async function pushRepo(
   repoPath: string,
   remote: string = "origin",
   branch: string = "HEAD",
-  token?: string
+  token?: string,
+  provider?: string
 ): Promise<string> {
-  return await invoke("push_repo", { path: repoPath, remote, branch, token });
+  return await invoke("push_repo", { path: repoPath, remote, branch, token, provider });
 }
 
 export async function pull(repoPath: string, branch: string): Promise<GitPullResult> {
