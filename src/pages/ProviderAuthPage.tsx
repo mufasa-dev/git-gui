@@ -1,5 +1,5 @@
 import { createResource, Show, createSignal, createMemo } from "solid-js";
-import { getProviderFromUrl, GitProvider } from "../utils/gitProvider";
+import { GitProvider } from "../utils/gitProvider";
 import { getRemoteUrl } from "../services/gitService"; 
 import { githubService } from "../services/github";
 import { useRepoContext } from "../context/RepoContext";
@@ -9,11 +9,17 @@ import AzureProfileCard from "../components/Remote/AzureProfileCard";
 import PatHelpModal from "../components/auth/PatHelpModal";
 import { useApp } from "../context/AppContext";
 
-export default function ProviderAuthPage(props: { repoPath: string }) {
+export default function ProviderAuthPage(props: { repoPath: string, provider: GitProvider }) {
   const { user } = useRepoContext();
-  
-  const [remoteUrl] = createResource(() => getRemoteUrl(props.repoPath));
-  const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
+
+  const isCurrentProviderAuthenticated = createMemo(() => {
+      const data = user();
+      if (!data) return false;
+      
+      if (props.provider === 'github') return !!data.github;
+      if (props.provider === 'azure') return !!data.azure;
+      return false;
+    });
 
   return (
     <div class="h-full w-full bg-gray-100 dark:bg-gray-900 overflow-hidden flex flex-col">
@@ -22,26 +28,28 @@ export default function ProviderAuthPage(props: { repoPath: string }) {
            <i class="fa-solid fa-circle-notch animate-spin text-blue-500 text-3xl"></i>
         </div>
       }>
-        <Show 
-          when={user()} 
-          fallback={
-            <div class="flex h-full w-full items-center justify-center p-10">
-              <div class="bg-white dark:bg-gray-800 p-10 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl max-w-md w-full text-center">
-                <div class="mb-6 flex justify-center">
-                  <ProviderIcon type={provider()} />
+        <div class="height-container">
+          <Show 
+            when={isCurrentProviderAuthenticated()} 
+            fallback={
+              <div class="flex h-full w-full items-center justify-center p-10">
+                <div class="bg-white dark:bg-gray-800 p-10 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl max-w-md w-full text-center">
+                  <div class="mb-6 flex justify-center">
+                    <ProviderIcon type={props.provider} />
+                  </div>
+                  <LoginAction provider={props.provider} repoPath={props.repoPath} />
                 </div>
-                <LoginAction provider={provider()} repoPath={props.repoPath} />
               </div>
-            </div>
-          }
-        >
-          <Show when={provider() === 'github'}>
-            <GithubProfileCard />
+            }
+          >
+            <Show when={props.provider === 'github'}>
+              <GithubProfileCard />
+            </Show>
+            <Show when={props.provider === 'azure'}>
+              <AzureProfileCard /> 
+            </Show>
           </Show>
-          <Show when={provider() === 'azure'}>
-            <AzureProfileCard /> 
-          </Show>
-        </Show>
+        </div>
       </Show>
     </div>
   );
