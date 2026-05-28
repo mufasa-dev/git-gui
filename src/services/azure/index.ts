@@ -220,12 +220,17 @@ export const azureService = {
       if (!token) return {};
       const credentials = btoa(`:${token.trim()}`);
       
-      const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests/${prNumber}?api-version=7.0`;
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
+      
       const response = await window.fetch(url, {
         headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
       });
 
-      if (!response.ok) return {};
+      if (!response.ok) {
+        console.error("Erro ao buscar descrição do PR no Azure:", response.status);
+        return {};
+      }
+      
       const pr = await response.json();
 
       // Mapeia os revisores do Azure para o formato esperado pelo seu reviewersList()
@@ -247,7 +252,6 @@ export const azureService = {
       return {
         mergeable: pr.mergeStatus === 'conflicts' ? 'CONFLICTING' : 'MERGEABLE',
         reviewers: reviewers
-        // Você pode mockar ou buscar participantes adicionais aqui se julgar necessário
       } as any;
     } catch (e) {
       console.error(e);
