@@ -93,6 +93,7 @@ fn main() {
             commands::dashboard::get_user_most_modified_files,
             git_hub::auth::exchange_code_for_token,
             azure::auth::request_azure_device_code,
+            azure::auth::get_user_avatar,
             tests::jasmine_test::run_angular_tests,
             tests::jasmine_test::get_angular_test_files,
             tests::dotnet_test::run_dotnet_tests,
