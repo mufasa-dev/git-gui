@@ -1,5 +1,5 @@
 import { createMemo, createResource, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
-import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges } from "../services/gitService";
+import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteUrl } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
 import { Repo } from "../models/Repo.model";
@@ -20,11 +20,22 @@ import { useApp } from "../context/AppContext";
 import { load } from "@tauri-apps/plugin-store";
 import defaultAvatarImg from "../assets/default_avatar.png";
 import { azureService } from "../services/azure";
+import { getProviderFromUrl } from "../utils/gitProvider";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
   const [active, setActive] = createSignal<string | null>(null);
   const [activePage, setActivePage] = createSignal<string>('commits');
+
+  const [remoteUrl] = createResource(
+    () => active(), 
+    async (currentPath) => {
+      if (!currentPath) return "";
+      return await getRemoteUrl(currentPath);
+    }
+  );
+  const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
+    
   const [user, { mutate, refetch }] = createResource(async () => {
     try {
       // 1. Busca o usuário do GitHub normalmente
@@ -70,6 +81,15 @@ export default function RepoTabsPage() {
     }
   });
   const { t } = useApp();
+
+  const isLoggedOnProvider = () => {
+    if (provider() === 'github') {
+      return !!user()?.github;
+    } else if (provider() === 'azure') {
+      return !!user()?.azure;
+    }
+    return false;
+  }
 
   const closeRepo = (id: string) => {
     const currentRepos = repos();
@@ -200,7 +220,7 @@ export default function RepoTabsPage() {
               <LateralBar repos={repos()} 
                 active={activePage()} 
                 onChangeActive={setActivePage}
-                isLogged={!!user()}
+                isLogged={isLoggedOnProvider()}
               />
             </Show>
             
@@ -247,7 +267,9 @@ export default function RepoTabsPage() {
                   {(currentRepo) => (
                     <PullRequestsPage 
                       repo={currentRepo()} 
-                      branch={activeRepo()?.activeBranch}  
+                      branch={activeRepo()?.activeBranch}
+                      provider={provider()}
+                      remoteUrl={remoteUrl()!}
                     />
                   )}
                 </Show>
@@ -263,10 +285,9 @@ export default function RepoTabsPage() {
                 </Show>
               </Match>
 
-              {/* Nova Página: Auth/Perfil (Opcional, se já quiser deixar o lugar guardado) */}
               <Match when={active() && activePage() === 'profile'}>
                 <Show when={activeRepo()}>
-                  <ProviderAuthPage repoPath={active()!} />
+                  <ProviderAuthPage repoPath={active()!} provider={provider()} />
                 </Show>
               </Match>
             </Switch>
