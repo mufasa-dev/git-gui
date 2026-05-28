@@ -10,7 +10,7 @@ import tableIcon from "../../assets/table_silver.png";
 import profileIcon from "../../assets/profile_silver.png";
 import configIcon from "../../assets/config_silver.png";
 import Tooltip from "./Tooltip";
-import { Show } from "solid-js";
+import { createEffect, Show } from "solid-js";
 import { useApp } from "../../context/AppContext";
 
 export default function LateralBar(props: {
@@ -20,6 +20,12 @@ export default function LateralBar(props: {
   onChangeActive: (id: string) => void;
 }) {
   const { t } = useApp();
+
+  createEffect(() => {
+    if (props.active === "pull-requests" && !props.isLogged) {
+      props.onChangeActive("profile");
+    }
+  });
 
   return (
     <div class="flex flex-col mt-2 mb-2" style={{"width": "56px"}}>
