@@ -167,7 +167,11 @@
     "loading_repositories": "リポジトリを読み込み中...",
     "loading_pull_requests": "プルリクエストを読み込み中...",
     "offers": "オファーを読み込み中",
-    "data": "データを読み込み中..."
+    "data": "データを読み込み中...",
+    "validating": "検証中...",
+    "authenticating": "認証中...",
+    "connecting": "接続中...",
+    "disconnecting": "切断中..."
   },
   "git": {
     "commit": "コミット",

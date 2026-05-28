@@ -167,7 +167,11 @@
     "loading_repositories": "Carregando repositórios...",
     "loading_pull_requests": "Carregando pull requests...",
     "offers": "Carregando ofertas...",
-    "data": "Carregando dados..."
+    "data": "Carregando dados...",
+    "validating": "Validando...",
+    "authenticating": "Autenticando...",
+    "connecting": "Conectando...",
+    "disconnecting": "Desconectando..."
   },
   "git": {
     "commit": "Commit",
