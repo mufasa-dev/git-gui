@@ -1,4 +1,4 @@
-import { createResource, Show, For, createSignal } from "solid-js";
+import { createResource, Show, For, createSignal, createMemo } from "solid-js";
 import { azureService } from "../../services/azure";
 import { useRepoContext } from "../../context/RepoContext";
 import { useApp } from "../../context/AppContext";
@@ -7,21 +7,18 @@ export default function AzureProfileCard() {
   const { user, mutateUser } = useRepoContext();
   const { t } = useApp();
 
+  const azureData = createMemo(() => user()?.azure);
+  
   const minWidth = 250;
   const maxWidth = 500;
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
 
-  // Busca dados estendidos do perfil da Azure (como organizações/projetos se necessário no futuro)
-  // Por enquanto, centraliza o ciclo de vida baseado no login do usuário
   const [extraData] = createResource(
-    () => user()?.login,
+    () => azureData()?.login,
     async () => {
-      // Aqui você pode expandir futuramente para buscar mais dados da REST API da Azure
-      // Como rotas de organizações: https://app.vssps.visualstudio.com/_apis/accounts
       return {
         location: "Azure DevOps Workspace",
-        // Mock de projetos/organizações estruturais para popular a UI inicialmente
         organizations: [
           { name: "DefaultCollection", imageUrl: "" }
         ]
@@ -52,18 +49,17 @@ export default function AzureProfileCard() {
     >
       {/* PAINEL LATERAL (PERFIL) */}
       <div 
-        class="container-branch-list p-0 flex flex-col mb-2" 
-        style={{ width: `${sidebarWidth()}px`, height: "calc(100vh - 124px)" }}
+        class="container-branch-list p-0 flex flex-col" 
+        style={{ width: `${sidebarWidth()}px`}}
       >
         <div class="pb-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col h-full">
           
           <div class="relative flex justify-center mb-4 mt-4">
             <div class="relative">
               <img 
-                src={user()?.avatar_url} 
+                src={azureData()?.avatar_url} 
                 class="w-32 h-32 rounded-full border-4 border-blue-500/30 dark:border-blue-500/20 shadow-xl object-cover bg-gray-800" 
                 onError={(e) => {
-                  // Fallback caso a API da Azure demore para renderizar a imagem de perfil gerada por ID
                   e.currentTarget.src = "https://www.gravatar.com/avatar/?d=mp";
                 }}
               />
@@ -75,9 +71,9 @@ export default function AzureProfileCard() {
 
           <div class="mb-4 px-4 text-center">
             <h3 class="text-xl font-bold dark:text-white truncate">
-                {user()?.login || "Usuário Azure"}
+                {azureData()?.login || "Usuário Azure"}
             </h3>
-            <p class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{user()?.login}</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{azureData()?.login}</p>
           </div>
 
           <div class="border-y border-gray-200 dark:border-gray-700/50 py-3 px-4 mb-6 bg-gray-50/50 dark:bg-gray-800/30">
@@ -92,7 +88,7 @@ export default function AzureProfileCard() {
             <div class="space-y-2">
               <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                 <i class="fa-solid fa-envelope w-4 text-gray-400"></i>
-                <span class="truncate">{user()?.login}</span>
+                <span class="truncate">{azureData()?.login}</span>
               </div>
               <Show when={extraData()?.location}>
                 <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
