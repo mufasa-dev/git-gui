@@ -41,7 +41,9 @@ pub fn push_repo(
                 let encoded_auth = general_purpose::STANDARD.encode(auth_string);
                 format!("Authorization: Basic {}", encoded_auth)
             } else {
-                format!("Authorization: Bearer {}", t.trim())
+                let auth_string = format!("{}:", t.trim());
+                let encoded_auth = general_purpose::STANDARD.encode(auth_string);
+                format!("Authorization: Basic {}", encoded_auth)
             };
 
             cmd.args(["-c", &format!("http.extraHeader={}", header)]);
