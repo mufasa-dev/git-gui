@@ -46,8 +46,8 @@ export default function GithubProfileCard() {
       onMouseLeave={() => setIsResizing(false)}
     >
       <div 
-        class="container-branch-list p-0 flex flex-col mb-2" 
-        style={{ width: `${sidebarWidth()}px`, height: "calc(100vh - 124px)" }}
+        class="container-branch-list p-0 flex flex-col" 
+        style={{ width: `${sidebarWidth()}px` }}
       >
         <div class="pb-6 flex-1 overflow-y-auto custom-scrollbar">
           <div class="relative flex justify-center mb-4 mt-4">
