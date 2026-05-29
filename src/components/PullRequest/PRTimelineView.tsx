@@ -8,6 +8,8 @@ import { useLoading } from "../ui/LoadingContext";
 import { getEmojiChar } from "../../utils/emoji";
 import ConfirmModal from "../ui/ConfirmModal";
 import { useApp } from "../../context/AppContext";
+import { GitProvider } from "../../utils/gitProvider";
+import { azureService } from "../../services/azure";
 
 type PRTimelineViewProps = {
     owner: string;
@@ -15,6 +17,7 @@ type PRTimelineViewProps = {
     pr: any;
     details: any;
     currentUserAvatar: string;
+    provider: GitProvider;
     selectCommit: (hash: string) => void;
     openUserProfile: (name: string, email: string, login: string) => void;
 };
@@ -26,8 +29,97 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     const { t, locale } = useApp();
     
     const [timeline, { refetch }] = createResource(
-        () => ({ owner: props.owner, name: props.repo, number: props.pr.number }),
-        async (params) => await githubService.getPRTimeline(params.owner, params.name, params.number)
+        () => ({ owner: props.owner, name: props.repo, number: props.pr.number, provider: props.provider }),
+        async (params) => {
+            if (params.provider === 'azure') {
+                // Busca as Threads da Azure (que contêm comentários, fechamentos, etc)
+                const azureThreads = await azureService.getPRThreads(params.owner, params.name, params.number);
+                
+                // Mapeia e normaliza os dados da Azure para o formato "GraphQL-like" do seu JSX
+                const normalizedTimeline: any[] = [];
+
+                azureThreads.forEach((thread: any) => {
+                    if (!thread.comments || thread.comments.length === 0) return;
+
+                    // Ignora comentários de sistema vazios ou metadados sem texto real
+                    const firstComment = thread.comments[0];
+                    
+                    // Caso 1: Evento de Fechamento ou Merge gerado pelo sistema
+                    if (thread.properties?.CodeReviewThreadType === "System") {
+                        if (firstComment.content?.includes("closed") || firstComment.content?.includes("abandoned")) {
+                            normalizedTimeline.push({
+                                __typename: 'ClosedEvent',
+                                id: thread.id.toString(),
+                                createdAt: firstComment.publishedDate,
+                                actor: {
+                                    login: firstComment.author?.displayName || "Azure DevOps",
+                                    avatarUrl: firstComment.author?.imageUrl || ""
+                                }
+                            });
+                            return;
+                        }
+                        if (firstComment.content?.includes("reopened")) {
+                            normalizedTimeline.push({
+                                __typename: 'ReopenedEvent',
+                                id: thread.id.toString(),
+                                createdAt: firstComment.publishedDate,
+                                actor: {
+                                    login: firstComment.author?.displayName || "Azure DevOps",
+                                    avatarUrl: firstComment.author?.imageUrl || ""
+                                }
+                            });
+                            return;
+                        }
+                    }
+
+                    // Caso 2: Comentários normais de usuários (Reviewers ou Autores)
+                    thread.comments.forEach((comment: any) => {
+                        // Ignora os logs automáticos chatos do sistema na Azure
+                        if (comment.commentType === "system" || !comment.content) return;
+
+                        normalizedTimeline.push({
+                            __typename: 'IssueComment',
+                            id: comment.id.toString(),
+                            createdAt: comment.publishedDate,
+                            bodyHTML: comment.content, // O MarkdownViewer vai ler o texto puro
+                            isMinimized: comment.isDeleted,
+                            minimizedReason: "Deletado",
+                            author: {
+                                login: comment.author?.displayName || "Azure User",
+                                avatarUrl: comment.author?.imageUrl || "",
+                                name: comment.author?.displayName || "",
+                                email: comment.author?.uniqueName || ""
+                            },
+                            reactionGroups: [] // Azure REST básica não expõe reações idênticas ao GH por padrão
+                        });
+                    });
+                });
+
+                // Se houver commits injetados nos detalhes da Azure, podemos mesclá-los aqui ordenando por data
+                if (props.details?.commits) {
+                    props.details.commits.forEach((c: any) => {
+                        normalizedTimeline.push({
+                            __typename: 'PullRequestCommit',
+                            id: c.commitId,
+                            commit: {
+                                oid: c.commitId,
+                                message: c.comment,
+                                committedDate: c.author?.date
+                            }
+                        });
+                    });
+                }
+
+                // Ordena tudo cronologicamente para montar a linha do tempo perfeita
+                return normalizedTimeline.sort((a, b) => 
+                    new Date(a.createdAt || a.commit?.committedDate).getTime() - 
+                    new Date(b.createdAt || b.commit?.committedDate).getTime()
+                );
+            }
+
+            // Fallback padrão: mantêm o comportamento do GitHub intocado
+            return await githubService.getPRTimeline(params.owner, params.name, params.number);
+        }
     );
 
     const additionsWidth = createMemo(() => {
@@ -37,12 +129,17 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         return (add / (add + del)) * 100;
     });
 
+    // 🛠️ 2. Bifurcação das ações de escrita (Salvar Comentários e Deletar)
     const handleSaveComment = async () => {
         if (!commentText()) return;
 
         try {
             showLoading("Salvando comentário...");
-            await githubService.addComment(props.pr.id, commentText());
+            if (props.provider === 'azure') {
+                await azureService.addPRComment(props.owner, props.repo, props.pr.number, commentText());
+            } else {
+                await githubService.addComment(props.pr.id, commentText());
+            }
             hideLoading();
             setCommentText("");
             refetch();
@@ -53,15 +150,16 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     };
 
     const onReact = async (subjectId: string, content: string, hasReacted: boolean) => {
+        // Bloqueia reações se estiver na Azure, já que a estrutura de reações deles é diferente
+        if (props.provider === 'azure') return; 
+        
         try {
             showLoading(hasReacted ? "Removendo..." : "Reagindo...");
-            
             if (hasReacted) {
                 await githubService.removeReaction(subjectId, content);
             } else {
                 await githubService.addReaction(subjectId, content);
             }
-
             hideLoading();
             refetch(); 
         } catch (err) {
@@ -91,15 +189,19 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         setConfirmData({ id });
     };
 
-    // 3. Função que executa após a confirmação real
     const executeDelete = async () => {
         const data = confirmData();
         if (!data) return;
 
         try {
-            setConfirmData(null); // Fecha a modal
+            setConfirmData(null);
             showLoading("Deletando comentário...");
-            await githubService.deleteComment(data.id);
+            if (props.provider === 'azure') {
+                // Na Azure, a remoção precisa do ID da Thread ou do Comment, ajuste conforme seu service
+                await azureService.deletePRComment(props.owner, props.repo, props.pr.number, data.id);
+            } else {
+                await githubService.deleteComment(data.id);
+            }
             hideLoading();
             refetch();
         } catch (err) {

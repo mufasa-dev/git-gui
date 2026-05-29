@@ -1,4 +1,4 @@
-import { createResource, Show, For, createSignal, Switch, Match, createMemo } from "solid-js";
+import { createResource, Show, For, createSignal, Switch, Match, createMemo, createEffect } from "solid-js";
 import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import PRFilesTab from "./PRFilesTab";
@@ -17,8 +17,9 @@ import PRStatusBadge from "./PRStatusBadge";
 import { notify } from "../../utils/notifications";
 import { useApp } from "../../context/AppContext";
 import { azureService } from "../../services/azure";
+import { GitProvider } from "../../utils/gitProvider";
 
-export default function PRDetailView(props: { pr: any, owner: string, repo: Repo, branch?: string, provider: string }) {
+export default function PRDetailView(props: { pr: any, owner: string, repo: Repo, branch?: string, provider: GitProvider }) {
   const [activeTab, setActiveTab] = createSignal("Visão Geral");
   const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
@@ -143,12 +144,26 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
     }
   };
 
-  const tabs = createMemo(() => [
-    { id: 'Visão Geral', label: t('pr').conversation, icon: 'fa-regular fa-comments' },
-    { id: 'Files', label: t('file').files, icon: 'fa-regular fa-file-code' },
-    { id: 'Commits', label: t('commits').commits, icon: 'fa-solid fa-code-commit' },
-    { id: 'Checks', label: t('pr').checked, icon: 'fa-solid fa-list-check' }
-  ]);
+  const tabs = createMemo(() => {
+    const allTabs = [
+      { id: 'Visão Geral', label: t('pr').conversation, icon: 'fa-regular fa-comments' },
+      { id: 'Files', label: t('file').files, icon: 'fa-regular fa-file-code' },
+      { id: 'Commits', label: t('commits').commits, icon: 'fa-solid fa-code-commit' },
+      { id: 'Checks', label: t('pr').checked, icon: 'fa-solid fa-list-check' }
+    ];
+
+    if (props.provider !== 'github') {
+      return allTabs.filter(tab => tab.id !== 'Checks');
+    }
+
+    return allTabs;
+  });
+
+  createEffect(() => {
+    if (props.provider !== 'github' && activeTab() === 'Checks') {
+      setActiveTab("Visão Geral");
+    }
+  });
 
   return (
     <div class="flex flex-col h-full select-text transition-colors">
@@ -259,7 +274,8 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
                   <PRTimelineView 
                     owner={props.owner} 
                     repo={props.repo.name} 
-                    pr={props.pr} 
+                    pr={props.pr}
+                    provider={props.provider}
                     details={details()}
                     currentUserAvatar={props.pr.author?.avatarUrl}
                     selectCommit={selectCommit}
@@ -272,7 +288,8 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
                 <PRFilesTab 
                     owner={props.owner} 
                     repoName={props.repo.name} 
-                    prNumber={props.pr.number} 
+                    prNumber={props.pr.number}
+                    provider={props.provider}
                 />
               </Match>
               <Match when={activeTab() === 'Commits'}>
@@ -281,6 +298,7 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
                     repoName={props.repo.name} 
                     prNumber={props.pr.number} 
                     selectCommit={selectCommit}
+                    provider={props.provider}
                 />
               </Match>
               <Match when={activeTab() === 'Checks'}>
@@ -351,25 +369,27 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
             </div>
           </div>
 
-          <div>
-            <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
-              <span>{t('pr').participants}</span>
+          <Show when={props.provider === 'github'}>
+            <div>
+              <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                <span>{t('pr').participants}</span>
+              </div>
+              <div class="flex flex-col flex-wrap gap-2">
+                <For each={details()?.participants?.nodes}>
+                  {(p: any) => (
+                    <div class="flex items-center gap-3 hover:text-blue-500 transition-colors cursor-pointer hover:underline" 
+                        onClick={() => openUserProfile(p.name, p.email, p.login)}>
+                      <img class="w-7 h-7 rounded-full border-2 border-gray-200 dark:border-gray-600 
+                            hover:scale-110 transition-transform" 
+                            src={p.avatarUrl} title={p.login} 
+                      />
+                      <span>{p.name}</span>
+                    </div>
+                  )}
+                </For>
+              </div>
             </div>
-            <div class="flex flex-col flex-wrap gap-2">
-              <For each={details()?.participants?.nodes}>
-                {(p: any) => (
-                  <div class="flex items-center gap-3 hover:text-blue-500 transition-colors cursor-pointer hover:underline" 
-                       onClick={() => openUserProfile(p.name, p.email, p.login)}>
-                    <img class="w-7 h-7 rounded-full border-2 border-gray-200 dark:border-gray-600 
-                          hover:scale-110 transition-transform" 
-                          src={p.avatarUrl} title={p.login} 
-                    />
-                    <span>{p.name}</span>
-                  </div>
-                )}
-              </For>
-            </div>
-          </div>
+          </Show>
         </aside>
       </div>
       <Dialog open={showModalCommitDetails()}

@@ -269,6 +269,7 @@ export default function FileIcon(props: FileIconProps) {
       config: configIcon,
       conf: configIcon,
       env: configIcon,
+      properties: configIcon,
       browserslistrc: configIcon
     };
 

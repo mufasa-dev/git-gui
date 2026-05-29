@@ -1,21 +1,31 @@
 import { createResource, For, Show } from "solid-js";
 import { githubService } from "../../services/github";
+import { azureService } from "../../services/azure"; // 👈 Importado
 import CommitMessage from "../ui/CommitMessage";
 import { useApp } from "../../context/AppContext";
 import { formatRelativeDate } from "../../utils/date";
+import { GitProvider } from "../../utils/gitProvider";
 
 interface PRCommitsViewProps {
   owner: string;
   repoName: string;
   prNumber: number;
+  provider: GitProvider;
   selectCommit: (hash: string) => void;
 }
 
 export default function PRCommitsView(props: PRCommitsViewProps) {
   const { t, locale } = useApp();
+  
+  // 🛠️ Recurso modificado para escutar também o provider e ramificar a service
   const [commits] = createResource(
-    () => ({ owner: props.owner, name: props.repoName, number: props.prNumber }),
-    async (params) => await githubService.getPRCommits(params.owner, params.name, params.number)
+    () => ({ owner: props.owner, name: props.repoName, number: props.prNumber, provider: props.provider }),
+    async (params) => {
+      if (params.provider === 'azure') {
+        return await azureService.getPRCommits(params.owner, params.name, params.number);
+      }
+      return await githubService.getPRCommits(params.owner, params.name, params.number);
+    }
   );
 
   return (
@@ -24,7 +34,7 @@ export default function PRCommitsView(props: PRCommitsViewProps) {
         <Show when={!commits.loading} fallback={
           <div class="p-10 text-center text-gray-500 animate-pulse text-xs">{t('common').loading}</div>
         }>
-          <div class="divide-y divide-gray-700 border-b boder-gray-300 dark:border-gray-700">
+          <div class="divide-y divide-gray-700 border-b border-gray-300 dark:border-gray-700">
             <For each={commits()}>
               {(commit) => (
                 <div class="group flex items-start gap-4 p-4 hover:bg-gray-700/30 transition-colors cursor-pointer" 
@@ -64,6 +74,10 @@ export default function PRCommitsView(props: PRCommitsViewProps) {
                 </div>
               )}
             </For>
+            
+            <Show when={commits()?.length === 0}>
+              <div class="p-10 text-center text-gray-500 text-xs italic">Nenhum commit encontrado neste PR.</div>
+            </Show>
           </div>
         </Show>
       </div>

@@ -46,7 +46,7 @@ export default function PatHelpModal(props: { isOpen: boolean; onClose: () => vo
                                         <b class="text-gray-700 dark:text-gray-300">Code:</b> Marque a caixa <span class="text-blue-400">Read & Write</span>.
                                     </li>
                                     <li>
-                                        <b class="text-gray-700 dark:text-gray-300">Project and Team:</b> Marque a caixa <span class="text-blue-400">Read</span> (necessário para que o Git River organize seus repositórios por projetos).
+                                        <b class="text-gray-700 dark:text-gray-300">Project and Team:</b> Marque a caixa <span class="text-blue-400">Read</span> (necessário para que o Dev Brook organize seus repositórios por projetos).
                                     </li>
                                 </ul>
                             </div>

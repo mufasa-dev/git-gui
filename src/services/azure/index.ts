@@ -23,10 +23,8 @@ export const azureService = {
           const cleanOrg = organization.trim();
           const credentials = btoa(`:${token.trim()}`);
           
-          // Voltamos para a URL direta que funcionava, mas agora dinâmica!
           const url = `https://dev.azure.com/${cleanOrg}/_apis/projects?api-version=7.0`;
 
-          // Usando o window.fetch nativo que herda o contexto correto da WebView
           const response = await window.fetch(url, {
               method: 'GET',
               headers: {
@@ -45,7 +43,7 @@ export const azureService = {
               return {
                   success: true,
                   login: cleanOrg,
-                  display_name: "Azure Developer" // Nome padrão amigável
+                  display_name: "Azure Developer"
               };
           }
 
@@ -77,12 +75,10 @@ export const azureService = {
       }
       return null;
     } catch (error) {
-      // Se der qualquer erro de CORS ou escopo no avatar, retorna null para usar o fallback local do projeto
       return null; 
     }
   },
 
-  // 1. Busca os Projetos da Organização
   async getUserProjects(): Promise<any[]> {
     try {
       const store = await getAuthStore();
@@ -108,7 +104,7 @@ export const azureService = {
           id: proj.id,
           name: proj.name,
           description: proj.description || "Sem descrição disponível.",
-          isProject: true // Flag para a UI saber que é um projeto, não um repo
+          isProject: true
         }));
       }
       return [];
@@ -118,7 +114,6 @@ export const azureService = {
     }
   },
 
-  // 2. Busca os Repositórios de um Projeto Específico (E limpa a URL de clone)
   async getProjectRepositories(projectName: string): Promise<any[]> {
     try {
       const store = await getAuthStore();
@@ -141,8 +136,6 @@ export const azureService = {
       if (response.ok) {
         const data = await response.json();
         return (data.value || []).map((repo: any) => {
-          
-          // Transforma "https://user@dev.azure.com/..." em "https://dev.azure.com/..."
           let cleanUrl = repo.remoteUrl || "";
           if (cleanUrl.includes("@dev.azure.com")) {
             cleanUrl = cleanUrl.replace(/https:\/\/.*@dev\.azure\.com/, "https://dev.azure.com");
@@ -153,7 +146,7 @@ export const azureService = {
             description: ``,
             language: 'Azure Git',
             private: true,
-            html_url: cleanUrl, // URL perfeita e limpa para o Git clonar sem erro!
+            html_url: cleanUrl,
             updated_at: null
           };
         });
@@ -165,7 +158,6 @@ export const azureService = {
     }
   },
 
-  // Pull requests
   async getRepoPullRequests(organization: string, repoName: string, state: string): Promise<UnifiedPR[]> {
     try {
       const token = await this.getToken();
@@ -176,7 +168,6 @@ export const azureService = {
       if (state === "MERGED") statusParam = "completed";
       if (state === "CLOSED") statusParam = "abandoned";
 
-      // 🛠️ Injetamos o escopo do projeto {repoName} antes de /_apis/
       const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests?searchCriteria.status=${statusParam}&api-version=7.0`;
 
       const response = await window.fetch(url, {
@@ -206,7 +197,7 @@ export const azureService = {
         },
         headRefName: pr.sourceRefName.replace("refs/heads/", ""),
         baseRefName: pr.targetRefName.replace("refs/heads/", ""),
-        comments: { totalCount: 0 } // Azure trata comentários em threads separadas, mapeado como 0 inicialmente
+        comments: { totalCount: 0 }
       }));
     } catch (e) {
       console.error(e);
@@ -233,13 +224,12 @@ export const azureService = {
       
       const pr = await response.json();
 
-      // Mapeia os revisores do Azure para o formato esperado pelo seu reviewersList()
       const reviewers = (pr.reviewers || []).map((rev: any) => {
         let state = "PENDING";
         if (rev.vote === 10) state = "APPROVED";
-        if (rev.vote === 5) state = "APPROVED"; // Aprovado com sugestões
-        if (rev.vote === -5) state = "CHANGES_REQUESTED"; // Esperando autor
-        if (rev.vote === -10) state = "CHANGES_REQUESTED"; // Rejeitado
+        if (rev.vote === 5) state = "APPROVED";
+        if (rev.vote === -5) state = "CHANGES_REQUESTED";
+        if (rev.vote === -10) state = "CHANGES_REQUESTED";
 
         return {
           login: rev.uniqueName,
@@ -264,7 +254,6 @@ export const azureService = {
     if (!token) return false;
     const credentials = btoa(`:${token.trim()}`);
     
-    // No Azure, você se aprova dando um "voto" positivo (10 = Approved)
     const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests/${prNumber}/reviewers/me?api-version=7.0`;
     const response = await window.fetch(url, {
       method: 'PUT',
@@ -281,7 +270,6 @@ export const azureService = {
     
     const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests/${prNumber}?api-version=7.0`;
     
-    // Precisamos pegar o status atual para mandar o lastMergeSourceCommitId protetor
     const prRes = await window.fetch(url, { headers: { 'Authorization': `Basic ${credentials}` } });
     const prData = await prRes.json();
 
@@ -299,6 +287,258 @@ export const azureService = {
       })
     });
     return response.ok;
+  },
+
+  // Busca todas as Threads de Comentários do PR da Azure
+  async getPRThreads(organization: string, repoName: string, prNumber: number): Promise<any[]> {
+    try {
+      const token = await this.getToken();
+      if (!token) return [];
+      const credentials = btoa(`:${token.trim()}`);
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: "GET",
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.value || [];
+    } catch (error) {
+      console.error("Erro ao buscar threads da Azure:", error);
+      return [];
+    }
+  },
+
+  // Cria um novo comentário (Nova Thread) no PR do Azure
+  async addPRComment(organization: string, repoName: string, prNumber: number, text: string): Promise<boolean> {
+    try {
+      const token = await this.getToken();
+      if (!token) return false;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: "POST",
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          comments: [
+            {
+              parentCommentId: 0,
+              content: text,
+              commentType: "text"
+            }
+          ],
+          status: "active"
+        })
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error("Erro ao salvar comentário na Azure:", error);
+      return false;
+    }
+  },
+
+  // Deleta/Remove um comentário existente na Azure
+  // Nota: Na Azure, os comentários pertencem a uma thread. Passamos o prNumber e o commentId enviado pelo normalizador.
+  async deletePRComment(organization: string, repoName: string, prNumber: number, commentId: string): Promise<boolean> {
+    try {
+      const token = await this.getToken();
+      if (!token) return false;
+      const credentials = btoa(`:${token.trim()}`);
+
+      // Para deletar sem precisar reconstruir a árvore de threads na UI, a REST API do Azure 
+      // permite atualizar o status do comentário para "deleted" (Soft Delete nativo da Azure)
+      // ou remover diretamente se mapearmos a rota exata. Vamos atualizar a propriedade de deleção.
+      const threadsUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads?api-version=7.0`;
+      
+      const threadsRes = await window.fetch(threadsUrl, { headers: { 'Authorization': `Basic ${credentials}` } });
+      const threadsData = await threadsRes.json();
+
+      // Encontra qual thread possui o ID do comentário desejado
+      let targetThreadId: number | null = null;
+      (threadsData.value || []).forEach((t: any) => {
+        if (t.comments?.some((c: any) => c.id.toString() === commentId)) {
+          targetThreadId = t.id;
+        }
+      });
+
+      if (targetThreadId === null) return false;
+
+      const deleteUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads/${targetThreadId}/comments/${commentId}?api-version=7.0`;
+
+      const response = await window.fetch(deleteUrl, {
+        method: "DELETE",
+        headers: {
+          'Authorization': `Basic ${credentials}`
+        }
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error("Erro ao deletar comentário na Azure:", error);
+      return false;
+    }
+  },
+
+  async getPRChanges(organization: string, repoName: string, prNumber: number): Promise<any[]> {
+    try {
+      const token = await this.getToken();
+      if (!token) return [];
+      const credentials = btoa(`:${token.trim()}`);
+
+      // Rota oficial da Azure para pegar as mudanças da iteração 1 do PR
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/iterations/1/changes?api-version=7.0`;
+
+      console.log("Chamando URL CORRETA de Iterations/Changes:", url);
+
+      const response = await window.fetch(url, {
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Accept': 'application/json' 
+        }
+      });
+
+      if (!response.ok) {
+        console.error("Erro ao buscar alterações na Azure:", response.status, response.statusText);
+        return [];
+      }
+      
+      const data = await response.json();
+
+      // No controller de iterações, a Azure retorna um array chamado 'changeEntries'
+      return (data.changeEntries || []).map((entry: any) => {
+        const path = entry.item?.path || "";
+        return {
+          // Remove a barra inicial caso exista para manter compatibilidade com seu FileIcon
+          path: path.startsWith('/') ? path.substring(1) : path, 
+          // Mapeia o peso visual aproximado pelas flags da Azure
+          additions: entry.changeType === 'add' || entry.changeType === 'edit' ? 1 : 0,
+          deletions: entry.changeType === 'delete' || entry.changeType === 'edit' ? 1 : 0
+        };
+      });
+    } catch (error) {
+      console.error("Erro ao carregar arquivos alterados da Azure:", error);
+      return [];
+    }
+  },
+
+  // Baixa os blocos de conteúdo e formata como uma string Unified Diff padrão do Git
+  async getPRFileDiffText(organization: string, repoName: string, prNumber: number, filePath: string): Promise<string> {
+    try {
+      const token = await this.getToken();
+      if (!token) return "";
+      const credentials = btoa(`:${token.trim()}`);
+
+      // 1. Buscamos a iteração para pegar o ID exato do Commit correspondente a este PR
+      const iterationUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/iterations/1?api-version=7.0`;
+
+      const iterationResponse = await window.fetch(iterationUrl, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+
+      if (!iterationResponse.ok) {
+        console.error("Erro ao buscar dados da iteração na Azure:", iterationResponse.status);
+        return "";
+      }
+      
+      const iterationData = await iterationResponse.json();
+      
+      // Captura o hash do commit gerado na iteração do PR (ex: "60e7a06576c88...")
+      const commitId = iterationData.sourceRefCommit?.commitId;
+      if (!commitId) {
+        console.error("Não foi possível encontrar o Commit ID da iteração.");
+        return "";
+      }
+
+      // 2. Agora batemos na API de Items montando a URL do zero de forma limpa,
+      // apontando cirurgicamente para o Commit onde o arquivo foi adicionado/alterado
+      const cleanedPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
+      const itemUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/items?path=${encodeURIComponent(cleanedPath)}&versionDescriptor.versionType=commit&versionDescriptor.version=${commitId}&includeContent=true&api-version=7.0`;
+
+      console.log("Buscando arquivo de forma limpa via Commit ID:", itemUrl);
+
+      const contentResponse = await window.fetch(itemUrl, {
+        headers: { 'Authorization': `Basic ${credentials}` }
+      });
+
+      if (!contentResponse.ok) {
+        console.error("Erro ao baixar conteúdo do arquivo por Commit na Azure:", contentResponse.status);
+        return "";
+      }
+
+      const contentText = await contentResponse.text();
+
+      // Monta o cabeçalho fake de diff unificado para o seu DiffViewer
+      return [
+        `diff --git a/${filePath} b/${filePath}`,
+        `new file mode 100644`,
+        `--- a/${filePath}`,
+        `+++ b/${filePath}`,
+        `@@ -0,0 +1,1 @@`,
+        contentText.split('\n').map(line => `+${line}`).join('\n')
+      ].join('\n');
+
+    } catch (error) {
+      console.error("Erro ao estruturar bloco diff na Azure:", error);
+      return "";
+    }
+  },
+
+  async getPRCommits(organization: string, repoName: string, prNumber: number): Promise<any[]> {
+    try {
+      const token = await this.getToken();
+      if (!token) return [];
+      const credentials = btoa(`:${token.trim()}`);
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/commits?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Accept': 'application/json' 
+        }
+      });
+
+      if (!response.ok) {
+        console.error("Erro ao carregar commits do PR na Azure:", response.status);
+        return [];
+      }
+
+      const data = await response.json();
+
+      return (data.value || []).map((c: any) => {
+        const authorName = c.author?.name || "Azure Developer";
+        const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=0D8ABC&color=fff`;
+
+        return {
+          oid: c.commitId,
+          abbreviatedOid: c.commitId ? c.commitId.substring(0, 7) : "",
+          message: c.comment || "",
+          committedDate: c.author?.date || new Date().toISOString(),
+          author: {
+            name: authorName,
+            avatarUrl: fallbackAvatar,
+            user: {
+              login: c.author?.email || authorName
+            }
+          }
+        };
+      });
+    } catch (error) {
+      console.error("Erro ao buscar commits na Azure:", error);
+      return [];
+    }
   },
 
   async logout() {
