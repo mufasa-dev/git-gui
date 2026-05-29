@@ -9,7 +9,7 @@ import { useApp } from "../../context/AppContext";
 import { GitProvider } from "../../utils/gitProvider";
 import { azureService } from "../../services/azure";
 
-export default function PullRequestsPage(props: { repo: Repo,  branch?: string, provider: GitProvider, remoteUrl: string }) {
+export default function PullRequestsPage(props: { repo: Repo,  branch?: string, provider: GitProvider, remoteUrl: string, onMergeSuccess: (prNumber: number) => void; }) {
   const [filter, setFilter] = createSignal("OPEN");
   const [searchTerm, setSearchTerm] = createSignal("");
   const [selectedPR, setSelectedPR] = createSignal<any>(null);
@@ -46,7 +46,7 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
   });
 
   // 4. O Resource unificado agora monitora o owner dinâmico e o provider!
-  const [prs] = createResource(
+  const [prs, { refetch }] = createResource(
     () => ({ 
       owner: repoOwner(), 
       name: props.repo?.name, 
@@ -54,7 +54,6 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
       currentProvider: props.provider 
     }),
     async (params) => {
-      // Só dispara a requisição HTTP se tivermos o nome do repo e o dono identificados
       if (!params.name || !params.owner) return [];
 
       if (params.currentProvider === 'azure') {
@@ -179,6 +178,16 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
                 repo={props.repo} 
                 branch={props.branch}
                 provider={props.provider}
+                onMergeSuccess={(updatedPrNumber) => {
+                  refetch(); 
+                  
+                  setSelectedPR(prev => {
+                    if (prev && prev.number === updatedPrNumber) {
+                      return { ...prev, state: "MERGED" };
+                    }
+                    return prev;
+                  });
+                }}
               />
             </Show>
           </div>

@@ -19,7 +19,16 @@ import { useApp } from "../../context/AppContext";
 import { azureService } from "../../services/azure";
 import { GitProvider } from "../../utils/gitProvider";
 
-export default function PRDetailView(props: { pr: any, owner: string, repo: Repo, branch?: string, provider: GitProvider }) {
+interface PRDetailViewProps {
+  pr: any;
+  owner: string;
+  repo: Repo;
+  branch?: string;
+  provider: GitProvider;
+  onMergeSuccess: (prNumber: number) => void;
+}
+
+export default function PRDetailView(props: PRDetailViewProps) {
   const [activeTab, setActiveTab] = createSignal("Visão Geral");
   const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
@@ -133,10 +142,17 @@ export default function PRDetailView(props: { pr: any, owner: string, repo: Repo
 
     setIsMerging(true);
     try {
-      await githubService.mergePullRequest(prId);
+      if (props.provider === 'github') {
+        await githubService.mergePullRequest(prId);
+      } else if (props.provider === 'azure') {
+        // Se for Azure, chama o merge correspondente
+        await azureService.mergePullRequest(props.owner, props.repo.name, props.pr.number);
+      }
+
       notify.success("Sucesso", "Pull Request mesclado com sucesso!");
       
-      refetch();
+      props.onMergeSuccess(props.pr.number);
+
     } catch (err) {
       notify.error("Falha no Merge", String(err));
     } finally {
