@@ -1,6 +1,5 @@
-import { createResource, Show, For, createSignal, Switch, Match, createMemo, createEffect } from "solid-js";
+import { createResource, Show, For, createSignal, Switch, Match, createMemo, createEffect, onCleanup } from "solid-js";
 import { githubService } from "../../services/github";
-import MarkdownViewer from "../ui/MarkdownViewer";
 import PRFilesTab from "./PRFilesTab";
 import PRCommitsView from "./PRCommitsView";
 import PRChecksView from "./PRChecksView";
@@ -36,6 +35,10 @@ export default function PRDetailView(props: PRDetailViewProps) {
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
   const [isApproving, setIsApproving] = createSignal(false);
   const [isMerging, setIsMerging] = createSignal(false);
+  const [showApproveMenu, setShowApproveMenu] = createSignal(false);
+  const [showActionMenu, setShowActionMenu] = createSignal(false);
+  const [currentFeedback, setCurrentFeedback] = createSignal('Approve');
+  
   const { t, locale } = useApp();
   
   const [details, { refetch }] = createResource(
@@ -47,6 +50,78 @@ export default function PRDetailView(props: PRDetailViewProps) {
       return await githubService.getPullRequestDescription(p.owner, p.name, p.number);
     }
   );
+
+  const hasPendingRequiredReviewers = () => {
+    if (props.provider !== 'azure') return false;
+    const reviewers = (details() as any)?.reviewers || [];
+    return reviewers.some((r: any) => r.isRequired && (!r.vote || r.vote <= 0));
+  };
+
+  const closeMenus = () => {
+    setShowApproveMenu(false);
+    setShowActionMenu(false);
+  };
+  window.addEventListener('click', closeMenus);
+  onCleanup(() => window.removeEventListener('click', closeMenus));
+
+  const handleFeedbackSelect = async (type: string, e: Event) => {
+    e.stopPropagation();
+    setCurrentFeedback(type);
+    setShowApproveMenu(false);
+
+    // Mapeamento de pesos de voto da Azure
+    let voteValue = 0; 
+    if (type === 'Approve') voteValue = 10;
+    if (type === 'Approve with suggestions') voteValue = 5;
+    if (type === 'Wait for author') voteValue = -5;
+    if (type === 'Reject') voteValue = -10;
+    if (type === 'Reset feedback') voteValue = 0;
+
+    if (props.provider === 'azure') {
+      setIsApproving(true);
+      try {
+        await azureService.votePullRequest(props.owner, props.repo.name, props.pr.number, voteValue);
+        notify.success("Sucesso", `Feedback '${type}' enviado com sucesso.`);
+        refetch(); // Atualiza os revisores na barra lateral
+      } catch (err) {
+        // Se a API falhar, cai aqui e avisa o usuário de verdade!
+        console.error(err);
+        notify.error("Erro na Azure", "Não foi possível registrar seu voto.");
+      } finally {
+        setIsApproving(false);
+      }
+    }
+  };
+
+  const handleActionExecute = async (action: string, e: Event) => {
+    e.stopPropagation();
+    setShowActionMenu(false);
+
+    if (action === 'Complete' || action === 'Merge') {
+      handleMerge();
+    } 
+    else if (action === 'Abandon' && props.provider === 'azure') {
+      setIsMerging(true);
+      try {
+        await azureService.abandonPullRequest(props.owner, props.repo.name, props.pr.number);
+        notify.success("PR Abandonado", "O Pull Request foi fechado/abandonado.");
+        props.onMergeSuccess(props.pr.number); // Dispara para atualizar a listagem global
+      } catch (err) {
+        notify.error("Erro", "Falha ao abandonar o Pull Request.");
+      } finally {
+        setIsMerging(false);
+      }
+    } 
+    else if (action === 'Draft' && props.provider === 'azure') {
+      try {
+        await azureService.updatePullRequestStatus(props.owner, props.repo.name, props.pr.number, true);
+        notify.success("Sucesso", "O Pull Request foi movido para Draft.");
+        refetch();
+      } catch (err) {
+        notify.error("Erro", "Não foi possível mudar para Draft.");
+      }
+    }
+  };
 
   const additionsWidth = () => {
     const total = (details()?.additions || 0) + (details()?.deletions || 0);
@@ -63,9 +138,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
 
     const list: any[] = [];
 
-    // 1. Adiciona quem já revisou
     data.reviews?.nodes?.forEach((review: any) => {
-      // Evita duplicados, pegando sempre o estado mais recente
       const existing = list.find(r => r.login === review.author.login);
       if (existing) {
         existing.state = review.state;
@@ -74,12 +147,11 @@ export default function PRDetailView(props: PRDetailViewProps) {
           login: review.author.login,
           avatarUrl: review.author.avatarUrl,
           name: review.author.name,
-          state: review.state, // APPROVED, CHANGES_REQUESTED, COMMENTED
+          state: review.state,
         });
       }
     });
 
-    // 2. Adiciona quem foi solicitado e ainda não fez nada
     data.reviewRequests?.nodes?.forEach((req: any) => {
       const user = req.requestedReviewer;
       if (!list.find(r => r.login === user.login)) {
@@ -110,20 +182,22 @@ export default function PRDetailView(props: PRDetailViewProps) {
     }
   }
 
-  const handleApprove = async () => {
-    // O ideal é que o props.pr já venha com o 'node_id' ou 'id' do GraphQL
-    const prId = props.pr.node_id || props.pr.id; 
+  const handleApprove = async (e?: Event) => {
+    if (e) e.stopPropagation();
     
-    if (!prId) {
-      notify.error("Erro", "ID do Pull Request não encontrado.");
-      return;
-    }
-
     setIsApproving(true);
     try {
-      await githubService.approvePullRequest(prId);
-      notify.success("Sucesso", "Pull Request aprovado com sucesso!");
-      
+      if (props.provider === 'azure') {
+        await azureService.votePullRequest(props.owner, props.repo.name, props.pr.number, 10);
+        setCurrentFeedback('Approve');
+        notify.success("Sucesso", "Pull Request aprovado com sucesso na Azure!");
+      } else {
+        // Fluxo legado do GitHub
+        const prId = props.pr.node_id || props.pr.id; 
+        if (!prId) throw new Error("ID do Pull Request não encontrado.");
+        await githubService.approvePullRequest(prId);
+        notify.success("Sucesso", "Pull Request aprovado com sucesso no GitHub!");
+      }
       refetch(); 
     } catch (err) {
       notify.error("Falha na Aprovação", String(err));
@@ -145,14 +219,11 @@ export default function PRDetailView(props: PRDetailViewProps) {
       if (props.provider === 'github') {
         await githubService.mergePullRequest(prId);
       } else if (props.provider === 'azure') {
-        // Se for Azure, chama o merge correspondente
         await azureService.mergePullRequest(props.owner, props.repo.name, props.pr.number);
       }
 
       notify.success("Sucesso", "Pull Request mesclado com sucesso!");
-      
       props.onMergeSuccess(props.pr.number);
-
     } catch (err) {
       notify.error("Falha no Merge", String(err));
     } finally {
@@ -183,15 +254,18 @@ export default function PRDetailView(props: PRDetailViewProps) {
 
   return (
     <div class="flex flex-col h-full select-text transition-colors">
-      {/* HEADER ESTILO TRIDENT */}
-      <header class="container-branch-list p-4 mb-2">
+      
+      {/* 👑 NOVO HEADER ESTILO AZURE DEVOPS TOTALMENTE CONECTADO */}
+      <header class="container-branch-list p-4 mb-2 bg-white dark:bg-gray-800 rounded-t-xl border-b border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between mb-2">
           <h1 class="text-lg font-black text-gray-900 dark:text-white tracking-tight flex items-center">
             <CommitMessage message={props.pr.title} class="text-xl" />
             <span class="text-gray-500/50 dark:text-gray-400 ml-2">#{props.pr.number}</span>
           </h1>
+          
           <div class="flex items-center gap-2">
             <Switch>
+              {/* Tratamento de Conflitos */}
               <Match when={details()?.mergeable === 'CONFLICTING'}>
                 <div class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-md">
                   <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
@@ -207,43 +281,108 @@ export default function PRDetailView(props: PRDetailViewProps) {
                 </div>
               </Match>
               
-              <Match when={details()?.mergeable === 'MERGEABLE'}>
-                <div class="flex items-center gap-2">
-                  {/* Botão de Aprovar existente */}
-                  <button 
-                    onClick={handleApprove}
-                    disabled={isApproving() || isMerging()}
-                    class={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all border dark:border-gray-700
-                      ${isApproving() 
-                        ? 'bg-gray-400 cursor-not-allowed' 
-                        : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95'
-                      }`}
-                  >
-                    <Show when={isApproving()} fallback={<><i class="fa-solid fa-check"></i> {t('pr').approve}</>}>
-                      <i class="fa-solid fa-circle-notch animate-spin"></i> {t('pr').approving}
-                    </Show>
-                  </button>
+              {/* Fluxo de Botões Regulares (Controlado por Provedor) */}
+              <Match when={details()?.mergeable === 'MERGEABLE' || props.provider === 'azure'}>
+                <div class="flex items-center gap-1.5 relative">
+                  
+                  {/* 1. SELETOR DE FEEDBACK/APROVAÇÃO (Estilo Azure) */}
+                  <div class="flex items-center rounded-md overflow-visible bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600">
+                    <button 
+                      onClick={(e) => handleApprove(e)}
+                      disabled={isApproving() || isMerging()}
+                      class="px-4 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2 rounded-l-md"
+                    >
+                      <Show when={isApproving()} fallback={
+                        <Switch fallback={<><i class="fa-regular fa-circle-check text-green-500"></i> {currentFeedback()}</>}>
+                          <Match when={currentFeedback() === 'Reject'}>
+                            <i class="fa-solid fa-circle-xmark text-red-500"></i> Reject
+                          </Match>
+                          <Match when={currentFeedback() === 'Wait for author'}>
+                            <i class="fa-solid fa-clock text-amber-500"></i> Wait for author
+                          </Match>
+                        </Switch>
+                      }>
+                        <i class="fa-solid fa-circle-notch animate-spin text-gray-400"></i> {t('pr').approving}
+                      </Show>
+                    </button>
+                    
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowApproveMenu(!showApproveMenu()); setShowActionMenu(false); }}
+                      class="px-2 py-0 border-l border-gray-300 dark:border-gray-600 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors rounded-r-md"
+                    >
+                      <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                    </button>
 
-                  {/* NOVO: Botão de Merge */}
-                  <button 
-                    onClick={handleMerge}
-                    disabled={isMerging() || isApproving()}
-                    class={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all shadow-lg
-                      ${isMerging() 
-                        ? 'bg-gray-400 cursor-not-allowed' 
-                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-500/20 active:scale-95'
-                      }`}
-                  >
-                    <Show when={isMerging()} fallback={<><i class="fa-solid fa-code-merge"></i> {t('pr').merge_pull_request}</>}>
-                      <i class="fa-solid fa-circle-notch animate-spin"></i> {t('loading').merging}
+                    <Show when={showApproveMenu()}>
+                      <div class="absolute left-0 top-9 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl z-50 py-1 text-xs text-gray-700 dark:text-gray-200">
+                        <button onClick={(e) => handleFeedbackSelect('Approve', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                          <i class="fa-solid fa-circle-check text-green-500"></i> Approve
+                        </button>
+                        <button onClick={(e) => handleFeedbackSelect('Approve with suggestions', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                          <i class="fa-solid fa-circle-check text-green-600/70"></i> Approve with suggestions
+                        </button>
+                        <button onClick={(e) => handleFeedbackSelect('Wait for author', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                          <i class="fa-solid fa-clock text-amber-500"></i> Wait for author
+                        </button>
+                        <button onClick={(e) => handleFeedbackSelect('Reject', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                          <i class="fa-solid fa-circle-xmark text-red-500"></i> Reject
+                        </button>
+                        <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                        <button onClick={(e) => handleFeedbackSelect('Reset feedback', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-gray-500">
+                          <i class="fa-regular fa-circle text-gray-400"></i> Reset feedback
+                        </button>
+                      </div>
                     </Show>
-                  </button>
+                  </div>
+
+                  {/* 2. BOTÃO PRINCIPAL DE MERGE / AUTOCOMPLETE COORDENADO */}
+                  <div class="flex items-center rounded-md overflow-visible bg-blue-600 text-white border border-blue-700 shadow-md">
+                    <button 
+                      onClick={(e) => handleActionExecute(hasPendingRequiredReviewers() ? 'Autocomplete' : 'Complete', e)}
+                      disabled={isMerging() || isApproving()}
+                      class="px-4 py-1.5 text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 rounded-l-md"
+                    >
+                      <Show when={isMerging()} fallback={
+                        <Show when={hasPendingRequiredReviewers()} fallback={<><i class="fa-solid fa-code-merge"></i> Complete</>}>
+                          <i class="fa-solid fa-bolt-lightning text-amber-300"></i> Set auto-complete
+                        </Show>
+                      }>
+                        <i class="fa-solid fa-circle-notch animate-spin"></i> {t('loading').merging}
+                      </Show>
+                    </button>
+
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowActionMenu(!showActionMenu()); setShowApproveMenu(false); }}
+                      class="px-2 py-0 border-l border-blue-700 hover:bg-blue-700 transition-colors rounded-r-md"
+                    >
+                      <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                    </button>
+
+                    <Show when={showActionMenu()}>
+                      <div class="absolute right-0 top-9 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl z-50 py-1 text-xs text-gray-700 dark:text-gray-200">
+                        <button onClick={(e) => handleActionExecute('Complete', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                          <i class="fa-solid fa-code-branch"></i> Complete
+                        </button>
+                        <button onClick={(e) => handleActionExecute('Autocomplete', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                          <i class="fa-solid fa-bolt-lightning text-blue-500"></i> Set auto-complete
+                        </button>
+                        <button onClick={(e) => handleActionExecute('Draft', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                          <i class="fa-solid fa-pen-to-square"></i> Mark as draft
+                        </button>
+                        <button onClick={(e) => handleActionExecute('Abandon', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-red-500">
+                          <i class="fa-solid fa-trash-can"></i> Abandon
+                        </button>
+                      </div>
+                    </Show>
+                  </div>
+
                 </div>
               </Match>
             </Switch>
           </div>
         </div>
         
+        {/* Metadados adicionais do autor e referências */}
         <div class="flex items-center gap-3 mt-4">
           <PRStatusBadge state={props.pr.state} variant="badge" />
           <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden border border-gray-300 dark:border-gray-600">
@@ -265,7 +404,6 @@ export default function PRDetailView(props: PRDetailViewProps) {
             
             {/* NAVEGAÇÃO DE ABAS */}
             <nav class="flex gap-6 border border-gray-100 dark:border-gray-700 rounded-t-xl px-4 bg-gray-300 dark:bg-gray-900">
-              {/* Adicione os parênteses em tabs() aqui */}
               <For each={tabs()}>
                 {(tab) => (
                   <button 
@@ -285,7 +423,6 @@ export default function PRDetailView(props: PRDetailViewProps) {
 
             {/* RENDERIZAÇÃO CONDICIONAL DO CONTEÚDO */}
             <Switch>
-              {/* ABA: VISÃO GERAL */}
               <Match when={activeTab() === 'Visão Geral'}>
                   <PRTimelineView 
                     owner={props.owner} 
@@ -299,7 +436,6 @@ export default function PRDetailView(props: PRDetailViewProps) {
                 />
               </Match>
 
-              {/* OUTRAS ABAS */}
               <Match when={activeTab() === 'Files'}>
                 <PRFilesTab 
                     owner={props.owner} 
@@ -346,7 +482,6 @@ export default function PRDetailView(props: PRDetailViewProps) {
                           src={reviewer.avatarUrl} 
                           class="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700" 
                         />
-                        {/* Indicador de status visual sobre o avatar ou ao lado */}
                       </div>
                       <div class="flex flex-col">
                         <span class="text-xs font-bold text-gray-700 dark:text-gray-200">
@@ -358,7 +493,6 @@ export default function PRDetailView(props: PRDetailViewProps) {
                       </div>
                     </div>
 
-                    {/* Ícones de Status Dinâmicos */}
                     <Switch>
                       <Match when={reviewer.state === 'APPROVED'}>
                         <i class="fa-solid fa-circle-check text-green-500 text-sm shadow-[0_0_8px_rgba(34,197,94,0.4)]"></i>
@@ -408,6 +542,8 @@ export default function PRDetailView(props: PRDetailViewProps) {
           </Show>
         </aside>
       </div>
+
+      {/* DIALOGS */}
       <Dialog open={showModalCommitDetails()}
               title={t('commits').details}
               onClose={() => setModalCommitDetails(false)}
@@ -416,6 +552,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
               height={'calc(100vh - 100px)'}>
         <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={""} openParent={false} selectCommit={selectCommit} />
       </Dialog>
+      
       <Show when={modalUserProfileOpen()}>
         <Dialog open={modalUserProfileOpen()} 
             onClose={() => {

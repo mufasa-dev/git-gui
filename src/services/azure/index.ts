@@ -264,29 +264,56 @@ export const azureService = {
   },
 
   async mergePullRequest(organization: string, repoName: string, prNumber: number): Promise<boolean> {
-    const token = await this.getToken();
-    if (!token) return false;
-    const credentials = btoa(`:${token.trim()}`);
-    
-    const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests/${prNumber}?api-version=7.0`;
-    
-    const prRes = await window.fetch(url, { headers: { 'Authorization': `Basic ${credentials}` } });
-    const prData = await prRes.json();
+    try {
+      const token = await this.getToken();
+      if (!token) return false;
+      const credentials = btoa(`:${token.trim()}`);
+      
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
+      
+      console.log("Iniciando processo de Merge/Complete na Azure:", url);
 
-    const response = await window.fetch(url, {
-      method: 'PATCH',
-      headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        status: "completed",
-        completionOptions: {
-          deleteSourceBranch: false,
-          mergeCommitMessage: "Merged via Dev Brook",
-          squashMerge: false
+      // Precisamos pegar o status atual para mandar o lastMergeSourceCommitId protetor
+      const prRes = await window.fetch(url, { 
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' } 
+      });
+      
+      if (!prRes.ok) {
+        console.error("Erro ao obter metadados do PR para Merge:", prRes.status);
+        return false;
+      }
+
+      const prData = await prRes.json();
+
+      // Executa o PATCH enviando as opções de completude exigidas pela Azure
+      const response = await window.fetch(url, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Content-Type': 'application/json' 
         },
-        lastMergeSourceCommitId: prData.lastMergeSourceCommitId
-      })
-    });
-    return response.ok;
+        body: JSON.stringify({
+          status: "completed",
+          completionOptions: {
+            deleteSourceBranch: false,
+            mergeCommitMessage: `Merged via Dev Brook - PR #${prNumber}`,
+            squashMerge: false
+          },
+          lastMergeSourceCommitId: prData.lastMergeSourceCommitId
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Erro ao fechar/completar o PR na Azure:", errorData.message || response.statusText);
+        return false;
+      }
+
+      return response.ok;
+    } catch (error) {
+      console.error("Falha catastrófica ao executar merge na Azure:", error);
+      return false;
+    }
   },
 
   // Busca todas as Threads de Comentários do PR da Azure
@@ -538,6 +565,121 @@ export const azureService = {
     } catch (error) {
       console.error("Erro ao buscar commits na Azure:", error);
       return [];
+    }
+  },
+
+  // Votar/Dar feedback no Pull Request (Aprove, Reject, etc)
+  async votePullRequest(organization: string, repoName: string, prNumber: number, voteValue: number): Promise<any> {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const connectionUrl = `https://dev.azure.com/${organization}/_apis/connectionData?api-version=7.0-preview`;
+      
+      console.log("Buscando dados de conexão em:", connectionUrl);
+      
+      const connResponse = await window.fetch(connectionUrl, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+
+      if (!connResponse.ok) {
+        throw new Error("Não foi possível determinar a identidade do usuário logado na Azure.");
+      }
+
+      const connData = await connResponse.json();
+      const userUniqueId = connData.authenticatedUser?.id;
+
+      if (!userUniqueId) {
+        throw new Error("GUID do usuário não encontrado nos dados de conexão.");
+      }
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/reviewers/${userUniqueId}?api-version=7.0`;
+
+      console.log(`Enviando voto (${voteValue}) para o revisor GUID: ${userUniqueId}`);
+
+      const response = await window.fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          vote: voteValue
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro HTTP ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Erro na service Azure (votePullRequest):", error);
+      throw error;
+    }
+  },
+
+  // Abandonar Pull Request (Abandon)
+  async abandonPullRequest(organization: string, repoName: string, prNumber: number): Promise<any> {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'abandoned' // Altera o status do PR para abandonado
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ao abandonar PR: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Erro na service Azure (abandonPullRequest):", error);
+      throw error;
+    }
+  },
+
+  // Transformar em Draft ou reativar PR
+  async updatePullRequestStatus(organization: string, repoName: string, prNumber: number, isDraft: boolean): Promise<any> {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          isDraft: isDraft // true para transformar em rascunho, false para publicar
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ao alterar propriedade Draft do PR: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Erro na service Azure (updatePullRequestStatus):", error);
+      throw error;
     }
   },
 
