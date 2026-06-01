@@ -166,7 +166,7 @@ export const azureService = {
       
       let statusParam = "active";
       if (state === "MERGED") statusParam = "completed";
-      if (state === "CLOSED") statusParam = "abandoned";
+      if (state === "ABANDONED" || state === "CLOSED") statusParam = "abandoned";
 
       const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests?searchCriteria.status=${statusParam}&api-version=7.0`;
 
@@ -188,7 +188,7 @@ export const azureService = {
         id: pr.pullRequestId.toString(),
         number: pr.pullRequestId,
         title: pr.title,
-        state: pr.status === 'active' ? 'OPEN' : (pr.status === 'completed' ? 'MERGED' : 'CLOSED'),
+        state: pr.status === 'active' ? 'OPEN' : (pr.status === 'completed' ? 'MERGED' : 'ABANDONED'),
         createdAt: pr.creationDate,
         author: {
           login: pr.createdBy.uniqueName,
@@ -263,30 +263,33 @@ export const azureService = {
     return response.ok;
   },
 
-  async mergePullRequest(organization: string, repoName: string, prNumber: number): Promise<boolean> {
+  async mergePullRequest(
+    organization: string, 
+    repoName: string, 
+    prNumber: number,
+    options: { mergeStrategy: string; deleteSourceBranch: boolean; completeWorkItems: boolean; }
+  ): Promise<boolean> {
     try {
       const token = await this.getToken();
       if (!token) return false;
       const credentials = btoa(`:${token.trim()}`);
       
-      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
+      const targetUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
       
-      console.log("Iniciando processo de Merge/Complete na Azure:", url);
-
-      // Precisamos pegar o status atual para mandar o lastMergeSourceCommitId protetor
-      const prRes = await window.fetch(url, { 
+      const prRes = await window.fetch(targetUrl, { 
         headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' } 
       });
       
-      if (!prRes.ok) {
-        console.error("Erro ao obter metadados do PR para Merge:", prRes.status);
-        return false;
-      }
-
+      if (!prRes.ok) return false;
       const prData = await prRes.json();
 
-      // Executa o PATCH enviando as opções de completude exigidas pela Azure
-      const response = await window.fetch(url, {
+      const projectId = prData.repository?.project?.id || repoName;
+      const repositoryId = prData.repository?.id || repoName;
+
+      const mergeUrl = `https://dev.azure.com/${organization}/${projectId}/_apis/git/repositories/${repositoryId}/pullrequests/${prNumber}?api-version=7.0`;
+
+      // Payload dinâmico montado a partir das escolhas feitas no modal
+      const response = await window.fetch(mergeUrl, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Basic ${credentials}`, 
@@ -294,25 +297,98 @@ export const azureService = {
         },
         body: JSON.stringify({
           status: "completed",
+          lastMergeSourceCommitId: prData.lastMergeSourceCommit?.commitId,
           completionOptions: {
-            deleteSourceBranch: false,
-            mergeCommitMessage: `Merged via Dev Brook - PR #${prNumber}`,
-            squashMerge: false
-          },
-          lastMergeSourceCommitId: prData.lastMergeSourceCommitId
+            deleteSourceBranch: options.deleteSourceBranch,
+            completeWorkItems: options.completeWorkItems,
+            mergeStrategy: options.mergeStrategy, 
+            mergeCommitMessage: `Merged pull request ${prNumber}: ${prData.title}`
+          }
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("Erro ao fechar/completar o PR na Azure:", errorData.message || response.statusText);
-        return false;
+        throw new Error(errorData.message || "Erro no PATCH de Merge");
       }
+
+      const finalData = await response.json();
+      return finalData.status === "completed";
+    } catch (error) {
+      console.error("Falha ao fechar PR na Azure:", error);
+      throw error;
+    }
+  },
+
+  async reactivatePullRequest(organization: string, repoName: string, prNumber: number): Promise<boolean> {
+    try {
+      const token = await this.getToken();
+      if (!token) return false;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: "active"
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Erro ao reativar PR");
+      }
+
+      const data = await response.json();
+      return data.status === "active";
+    } catch (error) {
+      console.error("Falha ao reativar PR na Azure:", error);
+      throw error;
+    }
+  },
+
+  async deleteRef(organization: string, repoName: string, branchName: string): Promise<boolean> {
+    try {
+      const token = await this.getToken();
+      if (!token) return false;
+      const credentials = btoa(`:${token.trim()}`);
+
+      // Primeiro pegamos o ObjectId atual (SHA) da ponta da branch para poder deletá-la com segurança
+      const getUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/refs?filter=heads/${encodeURIComponent(branchName)}&api-version=7.0`;
+      const res = await window.fetch(getUrl, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+      
+      if (!res.ok) return false;
+      const resData = await res.json();
+      const oldObjectId = resData.value?.[0]?.objectId;
+
+      if (!oldObjectId) throw new Error("Não foi possível encontrar o hash da branch remota.");
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/refs?api-version=7.0`;
+      
+      const response = await window.fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify([{
+          name: `refs/heads/${branchName}`,
+          oldObjectId: oldObjectId,
+          newObjectId: "0000000000000000000000000000000000000000"
+        }])
+      });
 
       return response.ok;
     } catch (error) {
-      console.error("Falha catastrófica ao executar merge na Azure:", error);
-      return false;
+      console.error("Falha ao deletar ref/branch na Azure:", error);
+      throw error;
     }
   },
 
