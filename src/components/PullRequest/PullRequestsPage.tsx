@@ -10,6 +10,7 @@ import { GitProvider } from "../../utils/gitProvider";
 import { azureService } from "../../services/azure";
 
 export default function PullRequestsPage(props: { repo: Repo,  branch?: string, provider: GitProvider, remoteUrl: string, onMergeSuccess: (prNumber: number) => void; }) {
+  // Alterado para suportar "ABANDONED" além de "OPEN" e "MERGED"
   const [filter, setFilter] = createSignal("OPEN");
   const [searchTerm, setSearchTerm] = createSignal("");
   const [selectedPR, setSelectedPR] = createSignal<any>(null);
@@ -19,23 +20,18 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
   const [sidebarWidth, setSidebarWidth] = createSignal(350);
   const [isResizing, setIsResizing] = createSignal(false);
 
-  // 3. Memoizador para extrair cirurgicamente o Owner/Organização direto da URL remota
+  // Memoizador para extrair cirurgicamente o Owner/Organização direto da URL remota
   const repoOwner = createMemo(() => {
     const url = props.remoteUrl;
     if (!url) return "";
 
     try {
-      // Caso Azure DevOps (dev.azure.com/organizacao/...)
       if (url.includes("dev.azure.com/")) {
         return url.split("dev.azure.com/")[1]?.split("/")[0] || "";
       }
-      
-      // Caso Azure DevOps Antigo (...visualstudio.com)
       if (url.includes(".visualstudio.com/")) {
         return url.split(".visualstudio.com/")[0].replace("https://", "").split("@").pop() || "";
       }
-
-      // Caso GitHub (github.com/owner/repo)
       if (url.includes("github.com/")) {
         return url.split("github.com/")[1]?.split("/")[0] || "";
       }
@@ -45,7 +41,7 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
     return "";
   });
 
-  // 4. O Resource unificado agora monitora o owner dinâmico e o provider!
+  // O Resource unificado monitora o owner dinâmico, o provider e o estado do filtro!
   const [prs, { refetch }] = createResource(
     () => ({ 
       owner: repoOwner(), 
@@ -57,11 +53,14 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
       if (!params.name || !params.owner) return [];
 
       if (params.currentProvider === 'azure') {
+        // A API da Azure sabe responder quando enviamos 'abandoned'
         return await azureService.getRepoPullRequests(params.owner, params.name, params.state);
       }
       
       if (params.currentProvider === 'github') {
-        return await githubService.getRepoPullRequests(params.owner, params.name, params.state);
+        // Fallback defensivo para o GitHub caso clique em abandonado (GitHub usa 'closed')
+        const stateMapping = params.state === 'ABANDONED' ? 'CLOSED' : params.state;
+        return await githubService.getRepoPullRequests(params.owner, params.name, stateMapping);
       }
       
       return [];
@@ -96,9 +95,30 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
       <div class="flex flex-col border-r overflow-auto border-gray-300 pt-2 pb-2 pl-2 dark:border-gray-900 height-container"  style={{ width: `${sidebarWidth()}px` }}>
         <div class="container-branch-list p-0 flex flex-col h-full">
           <header class="p-4 border-b dark:border-gray-700/50 space-y-4">
+            
+            {/* Abas de Filtros Atualizada com Aba de Abandonados */}
             <div class="flex bg-gray-100 dark:bg-gray-800/50 p-1 rounded-lg border dark:border-gray-700">
-              <button onClick={() => setFilter("OPEN")} class={`flex-1 py-1 text-[9px] font-black uppercase rounded-md ${filter() === 'OPEN' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>{t('pr').open}</button>
-              <button onClick={() => setFilter("MERGED")} class={`flex-1 py-1 text-[9px] font-black uppercase rounded-md ${filter() === 'MERGED' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>{t('pr').merged}</button>
+              <button 
+                onClick={() => setFilter("OPEN")} 
+                class={`flex-1 py-1 text-[9px] font-black uppercase rounded-md transition-all ${filter() === 'OPEN' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+              >
+                {t('pr').open}
+              </button>
+              
+              <button 
+                onClick={() => setFilter("MERGED")} 
+                class={`flex-1 py-1 text-[9px] font-black uppercase rounded-md transition-all ${filter() === 'MERGED' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+              >
+                {t('pr').merged}
+              </button>
+
+              {/* Exibe o filtro "Abandoned" nativo para Azure, ou "Closed" geral */}
+              <button 
+                onClick={() => setFilter("ABANDONED")} 
+                class={`flex-1 py-1 text-[9px] font-black uppercase rounded-md transition-all ${filter() === 'ABANDONED' ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+              >
+                {props.provider === 'azure' ? 'Abandoned' : 'Closed'}
+              </button>
             </div>
 
             {/* Barra de Busca */}
@@ -128,11 +148,8 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
                               ${selectedPR()?.number === pr.number ? 'bg-blue-500/10 border-blue-500/30' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
                       onClick={() => setSelectedPR(pr)}>
                     <img src={pr.author.avatarUrl} alt={pr.author.login} class="w-16 h-16 rounded-full border-2 border-gray-300 dark:border-gray-700 mx-3" />
-                    <div 
-                      onClick={() => setSelectedPR(pr)}
-                      class={`p-1 rounded-xl cursor-pointer transition-all`}
-                    >
-                      <h4 class={`text-xs font-bold leading-tight mb-1 ${selectedPR()?.number === pr.number ? 'text-blue-500' : 'dark:text-gray-200'}`}>
+                    <div class="p-1 rounded-xl flex-1 min-w-0">
+                      <h4 class={`text-xs font-bold leading-tight mb-1 truncate ${selectedPR()?.number === pr.number ? 'text-blue-500' : 'dark:text-gray-200'}`}>
                         <CommitMessage message={pr.title} />
                       </h4>
                       
@@ -164,14 +181,11 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
 
       <div class="resize-bar-vertical" onMouseDown={() => setIsResizing(true)}></div>
 
-      {/* PAINEL DE DETALHES (Ocupa o resto) */}
+      {/* PAINEL DE DETALHES */}
       <div class="flex-1 flex flex-col overflow-hidden pt-2 pr-2 height-container">
         <div class="flex-1 flex flex-col overflow-hidden">
           <div class="flex-1 p-0 flex flex-col mb-2 overflow-hidden">
-            <Show 
-              when={selectedPR()} 
-            >
-              {/* Aqui entra o componente de detalhes */}
+            <Show when={selectedPR()}>
               <PRDetailView 
                 pr={selectedPR()} 
                 owner={repoOwner()} 
@@ -179,11 +193,31 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
                 branch={props.branch}
                 provider={props.provider}
                 onMergeSuccess={(updatedPrNumber) => {
-                  refetch(); 
+                  refetch();
                   
                   setSelectedPR(prev => {
                     if (prev && prev.number === updatedPrNumber) {
                       return { ...prev, state: "MERGED" };
+                    }
+                    return prev;
+                  });
+                }}
+                onAbandonSuccess={(updatedPrNumber) => {
+                  refetch();
+                  
+                  setSelectedPR(prev => {
+                    if (prev && prev.number === updatedPrNumber) {
+                      return { ...prev, state: "ABANDONED" };
+                    }
+                    return prev;
+                  });
+                }}
+                onReactivateSuccess={(updatedPrNumber) => {
+                  refetch();
+                  
+                  setSelectedPR(prev => {
+                    if (prev && prev.number === updatedPrNumber) {
+                      return { ...prev, state: "OPEN" };
                     }
                     return prev;
                   });
