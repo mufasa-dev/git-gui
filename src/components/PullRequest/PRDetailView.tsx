@@ -17,6 +17,7 @@ import { notify } from "../../utils/notifications";
 import { useApp } from "../../context/AppContext";
 import { azureService } from "../../services/azure";
 import { GitProvider } from "../../utils/gitProvider";
+import AzureMergeDialog from "./AzureMergeDialog";
 
 interface PRDetailViewProps {
   pr: any;
@@ -25,6 +26,8 @@ interface PRDetailViewProps {
   branch?: string;
   provider: GitProvider;
   onMergeSuccess: (prNumber: number) => void;
+  onAbandonSuccess: (prNumber: number) => void;
+  onReactivateSuccess: (prNumber: number) => void;
 }
 
 export default function PRDetailView(props: PRDetailViewProps) {
@@ -35,6 +38,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
   const [isApproving, setIsApproving] = createSignal(false);
   const [isMerging, setIsMerging] = createSignal(false);
+  const [showAzureMergeModal, setShowAzureMergeModal] = createSignal(false);
   const [showApproveMenu, setShowApproveMenu] = createSignal(false);
   const [showActionMenu, setShowActionMenu] = createSignal(false);
   const [currentFeedback, setCurrentFeedback] = createSignal('Approve');
@@ -98,14 +102,18 @@ export default function PRDetailView(props: PRDetailViewProps) {
     setShowActionMenu(false);
 
     if (action === 'Complete' || action === 'Merge') {
-      handleMerge();
+      handleMergeClick();
     } 
     else if (action === 'Abandon' && props.provider === 'azure') {
       setIsMerging(true);
       try {
         await azureService.abandonPullRequest(props.owner, props.repo.name, props.pr.number);
         notify.success("PR Abandonado", "O Pull Request foi fechado/abandonado.");
-        props.onMergeSuccess(props.pr.number); // Dispara para atualizar a listagem global
+        
+        // Dispara o callback correto que acabamos de adicionar!
+        if (props.onAbandonSuccess) {
+          props.onAbandonSuccess(props.pr.number);
+        }
       } catch (err) {
         notify.error("Erro", "Falha ao abandonar o Pull Request.");
       } finally {
@@ -206,7 +214,89 @@ export default function PRDetailView(props: PRDetailViewProps) {
     }
   };
 
-  const handleMerge = async () => {
+  const handleReactivatePR = async () => {
+    setIsMerging(true);
+    try {
+      const success = await azureService.reactivatePullRequest(
+        props.owner,
+        props.repo.name,
+        props.pr.number
+      );
+
+      if (success) {
+        notify.success("PR Reativado", "O Pull Request voltou para o estado Ativo.");
+        
+        if (props.onReactivateSuccess) {
+          props.onReactivateSuccess(props.pr.number);
+        }
+      }
+    } catch (err: any) {
+      notify.error("Erro", err.message || "Falha ao reativar o PR.");
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  const handleDeleteSourceBranch = async () => {
+    const branchClean = props.pr.headRefName || props.pr.sourceRefName?.replace("refs/heads/", "");
+    
+    if (!confirm(`Tem certeza que deseja deletar permanentemente a branch remota ${branchClean}?`)) {
+      return;
+    }
+
+    try {
+      const success = await azureService.deleteRef(
+        props.owner,
+        props.repo.name,
+        branchClean
+      );
+
+      if (success) {
+        notify.success("Branch Removida", `A branch ${branchClean} foi removida da Azure DevOps.`);
+      } else {
+        notify.error("Erro", "Não foi possível remover a branch remota.");
+      }
+    } catch (err: any) {
+      notify.error("Erro", err.message || "Falha ao remover a branch.");
+    }
+  };
+
+  const handleMergeClick = () => {
+    if (props.provider === 'azure') {
+      // Em vez de mesclar direto, abre o modal estilizado
+      setShowAzureMergeModal(true);
+    } else {
+      // Fluxo direto padrão do GitHub
+      executeGitHubMerge(); 
+    }
+  };
+
+  // Função chamada ao clicar em "Complete merge" dentro do Modal
+  const handleConfirmAzureMerge = async (options: any) => {
+    setIsMerging(true);
+    try {
+      const success = await azureService.mergePullRequest(
+        props.owner,
+        props.repo.name,
+        props.pr.number,
+        options
+      );
+
+      if (success) {
+        notify.success("Sucesso", "Pull Request mesclado com sucesso!");
+        setShowAzureMergeModal(false);
+        props.onMergeSuccess(props.pr.number); // Atualiza listagem global
+      } else {
+        notify.error("Erro", "Não foi possível completar o merge do Pull Request.");
+      }
+    } catch (err: any) {
+      notify.error("Erro no Merge", err.message || String(err));
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  const executeGitHubMerge = async () => {
     const prId = props.pr.node_id || props.pr.id; 
     
     if (!prId) {
@@ -218,8 +308,6 @@ export default function PRDetailView(props: PRDetailViewProps) {
     try {
       if (props.provider === 'github') {
         await githubService.mergePullRequest(prId);
-      } else if (props.provider === 'azure') {
-        await azureService.mergePullRequest(props.owner, props.repo.name, props.pr.number);
       }
 
       notify.success("Sucesso", "Pull Request mesclado com sucesso!");
@@ -255,7 +343,6 @@ export default function PRDetailView(props: PRDetailViewProps) {
   return (
     <div class="flex flex-col h-full select-text transition-colors">
       
-      {/* 👑 NOVO HEADER ESTILO AZURE DEVOPS TOTALMENTE CONECTADO */}
       <header class="container-branch-list p-4 mb-2 bg-white dark:bg-gray-800 rounded-t-xl border-b border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between mb-2">
           <h1 class="text-lg font-black text-gray-900 dark:text-white tracking-tight flex items-center">
@@ -265,7 +352,48 @@ export default function PRDetailView(props: PRDetailViewProps) {
           
           <div class="flex items-center gap-2">
             <Switch>
-              {/* Tratamento de Conflitos */}
+              {/* 🚀 1. STATUS PRIORITÁRIO: SE FOR ABANDONADO NA AZURE, TRAVA AQUI */}
+              <Match when={props.pr.state === "ABANDONED" && props.provider === "azure"}>
+                <div class="flex items-center gap-1.5 relative w-full">
+                  
+                  {/* Botão Principal: Reactivate */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleReactivatePR(); }}
+                    disabled={isMerging()}
+                    class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Show when={isMerging()} fallback={<i class="fa-solid fa-arrow-rotate-left"></i>}>
+                      <i class="fa-solid fa-circle-notch animate-spin"></i>
+                    </Show>
+                    Reactivate
+                  </button>
+
+                  {/* Botão Dropdown Secundário (Reticências) */}
+                  <div class="relative">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowActionMenu(!showActionMenu()); }}
+                      class="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors rounded-md text-xs flex items-center"
+                    >
+                      <i class="fa-solid fa-ellipsis"></i>
+                    </button>
+
+                    {/* Dropdown com "Delete source branch" */}
+                    <Show when={showActionMenu()}>
+                      <div class="absolute right-0 top-9 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl z-50 py-1 text-xs text-gray-700 dark:text-gray-200">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShowActionMenu(false); handleDeleteSourceBranch(); }}
+                          class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-red-500 font-medium"
+                        >
+                          <i class="fa-regular fa-trash-can"></i>
+                          Delete source branch
+                        </button>
+                      </div>
+                    </Show>
+                  </div>
+                </div>
+              </Match>
+
+              {/* 2. Tratamento de Conflitos (PR Ativo) */}
               <Match when={details()?.mergeable === 'CONFLICTING'}>
                 <div class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-md">
                   <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
@@ -281,11 +409,11 @@ export default function PRDetailView(props: PRDetailViewProps) {
                 </div>
               </Match>
               
-              {/* Fluxo de Botões Regulares (Controlado por Provedor) */}
+              {/* 3. Fluxo de Botões Regulares (Apenas se não cair nas regras acima) */}
               <Match when={details()?.mergeable === 'MERGEABLE' || props.provider === 'azure'}>
                 <div class="flex items-center gap-1.5 relative">
                   
-                  {/* 1. SELETOR DE FEEDBACK/APROVAÇÃO (Estilo Azure) */}
+                  {/* Seletor de Feedback/Aprovação */}
                   <div class="flex items-center rounded-md overflow-visible bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600">
                     <button 
                       onClick={(e) => handleApprove(e)}
@@ -335,7 +463,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                     </Show>
                   </div>
 
-                  {/* 2. BOTÃO PRINCIPAL DE MERGE / AUTOCOMPLETE COORDENADO */}
+                  {/* Botão Principal de Merge / Autocomplete */}
                   <div class="flex items-center rounded-md overflow-visible bg-blue-600 text-white border border-blue-700 shadow-md">
                     <button 
                       onClick={(e) => handleActionExecute(hasPendingRequiredReviewers() ? 'Autocomplete' : 'Complete', e)}
@@ -572,6 +700,13 @@ export default function PRDetailView(props: PRDetailViewProps) {
           />
         </Dialog>
       </Show>
+      <AzureMergeDialog
+        open={showAzureMergeModal()}
+        sourceBranch={props.pr.sourceRefName?.replace("refs/heads/", "") || "branch"}
+        isMerging={isMerging()}
+        onClose={() => setShowAzureMergeModal(false)}
+        onConfirm={handleConfirmAzureMerge}
+      />
     </div>
   );
 }
