@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { createMemo, createResource, createSignal, For, Match, Show, Switch } from "solid-js";
 import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import { getRelativeTime } from "../../utils/date";
@@ -32,39 +32,101 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         () => ({ owner: props.owner, name: props.repo, number: props.pr.number, provider: props.provider }),
         async (params) => {
             if (params.provider === 'azure') {
-                // Busca as Threads da Azure (que contêm comentários, fechamentos, etc)
                 const azureThreads = await azureService.getPRThreads(params.owner, params.name, params.number);
-                
-                // Mapeia e normaliza os dados da Azure para o formato "GraphQL-like" do seu JSX
                 const normalizedTimeline: any[] = [];
 
                 azureThreads.forEach((thread: any) => {
                     if (!thread.comments || thread.comments.length === 0) return;
 
-                    // Ignora comentários de sistema vazios ou metadados sem texto real
                     const firstComment = thread.comments[0];
+                    const content = firstComment.content || "";
                     
-                    // Caso 1: Evento de Fechamento ou Merge gerado pelo sistema
-                    if (thread.properties?.CodeReviewThreadType === "System") {
-                        if (firstComment.content?.includes("closed") || firstComment.content?.includes("abandoned")) {
+                    // Extrai o tipo da thread caso venha no formato de objeto do Azure ($value)
+                    const threadType = thread.properties?.CodeReviewThreadType?.$value || thread.properties?.CodeReviewThreadType || "";
+
+                    // 🚀 MAPEAMENTO DE INTERAÇÕES DE SISTEMA DO AZURE DEVOPS
+                    if (firstComment.commentType === "system" || threadType === "System" || threadType === "ReviewersUpdate" || threadType === "VoteUpdate") {
+                        
+                        // 1. Identifica o autor real a partir do conteúdo do texto se o autor original for o TFS
+                        let authorName = firstComment.author?.displayName || "Azure Reviewer";
+                        
+                        if (authorName.includes("Microsoft.VisualStudio.Services.TFS") && content) {
+                            // O Azure DevOps gera mensagens no padrão: "Nome do Usuário ação ocorrida"
+                            // Vamos capturar tudo o que vem antes de palavras-chave conhecidas do sistema
+                            const keywords = [
+                                " voted", " approved", " waiting", " rejected", 
+                                " reset", " joined", " changed", " closed", 
+                                " abandoned", " reopened", " reactivated", " completed"
+                            ];
+                            
+                            for (const keyword of keywords) {
+                                if (content.includes(keyword)) {
+                                    authorName = content.split(keyword)[0].trim();
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 2. Votos de Revisores e Entradas de Reviewers -> Mapeia para PullRequestReview
+                        if (content.includes("voted") || threadType === "VoteUpdate" || threadType === "ReviewersUpdate") {
+                            let reviewState = "COMMENTED";
+                            const voteValue = thread.properties?.CodeReviewVoteResult?.$value;
+                            
+                            if (content.includes("approved with suggestions") || voteValue === "5") reviewState = "APPROVED_WITH_SUGGESTIONS";
+                            else if (content.includes("approved") || voteValue === "10") reviewState = "APPROVED";
+                            else if (content.includes("waiting for the author") || content.includes("waiting for author") || voteValue === "-5") reviewState = "CHANGES_REQUESTED";
+                            else if (content.includes("rejected") || voteValue === "-10") reviewState = "REJECTED";
+                            else if (content.includes("reset their vote") || content.includes("joined as a reviewer")) reviewState = "PENDING";
+
                             normalizedTimeline.push({
-                                __typename: 'ClosedEvent',
+                                __typename: 'PullRequestReview',
                                 id: thread.id.toString(),
                                 createdAt: firstComment.publishedDate,
-                                actor: {
-                                    login: firstComment.author?.displayName || "Azure DevOps",
+                                state: reviewState,
+                                author: {
+                                    login: authorName, // <--- Agora filtrado e correto!
                                     avatarUrl: firstComment.author?.imageUrl || ""
                                 }
                             });
                             return;
                         }
-                        if (firstComment.content?.includes("reopened")) {
+
+                        // 3. PR Fechado / Abandonado -> Mapeia para ClosedEvent
+                        if (content.includes("closed") || content.includes("abandoned")) {
+                            normalizedTimeline.push({
+                                __typename: 'ClosedEvent',
+                                id: thread.id.toString(),
+                                createdAt: firstComment.publishedDate,
+                                actor: {
+                                    login: authorName, // <--- Filtrado aqui também!
+                                    avatarUrl: firstComment.author?.imageUrl || ""
+                                }
+                            });
+                            return;
+                        }
+
+                        // 4. PR Reativado -> Mapeia para ReopenedEvent
+                        if (content.includes("reopened") || content.includes("reactivated")) {
                             normalizedTimeline.push({
                                 __typename: 'ReopenedEvent',
                                 id: thread.id.toString(),
                                 createdAt: firstComment.publishedDate,
                                 actor: {
-                                    login: firstComment.author?.displayName || "Azure DevOps",
+                                    login: authorName, 
+                                    avatarUrl: firstComment.author?.imageUrl || ""
+                                }
+                            });
+                            return;
+                        }
+
+                        // 5. PR Completado / Merged -> Mapeia para MergedEvent
+                        if (content.includes("completed the pull request") || content.includes("merged")) {
+                            normalizedTimeline.push({
+                                __typename: 'MergedEvent',
+                                id: thread.id.toString(),
+                                createdAt: firstComment.publishedDate,
+                                actor: {
+                                    login: authorName,
                                     avatarUrl: firstComment.author?.imageUrl || ""
                                 }
                             });
@@ -72,16 +134,15 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                         }
                     }
 
-                    // Caso 2: Comentários normais de usuários (Reviewers ou Autores)
+                    // Caso 2: Comentários normais de usuários (Ignora os que já processamos como system)
                     thread.comments.forEach((comment: any) => {
-                        // Ignora os logs automáticos chatos do sistema na Azure
                         if (comment.commentType === "system" || !comment.content) return;
 
                         normalizedTimeline.push({
                             __typename: 'IssueComment',
                             id: comment.id.toString(),
                             createdAt: comment.publishedDate,
-                            bodyHTML: comment.content, // O MarkdownViewer vai ler o texto puro
+                            bodyHTML: comment.content, 
                             isMinimized: comment.isDeleted,
                             minimizedReason: "Deletado",
                             author: {
@@ -90,17 +151,18 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 name: comment.author?.displayName || "",
                                 email: comment.author?.uniqueName || ""
                             },
-                            reactionGroups: [] // Azure REST básica não expõe reações idênticas ao GH por padrão
+                            reactionGroups: []
                         });
                     });
                 });
 
-                // Se houver commits injetados nos detalhes da Azure, podemos mesclá-los aqui ordenando por data
+                // Injeta os commits vindos dos detalhes da Azure (mantendo a ordenação cronológica)
                 if (props.details?.commits) {
                     props.details.commits.forEach((c: any) => {
                         normalizedTimeline.push({
                             __typename: 'PullRequestCommit',
                             id: c.commitId,
+                            createdAt: c.author?.date, 
                             commit: {
                                 oid: c.commitId,
                                 message: c.comment,
@@ -110,14 +172,13 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                     });
                 }
 
-                // Ordena tudo cronologicamente para montar a linha do tempo perfeita
+                // Ordena tudo cronologicamente (Comentários, Commits e Eventos do Sistema)
                 return normalizedTimeline.sort((a, b) => 
                     new Date(a.createdAt || a.commit?.committedDate).getTime() - 
                     new Date(b.createdAt || b.commit?.committedDate).getTime()
                 );
             }
 
-            // Fallback padrão: mantêm o comportamento do GitHub intocado
             return await githubService.getPRTimeline(params.owner, params.name, params.number);
         }
     );
@@ -129,7 +190,6 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         return (add / (add + del)) * 100;
     });
 
-    // 🛠️ 2. Bifurcação das ações de escrita (Salvar Comentários e Deletar)
     const handleSaveComment = async () => {
         if (!commentText()) return;
 
@@ -150,7 +210,6 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     };
 
     const onReact = async (subjectId: string, content: string, hasReacted: boolean) => {
-        // Bloqueia reações se estiver na Azure, já que a estrutura de reações deles é diferente
         if (props.provider === 'azure') return; 
         
         try {
@@ -175,7 +234,6 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     const handleHide = async (id: string) => {
         try {
             showLoading("Escondendo comentário...");
-            // Usando 'OUTDATED' como padrão, similar ao comportamento de 'Hide' rápido
             await githubService.minimizeComment(id, "OUTDATED");
             hideLoading();
             refetch();
@@ -197,7 +255,6 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
             setConfirmData(null);
             showLoading("Deletando comentário...");
             if (props.provider === 'azure') {
-                // Na Azure, a remoção precisa do ID da Thread ou do Comment, ajuste conforme seu service
                 await azureService.deletePRComment(props.owner, props.repo, props.pr.number, data.id);
             } else {
                 await githubService.deleteComment(data.id);
@@ -212,9 +269,9 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
     return (
         <div class="flex flex-1 flex-col w-full bg-white dark:bg-gray-800 rounded-b-xl border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden">
-            {/* A div interna que terá o scroll */}
             <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-8 relative">
-                {/* BARRA DE PROGRESSO (DADOS REAIS) */}
+                
+                {/* BARRA DE PROGRESSO */}
                 <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-5">
                     <div class="flex justify-between items-end mb-3">
                         <span class="text-lg font-black text-gray-900 dark:text-white">
@@ -231,9 +288,8 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                     </div>
                 </div>
 
-                {/* TIMELINE REFEITA COM MAP DOS DADOS */}
+                {/* TIMELINE */}
                 <div class="space-y-6">
-                    
                     <div class="relative border-l-2 border-gray-200 dark:border-gray-600 ml-4 pl-8 space-y-8">
                         <Show when={props.details && props.details.body}>
                             <div class="relative">
@@ -269,24 +325,23 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                     <div class="relative">
                                         <div class="absolute -left-[35px] top-1 w-[12px] h-[12px] rounded-full bg-blue-500 border-4 border-gray-200 dark:border-gray-600"></div>
                                         <div class="flex justify-between items-center pr-4">
-                                            <p class="font-mono text-sm font-bold text-gray-500 dark:text-gray-400 flex items-center 
-                                                      mt-1 hover:text-blue-500 dark:hover:text-blue-500 hover:underline cursor-pointer  transition-colors"
+                                            <div class="font-mono text-sm font-bold text-gray-500 dark:text-gray-400 flex items-center 
+                                                      mt-1 hover:text-blue-500 dark:hover:text-blue-500 hover:underline cursor-pointer transition-colors"
                                                     onClick={() => props.selectCommit(item.commit.oid)}>
                                                 <span>{t('git').commit}</span>
                                                 <CommitMessage message={item.commit.message} class="text-sm text-gray-600 dark:text-gray-300 ml-1" />
-                                            </p>
+                                            </div>
                                             <span class="opacity-30 font-mono text-[10px]">{new Date(item.commit.committedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                         </div>
                                     </div>
                                 </Show>
 
+                                {/* EVENTO DE FECHAMENTO */}
                                 <Show when={item.__typename === 'ClosedEvent'}>
                                     <div class="relative flex items-center gap-3 py-2">
-                                        {/* Ícone de Fechado (Vermelho) */}
                                         <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-red-500 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
                                             <i class="fa-solid fa-circle-xmark text-[10px] text-white"></i>
                                         </div>
-                                        
                                         <img src={item.actor.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
                                         <p class="text-gray-500 dark:text-gray-400">
                                             <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
@@ -296,14 +351,12 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                     </div>
                                 </Show>
 
-                                {/* EVENTO DE REABERTURA (REOPENED) */}
+                                {/* EVENTO DE REABERTURA */}
                                 <Show when={item.__typename === 'ReopenedEvent'}>
                                     <div class="relative flex items-center gap-3 py-2">
-                                        {/* Ícone de Reaberto (Verde) */}
                                         <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-green-500 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
                                             <i class="fa-solid fa-circle-dot text-[10px] text-white"></i>
                                         </div>
-                                        
                                         <img src={item.actor.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
                                         <p class="text-gray-500 dark:text-gray-400">
                                             <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
@@ -313,7 +366,70 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                     </div>
                                 </Show>
 
-                                {/* CARD DE COMENTÁRIO (ESTILIZADO COMO O SEU) */}
+                                {/* EVENTO DE MERGE */}
+                                <Show when={item.__typename === 'MergedEvent'}>
+                                    <div class="relative flex items-center gap-3 py-2">
+                                        <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-purple-600 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
+                                            <i class="fa-solid fa-code-merge text-[10px] text-white"></i>
+                                        </div>
+                                        <img src={item.actor.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
+                                        <p class="text-gray-500 dark:text-gray-400 text-sm">
+                                            <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
+                                            <span class="ml-1 text-purple-500 font-semibold">mesclou</span> este pull request
+                                            <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt, t, locale())}</span>
+                                        </p>
+                                    </div>
+                                </Show>
+
+                                {/* EVENTO DE REVIEW (VOTOS DA AZURE / REVIEW DO GITHUB) */}
+                                <Show when={item.__typename === 'PullRequestReview'}>
+                                    <div class="relative flex items-center gap-3 py-2">
+                                        <Switch>
+                                            <Match when={item.state === 'APPROVED'}>
+                                                <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-green-500 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
+                                                    <i class="fa-solid fa-check text-[10px] text-white"></i>
+                                                </div>
+                                            </Match>
+                                            <Match when={item.state === 'APPROVED_WITH_SUGGESTIONS'}>
+                                                <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-emerald-600 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
+                                                    <i class="fa-solid fa-comment-medical text-[10px] text-white"></i>
+                                                </div>
+                                            </Match>
+                                            <Match when={item.state === 'CHANGES_REQUESTED'}>
+                                                <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-amber-500 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
+                                                    <i class="fa-solid fa-clock text-[10px] text-white"></i>
+                                                </div>
+                                            </Match>
+                                            <Match when={item.state === 'REJECTED'}>
+                                                <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-red-500 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
+                                                    <i class="fa-solid fa-ban text-[10px] text-white"></i>
+                                                </div>
+                                            </Match>
+                                            <Match when={item.state === 'PENDING'}>
+                                                <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-gray-500 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
+                                                    <i class="fa-solid fa-user-plus text-[10px] text-white"></i>
+                                                </div>
+                                            </Match>
+                                        </Switch>
+                                        
+                                        <img src={item.author.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
+                                        <p class="text-gray-500 dark:text-gray-400 text-sm">
+                                            <span class="font-bold text-gray-900 dark:text-white">{item.author.login}</span> 
+                                            <span class="ml-1">
+                                                <Switch fallback={"entrou como revisor ou alterou seu voto"}>
+                                                    <Match when={item.state === 'APPROVED'}><span class="text-green-500 font-semibold">aprovou</span> as alterações</Match>
+                                                    <Match when={item.state === 'APPROVED_WITH_SUGGESTIONS'}><span class="text-emerald-500 font-semibold">aprovou com sugestões</span></Match>
+                                                    <Match when={item.state === 'CHANGES_REQUESTED'}><span class="text-amber-500 font-semibold">solicitou aguardar pelo autor</span></Match>
+                                                    <Match when={item.state === 'REJECTED'}><span class="text-red-500 font-semibold">rejeitou</span> as alterações</Match>
+                                                    <Match when={item.state === 'PENDING'}><span class="text-gray-400 font-semibold">entrou na revisão / resetou voto</span></Match>
+                                                </Switch>
+                                            </span>
+                                            <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt, t, locale())}</span>
+                                        </p>
+                                    </div>
+                                </Show>
+
+                                {/* CARD DE COMENTÁRIO */}
                                 <Show when={item.__typename === 'IssueComment'}>
                                     <Show 
                                         when={!item.isMinimized} 
@@ -340,7 +456,6 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                 {getRelativeTime(item.createdAt, t, locale())}
                                                             </span>
                                                             
-                                                            {/* BADGES OPCIONAIS (Owner/Author) */}
                                                             <Show when={item.author.login === props.pr.author?.login}>
                                                                 <span class="px-1.5 py-0.5 border border-gray-600 rounded-full text-[8px] text-gray-400 font-bold uppercase tracking-tighter">Author</span>
                                                             </Show>
@@ -351,17 +466,16 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                 {new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                             </span>
 
-                                                            {/* MENU DROPDOWN (TRÊS PONTINHOS) */}
+                                                            {/* MENU DROPDOWN */}
                                                             <div class="group relative">
                                                                 <button class="p-1 hover:bg-gray-700/50 rounded-md transition-colors text-gray-400 hover:text-white">
                                                                     <i class="fa-solid fa-ellipsis"></i>
                                                                 </button>
 
-                                                                {/* DROPDOWN MENU - Usando a mesma técnica de bridge (pt-2) */}
                                                                 <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute top-full right-0 pt-1 transition-all z-[60] min-w-[160px]">
                                                                     <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden py-1">
                                                                         <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                                                            <i class="fa-regular fa-copy opacity-60"></i> {}{t('pr').copy_link}
+                                                                            <i class="fa-regular fa-copy opacity-60"></i> {t('pr').copy_link}
                                                                         </button>
                                                                         <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                                                             <i class="fa-solid fa-quote-left opacity-60"></i> {t('pr').quote_reply}
@@ -375,15 +489,17 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                         >
                                                                             <i class="fa-regular fa-pen-to-square opacity-60"></i> {t('common').edit}
                                                                         </button>
-                                                                        <button onClick={() => handleHide(item.id)} 
-                                                                            class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                                                            <i class="fa-regular fa-eye-slash opacity-60"></i> {t('pr').hide}
+                                                                        <button 
+                                                                            onClick={() => handleHide(item.id)} 
+                                                                            class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                                                                        >
+                                                                            <i class="fa-solid fa-eye-slash opacity-60"></i> Ocultar
                                                                         </button>
                                                                         <button 
-                                                                            onClick={() => requestDelete(item.id)}
-                                                                            class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-red-500 font-bold"
+                                                                            onClick={() => requestDelete(item.id)} 
+                                                                            class="w-full text-left px-4 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2"
                                                                         >
-                                                                            <i class="fa-regular fa-trash-can"></i> {t('common').delete}
+                                                                            <i class="fa-regular fa-trash-can opacity-60"></i> Deletar
                                                                         </button>
                                                                     </div>
                                                                 </div>
@@ -468,26 +584,28 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                     </div>
                 </div>
 
-                {/* INPUT DE COMENTÁRIO (MANTIDO) */}
-                <div class="p-4 flex gap-4">
-                    <img src={props.currentUserAvatar} class="w-12 h-12 mt-1 rounded-full border dark:border-gray-700 shadow-sm" />
-                    <div class="flex-1 relative">
-                        <MarkdownEditor 
-                            value={commentText()} 
-                            onInput={setCommentText}
-                            placeholder={t('pr').leave_a_comment + '...'}
+                {/* EDITOR DE NOVO COMENTÁRIO */}
+                <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <MarkdownEditor 
+                        value={commentText()} 
+                        onInput={setCommentText} 
+                        placeholder={t('pr').leave_a_comment + '...'}
+                    />
+                    <div class="flex justify-end mt-2">
+                        <button 
+                            onClick={handleSaveComment}
+                            disabled={!commentText().trim()}
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors disabled:opacity-50"
                         >
-                            <button 
-                                disabled={!commentText()}
-                                onClick={handleSaveComment}
-                                class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
-                            >
-                                {t('pr').comment}
-                            </button>
-                        </MarkdownEditor>
+                            {t('pr').comment}
+                        </button>
                     </div>
                 </div>
 
+            </div>
+
+            {/* CONFIRMAÇÃO DE DELETAR */}
+            <Show when={confirmData()}>
                 <ConfirmModal 
                     isOpen={confirmData() !== null}
                     title={t('pr').delete_comment}
@@ -497,7 +615,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                     onConfirm={executeDelete}
                     onCancel={() => setConfirmData(null)}
                 />
-            </div>
+            </Show>
         </div>
-  );
+    );
 }
