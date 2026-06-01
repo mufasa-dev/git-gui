@@ -77,8 +77,8 @@ npm run tauri build
 
 ## 📌 Roadmap
 
-* [ ] Show commit history with diffs 🔍
-* [ ] Support multiple remotes 🌎
+* [X] Show commit history with diffs 🔍
+* [ ] Support GitHub and Azure Devops Pull Requests 🌎
 * [ ] Visual merge & rebase 🧩
 * [X] Git user settings ⚙️
 * [ ] Git stash and tags 📝
