@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, For, Match, Show, Switch } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, For, Match, Show, Switch } from "solid-js";
 import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import { getRelativeTime } from "../../utils/date";
@@ -28,8 +28,14 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     const [confirmData, setConfirmData] = createSignal<{ id: string } | null>(null);
     const [replyTargetId, setReplyTargetId] = createSignal<string | null>(null);
     const [replyText, setReplyText] = createSignal("");
-    const [sortOrder, setSortOrder] = createSignal<'asc' | 'desc'>('asc');
     const { t, locale } = useApp();
+
+    const initialSort = (localStorage.getItem('pr_timeline_sort') as 'asc' | 'desc') || 'asc';
+    const [sortOrder, setSortOrder] = createSignal<'asc' | 'desc'>(initialSort);
+
+    createEffect(() => {
+        localStorage.setItem('pr_timeline_sort', sortOrder());
+    });
     
     const [timeline, { refetch }] = createResource(
         () => ({ owner: props.owner, name: props.repo, number: props.pr.number, provider: props.provider }),
