@@ -26,6 +26,8 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     const [commentText, setCommentText] = createSignal("");
     const { showLoading, hideLoading } = useLoading();
     const [confirmData, setConfirmData] = createSignal<{ id: string } | null>(null);
+    const [replyTargetId, setReplyTargetId] = createSignal<string | null>(null);
+    const [replyText, setReplyText] = createSignal("");
     const { t, locale } = useApp();
     
     const [timeline, { refetch }] = createResource(
@@ -44,15 +46,13 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                     // Extrai o tipo da thread caso venha no formato de objeto do Azure ($value)
                     const threadType = thread.properties?.CodeReviewThreadType?.$value || thread.properties?.CodeReviewThreadType || "";
 
-                    // 🚀 MAPEAMENTO DE INTERAÇÕES DE SISTEMA DO AZURE DEVOPS
+                    // 🚀 1. MAPEAMENTO DE INTERAÇÕES DE SISTEMA DO AZURE DEVOPS
                     if (firstComment.commentType === "system" || threadType === "System" || threadType === "ReviewersUpdate" || threadType === "VoteUpdate") {
                         
-                        // 1. Identifica o autor real a partir do conteúdo do texto se o autor original for o TFS
+                        // Identifica o autor real a partir do conteúdo do texto se o autor original for o TFS
                         let authorName = firstComment.author?.displayName || "Azure Reviewer";
                         
                         if (authorName.includes("Microsoft.VisualStudio.Services.TFS") && content) {
-                            // O Azure DevOps gera mensagens no padrão: "Nome do Usuário ação ocorrida"
-                            // Vamos capturar tudo o que vem antes de palavras-chave conhecidas do sistema
                             const keywords = [
                                 " voted", " approved", " waiting", " rejected", 
                                 " reset", " joined", " changed", " closed", 
@@ -67,7 +67,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                             }
                         }
 
-                        // 2. Votos de Revisores e Entradas de Reviewers -> Mapeia para PullRequestReview
+                        // Votos de Revisores e Entradas de Reviewers -> Mapeia para PullRequestReview
                         if (content.includes("voted") || threadType === "VoteUpdate" || threadType === "ReviewersUpdate") {
                             let reviewState = "COMMENTED";
                             const voteValue = thread.properties?.CodeReviewVoteResult?.$value;
@@ -84,28 +84,28 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 createdAt: firstComment.publishedDate,
                                 state: reviewState,
                                 author: {
-                                    login: authorName, // <--- Agora filtrado e correto!
+                                    login: authorName,
                                     avatarUrl: firstComment.author?.imageUrl || ""
                                 }
                             });
                             return;
                         }
 
-                        // 3. PR Fechado / Abandonado -> Mapeia para ClosedEvent
+                        // PR Fechado / Abandonado -> Mapeia para ClosedEvent
                         if (content.includes("closed") || content.includes("abandoned")) {
                             normalizedTimeline.push({
                                 __typename: 'ClosedEvent',
                                 id: thread.id.toString(),
                                 createdAt: firstComment.publishedDate,
                                 actor: {
-                                    login: authorName, // <--- Filtrado aqui também!
+                                    login: authorName,
                                     avatarUrl: firstComment.author?.imageUrl || ""
                                 }
                             });
                             return;
                         }
 
-                        // 4. PR Reativado -> Mapeia para ReopenedEvent
+                        // PR Reativado -> Mapeia para ReopenedEvent
                         if (content.includes("reopened") || content.includes("reactivated")) {
                             normalizedTimeline.push({
                                 __typename: 'ReopenedEvent',
@@ -119,7 +119,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                             return;
                         }
 
-                        // 5. PR Completado / Merged -> Mapeia para MergedEvent
+                        // PR Completado / Merged -> Mapeia para MergedEvent
                         if (content.includes("completed the pull request") || content.includes("merged")) {
                             normalizedTimeline.push({
                                 __typename: 'MergedEvent',
@@ -134,26 +134,46 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                         }
                     }
 
-                    // Caso 2: Comentários normais de usuários (Ignora os que já processamos como system)
-                    thread.comments.forEach((comment: any) => {
-                        if (comment.commentType === "system" || !comment.content) return;
+                    // 🚀 2. CASO DE COMENTÁRIOS DE USUÁRIOS (Conversas unificadas sem o loop duplicado!)
+                    const validComments = thread.comments.filter((c: any) => c.commentType !== "system" && c.content && !c.isDeleted);
 
+                    if (validComments.length > 0) {
+                        // PEGAMOS APENAS O PRIMEIRO como o nó "Pai" da Thread
+                        const parentComment = validComments[0];
+                        
+                        // MAPEAMOS OS SEGUINTES APENAS COMO REPLIES
+                        const replies = validComments.slice(1).map((reply: any) => ({
+                            id: reply.id.toString(),
+                            createdAt: reply.publishedDate,
+                            bodyHTML: reply.content,
+                            isMinimized: false,
+                            author: {
+                                login: reply.author?.displayName || "Azure User",
+                                avatarUrl: reply.author?.imageUrl || "",
+                                name: reply.author?.displayName || "",
+                                email: reply.author?.uniqueName || ""
+                            }
+                        }));
+
+                        // Único push controlado por objeto de Thread
                         normalizedTimeline.push({
                             __typename: 'IssueComment',
-                            id: comment.id.toString(),
-                            createdAt: comment.publishedDate,
-                            bodyHTML: comment.content, 
-                            isMinimized: comment.isDeleted,
-                            minimizedReason: "Deletado",
+                            id: parentComment.id.toString(), 
+                            threadId: thread.id.toString(), 
+                            createdAt: parentComment.publishedDate,
+                            bodyHTML: parentComment.content, 
+                            isMinimized: false,
+                            minimizedReason: "",
                             author: {
-                                login: comment.author?.displayName || "Azure User",
-                                avatarUrl: comment.author?.imageUrl || "",
-                                name: comment.author?.displayName || "",
-                                email: comment.author?.uniqueName || ""
+                                login: parentComment.author?.displayName || "Azure User",
+                                avatarUrl: parentComment.author?.imageUrl || "",
+                                name: parentComment.author?.displayName || "",
+                                email: parentComment.author?.uniqueName || ""
                             },
-                            reactionGroups: []
+                            reactionGroups: [], 
+                            replies: replies    
                         });
-                    });
+                    }
                 });
 
                 // Injeta os commits vindos dos detalhes da Azure (mantendo a ordenação cronológica)
@@ -172,8 +192,31 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                     });
                 }
 
-                // Ordena tudo cronologicamente (Comentários, Commits e Eventos do Sistema)
-                return normalizedTimeline.sort((a, b) => 
+                // 🚀 3. HIGIENIZAÇÃO DE IDs E REMOÇÃO COMPLETA DE DUPLICATAS
+                const seenUniqueIds = new Set<string>();
+                const filteredTimeline = normalizedTimeline.filter((item) => {
+                    if (item.__typename === 'IssueComment') {
+                        // Gera uma chave composta única "IDdaThread_IDdoComentario" (Ex: "2_1")
+                        const uniqueKey = `${item.threadId}_${item.id}`;
+                        if (seenUniqueIds.has(uniqueKey)) return false;
+                        
+                        seenUniqueIds.add(uniqueKey);
+                        item.id = uniqueKey; // Atualiza o ID interno com a chave única
+                        return true;
+                    }
+
+                    // Para eventos normais do sistema
+                    const eventKey = `${item.__typename}_${item.id}`;
+                    if (seenUniqueIds.has(eventKey)) return false;
+                    
+                    seenUniqueIds.add(eventKey);
+                    return true;
+                });
+
+                console.log("Timeline Definitiva Sem Duplicatas:", filteredTimeline);
+
+                // Ordena tudo cronologicamente antes de retornar para o Resource
+                return filteredTimeline.sort((a, b) => 
                     new Date(a.createdAt || a.commit?.committedDate).getTime() - 
                     new Date(b.createdAt || b.commit?.committedDate).getTime()
                 );
@@ -229,6 +272,28 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
     const handleEdit = (item: any) => {
         console.log("Editando:", item.id);
+    };
+
+    const handleSaveReply = async (threadId: string, parentCommentId: string) => {
+        if (!replyText().trim()) return;
+
+        try {
+            showLoading("Enviando resposta...");
+            if (props.provider === 'azure') {
+                // Na Azure passamos o ID da Thread original para emendar o comentário abaixo dela
+                await azureService.addPRCommentReply?.(props.owner, props.repo, props.pr.number, threadId, replyText());
+            } else {
+                // No GitHub criamos um fluxo padrão ou citação (ajuste conforme seu service se necessário)
+                await githubService.addComment(props.pr.id, replyText());
+            }
+            hideLoading();
+            setReplyText("");
+            setReplyTargetId(null);
+            refetch();
+        } catch (err) {
+            hideLoading();
+            console.error("Falha ao responder:", err);
+        }
     };
 
     const handleHide = async (id: string) => {
@@ -429,7 +494,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                     </div>
                                 </Show>
 
-                                {/* CARD DE COMENTÁRIO */}
+                                {/* CARD DE COMENTÁRIO (AGRUPADO COM RESPOSTAS ESTILO AZURE) */}
                                 <Show when={item.__typename === 'IssueComment'}>
                                     <Show 
                                         when={!item.isMinimized} 
@@ -441,37 +506,34 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         }
                                     >
                                     <div class="relative">
+                                        {/* Marcador na Timeline Principal */}
                                         <div class="absolute -left-[35px] top-4 w-[12px] h-[12px] rounded-full bg-gray-400 border-4 border-gray-200 dark:border-gray-600"></div>
-                                        <div class="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 rounded-xl shadow-lg mr-4">
+                                        
+                                        {/* Bloco Unificado da Thread */}
+                                        <div class="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 rounded-xl shadow-lg mr-4 overflow-hidden">
+                                            
+                                            {/* 1. COMENTÁRIO PAI */}
                                             <div class="p-5 flex gap-4">
                                                 <img src={item.author.avatarUrl} class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
                                                     onClick={() => props.openUserProfile(item.author.name, item.author.email, item.author.login)} />
                                                 <div class="flex-1">
                                                     <div class="flex justify-between items-center mb-2">
                                                         <div class="flex items-center gap-2">
-                                                            <span class="text-sm font-black text-gray-900 dark:text-white">
-                                                                {item.author.login} 
-                                                            </span>
-                                                            <span class="text-[9px] text-gray-400 font-normal lowercase">
-                                                                {getRelativeTime(item.createdAt, t, locale())}
-                                                            </span>
-                                                            
+                                                            <span class="text-sm font-black text-gray-900 dark:text-white">{item.author.login}</span>
+                                                            <span class="text-[9px] text-gray-400 font-normal lowercase">{getRelativeTime(item.createdAt, t, locale())}</span>
                                                             <Show when={item.author.login === props.pr.author?.login}>
                                                                 <span class="px-1.5 py-0.5 border border-gray-600 rounded-full text-[8px] text-gray-400 font-bold uppercase tracking-tighter">Author</span>
                                                             </Show>
                                                         </div>
-
                                                         <div class="flex items-center gap-3">
                                                             <span class="text-[10px] text-gray-400 font-mono">
                                                                 {new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                             </span>
-
-                                                            {/* MENU DROPDOWN */}
+                                                            {/* MENU DROPDOWN (TRÊS PONTINHOS) */}
                                                             <div class="group relative">
                                                                 <button class="p-1 hover:bg-gray-700/50 rounded-md transition-colors text-gray-400 hover:text-white">
                                                                     <i class="fa-solid fa-ellipsis"></i>
                                                                 </button>
-
                                                                 <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute top-full right-0 pt-1 transition-all z-[60] min-w-[160px]">
                                                                     <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden py-1">
                                                                         <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
@@ -480,26 +542,15 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                         <button class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                                                             <i class="fa-solid fa-quote-left opacity-60"></i> {t('pr').quote_reply}
                                                                         </button>
-                                                                        
                                                                         <div class="h-[1px] bg-gray-200 dark:bg-gray-700 my-1"></div>
-                                                                        
-                                                                        <button 
-                                                                            onClick={() => handleEdit(item)}
-                                                                            class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300"
-                                                                        >
+                                                                        <button onClick={() => handleEdit(item)} class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                                                             <i class="fa-regular fa-pen-to-square opacity-60"></i> {t('common').edit}
                                                                         </button>
-                                                                        <button 
-                                                                            onClick={() => handleHide(item.id)} 
-                                                                            class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300"
-                                                                        >
+                                                                        <button onClick={() => handleHide(item.id)} class="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                                                             <i class="fa-solid fa-eye-slash opacity-60"></i> Ocultar
                                                                         </button>
-                                                                        <button 
-                                                                            onClick={() => requestDelete(item.id)} 
-                                                                            class="w-full text-left px-4 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2"
-                                                                        >
-                                                                            <i class="fa-regular fa-trash-can opacity-60"></i> Deletar
+                                                                        <button onClick={() => requestDelete(item.id)} class="w-full text-left px-4 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2">
+                                                                            <i class="fa-regular fa-trash-can opacity-60"></i> {t('common').delete}
                                                                         </button>
                                                                     </div>
                                                                 </div>
@@ -510,38 +561,29 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                         <MarkdownViewer content={item.bodyHTML} />
                                                     </div>
 
-                                                    {/* BOTÕES DE AÇÃO */}
+                                                    {/* REAÇÕES E BOTOES DO PAI */}
                                                     <div class="flex items-center gap-4 mt-4 text-[9px] font-black uppercase tracking-widest text-gray-400">
-                                                        <button class="hover:text-blue-500 transition-colors flex items-center">
-                                                            <i class="fa-solid fa-reply mr-1"></i> {t('pr').answer}
+                                                        <button 
+                                                            onClick={() => { setReplyTargetId(item.id); setReplyText(""); }}
+                                                            class="hover:text-blue-500 transition-colors flex items-center gap-1"
+                                                        >
+                                                            <i class="fa-solid fa-reply"></i> {t('pr').answer}
                                                         </button>
                                                         
-                                                        {/* CONTAINER DAS REAÇÕES + BOTÃO REAGIR */}
+                                                        {/* CONTAINER DE REAÇÕES */}
                                                         <div class="flex items-center gap-2">
-                                                            
-                                                            {/* BOTÃO REAGIR (COM TOOLTIP) */}
                                                             <div class="group relative flex items-center">
-                                                                <button 
-                                                                    class="hover:text-gray-600 dark:hover:text-white transition-colors flex items-center justify-center bg-gray-100 dark:bg-gray-700/50 w-7 h-7 rounded-full"
-                                                                >
+                                                                <button class="hover:text-gray-600 dark:hover:text-white transition-colors flex items-center justify-center bg-gray-100 dark:bg-gray-700/50 w-7 h-7 rounded-full">
                                                                     <i class="fa-regular fa-face-smile text-xs"></i>
                                                                 </button>
-
-                                                                {/* TOOLTIP CORRIGIDO (COM ÁREA DE PONTE) */}
                                                                 <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute bottom-full left-0 pb-2 transition-all duration-200 z-50">
                                                                     <div class="flex gap-1 p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl">
                                                                         <For each={['THUMBS_UP', 'THUMBS_DOWN', 'LAUGH', 'HOORAY', 'CONFUSED', 'HEART', 'ROCKET', 'EYES']}>
                                                                             {(emoji) => {
-                                                                                // Verifica se este emoji específico já foi marcado por você
                                                                                 const myReaction = item.reactionGroups?.find((g: any) => g.content === emoji);
                                                                                 const alreadyReacted = myReaction?.viewerHasReacted || false;
-
                                                                                 return (
-                                                                                    <button 
-                                                                                        onClick={() => onReact(item.id, emoji, alreadyReacted)}
-                                                                                        class={`text-lg hover:bg-gray-100 dark:hover:bg-gray-700 w-8 h-8 flex items-center justify-center rounded-lg transition-all 
-                                                                                                ${alreadyReacted ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}
-                                                                                    >
+                                                                                    <button onClick={() => onReact(item.id, emoji, alreadyReacted)} class={`text-lg hover:bg-gray-100 dark:hover:bg-gray-700 w-8 h-8 flex items-center justify-center rounded-lg transition-all ${alreadyReacted ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
                                                                                         {getEmojiChar(emoji)}
                                                                                     </button>
                                                                                 );
@@ -550,19 +592,11 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                     </div>
                                                                 </div>
                                                             </div>
-
-                                                            {/* LISTA DE BADGES LADO A LADO */}
                                                             <div class="flex items-center gap-1.5">
                                                                 <For each={item.reactionGroups}>
                                                                     {(group: any) => (
                                                                         <Show when={group.users.totalCount > 0}>
-                                                                            <button
-                                                                                onClick={() => onReact(item.id, group.content, group.viewerHasReacted)}
-                                                                                class={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold transition-all
-                                                                                    ${group.viewerHasReacted 
-                                                                                        ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' 
-                                                                                        : 'bg-gray-50 border-gray-200 text-gray-500 dark:bg-gray-800/50 dark:border-gray-700 hover:border-gray-500'}`}
-                                                                            >
+                                                                            <button onClick={() => onReact(item.id, group.content, group.viewerHasReacted)} class={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold transition-all ${group.viewerHasReacted ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' : 'bg-gray-50 border-gray-200 text-gray-500 dark:bg-gray-800/50 dark:border-gray-700 hover:border-gray-500'}`}>
                                                                                 <span class="text-xs">{getEmojiChar(group.content)}</span>
                                                                                 <span>{group.users.totalCount}</span>
                                                                             </button>
@@ -574,6 +608,75 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            {/* 2. REPOSTAS (REPLIES) EM CASCATA */}
+                                            <Show when={item.replies && item.replies.length > 0}>
+                                                <div class="bg-gray-100/40 dark:bg-gray-900/20 border-t border-gray-200/60 dark:border-gray-700/40 pl-12 pr-5 py-4 space-y-5">
+                                                    <For each={item.replies}>
+                                                        {(reply) => (
+                                                            <div class="flex gap-4 text-sm border-b border-gray-100 dark:border-gray-800/40 pb-4 last:border-b-0 last:pb-0">
+                                                                <img src={reply.author.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
+                                                                <div class="flex-1">
+                                                                    <div class="flex justify-between items-center mb-1">
+                                                                        <div class="flex items-center gap-2">
+                                                                            <span class="text-xs font-bold text-gray-900 dark:text-white">{reply.author.login}</span>
+                                                                            <span class="text-[9px] text-gray-400 lowercase">{getRelativeTime(reply.createdAt, t, locale())}</span>
+                                                                        </div>
+                                                                        <span class="text-[9px] text-gray-400 font-mono">
+                                                                            {new Date(reply.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                                                                        <MarkdownViewer content={reply.bodyHTML} />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </For>
+                                                </div>
+                                            </Show>
+
+                                            {/* 3. EDITOR DE RESPOSTA INTERNO NO COMENTÁRIO */}
+                                            <div class="border-t border-gray-200 dark:border-gray-700/60 p-4 bg-gray-50/50 dark:bg-gray-900/40 flex gap-3 items-start">
+                                                <img src={props.currentUserAvatar} class="w-8 h-8 rounded-full border border-gray-600 mt-1" />
+                                                <div class="flex-1">
+                                                    <Show 
+                                                        when={replyTargetId() === item.id} 
+                                                        fallback={
+                                                            <div 
+                                                                onClick={() => { setReplyTargetId(item.id); setReplyText(""); }}
+                                                                class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-xs text-gray-400 cursor-text hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                                                            >
+                                                                Escreva uma resposta...
+                                                            </div>
+                                                        }
+                                                    >
+                                                        <div class="space-y-2">
+                                                            <MarkdownEditor 
+                                                                value={replyText()} 
+                                                                onInput={setReplyText} 
+                                                                placeholder="Escreva uma resposta..." 
+                                                            />
+                                                            <div class="flex justify-end gap-2 text-xs font-bold">
+                                                                <button 
+                                                                    onClick={() => setReplyTargetId(null)}
+                                                                    class="px-3 py-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-white transition-colors"
+                                                                >
+                                                                    Cancelar
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleSaveReply(item.threadId, item.id)}
+                                                                    disabled={!replyText().trim()}
+                                                                    class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-40 transition-opacity"
+                                                                >
+                                                                    Responder
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </Show>
+                                                </div>
+                                            </div>
+
                                         </div>
                                     </div>
                                     </Show>
