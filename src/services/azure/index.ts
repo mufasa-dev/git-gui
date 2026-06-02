@@ -452,6 +452,33 @@ export const azureService = {
     }
   },
 
+  async addPRCommentReply(organization: string, repoName: string, prNumber: number, threadId: string, text: string): Promise<boolean> {
+    try {
+      const token = await this.getToken();
+      if (!token) return false;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads/${threadId}/comments?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: "POST",
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          content: text,
+          commentType: "text"
+        })
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error(`Erro ao responder a thread ${threadId} na Azure:`, error);
+      return false;
+    }
+  },
+
   // Deleta/Remove um comentário existente na Azure
   // Nota: Na Azure, os comentários pertencem a uma thread. Passamos o prNumber e o commentId enviado pelo normalizador.
   async deletePRComment(organization: string, repoName: string, prNumber: number, commentId: string): Promise<boolean> {
