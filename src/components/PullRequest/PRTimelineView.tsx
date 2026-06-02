@@ -28,6 +28,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     const [confirmData, setConfirmData] = createSignal<{ id: string } | null>(null);
     const [replyTargetId, setReplyTargetId] = createSignal<string | null>(null);
     const [replyText, setReplyText] = createSignal("");
+    const [sortOrder, setSortOrder] = createSignal<'asc' | 'desc'>('asc');
     const { t, locale } = useApp();
     
     const [timeline, { refetch }] = createResource(
@@ -134,7 +135,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                         }
                     }
 
-                    // 🚀 2. CASO DE COMENTÁRIOS DE USUÁRIOS (Conversas unificadas sem o loop duplicado!)
+                    // 🚀 2. CASO DE COMENTÁRIOS DE USUÁRIOS
                     const validComments = thread.comments.filter((c: any) => c.commentType !== "system" && c.content && !c.isDeleted);
 
                     if (validComments.length > 0) {
@@ -225,6 +226,18 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
             return await githubService.getPRTimeline(params.owner, params.name, params.number);
         }
     );
+
+    const sortedTimeline = () => {
+        const data = timeline();
+        if (!data) return [];
+        
+        return [...data].sort((a, b) => {
+            const timeA = new Date(a.createdAt || a.commit?.committedDate).getTime();
+            const timeB = new Date(b.createdAt || b.commit?.committedDate).getTime();
+            
+            return sortOrder() === 'asc' ? timeA - timeB : timeB - timeA;
+        });
+    };
 
     const additionsWidth = createMemo(() => {
         const add = props.details?.additions || 0;
@@ -381,8 +394,20 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 </div>
                             </div>
                         </Show>
+
+                        <div class="flex justify-end mb-4 mr-4">
+                            <button 
+                                onClick={() => setSortOrder(p => p === 'asc' ? 'desc' : 'asc')}
+                                class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                            >
+                                <i class={`fa-solid ${sortOrder() === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up'}`}></i>
+                                <span>
+                                    {sortOrder() === 'asc' ? 'Mais antigos primeiro' : 'Mais novos primeiro'}
+                                </span>
+                            </button>
+                        </div>
                     
-                        <For each={timeline()}>
+                        <For each={sortedTimeline()}>
                             {(item) => (
                             <>
                                 {/* EVENTO DE COMMIT */}
