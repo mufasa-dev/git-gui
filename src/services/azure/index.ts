@@ -249,6 +249,53 @@ export const azureService = {
     }
   },
 
+  async addPRCommentLike(organization: string, repoName: string, prNumber: number, threadId: string, commentId: string): Promise<boolean> {
+    try {
+      const token = await this.getToken();
+      if (!token) return false;
+      const credentials = btoa(`:${token.trim()}`);
+
+      // Rota de POST para registrar o Like do usuário autenticado
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads/${threadId}/comments/${commentId}/likes?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: "POST",
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error(`Erro ao adicionar Like no comentário ${commentId} da thread ${threadId}:`, error);
+      return false;
+    }
+  },
+
+  async removePRCommentLike(organization: string, repoName: string, prNumber: number, threadId: string, commentId: string): Promise<boolean> {
+      try {
+        const token = await this.getToken();
+        if (!token) return false;
+        const credentials = btoa(`:${token.trim()}`);
+
+        // Rota de DELETE para remover o Like do usuário autenticado
+        const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads/${threadId}/comments/${commentId}/likes?api-version=7.0`;
+
+        const response = await window.fetch(url, {
+          method: "DELETE",
+          headers: {
+            'Authorization': `Basic ${credentials}`
+          }
+        });
+
+        return response.ok;
+      } catch (error) {
+        console.error(`Erro ao remover Like no comentário ${commentId} da thread ${threadId}:`, error);
+        return false;
+      }
+  },
+
   async approvePullRequest(organization: string, repoName: string, prNumber: number): Promise<boolean> {
     const token = await this.getToken();
     if (!token) return false;
@@ -393,30 +440,39 @@ export const azureService = {
   },
 
   // Busca todas as Threads de Comentários do PR da Azure
-  async getPRThreads(organization: string, repoName: string, prNumber: number): Promise<any[]> {
+  // No seu azureService, localize a função que busca as threads:
+async getPRThreads(organization: string, repoName: string, prNumber: number) {
     try {
-      const token = await this.getToken();
-      if (!token) return [];
-      const credentials = btoa(`:${token.trim()}`);
+        const token = await this.getToken();
+        if (!token) return [];
+        const credentials = btoa(`:${token.trim()}`);
 
-      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads?api-version=7.0`;
+        // 🎯 A CHAVE ESTÁ AQUI: Adicionar o parâmetro de expansão no final da URL
+        const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads?api-version=7.0`;
+        
+        // Se a URL acima ainda omitir os likes no seu ambiente, use a versão estendida abaixo:
+        // const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads?api-version=7.0-preview.1`;
 
-      const response = await window.fetch(url, {
-        method: "GET",
-        headers: {
-          'Authorization': `Basic ${credentials}`,
-          'Accept': 'application/json'
-        }
-      });
+        const response = await window.fetch(url, {
+            method: "GET",
+            headers: {
+                'Authorization': `Basic ${credentials}`,
+                'Content-Type': 'application/json'
+            }
+        });
 
-      if (!response.ok) return [];
-      const data = await response.json();
-      return data.value || [];
+        if (!response.ok) return [];
+        const data = await response.json();
+        
+        // 🔍 Debug temporário para você matar a charada no console:
+        console.log("Resposta bruta da Azure Threads:", data.value);
+        
+        return data.value || [];
     } catch (error) {
-      console.error("Erro ao buscar threads da Azure:", error);
-      return [];
+        console.error("Erro ao buscar threads da Azure:", error);
+        return [];
     }
-  },
+},
 
   // Cria um novo comentário (Nova Thread) no PR do Azure
   async addPRComment(organization: string, repoName: string, prNumber: number, text: string): Promise<boolean> {
