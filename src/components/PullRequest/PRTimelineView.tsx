@@ -175,10 +175,37 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
                     if (validComments.length > 0) {
                         const parentComment = validComments[0];
+
+                        // FUNÇÃO AUXILIAR ATUALIZADA: Isolada por comentário para funcionar no Pai e nas Respostas
+                        const mapAzureLikesToReactions = (currentComment: any) => {
+                            const likesArray = currentComment.usersLiked || [];
+                            const totalCount = likesArray.length;
+                            
+                            const loggedInEmail = props.details?.reviewers?.[0]?.login;
+                            
+                            const viewerHasReacted = likesArray.some((likeUser: any) => {
+                                const matchesEmail = loggedInEmail && likeUser.uniqueName === loggedInEmail;
+                                const avatarLinkHref = likeUser._links?.avatar?.href;
+                                const matchesAvatar = avatarLinkHref && avatarLinkHref === props.currentUserAvatar;
+                                
+                                return matchesEmail || matchesAvatar;
+                            });
+
+                            return [
+                                {
+                                    content: 'THUMBS_UP',
+                                    users: {
+                                        totalCount: totalCount
+                                    },
+                                    viewerHasReacted: viewerHasReacted
+                                }
+                            ];
+                        };
                         
-                        // Mapeia as respostas (replies)
+                        // MAPEAMOS OS SEGUINTES APENAS COMO REPLIES
                         const replies = validComments.slice(1).map((reply: any) => ({
-                            id: reply.id.toString(),
+                            id: `${thread.id}_${reply.id}`, // 🎯 ID único composto (Ex: "2_2") para a resposta funcionar no onReact
+                            replyId: reply.id.toString(),
                             createdAt: reply.publishedDate,
                             bodyHTML: reply.content,
                             isMinimized: false,
@@ -188,13 +215,13 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 name: reply.author?.displayName || "",
                                 email: reply.author?.uniqueName || ""
                             },
-                            reactionGroups: mapAzureLikesToReactions(reply) // 🎯 Aplicado nas respostas
+                            reactionGroups: mapAzureLikesToReactions(reply) // 🎯 Mapeia os likes da resposta
                         }));
 
-                        // Cria a thread unificada
+                        // Único push controlado por objeto de Thread
                         normalizedTimeline.push({
                             __typename: 'IssueComment',
-                            id: parentComment.id.toString(), 
+                            id: `${thread.id}_${parentComment.id}`, // "2_1"
                             threadId: thread.id.toString(), 
                             createdAt: parentComment.publishedDate,
                             bodyHTML: parentComment.content, 
@@ -206,7 +233,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 name: parentComment.author?.displayName || "",
                                 email: parentComment.author?.uniqueName || ""
                             },
-                            reactionGroups: mapAzureLikesToReactions(parentComment), // 🎯 Aplicado no comentário pai
+                            reactionGroups: mapAzureLikesToReactions(parentComment), 
                             replies: replies    
                         });
                     }
@@ -739,6 +766,37 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                     <div class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
                                                                         <MarkdownViewer content={reply.bodyHTML} />
                                                                     </div>
+
+                                                                    {/* 🎯 BOTÃO DE CURTIR PARA AS RESPOSTAS (EXCLUSIVO AZURE) */}
+                                                                    <Show when={props.provider === 'azure'}>
+                                                                        <div class="flex items-center gap-2 mt-2">
+                                                                            {(() => {
+                                                                                const getReplyLikeGroup = () => reply.reactionGroups?.find((g: any) => g.content === 'THUMBS_UP');
+                                                                                
+                                                                                return (
+                                                                                    <button 
+                                                                                        onClick={() => {
+                                                                                            const hasLiked = getReplyLikeGroup()?.viewerHasReacted || false;
+                                                                                            // Dispara usando o ID composto da resposta (Ex: "2_2")
+                                                                                            onReact(reply.id, 'THUMBS_UP', hasLiked);
+                                                                                        }}
+                                                                                        class={`transition-all flex items-center gap-1.5 h-6 px-2.5 rounded-full border text-[9px] font-black uppercase tracking-widest
+                                                                                            ${getReplyLikeGroup()?.viewerHasReacted 
+                                                                                                ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' 
+                                                                                                : 'bg-gray-100/70 border-transparent text-gray-400 dark:bg-gray-700/30 hover:text-gray-600 dark:hover:text-white'}`}
+                                                                                        title={getReplyLikeGroup()?.viewerHasReacted ? "Remover curtir" : "Curtir resposta"}
+                                                                                    >
+                                                                                        <i class={`${getReplyLikeGroup()?.viewerHasReacted ? 'fa-solid' : 'fa-regular'} fa-thumbs-up text-[10px]`}></i>
+                                                                                        
+                                                                                        <Show when={(getReplyLikeGroup()?.users?.totalCount || 0) > 0}>
+                                                                                            <span class="font-bold font-sans text-[10px]">{getReplyLikeGroup()?.users?.totalCount}</span>
+                                                                                        </Show>
+                                                                                    </button>
+                                                                                );
+                                                                            })()}
+                                                                        </div>
+                                                                    </Show>
+
                                                                 </div>
                                                             </div>
                                                         )}
