@@ -140,36 +140,6 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                             return;
                         }
                     }
-
-                    // 🚀 2. CASO DE COMENTÁRIOS DE USUÁRIOS
-                    const mapAzureLikesToReactions = (comment: any) => {
-                        const likesArray = comment.usersLiked || [];
-                        const totalCount = likesArray.length;
-                        
-                        // Captura o e-mail do usuário logado a partir dos reviewers do details
-                        const loggedInEmail = props.details?.reviewers?.[0]?.login;
-                        
-                        const viewerHasReacted = likesArray.some((likeUser: any) => {
-                            // 1. Checa por e-mail/uniqueName de forma direta
-                            const matchesEmail = loggedInEmail && likeUser.uniqueName === loggedInEmail;
-                            
-                            // 2. Checa pela URL exata do Avatar Link que você mandou no log (_links.avatar.href)
-                            const avatarLinkHref = likeUser._links?.avatar?.href;
-                            const matchesAvatar = avatarLinkHref && avatarLinkHref === props.currentUserAvatar;
-                            
-                            return matchesEmail || matchesAvatar;
-                        });
-
-                        return [
-                            {
-                                content: 'THUMBS_UP',
-                                users: {
-                                    totalCount: totalCount
-                                },
-                                viewerHasReacted: viewerHasReacted // 🌟 Agora vai dar true!
-                            }
-                        ];
-                    };
                     
                     const validComments = thread.comments.filter((c: any) => c.commentType !== "system" && c.content && !c.isDeleted);
 
@@ -221,7 +191,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                         // Único push controlado por objeto de Thread
                         normalizedTimeline.push({
                             __typename: 'IssueComment',
-                            id: `${thread.id}_${parentComment.id}`, // "2_1"
+                            id: `${thread.id}_${parentComment.id}`, 
                             threadId: thread.id.toString(), 
                             createdAt: parentComment.publishedDate,
                             bodyHTML: parentComment.content, 
@@ -234,7 +204,13 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 email: parentComment.author?.uniqueName || ""
                             },
                             reactionGroups: mapAzureLikesToReactions(parentComment), 
-                            replies: replies    
+                            replies: replies,
+                            
+                            codeContext: thread.threadContext ? {
+                                filePath: thread.threadContext.filePath,
+                                startLine: thread.threadContext.rightFileStartLine || thread.threadContext.leftFileStartLine,
+                                endLine: thread.threadContext.rightFileEndLine || thread.threadContext.leftFileEndLine
+                            } : null
                         });
                     }
                 });
@@ -611,6 +587,31 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         {/* Bloco Unificado da Thread */}
                                         <div class="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 rounded-xl shadow-lg mr-4 overflow-hidden">
                                             
+                                            <Show when={item.codeContext}>
+                                                <div class="bg-gray-100/70 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700/60 p-3 flex flex-col gap-1.5">
+                                                    {/* Linha do Arquivo e Nome */}
+                                                    <div class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 font-semibold">
+                                                        <i class="fa-regular fa-file-code text-gray-400 text-sm"></i>
+                                                        <div class="flex flex-col">
+                                                            <span>{item.codeContext.filePath.split('/').pop()}</span>
+                                                            <span class="text-[10px] text-gray-400 font-normal">{item.codeContext.filePath}</span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Bloco Simulado do Diff/Trecho (Se você tiver o diff carregado, pode passar aqui) */}
+                                                    <div class="mt-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 font-mono text-xs overflow-hidden">
+                                                        <div class="flex bg-green-50/50 dark:bg-green-950/20 px-3 py-1.5 border-l-4 border-green-500">
+                                                            <span class="text-gray-400 w-6 select-none text-[10px]">{item.codeContext.startLine || 1}</span>
+                                                            <span class="text-green-600 dark:text-green-400 mr-2 font-bold">+</span>
+                                                            <span class="text-gray-800 dark:text-gray-200 flex-1 truncate">
+                                                                {/* Aqui idealmente você pode buscar o conteúdo real do arquivo filtrando pelo filePath, por enquanto deixamos estático ou dinâmico simulado */}
+                                                                sdk.dir=/opt/android/sdk
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </Show>
+
                                             {/* 1. COMENTÁRIO PAI */}
                                             <div class="p-5 flex gap-4">
                                                 <img src={item.author.avatarUrl} class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
