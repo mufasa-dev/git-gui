@@ -422,21 +422,23 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
             <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-8 relative">
                 
                 {/* BARRA DE PROGRESSO */}
-                <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-5">
-                    <div class="flex justify-between items-end mb-3">
-                        <span class="text-lg font-black text-gray-900 dark:text-white">
-                            {props.details?.changedFiles || 0} <span class="text-[10px] text-gray-400 font-black uppercase ml-1 tracking-widest">{t('file').files} </span>
-                        </span>
-                        <div class="flex gap-4 font-mono font-bold text-xs">
-                            <span class="text-green-500">+{props.details?.additions || 0}</span>
-                            <span class="text-red-500">-{props.details?.deletions || 0}</span>
+                <Show when={props.provider === 'github'}>
+                    <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-5">
+                        <div class="flex justify-between items-end mb-3">
+                            <span class="text-lg font-black text-gray-900 dark:text-white">
+                                {props.details?.changedFiles || 0} <span class="text-[10px] text-gray-400 font-black uppercase ml-1 tracking-widest">{t('file').files} </span>
+                            </span>
+                            <div class="flex gap-4 font-mono font-bold text-xs">
+                                <span class="text-green-500">+{props.details?.additions || 0}</span>
+                                <span class="text-red-500">-{props.details?.deletions || 0}</span>
+                            </div>
+                        </div>
+                        <div class="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
+                            <div class="h-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)] transition-all" style={{ width: `${additionsWidth()}%` }}></div>
+                            <div class="h-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)] transition-all" style={{ width: `${100 - additionsWidth()}%` }}></div>
                         </div>
                     </div>
-                    <div class="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
-                        <div class="h-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)] transition-all" style={{ width: `${additionsWidth()}%` }}></div>
-                        <div class="h-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)] transition-all" style={{ width: `${100 - additionsWidth()}%` }}></div>
-                    </div>
-                </div>
+                </Show>
 
                 {/* TIMELINE */}
                 <div class="space-y-6">
@@ -654,18 +656,40 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                                                    <div class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed flex flex-row">
                                                         <MarkdownViewer content={item.bodyHTML} />
+
+                                                        <Show when={props.provider === 'azure'}>
+                                                            {(() => {
+                                                                // Encontra o grupo de likes de forma segura
+                                                                const getLikeGroup = () => item.reactionGroups?.find((g: any) => g.content === 'THUMBS_UP');
+                                                                
+                                                                return (
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            const hasLiked = getLikeGroup()?.viewerHasReacted || false;
+                                                                            onReact(item.id, 'THUMBS_UP', hasLiked);
+                                                                        }}
+                                                                        class={`transition-all flex items-center gap-2 h-7 px-3 rounded-full border text-[10px] font-bold ml-auto
+                                                                            ${getLikeGroup()?.viewerHasReacted 
+                                                                                ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' 
+                                                                                : 'bg-gray-100 border-transparent text-gray-500 dark:bg-gray-700/50 hover:text-gray-600 dark:hover:text-white'}`}
+                                                                        title={getLikeGroup()?.viewerHasReacted ? "Remover curtir" : "Curtir comentário"}
+                                                                    >
+                                                                        <i class={`${getLikeGroup()?.viewerHasReacted ? 'fa-solid' : 'fa-regular'} fa-thumbs-up text-xs`}></i>
+                                                                        
+                                                                        {/* Mostra o contador se for maior que zero */}
+                                                                        <Show when={(getLikeGroup()?.users?.totalCount || 0) > 0}>
+                                                                            <span>{getLikeGroup()?.users?.totalCount}</span>
+                                                                        </Show>
+                                                                    </button>
+                                                                );
+                                                            })()}
+                                                        </Show>
                                                     </div>
 
                                                     {/* REAÇÕES E BOTOES DO PAI */}
                                                     <div class="flex items-center gap-4 mt-4 text-[9px] font-black uppercase tracking-widest text-gray-400">
-                                                        <button 
-                                                            onClick={() => { setReplyTargetId(item.id); setReplyText(""); }}
-                                                            class="hover:text-blue-500 transition-colors flex items-center gap-1"
-                                                        >
-                                                            <i class="fa-solid fa-reply"></i> {t('pr').answer}
-                                                        </button>
                                                         
                                                         {/* CONTAINER DE REAÇÕES */}
                                                         <div class="flex items-center gap-2">
@@ -692,35 +716,6 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                            </Show>
-
-                                                            {/* CASO 2: PROVEDOR É AZURE (Botão de Like Direto com Contador Interno) */}
-                                                            <Show when={props.provider === 'azure'}>
-                                                                {(() => {
-                                                                    // Encontra o grupo de likes de forma segura
-                                                                    const getLikeGroup = () => item.reactionGroups?.find((g: any) => g.content === 'THUMBS_UP');
-                                                                    
-                                                                    return (
-                                                                        <button 
-                                                                            onClick={() => {
-                                                                                const hasLiked = getLikeGroup()?.viewerHasReacted || false;
-                                                                                onReact(item.id, 'THUMBS_UP', hasLiked);
-                                                                            }}
-                                                                            class={`transition-all flex items-center gap-2 h-7 px-3 rounded-full border text-[10px] font-bold
-                                                                                ${getLikeGroup()?.viewerHasReacted 
-                                                                                    ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' 
-                                                                                    : 'bg-gray-100 border-transparent text-gray-500 dark:bg-gray-700/50 hover:text-gray-600 dark:hover:text-white'}`}
-                                                                            title={getLikeGroup()?.viewerHasReacted ? "Remover curtir" : "Curtir comentário"}
-                                                                        >
-                                                                            <i class={`${getLikeGroup()?.viewerHasReacted ? 'fa-solid' : 'fa-regular'} fa-thumbs-up text-xs`}></i>
-                                                                            
-                                                                            {/* Mostra o contador se for maior que zero */}
-                                                                            <Show when={(getLikeGroup()?.users?.totalCount || 0) > 0}>
-                                                                                <span>{getLikeGroup()?.users?.totalCount}</span>
-                                                                            </Show>
-                                                                        </button>
-                                                                    );
-                                                                })()}
                                                             </Show>
 
                                                             {/* LISTA DE BADGES (Contadores acumulados ao lado - EXCLUSIVO DO GITHUB AGORA) */}
@@ -763,39 +758,38 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                             {new Date(reply.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                                         </span>
                                                                     </div>
-                                                                    <div class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                                                                    <div class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed flex flex-row">
                                                                         <MarkdownViewer content={reply.bodyHTML} />
-                                                                    </div>
 
-                                                                    {/* 🎯 BOTÃO DE CURTIR PARA AS RESPOSTAS (EXCLUSIVO AZURE) */}
-                                                                    <Show when={props.provider === 'azure'}>
-                                                                        <div class="flex items-center gap-2 mt-2">
-                                                                            {(() => {
-                                                                                const getReplyLikeGroup = () => reply.reactionGroups?.find((g: any) => g.content === 'THUMBS_UP');
-                                                                                
-                                                                                return (
-                                                                                    <button 
-                                                                                        onClick={() => {
-                                                                                            const hasLiked = getReplyLikeGroup()?.viewerHasReacted || false;
-                                                                                            // Dispara usando o ID composto da resposta (Ex: "2_2")
-                                                                                            onReact(reply.id, 'THUMBS_UP', hasLiked);
-                                                                                        }}
-                                                                                        class={`transition-all flex items-center gap-1.5 h-6 px-2.5 rounded-full border text-[9px] font-black uppercase tracking-widest
-                                                                                            ${getReplyLikeGroup()?.viewerHasReacted 
-                                                                                                ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' 
-                                                                                                : 'bg-gray-100/70 border-transparent text-gray-400 dark:bg-gray-700/30 hover:text-gray-600 dark:hover:text-white'}`}
-                                                                                        title={getReplyLikeGroup()?.viewerHasReacted ? "Remover curtir" : "Curtir resposta"}
-                                                                                    >
-                                                                                        <i class={`${getReplyLikeGroup()?.viewerHasReacted ? 'fa-solid' : 'fa-regular'} fa-thumbs-up text-[10px]`}></i>
-                                                                                        
-                                                                                        <Show when={(getReplyLikeGroup()?.users?.totalCount || 0) > 0}>
-                                                                                            <span class="font-bold font-sans text-[10px]">{getReplyLikeGroup()?.users?.totalCount}</span>
-                                                                                        </Show>
-                                                                                    </button>
-                                                                                );
-                                                                            })()}
-                                                                        </div>
-                                                                    </Show>
+                                                                        <Show when={props.provider === 'azure'}>
+                                                                            <div class="flex items-center gap-2 ml-auto">
+                                                                                {(() => {
+                                                                                    const getReplyLikeGroup = () => reply.reactionGroups?.find((g: any) => g.content === 'THUMBS_UP');
+                                                                                    
+                                                                                    return (
+                                                                                        <button 
+                                                                                            onClick={() => {
+                                                                                                const hasLiked = getReplyLikeGroup()?.viewerHasReacted || false;
+                                                                                                // Dispara usando o ID composto da resposta (Ex: "2_2")
+                                                                                                onReact(reply.id, 'THUMBS_UP', hasLiked);
+                                                                                            }}
+                                                                                            class={`transition-all flex items-center gap-1.5 h-6 px-2.5 rounded-full border text-[9px] font-black uppercase tracking-widest
+                                                                                                ${getReplyLikeGroup()?.viewerHasReacted 
+                                                                                                    ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' 
+                                                                                                    : 'bg-gray-100/70 border-transparent text-gray-400 dark:bg-gray-700/30 hover:text-gray-600 dark:hover:text-white'}`}
+                                                                                            title={getReplyLikeGroup()?.viewerHasReacted ? "Remover curtir" : "Curtir resposta"}
+                                                                                        >
+                                                                                            <i class={`${getReplyLikeGroup()?.viewerHasReacted ? 'fa-solid' : 'fa-regular'} fa-thumbs-up text-[10px]`}></i>
+                                                                                            
+                                                                                            <Show when={(getReplyLikeGroup()?.users?.totalCount || 0) > 0}>
+                                                                                                <span class="font-bold font-sans text-[10px]">{getReplyLikeGroup()?.users?.totalCount}</span>
+                                                                                            </Show>
+                                                                                        </button>
+                                                                                    );
+                                                                                })()}
+                                                                            </div>
+                                                                        </Show>
+                                                                    </div>
 
                                                                 </div>
                                                             </div>
