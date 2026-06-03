@@ -43,7 +43,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
             if (params.provider === 'azure') {
                 const azureThreads = await azureService.getPRThreads(params.owner, params.name, params.number);
                 const normalizedTimeline: any[] = [];
-
+                
                 azureThreads.forEach((thread: any) => {
                     if (!thread.comments || thread.comments.length === 0) return;
 
@@ -142,13 +142,41 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                     }
 
                     // 🚀 2. CASO DE COMENTÁRIOS DE USUÁRIOS
+                    const mapAzureLikesToReactions = (comment: any) => {
+                        const likesArray = comment.usersLiked || [];
+                        const totalCount = likesArray.length;
+                        
+                        // Captura o e-mail do usuário logado a partir dos reviewers do details
+                        const loggedInEmail = props.details?.reviewers?.[0]?.login;
+                        
+                        const viewerHasReacted = likesArray.some((likeUser: any) => {
+                            // 1. Checa por e-mail/uniqueName de forma direta
+                            const matchesEmail = loggedInEmail && likeUser.uniqueName === loggedInEmail;
+                            
+                            // 2. Checa pela URL exata do Avatar Link que você mandou no log (_links.avatar.href)
+                            const avatarLinkHref = likeUser._links?.avatar?.href;
+                            const matchesAvatar = avatarLinkHref && avatarLinkHref === props.currentUserAvatar;
+                            
+                            return matchesEmail || matchesAvatar;
+                        });
+
+                        return [
+                            {
+                                content: 'THUMBS_UP',
+                                users: {
+                                    totalCount: totalCount
+                                },
+                                viewerHasReacted: viewerHasReacted // 🌟 Agora vai dar true!
+                            }
+                        ];
+                    };
+                    
                     const validComments = thread.comments.filter((c: any) => c.commentType !== "system" && c.content && !c.isDeleted);
 
                     if (validComments.length > 0) {
-                        // PEGAMOS APENAS O PRIMEIRO como o nó "Pai" da Thread
                         const parentComment = validComments[0];
                         
-                        // MAPEAMOS OS SEGUINTES APENAS COMO REPLIES
+                        // Mapeia as respostas (replies)
                         const replies = validComments.slice(1).map((reply: any) => ({
                             id: reply.id.toString(),
                             createdAt: reply.publishedDate,
@@ -159,10 +187,11 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 avatarUrl: reply.author?.imageUrl || "",
                                 name: reply.author?.displayName || "",
                                 email: reply.author?.uniqueName || ""
-                            }
+                            },
+                            reactionGroups: mapAzureLikesToReactions(reply) // 🎯 Aplicado nas respostas
                         }));
 
-                        // Único push controlado por objeto de Thread
+                        // Cria a thread unificada
                         normalizedTimeline.push({
                             __typename: 'IssueComment',
                             id: parentComment.id.toString(), 
@@ -177,7 +206,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 name: parentComment.author?.displayName || "",
                                 email: parentComment.author?.uniqueName || ""
                             },
-                            reactionGroups: [], 
+                            reactionGroups: mapAzureLikesToReactions(parentComment), // 🎯 Aplicado no comentário pai
                             replies: replies    
                         });
                     }
@@ -272,17 +301,27 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     };
 
     const onReact = async (subjectId: string, content: string, hasReacted: boolean) => {
-        if (props.provider === 'azure') return; 
-        
         try {
             showLoading(hasReacted ? "Removendo..." : "Reagindo...");
-            if (hasReacted) {
-                await githubService.removeReaction(subjectId, content);
+            
+            if (props.provider === 'azure') {
+                const [threadId, commentId] = subjectId.split('_');
+                if (hasReacted) {
+                    await azureService.removePRCommentLike(props.owner, props.repo, props.pr.number, threadId, commentId);
+                } else {
+                    await azureService.addPRCommentLike(props.owner, props.repo, props.pr.number, threadId, commentId);
+                }
             } else {
-                await githubService.addReaction(subjectId, content);
+                // Comportamento original do GitHub
+                if (hasReacted) {
+                    await githubService.removeReaction(subjectId, content);
+                } else {
+                    await githubService.addReaction(subjectId, content);
+                }
             }
+            
             hideLoading();
-            refetch(); 
+            refetch(); // Recarrega a timeline para pintar o botão atualizado na tela
         } catch (err) {
             hideLoading();
             console.error("Erro ao processar reação:", err);
@@ -603,38 +642,78 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                         
                                                         {/* CONTAINER DE REAÇÕES */}
                                                         <div class="flex items-center gap-2">
-                                                            <div class="group relative flex items-center">
-                                                                <button class="hover:text-gray-600 dark:hover:text-white transition-colors flex items-center justify-center bg-gray-100 dark:bg-gray-700/50 w-7 h-7 rounded-full">
-                                                                    <i class="fa-regular fa-face-smile text-xs"></i>
-                                                                </button>
-                                                                <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute bottom-full left-0 pb-2 transition-all duration-200 z-50">
-                                                                    <div class="flex gap-1 p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl">
-                                                                        <For each={['THUMBS_UP', 'THUMBS_DOWN', 'LAUGH', 'HOORAY', 'CONFUSED', 'HEART', 'ROCKET', 'EYES']}>
-                                                                            {(emoji) => {
-                                                                                const myReaction = item.reactionGroups?.find((g: any) => g.content === emoji);
-                                                                                const alreadyReacted = myReaction?.viewerHasReacted || false;
-                                                                                return (
-                                                                                    <button onClick={() => onReact(item.id, emoji, alreadyReacted)} class={`text-lg hover:bg-gray-100 dark:hover:bg-gray-700 w-8 h-8 flex items-center justify-center rounded-lg transition-all ${alreadyReacted ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
-                                                                                        {getEmojiChar(emoji)}
-                                                                                    </button>
-                                                                                );
-                                                                            }}
-                                                                        </For>
+                                                            
+                                                            {/* CASO 1: PROVEDOR É GITHUB (Exibe a carinha com o Popover de múltiplos Emojis) */}
+                                                            <Show when={props.provider === 'github'}>
+                                                                <div class="group relative flex items-center">
+                                                                    <button class="hover:text-gray-600 dark:hover:text-white transition-colors flex items-center justify-center bg-gray-100 dark:bg-gray-700/50 w-7 h-7 rounded-full">
+                                                                        <i class="fa-regular fa-face-smile text-xs"></i>
+                                                                    </button>
+                                                                    <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute bottom-full left-0 pb-2 transition-all duration-200 z-50">
+                                                                        <div class="flex gap-1 p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl">
+                                                                            <For each={['THUMBS_UP', 'THUMBS_DOWN', 'LAUGH', 'HOORAY', 'CONFUSED', 'HEART', 'ROCKET', 'EYES']}>
+                                                                                {(emoji) => {
+                                                                                    const myReaction = item.reactionGroups?.find((g: any) => g.content === emoji);
+                                                                                    const alreadyReacted = myReaction?.viewerHasReacted || false;
+                                                                                    return (
+                                                                                        <button onClick={() => onReact(item.id, emoji, alreadyReacted)} class={`text-lg hover:bg-gray-100 dark:hover:bg-gray-700 w-8 h-8 flex items-center justify-center rounded-lg transition-all ${alreadyReacted ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
+                                                                                            {getEmojiChar(emoji)}
+                                                                                        </button>
+                                                                                    );
+                                                                                }}
+                                                                            </For>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                            <div class="flex items-center gap-1.5">
-                                                                <For each={item.reactionGroups}>
-                                                                    {(group: any) => (
-                                                                        <Show when={group.users.totalCount > 0}>
-                                                                            <button onClick={() => onReact(item.id, group.content, group.viewerHasReacted)} class={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold transition-all ${group.viewerHasReacted ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' : 'bg-gray-50 border-gray-200 text-gray-500 dark:bg-gray-800/50 dark:border-gray-700 hover:border-gray-500'}`}>
-                                                                                <span class="text-xs">{getEmojiChar(group.content)}</span>
-                                                                                <span>{group.users.totalCount}</span>
-                                                                            </button>
-                                                                        </Show>
-                                                                    )}
-                                                                </For>
-                                                            </div>
+                                                            </Show>
+
+                                                            {/* CASO 2: PROVEDOR É AZURE (Botão de Like Direto com Contador Interno) */}
+                                                            <Show when={props.provider === 'azure'}>
+                                                                {(() => {
+                                                                    // Encontra o grupo de likes de forma segura
+                                                                    const getLikeGroup = () => item.reactionGroups?.find((g: any) => g.content === 'THUMBS_UP');
+                                                                    
+                                                                    return (
+                                                                        <button 
+                                                                            onClick={() => {
+                                                                                const hasLiked = getLikeGroup()?.viewerHasReacted || false;
+                                                                                onReact(item.id, 'THUMBS_UP', hasLiked);
+                                                                            }}
+                                                                            class={`transition-all flex items-center gap-2 h-7 px-3 rounded-full border text-[10px] font-bold
+                                                                                ${getLikeGroup()?.viewerHasReacted 
+                                                                                    ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' 
+                                                                                    : 'bg-gray-100 border-transparent text-gray-500 dark:bg-gray-700/50 hover:text-gray-600 dark:hover:text-white'}`}
+                                                                            title={getLikeGroup()?.viewerHasReacted ? "Remover curtir" : "Curtir comentário"}
+                                                                        >
+                                                                            <i class={`${getLikeGroup()?.viewerHasReacted ? 'fa-solid' : 'fa-regular'} fa-thumbs-up text-xs`}></i>
+                                                                            
+                                                                            {/* Mostra o contador se for maior que zero */}
+                                                                            <Show when={(getLikeGroup()?.users?.totalCount || 0) > 0}>
+                                                                                <span>{getLikeGroup()?.users?.totalCount}</span>
+                                                                            </Show>
+                                                                        </button>
+                                                                    );
+                                                                })()}
+                                                            </Show>
+
+                                                            {/* LISTA DE BADGES (Contadores acumulados ao lado - EXCLUSIVO DO GITHUB AGORA) */}
+                                                            <Show when={props.provider === 'github'}>
+                                                                <div class="flex items-center gap-1.5">
+                                                                    <For each={item.reactionGroups}>
+                                                                        {(group: any) => (
+                                                                            <Show when={group.users.totalCount > 0}>
+                                                                                <button 
+                                                                                    onClick={() => onReact(item.id, group.content, group.viewerHasReacted)} 
+                                                                                    class={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold transition-all ${group.viewerHasReacted ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/40 dark:border-blue-500' : 'bg-gray-50 border-gray-200 text-gray-500 dark:bg-gray-800/50 dark:border-gray-700 hover:border-gray-500'}`}
+                                                                                >
+                                                                                    <span class="text-xs">{getEmojiChar(group.content)}</span>
+                                                                                    <span>{group.users.totalCount}</span>
+                                                                                </button>
+                                                                            </Show>
+                                                                        )}
+                                                                    </For>
+                                                                </div>
+                                                            </Show>
                                                         </div>
                                                     </div>
                                                 </div>
