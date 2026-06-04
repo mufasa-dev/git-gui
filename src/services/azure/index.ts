@@ -474,20 +474,14 @@ export const azureService = {
     }
   },
 
-  // Busca todas as Threads de Comentários do PR da Azure
-  // No seu azureService, localize a função que busca as threads:
-async getPRThreads(organization: string, repoName: string, prNumber: number) {
+  async getPRThreads(organization: string, repoName: string, prNumber: number) {
     try {
         const token = await this.getToken();
         if (!token) return [];
         const credentials = btoa(`:${token.trim()}`);
 
-        // 🎯 A CHAVE ESTÁ AQUI: Adicionar o parâmetro de expansão no final da URL
         const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads?api-version=7.0`;
         
-        // Se a URL acima ainda omitir os likes no seu ambiente, use a versão estendida abaixo:
-        // const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/threads?api-version=7.0-preview.1`;
-
         const response = await window.fetch(url, {
             method: "GET",
             headers: {
@@ -498,9 +492,6 @@ async getPRThreads(organization: string, repoName: string, prNumber: number) {
 
         if (!response.ok) return [];
         const data = await response.json();
-        
-        // 🔍 Debug temporário para você matar a charada no console:
-        console.log("Resposta bruta da Azure Threads:", data.value);
         
         return data.value || [];
     } catch (error) {
@@ -875,6 +866,68 @@ async getPRThreads(organization: string, repoName: string, prNumber: number) {
       console.error("Erro na service Azure (updatePullRequestStatus):", error);
       throw error;
     }
+  },
+
+  async getAvatarBase64(avatarUrl: string): Promise<string> {
+    try {
+      const token = await this.getToken();
+      if (!token) return "";
+      
+      const store = await getAuthStore();
+      const org = await store.get<string>("azure_org") || "brunoribeiro96";
+      const credentials = btoa(`:${token.trim()}`);
+
+      let targetUrl = avatarUrl;
+
+      // 🎯 Se for a URL do MemberAvatars, vamos transformá-la na URL direta de imagem por ID da Organização
+      if (avatarUrl.includes("GraphProfile/MemberAvatars")) {
+        const parts = avatarUrl.split('/');
+        let avatarId = parts[parts.length - 1]; // ex: "msa.NWY4NjJlN2Mt..."
+        avatarId = avatarId.replace("msa.", "");
+
+        try {
+          // 🚀 Decodifica o Base64 da Azure para descobrir o GUID real (ex: 5f862e7c-6fad-...)
+          const rawGuid = atob(avatarId);
+          
+          // Monta a rota direta de renderização de imagem da sua organização usando o GUID real
+          targetUrl = `https://dev.azure.com/${org}/_api/_common/identityImage?id=${rawGuid}`;
+        } catch (e) {
+          console.error("Erro ao decodificar GUID do avatar:", e);
+          // Fallback caso a string não esteja em base64 perfeito, tenta usar a URL original
+        }
+      }
+
+      // Executa o fetch via plugin nativo do Tauri (ignora CORS)
+      const response = await fetch(targetUrl, {
+        method: "GET",
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Accept': 'image/*'
+        }
+      });
+
+      if (!response.ok) {
+        console.warn(`Erro ao baixar imagem do avatar na Azure. Status: ${response.status}`);
+        return "";
+      }
+
+      const buffer = await response.arrayBuffer();
+      return this.arrayBufferToBase64(buffer, response.headers.get("content-type"));
+
+    } catch (error) {
+      console.error("Falha crítica ao carregar avatar na service:", error);
+      return "";
+    }
+  },
+
+  // Método auxiliar (mantenha se já adicionou no passo anterior)
+  arrayBufferToBase64(buffer: ArrayBuffer, contentType: string | null): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return `data:${contentType || "image/jpeg"};base64,${btoa(binary)}`;
   },
 
   async logout() {
