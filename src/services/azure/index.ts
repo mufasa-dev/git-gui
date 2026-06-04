@@ -296,6 +296,41 @@ export const azureService = {
       }
   },
 
+  async getFileContent(organization: string, repoName: string, filePath: string, version: string): Promise<string> {
+    try {
+        const token = await this.getToken();
+        if (!token) return "";
+        const credentials = btoa(`:${token.trim()}`);
+
+        const cleanPath = filePath.replace(/^\//, '');
+        const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/items?path=${encodeURIComponent(cleanPath)}&versionDescriptor.version=${encodeURIComponent(version)}&versionDescriptor.versionType=branch&$format=text&api-version=7.0`;
+
+        const response = await window.fetch(url, {
+            method: "GET",
+            headers: {
+                'Authorization': `Basic ${credentials}`
+            }
+        });
+
+        if (!response.ok) return "";
+        
+        const rawText = await response.text();
+        
+        if (rawText.startsWith('"')) {
+            try {
+                return JSON.parse(rawText);
+            } catch {
+                return rawText;
+            }
+        }
+        
+        return rawText;
+    } catch (error) {
+        console.error("Erro ao buscar conteúdo do arquivo:", error);
+        return "";
+    }
+  },
+
   async approvePullRequest(organization: string, repoName: string, prNumber: number): Promise<boolean> {
     const token = await this.getToken();
     if (!token) return false;
