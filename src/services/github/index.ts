@@ -289,45 +289,60 @@ export const githubService = {
     return await this.fetchGraphQL(HIDE_PR_COMMENT, { subjectId, reason });
   },
 
-  async validatePullRequest(source: string, target: string): Promise<PRValidationResult> {
+  async validatePullRequest(owner: string, repo: string, source: string, target: string): Promise<PRValidationResult> {
     try {
-      // 1. Verifica se já existe um PR em aberto para esse par de branches
-      // No GitHub, passamos o formato "state=open" e filtramos por head (origem) e base (destino)
-      const openPRs = await fetch(`/api/github/pulls?head=${source}&base=${target}&state=open`)
-        .then(res => res.json());
+      const token = await this.getToken();
+      if (!token) throw new Error("Token não encontrado");
 
-      if (openPRs && openPRs.length > 0) {
+      // 🎯 URL Oficial do GitHub para listar PRs abertos filtrando head e base
+      // O GitHub espera o head no formato "owner:branch" ou apenas "branch"
+      const prUrl = `https://api.github.com/repos/${owner}/${repo}/pulls?head=${encodeURIComponent(source)}&base=${encodeURIComponent(target)}&state=open`;
+
+      const prResponse = await window.fetch(prUrl, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+      });
+
+      if (!prResponse.ok) throw new Error(`Erro ao buscar PRs no GitHub: ${prResponse.status}`);
+      const prsData = await prResponse.json();
+
+      if (prsData && prsData.length > 0) {
         return {
           hasChanges: true,
           alreadyExists: true,
-          existingPrId: openPRs[0].number, // Número do PR no GitHub (ex: #42)
+          existingPrId: prsData[0].number,
           commits: [],
           files: []
         };
       }
 
-      // 2. Busca o comparativo de commits e arquivos modificados (base...head)
-      const compareData = await fetch(`/api/github/compare?base=${target}&head=${source}`)
-        .then(res => res.json());
+      // 🎯 URL Oficial do GitHub para comparar as duas branches (base...head)
+      const compareUrl = `https://api.github.com/repos/${owner}/${repo}/compare/${encodeURIComponent(target)}...${encodeURIComponent(source)}`;
+
+      const compareResponse = await window.fetch(compareUrl, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+      });
+
+      if (!compareResponse.ok) throw new Error(`Erro ao comparar branches no GitHub: ${compareResponse.status}`);
+      const compareData = await compareResponse.json();
 
       return {
-        // O GitHub retorna status "ahead" ou "diverged" se houver commits novos na origem
         hasChanges: compareData.commits && compareData.commits.length > 0,
         alreadyExists: false,
-        commits: compareData.commits.map((c: any) => ({
+        commits: (compareData.commits || []).map((c: any) => ({
           id: c.sha.substring(0, 7),
-          message: c.commit.message.split('\n')[0], // Pega apenas a primeira linha do commit
+          message: c.commit.message.split('\n')[0],
           author: c.commit.author?.name || "Unknown"
         })),
-        files: compareData.files.map((f: any) => ({
+        files: (compareData.files || []).map((f: any) => ({
           path: f.filename,
-          // Converte o status do GitHub ("added", "removed", "modified", "renamed")
           status: f.status === "removed" ? "deleted" : f.status === "added" ? "added" : "modified"
         }))
       };
 
     } catch (error) {
-      console.error("Failed to validate GitHub PR layout:", error);
+      console.error("Erro na validação do GitHub Service:", error);
       throw error;
     }
   },
