@@ -11,6 +11,7 @@ import { useApp } from "../../context/AppContext";
 import { GitProvider } from "../../utils/gitProvider";
 import { azureService } from "../../services/azure";
 import { AzureCodeSnippet } from "./AzureCodeSnippet";
+import AuthenticatedAvatar from "./AuthenticatedAvatar";
 
 type PRTimelineViewProps = {
     owner: string;
@@ -431,8 +432,14 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 <div class="absolute -left-[35px] top-4 w-[12px] h-[12px] rounded-full bg-gray-400 border-4 border-gray-200 dark:border-gray-600"></div>
                                 <div class="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 rounded-xl overflow-hidden shadow-sm mr-4">
                                     <div class="p-5 flex gap-4">
-                                        <img src={props.pr.author?.avatarUrl} class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
-                                            onClick={() => {props.openUserProfile(props.details.author.name, props.details.author.email, props.details.author.login)}} />
+                                        <AuthenticatedAvatar 
+                                            onClick={() => {props.openUserProfile(props.details.author.name, props.details.author.email, props.details.author.login)}}
+                                            src={props.pr.author?.avatarUrl} 
+                                            alt={props.pr.author?.login}
+                                            email={props.pr.author?.login || ""}
+                                            fallbackName={props.pr.author?.name || props.pr.author?.login}
+                                            class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
+                                        />
                                         <div class="flex-1">
                                             <div class="flex justify-between items-center mb-2">
                                                 <span class="text-sm font-black text-gray-900 dark:text-white">
@@ -489,7 +496,14 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-red-500 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
                                             <i class="fa-solid fa-circle-xmark text-[10px] text-white"></i>
                                         </div>
-                                        <img src={item.actor.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
+                                        <AuthenticatedAvatar 
+                                            onClick={() => {props.openUserProfile(props.details.author.name, props.details.author.email, props.details.author.login)}}
+                                            src={item.actor.avatarUrl} 
+                                            alt={item.actor.login}
+                                            email={item.actor.login || ""}
+                                            fallbackName={item.actor.name || item.actor.login}
+                                            class="w-8 h-8 rounded-full border border-gray-700" 
+                                        />
                                         <p class="text-gray-500 dark:text-gray-400">
                                             <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
                                             <span class="ml-1">{t('pr').close_this_pr}</span>
@@ -504,7 +518,14 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-green-500 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
                                             <i class="fa-solid fa-circle-dot text-[10px] text-white"></i>
                                         </div>
-                                        <img src={item.actor.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
+                                        <AuthenticatedAvatar 
+                                            onClick={() => {props.openUserProfile(props.details.author.name, props.details.author.email, props.details.author.login)}}
+                                            src={item.actor.avatarUrl} 
+                                            alt={item.actor.login}
+                                            email={item.actor.login || ""}
+                                            fallbackName={item.actor.name || item.actor.login}
+                                            class="w-8 h-8 rounded-full border border-gray-700" 
+                                        />
                                         <p class="text-gray-500 dark:text-gray-400">
                                             <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
                                             <span class="ml-1">{t('pr').reopen_this_pr}</span>
@@ -519,7 +540,14 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                         <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-purple-600 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
                                             <i class="fa-solid fa-code-merge text-[10px] text-white"></i>
                                         </div>
-                                        <img src={item.actor.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
+                                        <AuthenticatedAvatar 
+                                            onClick={() => {props.openUserProfile(props.details.author.name, props.details.author.email, props.details.author.login)}}
+                                            src={item.actor.avatarUrl} 
+                                            alt={item.actor.login}
+                                            email={item.actor.login || ""}
+                                            fallbackName={item.actor.name || item.actor.login}
+                                            class="w-8 h-8 rounded-full border border-gray-700" 
+                                        />
                                         <p class="text-gray-500 dark:text-gray-400 text-sm">
                                             <span class="font-bold text-gray-900 dark:text-white">{item.actor.login}</span> 
                                             <span class="ml-1 text-purple-500 font-semibold">mesclou</span> este pull request
@@ -559,7 +587,14 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                             </Match>
                                         </Switch>
                                         
-                                        <img src={item.author.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
+                                        <AuthenticatedAvatar 
+                                            onClick={() => {props.openUserProfile(props.details.author.name, props.details.author.email, props.details.author.login)}}
+                                            src={item.author.avatarUrl} 
+                                            alt={item.author.login}
+                                            email={item.author.login || ""}
+                                            fallbackName={item.author.name || item.author.login}
+                                            class="w-8 h-8 rounded-full border border-gray-700" 
+                                        />
                                         <p class="text-gray-500 dark:text-gray-400 text-sm">
                                             <span class="font-bold text-gray-900 dark:text-white">{item.author.login}</span> 
                                             <span class="ml-1">
@@ -618,8 +653,14 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
                                             {/* 1. COMENTÁRIO PAI */}
                                             <div class="p-5 flex gap-4">
-                                                <img src={item.author.avatarUrl} class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
-                                                    onClick={() => props.openUserProfile(item.author.name, item.author.email, item.author.login)} />
+                                                <AuthenticatedAvatar 
+                                                    onClick={() => props.openUserProfile(item.author.name, item.author.email, item.author.login)}
+                                                    src={item.author?.avatarUrl} 
+                                                    alt={item.author?.login}
+                                                    email={item.author?.login || ""}
+                                                    fallbackName={item.author?.name || item.author?.login}
+                                                    class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
+                                                />
                                                 <div class="flex-1">
                                                     <div class="flex justify-between items-center mb-2">
                                                         <div class="flex items-center gap-2">
@@ -752,7 +793,13 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                     <For each={item.replies}>
                                                         {(reply) => (
                                                             <div class="flex gap-4 text-sm border-b border-gray-100 dark:border-gray-800/40 pb-4 last:border-b-0 last:pb-0">
-                                                                <img src={reply.author.avatarUrl} class="w-8 h-8 rounded-full border border-gray-700" />
+                                                                <AuthenticatedAvatar 
+                                                                    src={reply.author?.avatarUrl} 
+                                                                    alt={reply.author?.login}
+                                                                    email={reply.author?.login || ""}
+                                                                    fallbackName={reply.author?.name || reply.author?.login}
+                                                                    class="w-10 h-10 rounded-full border border-gray-700 cursor-pointer" 
+                                                                />
                                                                 <div class="flex-1">
                                                                     <div class="flex justify-between items-center mb-1">
                                                                         <div class="flex items-center gap-2">
@@ -805,7 +852,6 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
                                             {/* 3. EDITOR DE RESPOSTA INTERNO NO COMENTÁRIO */}
                                             <div class="border-t border-gray-200 dark:border-gray-700/60 p-4 bg-gray-50/50 dark:bg-gray-900/40 flex gap-3 items-start">
-                                                <img src={props.currentUserAvatar} class="w-8 h-8 rounded-full border border-gray-600 mt-1" />
                                                 <div class="flex-1">
                                                     <Show 
                                                         when={replyTargetId() === item.id} 
