@@ -868,43 +868,72 @@ export const azureService = {
     }
   },
 
-  async validatePullRequest(source: string, target: string): Promise<PRValidationResult> {
+  async validatePullRequest(organization: string, repoName: string, source: string, target: string): Promise<PRValidationResult> {
     try {
-      const activePRs = await fetch(`/api/azure/pullrequests?source=${source}&target=${target}&status=active`)
-        .then(res => res.json());
+      const token = await this.getToken(); // Seu método interno de buscar token
+      if (!token) throw new Error("Token não encontrado");
+      const credentials = btoa(`:${token.trim()}`);
 
-      // Se já existir um PR idêntico ativo
-      if (activePRs && activePRs.length > 0) {
+      // 🎯 URL Oficial do Azure para listar PRs ativos cruzando as duas branches
+      // Note que o Azure espera refs completas (ex: refs/heads/master)
+      const sourceRef = source.startsWith("refs/") ? source : `refs/heads/${source}`;
+      const targetRef = target.startsWith("refs/") ? target : `refs/heads/${target}`;
+      
+      const prUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests?searchCriteria.sourceRefName=${encodeURIComponent(sourceRef)}&searchCriteria.targetRefName=${encodeURIComponent(targetRef)}&searchCriteria.status=active&api-version=7.0`;
+
+      const prResponse = await window.fetch(prUrl, {
+        method: 'GET',
+        headers: { 'Authorization': `Basic ${credentials}` }
+      });
+
+      if (!prResponse.ok) throw new Error(`Erro ao buscar PRs no Azure: ${prResponse.status}`);
+      const prsData = await prResponse.json();
+
+      // Se já existir um PR ativo idêntico
+      if (prsData.value && prsData.value.length > 0) {
         return {
           hasChanges: true,
           alreadyExists: true,
-          existingPrId: activePRs[0].pullRequestId, // ID do PR no Azure
+          existingPrId: prsData.value[0].pullRequestId,
           commits: [],
           files: []
         };
       }
 
-      // 2. Se não existe PR ativo, verifica os diffs/commits entre as duas branches
-      // (Mapeando o comportamento de 'git diff target..source' ou chamando a API do Azure Diff)
-      const diffData = await fetch(`/api/azure/diff?source=${source}&target=${target}`)
-        .then(res => res.json());
+      // 🎯 URL Oficial do Azure para trazer os commits pendentes (target...source)
+      const diffUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/diffs/commits?baseVersion=${encodeURIComponent(target)}&baseVersionType=branch&targetVersion=${encodeURIComponent(source)}&targetVersionType=branch&api-version=7.0`;
+
+      const diffResponse = await window.fetch(diffUrl, {
+        method: 'GET',
+        headers: { 'Authorization': `Basic ${credentials}` }
+      });
+
+      if (!diffResponse.ok) throw new Error(`Erro ao buscar diff no Azure: ${diffResponse.status}`);
+      const diffData = await diffResponse.json();
 
       return {
-        hasChanges: diffData.commits && diffData.commits.length > 0,
+        hasChanges: (diffData.commits && diffData.commits.length > 0) || (diffData.changes && diffData.changes.length > 0),
+        
         alreadyExists: false,
-        commits: diffData.commits.map((c: any) => ({
+        
+        commits: (diffData.commits || []).map((c: any) => ({
           id: c.commitId.substring(0, 7),
           message: c.comment,
           author: c.author?.name || "Unknown"
         })),
-        files: diffData.changes.map((f: any) => ({
-          path: f.item.path,
-          status: f.changeType === "add" ? "added" : f.changeType === "delete" ? "deleted" : "modified"
-        }))
+        
+        files: (diffData.changes || [])
+          // Opcional: Filtrar pastas (tree) para listar apenas arquivos reais na aba "Files"
+          .filter((f: any) => f.item && !f.item.isFolder) 
+          .map((f: any) => ({
+            path: f.item.path,
+            // Mapeia o 'add' ou 'edit' que vem da API para o padrão esperado pelo componente
+            status: f.changeType === "add" ? "added" : f.changeType === "delete" ? "deleted" : "modified"
+          }))
       };
 
     } catch (error) {
-      console.error("Failed to validate Azure PR layout:", error);
+      console.error("Erro na validação do Azure Service:", error);
       throw error;
     }
   },
