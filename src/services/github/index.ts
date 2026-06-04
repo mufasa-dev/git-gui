@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
 import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_TIMELINE_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY } from "./queries";
+import { PRValidationResult } from "../../models/PR.model";
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
@@ -286,6 +287,49 @@ export const githubService = {
 
   async minimizeComment(subjectId: string, reason: string = "OUTDATED") {
     return await this.fetchGraphQL(HIDE_PR_COMMENT, { subjectId, reason });
+  },
+
+  async validatePullRequest(source: string, target: string): Promise<PRValidationResult> {
+    try {
+      // 1. Verifica se já existe um PR em aberto para esse par de branches
+      // No GitHub, passamos o formato "state=open" e filtramos por head (origem) e base (destino)
+      const openPRs = await fetch(`/api/github/pulls?head=${source}&base=${target}&state=open`)
+        .then(res => res.json());
+
+      if (openPRs && openPRs.length > 0) {
+        return {
+          hasChanges: true,
+          alreadyExists: true,
+          existingPrId: openPRs[0].number, // Número do PR no GitHub (ex: #42)
+          commits: [],
+          files: []
+        };
+      }
+
+      // 2. Busca o comparativo de commits e arquivos modificados (base...head)
+      const compareData = await fetch(`/api/github/compare?base=${target}&head=${source}`)
+        .then(res => res.json());
+
+      return {
+        // O GitHub retorna status "ahead" ou "diverged" se houver commits novos na origem
+        hasChanges: compareData.commits && compareData.commits.length > 0,
+        alreadyExists: false,
+        commits: compareData.commits.map((c: any) => ({
+          id: c.sha.substring(0, 7),
+          message: c.commit.message.split('\n')[0], // Pega apenas a primeira linha do commit
+          author: c.commit.author?.name || "Unknown"
+        })),
+        files: compareData.files.map((f: any) => ({
+          path: f.filename,
+          // Converte o status do GitHub ("added", "removed", "modified", "renamed")
+          status: f.status === "removed" ? "deleted" : f.status === "added" ? "added" : "modified"
+        }))
+      };
+
+    } catch (error) {
+      console.error("Failed to validate GitHub PR layout:", error);
+      throw error;
+    }
   },
 
   async logout() {

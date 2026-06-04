@@ -14,3 +14,11 @@ export interface UnifiedPR {
   comments?: { totalCount: number };
   mergeable?: 'MERGEABLE' | 'CONFLICTING' | 'UNKNOWN';
 }
+
+export interface PRValidationResult {
+  hasChanges: boolean;
+  alreadyExists: boolean;
+  existingPrId?: string | number;
+  commits: Array<{ id: string; message: string; author: string }>;
+  files: Array<{ path: string; status: 'added' | 'modified' | 'deleted' }>;
+}

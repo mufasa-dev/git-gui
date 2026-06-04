@@ -1,6 +1,6 @@
 import { load } from "@tauri-apps/plugin-store";
 import { fetch } from "@tauri-apps/plugin-http";
-import { UnifiedPR } from "../../models/PR.model";
+import { PRValidationResult, UnifiedPR } from "../../models/PR.model";
 
 async function getAuthStore() {
   return await load("auth.bin");
@@ -868,6 +868,47 @@ export const azureService = {
     }
   },
 
+  async validatePullRequest(source: string, target: string): Promise<PRValidationResult> {
+    try {
+      const activePRs = await fetch(`/api/azure/pullrequests?source=${source}&target=${target}&status=active`)
+        .then(res => res.json());
+
+      // Se já existir um PR idêntico ativo
+      if (activePRs && activePRs.length > 0) {
+        return {
+          hasChanges: true,
+          alreadyExists: true,
+          existingPrId: activePRs[0].pullRequestId, // ID do PR no Azure
+          commits: [],
+          files: []
+        };
+      }
+
+      // 2. Se não existe PR ativo, verifica os diffs/commits entre as duas branches
+      // (Mapeando o comportamento de 'git diff target..source' ou chamando a API do Azure Diff)
+      const diffData = await fetch(`/api/azure/diff?source=${source}&target=${target}`)
+        .then(res => res.json());
+
+      return {
+        hasChanges: diffData.commits && diffData.commits.length > 0,
+        alreadyExists: false,
+        commits: diffData.commits.map((c: any) => ({
+          id: c.commitId.substring(0, 7),
+          message: c.comment,
+          author: c.author?.name || "Unknown"
+        })),
+        files: diffData.changes.map((f: any) => ({
+          path: f.item.path,
+          status: f.changeType === "add" ? "added" : f.changeType === "delete" ? "deleted" : "modified"
+        }))
+      };
+
+    } catch (error) {
+      console.error("Failed to validate Azure PR layout:", error);
+      throw error;
+    }
+  },
+
   async getAvatarBase64(avatarUrl: string): Promise<string> {
     try {
       const token = await this.getToken();
@@ -879,7 +920,6 @@ export const azureService = {
 
       let targetUrl = avatarUrl;
 
-      // 🎯 Se for a URL do MemberAvatars, vamos transformá-la na URL direta de imagem por ID da Organização
       if (avatarUrl.includes("GraphProfile/MemberAvatars")) {
         const parts = avatarUrl.split('/');
         let avatarId = parts[parts.length - 1]; // ex: "msa.NWY4NjJlN2Mt..."
