@@ -3,11 +3,12 @@ import { azureService } from "../../services/azure";
 import { getGravatarUrl } from "../../services/gravatarService";
 
 interface AvatarProps {
-  src: string;
-  email?: string;
-  alt?: string;
-  class?: string;
-  fallbackName?: string;
+    src: string;
+    email?: string;
+    alt?: string;
+    class?: string;
+    fallbackName?: string;
+    onClick?: () => void;
 }
 
 export default function AuthenticatedAvatar(props: AvatarProps) {
@@ -39,12 +40,13 @@ export default function AuthenticatedAvatar(props: AvatarProps) {
     <Show 
       when={avatarUrl() && !avatarUrl.error && avatarUrl() !== ""} 
       fallback={
-        <div class={`bg-blue-600 flex items-center justify-center text-white font-bold rounded-full select-none text-xs ${props.class}`}>
+        <div class={`bg-blue-600 flex items-center justify-center text-white font-bold rounded-full select-none text-xs ${props.class}`} onClick={() => props.onClick && props.onClick()}>
           {props.fallbackName ? props.fallbackName.substring(0, 2).toUpperCase() : "PR"}
         </div>
       }
     >
       <img 
+        onClick={() => props.onClick && props.onClick()}
         src={avatarUrl()} 
         class={`${props.class} object-cover rounded-full`} 
         alt={props.alt || "Avatar"} 
