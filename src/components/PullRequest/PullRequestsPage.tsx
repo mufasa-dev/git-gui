@@ -8,6 +8,7 @@ import PRStatusBadge from "./PRStatusBadge";
 import { useApp } from "../../context/AppContext";
 import { GitProvider } from "../../utils/gitProvider";
 import { azureService } from "../../services/azure";
+import AuthenticatedAvatar from "./AuthenticatedAvatar";
 
 export default function PullRequestsPage(props: { repo: Repo,  branch?: string, provider: GitProvider, remoteUrl: string, onMergeSuccess: (prNumber: number) => void; }) {
   // Alterado para suportar "ABANDONED" além de "OPEN" e "MERGED"
@@ -147,7 +148,13 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
                   <div class={`flex items-center border rounded-xl p-2 mb-2 transition-colors cursor-pointer
                               ${selectedPR()?.number === pr.number ? 'bg-blue-500/10 border-blue-500/30' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
                       onClick={() => setSelectedPR(pr)}>
-                    <img src={pr.author.avatarUrl} alt={pr.author.login} class="w-16 h-16 rounded-full border-2 border-gray-300 dark:border-gray-700 mx-3" />
+                    <AuthenticatedAvatar 
+                      src={pr.author.avatarUrl} 
+                      alt={pr.author.login}
+                      email={pr.author.login || ""}
+                      fallbackName={pr.author.name || pr.author.login}
+                      class="w-16 h-16 rounded-full border-2 border-gray-300 dark:border-gray-700 mx-3" 
+                    />
                     <div class="p-1 rounded-xl flex-1 min-w-0">
                       <h4 class={`text-xs font-bold leading-tight mb-1 truncate ${selectedPR()?.number === pr.number ? 'text-blue-500' : 'dark:text-gray-200'}`}>
                         <CommitMessage message={pr.title} />
