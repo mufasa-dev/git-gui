@@ -11,7 +11,9 @@ interface CreatePRDialogProps {
   onClose: () => void;
   branches: string[];
   currentBranch: string;
-  provider: GitProvider
+  provider: GitProvider;
+  org: string;
+  repo: string;
   onCreatePR: (data: any) => Promise<void>;
 }
 
@@ -70,51 +72,60 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
 
   // 🎯 2. RECURSO DE VALIDAÇÃO MULTI-PROVIDER (Dispara automaticamente nas mudanças)
   const [validation] = createResource(
-    () => ({ source: sourceBranch(), target: targetBranch(), provider: props.provider }),
-    async ({ source, target, provider }) => {
-      // Guardrail básico imediato para evitar requisição inútil se forem iguais
-      if (!source || !target || source === target) return null;
+    () => ({ 
+        source: sourceBranch(), 
+        target: targetBranch(), 
+        provider: props.provider,
+        org: props.org,
+        repo: props.repo
+    }),
+    async ({ source, target, provider, org, repo }) => {
+        if (!source || !target || source === target) return null;
 
-      try {
         if (provider === "azure") {
-          // Método da sua API/Service local que chama as rotas do Azure
-          const res = await azureService.validatePullRequest(source, target);
-          return res as PRValidationResult;
+        return await azureService.validatePullRequest(org, repo, source, target);
         } else {
-          // Método que bate no wrapper do GitHub
-          const res = await githubService.validatePullRequest(source, target);
-          return res as PRValidationResult;
+        return await githubService.validatePullRequest(org, repo, source, target);
         }
-      } catch (error) {
-        console.error("Erro ao validar Pull Request:", error);
-        return { hasChanges: false, alreadyExists: false, commits: [], files: [] };
-      }
     }
-  );
+    );
 
-  // Memos lógicos baseados no resultado da API
-  const isIdentical = createMemo(() => sourceBranch() === targetBranch());
-  const prExists = createMemo(() => !validation.loading && validation()?.alreadyExists);
-  const noChanges = createMemo(() => !validation.loading && validation() && !validation()?.hasChanges);
-  
-  // Só deixa prosseguir se não houver conflitos de layout e a API der sinal verde
-  const canProceed = createMemo(() => {
-    if (isIdentical() || validation.loading) return false;
-    const data = validation();
-    if (!data) return false;
-    return data.hasChanges && !data.alreadyExists;
-  });
+    // Memos lógicos baseados no resultado da API
+    const isIdentical = createMemo(() => sourceBranch() === targetBranch());
 
-  const countCommits = createMemo(() => validation()?.commits?.length || 0);
-  const countFiles = createMemo(() => validation()?.files?.length || 0);
+    const prExists = createMemo(() => {
+        const data = validation();
+        if (!data || validation.loading) return false;
+        return data.alreadyExists; 
+    });
 
-  const handleAddReviewer = (e: Event) => {
-    e.preventDefault();
-    if (newReviewer().trim()) {
-      setReviewers([...reviewers(), newReviewer().trim()]);
-      setNewReviewer("");
-    }
-  };
+    const noChanges = createMemo(() => {
+        if (validation.loading) return false;
+        const data = validation();
+        if (!data) return false;
+        return !data.hasChanges;
+    });
+
+    // Condição final para renderizar os campos do formulário
+    const canProceed = createMemo(() => {
+        if (isIdentical() || validation.loading) return false;
+        const data = validation();
+        if (!data) return false;
+        
+        // Pode prosseguir se houver mudanças E não houver nenhum PR idêntico em estado ATIVO
+        return data.hasChanges && !data.alreadyExists;
+    });
+
+    const countCommits = createMemo(() => validation()?.commits?.length || 0);
+    const countFiles = createMemo(() => validation()?.files?.length || 0);
+
+    const handleAddReviewer = (e: Event) => {
+        e.preventDefault();
+        if (newReviewer().trim()) {
+            setReviewers([...reviewers(), newReviewer().trim()]);
+            setNewReviewer("");
+        }
+    };
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
