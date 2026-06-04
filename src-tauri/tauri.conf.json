@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' https://dev.azure.com data:;"
+      "csp": "default-src 'self'; img-src 'self' blob: data: https://avatars.githubusercontent.com https://www.gravatar.com;"
     }
   },
   "bundle": {
