@@ -18,6 +18,7 @@ import { useApp } from "../../context/AppContext";
 import { azureService } from "../../services/azure";
 import { GitProvider } from "../../utils/gitProvider";
 import AzureMergeDialog from "./AzureMergeDialog";
+import AuthenticatedAvatar from "./AuthenticatedAvatar";
 
 interface PRDetailViewProps {
   pr: any;
@@ -514,7 +515,13 @@ export default function PRDetailView(props: PRDetailViewProps) {
         <div class="flex items-center gap-3 mt-4">
           <PRStatusBadge state={props.pr.state} variant="badge" />
           <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden border border-gray-300 dark:border-gray-600">
-            <img src={props.pr.author?.avatarUrl} alt={props.pr.author?.login} />
+            <AuthenticatedAvatar 
+                src={props.pr.author?.avatarUrl} 
+                alt={props.pr.author?.login}
+                email={props.pr.author?.login || ""}
+                fallbackName={props.pr.author?.name || props.pr.author?.login}
+                class="" 
+              />
           </div>
           <div class="text-sm">
             <span class="font-bold text-blue-500 dark:text-blue-400">{props.pr.headRefName}</span>
@@ -606,9 +613,13 @@ export default function PRDetailView(props: PRDetailViewProps) {
                   <div class="flex items-center justify-between group">
                     <div class="flex items-center gap-3">
                       <div class="relative">
-                        <img 
+                        <AuthenticatedAvatar 
                           src={reviewer.avatarUrl} 
-                          class="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700" 
+                          alt={reviewer.login}
+                          email={reviewer.login || ""}
+                          fallbackName={reviewer.name || reviewer.login}
+                          class="w-7 h-7 rounded-full border-2 border-gray-200 dark:border-gray-600 
+                              hover:scale-110 transition-transform" 
                         />
                       </div>
                       <div class="flex flex-col">
@@ -657,9 +668,13 @@ export default function PRDetailView(props: PRDetailViewProps) {
                   {(p: any) => (
                     <div class="flex items-center gap-3 hover:text-blue-500 transition-colors cursor-pointer hover:underline" 
                         onClick={() => openUserProfile(p.name, p.email, p.login)}>
-                      <img class="w-7 h-7 rounded-full border-2 border-gray-200 dark:border-gray-600 
+                      <AuthenticatedAvatar 
+                        src={p.avatarUrl} 
+                        alt={p.login}
+                        email={p.email || ""}
+                        fallbackName={p.name || p.login}
+                        class="w-7 h-7 rounded-full border-2 border-gray-200 dark:border-gray-600 
                             hover:scale-110 transition-transform" 
-                            src={p.avatarUrl} title={p.login} 
                       />
                       <span>{p.name}</span>
                     </div>
