@@ -10,6 +10,7 @@ import ConfirmModal from "../ui/ConfirmModal";
 import { useApp } from "../../context/AppContext";
 import { GitProvider } from "../../utils/gitProvider";
 import { azureService } from "../../services/azure";
+import { AzureCodeSnippet } from "./AzureCodeSnippet";
 
 type PRTimelineViewProps = {
     owner: string;
@@ -189,6 +190,8 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                         }));
 
                         // Único push controlado por objeto de Thread
+                        const threadContext = thread.threadContext;
+
                         normalizedTimeline.push({
                             __typename: 'IssueComment',
                             id: `${thread.id}_${parentComment.id}`, 
@@ -206,10 +209,14 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                             reactionGroups: mapAzureLikesToReactions(parentComment), 
                             replies: replies,
                             
-                            codeContext: thread.threadContext ? {
-                                filePath: thread.threadContext.filePath,
-                                startLine: thread.threadContext.rightFileStartLine || thread.threadContext.leftFileStartLine,
-                                endLine: thread.threadContext.rightFileEndLine || thread.threadContext.leftFileEndLine
+                            // 🎯 ESTRUTURA REFINADA DO CONTEXTO DE CÓDIGO:
+                            codeContext: threadContext ? {
+                                filePath: threadContext.filePath,
+                                // No Azure, a linha começa em 1, mas arrays começam em 0
+                                startLine: threadContext.rightFileStartLine || threadContext.leftFileStartLine || 0,
+                                endLine: threadContext.rightFileEndLine || threadContext.leftFileEndLine || 0,
+                                // Guardamos as coordenadas completas de seleção se necessário
+                                offset: threadContext.rightFileOffset || null
                             } : null
                         });
                     }
@@ -589,7 +596,6 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                             
                                             <Show when={item.codeContext}>
                                                 <div class="bg-gray-100/70 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700/60 p-3 flex flex-col gap-1.5">
-                                                    {/* Linha do Arquivo e Nome */}
                                                     <div class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 font-semibold">
                                                         <i class="fa-regular fa-file-code text-gray-400 text-sm"></i>
                                                         <div class="flex flex-col">
@@ -598,17 +604,15 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                         </div>
                                                     </div>
                                                     
-                                                    {/* Bloco Simulado do Diff/Trecho (Se você tiver o diff carregado, pode passar aqui) */}
-                                                    <div class="mt-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 font-mono text-xs overflow-hidden">
-                                                        <div class="flex bg-green-50/50 dark:bg-green-950/20 px-3 py-1.5 border-l-4 border-green-500">
-                                                            <span class="text-gray-400 w-6 select-none text-[10px]">{item.codeContext.startLine || 1}</span>
-                                                            <span class="text-green-600 dark:text-green-400 mr-2 font-bold">+</span>
-                                                            <span class="text-gray-800 dark:text-gray-200 flex-1 truncate">
-                                                                {/* Aqui idealmente você pode buscar o conteúdo real do arquivo filtrando pelo filePath, por enquanto deixamos estático ou dinâmico simulado */}
-                                                                sdk.dir=/opt/android/sdk
-                                                            </span>
-                                                        </div>
-                                                    </div>
+                                                    <AzureCodeSnippet 
+                                                        filePath={item.codeContext.filePath}
+                                                        startLine={item.codeContext.startLine}
+                                                        endLine={item.codeContext.endLine}
+                                                        azureService={azureService}
+                                                        organization={props.owner}
+                                                        repoName={props.repo}
+                                                        sourceVersion={props.pr.headRefName || "main"}
+                                                    />
                                                 </div>
                                             </Show>
 
