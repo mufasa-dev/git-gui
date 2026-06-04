@@ -263,6 +263,7 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
         isOpen={isCreateDialogOpen()} 
         onClose={() => setIsCreateDialogOpen(false)} 
         branches={repoBranches()}
+        provider={props.provider}
         currentBranch={props.branch || ""}
         onCreatePR={handleCreatePRSubmit}
       />
