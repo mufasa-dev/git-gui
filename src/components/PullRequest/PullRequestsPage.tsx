@@ -259,16 +259,18 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
         </div>
       </div>
 
-      <CreatePRDialog 
-        isOpen={isCreateDialogOpen()} 
-        onClose={() => setIsCreateDialogOpen(false)} 
-        branches={repoBranches()}
-        provider={props.provider}
-        org={repoOwner()}
-        repo={props.repo.name}
-        currentBranch={props.branch || ""}
-        onCreatePR={handleCreatePRSubmit}
-      />
+      <Show when={isCreateDialogOpen()}>
+        <CreatePRDialog 
+          isOpen={isCreateDialogOpen()} 
+          onClose={() => setIsCreateDialogOpen(false)} 
+          branches={repoBranches()}
+          provider={props.provider}
+          org={repoOwner()}
+          repo={props.repo.name}
+          currentBranch={props.branch || ""}
+          onCreatePR={handleCreatePRSubmit}
+        />
+      </Show>
     </div>
   );
 }

@@ -7,6 +7,7 @@ type Props = {
   height?: string | number;
   bodyClass?: string;
   onClose?: () => void;
+  closeOnClickOutside?: boolean;
   children: JSX.Element;
 };
 
@@ -18,7 +19,7 @@ export default function Dialog(props: Props) {
     <Show when={props.open}>
       <div
         class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50"
-        onClick={props.onClose}
+        onClick={props.closeOnClickOutside ? props.onClose : undefined}
       >
         <div
           class="bg-white dark:bg-gray-800 rounded-xl shadow-xl relative"
