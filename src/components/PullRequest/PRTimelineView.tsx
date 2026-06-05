@@ -43,8 +43,22 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         () => ({ owner: props.owner, name: props.repo, number: props.pr.number, provider: props.provider }),
         async (params) => {
             if (params.provider === 'azure') {
+                console.log("pr", props.pr);
+                console.log("details", props.details);
                 const azureThreads = await azureService.getPRThreads(params.owner, params.name, params.number);
-                const normalizedTimeline: any[] = [];
+                const normalizedTimeline: any[] = [
+                    {
+                        __typename: 'PullRequestCreatedEvent',
+                        id: `created_${params.number}`,
+                        // Usa a data de criação vinda dos detalhes ou do objeto do PR básico
+                        createdAt: props.details?.creationDate || props.pr?.createdAt || new Date().toISOString(),
+                        actor: {
+                            name: props.pr?.author?.name,
+                            login: props.pr?.author?.login || "User",
+                            avatarUrl: props.pr?.author.avatarUrl || ""
+                        }
+                    }
+                ];
                 
                 azureThreads.forEach((thread: any) => {
                     if (!thread.comments || thread.comments.length === 0) return;
@@ -242,6 +256,11 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                 // 🚀 3. HIGIENIZAÇÃO DE IDs E REMOÇÃO COMPLETA DE DUPLICATAS
                 const seenUniqueIds = new Set<string>();
                 const filteredTimeline = normalizedTimeline.filter((item) => {
+                    if (item.__typename === 'PullRequestCreatedEvent') {
+                        seenUniqueIds.add(item.id);
+                        return true;
+                    }
+
                     if (item.__typename === 'IssueComment') {
                         // Gera uma chave composta única "IDdaThread_IDdoComentario" (Ex: "2_1")
                         const uniqueKey = `${item.threadId}_${item.id}`;
@@ -606,6 +625,26 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                     <Match when={item.state === 'PENDING'}><span class="text-gray-400 font-semibold">entrou na revisão / resetou voto</span></Match>
                                                 </Switch>
                                             </span>
+                                            <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt, t, locale())}</span>
+                                        </p>
+                                    </div>
+                                </Show>
+
+                                <Show when={item.__typename === 'PullRequestCreatedEvent'}>
+                                    <div class="relative flex items-center gap-3 py-2">
+                                        <div class="absolute -left-[44px] w-[30px] h-[30px] rounded-full bg-blue-400 flex items-center justify-center border-4 border-white dark:border-gray-800 z-10">
+                                            <i class="fa-solid fa-plus text-[10px] text-white"></i>
+                                        </div>
+                                    
+                                        <AuthenticatedAvatar 
+                                            src={item.actor.avatarUrl} 
+                                            alt={item.actor.name}
+                                            email={item.actor.login || ""}
+                                            class="w-8 h-8 rounded-full border border-gray-700" 
+                                        />
+                                        <p class="text-gray-500 dark:text-gray-400 text-sm">
+                                            <span class="font-bold text-gray-900 dark:text-white">{item.actor.name}</span> 
+                                            <span> criou o pull request</span>
                                             <span class="ml-2 text-[10px] opacity-60">{getRelativeTime(item.createdAt, t, locale())}</span>
                                         </p>
                                     </div>
