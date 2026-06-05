@@ -5,7 +5,7 @@ import { useApp } from "../../context/AppContext";
 type MarkdownEditorProps = {
   value?: string;
   onInput?: (val: string) => void;
-  children?: JSX.Element; // Aqui entram os botões customizados
+  children?: JSX.Element;
   placeholder?: string;
 };
 
@@ -43,6 +43,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
         <div class="flex gap-1">
           {["write", "preview"].map((m) => (
             <button 
+              type="button"
               onClick={() => setMode(m as any)}
               class={`px-4 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors dark:border-gray-700 ${mode() === m ? 'bg-white dark:bg-gray-800 border-x text-blue-500' : 'text-gray-500 hover:text-gray-700 dark:hover:text-white'}`}
             >
@@ -53,10 +54,10 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
 
         <Show when={mode() === "write"}>
           <div class="flex items-center gap-2 px-2 text-gray-500">
-            <button onClick={() => insertTag("### ")} class="p-1 hover:text-blue-500"><i class="fa-solid fa-heading"></i></button>
-            <button onClick={() => insertTag("**", "**", "texto")} class="p-1 hover:text-blue-500"><i class="fa-solid fa-bold"></i></button>
-            <button onClick={() => insertTag("`", "`", "code")} class="p-1 hover:text-blue-500"><i class="fa-solid fa-code"></i></button>
-            <button onClick={() => insertTag("[", "](url)", "link")} class="p-1 hover:text-blue-500"><i class="fa-solid fa-link"></i></button>
+            <button type="button" onClick={() => insertTag("### ")} class="p-1 hover:text-blue-500"><i class="fa-solid fa-heading"></i></button>
+            <button type="button" onClick={() => insertTag("**", "**", "texto")} class="p-1 hover:text-blue-500"><i class="fa-solid fa-bold"></i></button>
+            <button type="button" onClick={() => insertTag("`", "`", "code")} class="p-1 hover:text-blue-500"><i class="fa-solid fa-code"></i></button>
+            <button type="button" onClick={() => insertTag("[", "](url)", "link")} class="p-1 hover:text-blue-500"><i class="fa-solid fa-link"></i></button>
           </div>
         </Show>
       </div>

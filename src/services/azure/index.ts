@@ -900,7 +900,6 @@ export const azureService = {
         };
       }
 
-      // 🎯 URL Oficial do Azure para trazer os commits pendentes (target...source)
       const diffUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/diffs/commits?baseVersion=${encodeURIComponent(target)}&baseVersionType=branch&targetVersion=${encodeURIComponent(source)}&targetVersionType=branch&api-version=7.0`;
 
       const diffResponse = await window.fetch(diffUrl, {
@@ -911,23 +910,45 @@ export const azureService = {
       if (!diffResponse.ok) throw new Error(`Erro ao buscar diff no Azure: ${diffResponse.status}`);
       const diffData = await diffResponse.json();
 
+      let commitList: any[] = [];
+      
+      if (diffData.aheadCount > 0) {
+        try {
+          const cleanSource = source.replace("refs/heads/", "").replace("refs/", "");
+
+          const commitsUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/commits?searchCriteria.itemVersion.version=${encodeURIComponent(cleanSource)}&searchCriteria.itemVersion.versionType=branch&searchCriteria.$top=${diffData.aheadCount}&api-version=7.0`;
+          
+          const commitsResponse = await window.fetch(commitsUrl, {
+            method: 'GET',
+            headers: { 'Authorization': `Basic ${credentials}` }
+          });
+          
+          if (commitsResponse.ok) {
+            const commitsData = await commitsResponse.json();
+            commitList = commitsData.value || [];
+          } else {
+            console.error(`Erro ao buscar commits (Status ${commitsResponse.status})`);
+          }
+        } catch (e) {
+          console.error("Erro ao buscar detalhes dos commits do Azure:", e);
+        }
+      }
+
       return {
-        hasChanges: (diffData.commits && diffData.commits.length > 0) || (diffData.changes && diffData.changes.length > 0),
+        hasChanges: (diffData.aheadCount && diffData.aheadCount > 0) || (diffData.changes && diffData.changes.length > 0),
         
         alreadyExists: false,
         
-        commits: (diffData.commits || []).map((c: any) => ({
+        commits: commitList.map((c: any) => ({
           id: c.commitId.substring(0, 7),
           message: c.comment,
           author: c.author?.name || "Unknown"
         })),
         
         files: (diffData.changes || [])
-          // Opcional: Filtrar pastas (tree) para listar apenas arquivos reais na aba "Files"
           .filter((f: any) => f.item && !f.item.isFolder) 
           .map((f: any) => ({
             path: f.item.path,
-            // Mapeia o 'add' ou 'edit' que vem da API para o padrão esperado pelo componente
             status: f.changeType === "add" ? "added" : f.changeType === "delete" ? "deleted" : "modified"
           }))
       };

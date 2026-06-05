@@ -5,6 +5,7 @@ import { GitProvider } from "../../utils/gitProvider";
 import { azureService } from "../../services/azure";
 import { githubService } from "../../services/github";
 import MarkdownEditor from "../ui/MarkdownEditor";
+import { useApp } from "../../context/AppContext";
 
 interface CreatePRDialogProps {
   isOpen: boolean;
@@ -42,6 +43,8 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
   // Chaves de controle para forçar o SearchableSelect a remontar e atualizar visualmente
   const [sourceKey, setSourceKey] = createSignal(0);
   const [targetKey, setTargetKey] = createSignal(0);
+
+  const { t } = useApp();
 
   const branchOptions = createMemo<SearchableSelectOption[]>(() => 
     props.branches.map(branch => ({ value: branch, label: branch }))
@@ -169,6 +172,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
       width="850px"
       bodyClass="p-0 flex flex-col max-h-[85vh] overflow-hidden"
       onClose={props.onClose}
+      closeOnClickOutside={false}
     >
       {/* 1. Seleção de Branches (Topo) */}
       <div class="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700/60 flex items-center gap-3 text-xs">
@@ -223,14 +227,14 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
           class={`px-4 py-2.5 border-b-2 font-bold flex items-center gap-1.5 disabled:opacity-40 transition-colors ${activeTab() === 'files' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
           onClick={() => setActiveTab("files")}
         >
-          Files <span class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-[10px] px-1.5 py-0.5 rounded-full">{countFiles()}</span>
+          {t('file').files} <span class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-[10px] px-1.5 py-0.5 rounded-full">{countFiles()}</span>
         </button>
         <button 
           disabled={!canProceed()}
           class={`px-4 py-2.5 border-b-2 font-bold flex items-center gap-1.5 disabled:opacity-40 transition-colors ${activeTab() === 'commits' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
           onClick={() => setActiveTab("commits")}
         >
-          Commits <span class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-[10px] px-1.5 py-0.5 rounded-full">{countCommits()}</span>
+          {t('commits').commits} <span class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-[10px] px-1.5 py-0.5 rounded-full">{countCommits()}</span>
         </button>
       </div>
 
@@ -300,7 +304,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
             <form onSubmit={handleSubmit} class="grid grid-cols-3 gap-4 text-xs">
               <div class="col-span-2 flex flex-col gap-4">
                 <div>
-                  <label class="font-bold text-gray-600 dark:text-gray-400 block mb-1">Título</label>
+                  <label class="font-bold text-gray-600 dark:text-gray-400 block mb-1">{t('pr').title}</label>
                   <input 
                     type="text" 
                     placeholder="Ex: chore: ajust local properties"
@@ -312,7 +316,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                 </div>
 
                 <div>
-                  <label class="font-bold text-gray-600 dark:text-gray-400 block mb-1">Descrição</label>
+                  <label class="font-bold text-gray-600 dark:text-gray-400 block mb-1">{t('common').description}</label>
                   <MarkdownEditor 
                     value={description()}
                     placeholder="Adicione os detalhes da implementação em Markdown..."
@@ -323,7 +327,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
 
               <div class="col-span-1 border-l border-gray-200 dark:border-gray-700 pl-4 flex flex-col gap-3">
                 <div>
-                  <label class="font-bold text-gray-600 dark:text-gray-400 block mb-1">Revisores</label>
+                  <label class="font-bold text-gray-600 dark:text-gray-400 block mb-1">{t('pr').reviewers}</label>
                   <div class="flex gap-1.5 mb-2">
                     <input 
                       type="text" 
