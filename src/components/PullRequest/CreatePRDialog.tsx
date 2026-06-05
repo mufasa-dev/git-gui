@@ -129,16 +129,37 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
+    
     if (!canProceed() || !title().trim()) return;
 
-    await props.onCreatePR({
-      title: title(),
-      description: description(),
-      sourceBranch: sourceBranch(),
-      targetBranch: targetBranch(),
-      reviewers: reviewers(),
-    });
-    props.onClose();
+    try {
+      const org = props.org;
+      const repo = props.repo;
+      const provider = props.provider
+
+      const prPayload = {
+        title: title(),
+        description: description(),
+        sourceBranch: sourceBranch(),
+        targetBranch: targetBranch(),
+        reviewers: reviewers(),
+      };
+
+      if (provider === "azure") {
+        await azureService.createPullRequest(org, repo, prPayload);
+      } else {
+        await githubService.createPullRequest(org, repo, prPayload);
+      }
+
+      // Dispara o callback original para atualizar a lista da tela de fundo se necessário
+      await props.onCreatePR(prPayload);
+      
+      // Fecha o modal de criação
+      props.onClose();
+    } catch (err) {
+      // Trate um possível feedback de erro em tela se a API falhar (ex: falta de permissão)
+      console.error("Erro ao submeter o formulário de PR:", err);
+    }
   };
 
   return (

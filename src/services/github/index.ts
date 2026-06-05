@@ -347,6 +347,70 @@ export const githubService = {
     }
   },
 
+  async createPullRequest(
+    owner: string,
+    repo: string,
+    data: {
+      title: string;
+      description: string;
+      sourceBranch: string;
+      targetBranch: string;
+      reviewers: string[];
+    }
+  ): Promise<any> {
+    try {
+      const token = await this.getToken();
+      if (!token) throw new Error("Token não encontrado");
+
+      const url = `https://api.github.com/repos/${owner}/${repo}/pulls`;
+
+      // 1. Cria o Pull Request básico
+      const response = await window.fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: data.title,
+          body: data.description,
+          head: data.sourceBranch, // Origem
+          base: data.targetBranch  // Destino
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro ao criar Pull Request no GitHub (${response.status}): ${errorText}`);
+      }
+
+      const prResult = await response.json();
+
+      // 2. Se houver revisores adicionados no formulário, associa-os ao PR recém-criado
+      if (data.reviewers && data.reviewers.length > 0) {
+        const reviewersUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${prResult.number}/requested_reviewers`;
+        
+        await window.fetch(reviewersUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            reviewers: data.reviewers // Array de logins do GitHub (ex: ["brunoribeiro96"])
+          })
+        });
+      }
+
+      return prResult;
+    } catch (error) {
+      console.error("Erro na service GitHub (createPullRequest):", error);
+      throw error;
+    }
+  },
+
   async logout() {
     const store = await getAuthStore();
     await store.delete("github_token");

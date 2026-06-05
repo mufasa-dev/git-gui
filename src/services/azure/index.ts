@@ -938,6 +938,64 @@ export const azureService = {
     }
   },
 
+  async createPullRequest(
+    organization: string,
+    repoName: string,
+    data: {
+      title: string;
+      description: string;
+      sourceBranch: string;
+      targetBranch: string;
+      reviewers: string[];
+    }
+  ): Promise<any> {
+    try {
+      const token = await this.getToken();
+      if (!token) throw new Error("Token não encontrado");
+      const credentials = btoa(`:${token.trim()}`);
+
+      // O Azure exige o escopo completo das refs
+      const sourceRef = data.sourceBranch.startsWith("refs/") ? data.sourceBranch : `refs/heads/${data.sourceBranch}`;
+      const targetRef = data.targetBranch.startsWith("refs/") ? data.targetBranch : `refs/heads/${data.targetBranch}`;
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests?api-version=7.0`;
+
+      // Mapeia os revisores para o formato que o Azure espera (Reviewer ID)
+      // Nota: Se você estiver passando apenas strings de texto/e-mail, o Azure pode exigir que você busque o ID do GUID do usuário antes.
+      const mappedReviewers = data.reviewers.map(reviewerId => ({
+        id: reviewerId 
+      }));
+
+      const body = {
+        title: data.title,
+        description: data.description,
+        sourceRefName: sourceRef,
+        targetRefName: targetRef,
+        // Se seu app lida com IDs de revisores, descomente a linha abaixo:
+        // reviewers: mappedReviewers
+      };
+
+      const response = await window.fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro ao criar Pull Request no Azure (${response.status}): ${errorText}`);
+      }
+
+      return await response.json(); // Retorna o objeto do PR criado (contendo ID, URL, etc.)
+    } catch (error) {
+      console.error("Erro na service Azure (createPullRequest):", error);
+      throw error;
+    }
+  },
+
   async getAvatarBase64(avatarUrl: string): Promise<string> {
     try {
       const token = await this.getToken();
