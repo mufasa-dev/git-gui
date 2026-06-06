@@ -1,6 +1,7 @@
 import { load } from "@tauri-apps/plugin-store";
 import { fetch } from "@tauri-apps/plugin-http";
 import { PRValidationResult, UnifiedPR } from "../../models/PR.model";
+import { WorkItem } from "../../models/WorkItem";
 
 async function getAuthStore() {
   return await load("auth.bin");
@@ -1076,6 +1077,54 @@ export const azureService = {
       binary += String.fromCharCode(bytes[i]);
     }
     return `data:${contentType || "image/jpeg"};base64,${btoa(binary)}`;
+  },
+
+  async getUnifiedWorkItem(organization: string, project: string, workItemId: number): Promise<WorkItem | null> {
+    const token = await this.getToken();
+    if (!token) return null;
+    
+    const credentials = btoa(`:${token.trim()}`);
+
+    const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/wit/workitems/${workItemId}?api-version=7.0&$expand=all`;
+    
+    const response = await window.fetch(url, {
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Accept': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error("Erro ao buscar card no Azure");
+    const data = await response.json();
+
+    const fields = data.fields;
+    
+    // Mapeamento de cor simples baseado no State padrão do Azure Boards
+    const state = fields["System.State"] || "To Do";
+    let stateColor = "bg-gray-500/10 text-gray-500 border-gray-500/20";
+    if (state === "Active" || state === "Doing") stateColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+    if (state === "Done" || state === "Completed") stateColor = "bg-green-500/10 text-green-500 border-green-500/20";
+
+    return {
+      id: data.id.toString(),
+      number: data.id, // O Azure usa o ID global como número do card
+      title: fields["System.Title"] || "",
+      description: fields["System.Description"] || fields["System.History"] || "", 
+      state: state,
+      stateColor: stateColor,
+      provider: "azure",
+      author: {
+        // O Azure retorna objetos estruturados ou strings contendo o DisplayName
+        name: fields["System.CreatedBy"]?.displayName || fields["System.CreatedBy"] || "Azure User",
+        avatarUrl: fields["System.CreatedBy"]?._links?.avatar?.href
+      },
+      createdAt: fields["System.CreatedDate"],
+      updatedAt: fields["System.ChangedDate"],
+      commentsCount: fields["System.CommentCount"] || 0,
+      assignee: fields["System.AssignedTo"] ? {
+        name: fields["System.AssignedTo"].displayName || fields["System.AssignedTo"],
+        avatarUrl: fields["System.AssignedTo"]._links?.avatar?.href
+      } : undefined
+    };
   },
 
   async logout() {

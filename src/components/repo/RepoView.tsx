@@ -242,7 +242,10 @@ export default function RepoView(props: Props) {
           repo={props.repo} 
           branch={selectedBranch() && props.repo.branches.some(b => b.name === selectedBranch()) 
             ? selectedBranch() 
-            : props.repo.activeBranch} 
+            : props.repo.activeBranch}
+          provider={props.provider}
+          org={repoOwner()}
+          isLogged={props.isLogged}
         />
       )}
       {viewMode() === "changes" && <LocalChanges repo={props.repo}/>}

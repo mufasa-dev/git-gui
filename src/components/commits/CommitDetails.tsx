@@ -10,12 +10,18 @@ import { UserProfileDialog } from "../Config/UserProfile";
 import { formatContributorName } from "../../utils/user";
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
+import { GitProvider } from "../../utils/gitProvider";
+import CardDetailView from "../Board/CardItem";
 
 type CommitDetailsProps = {
   commit: any;
+  repoName: string;
   repoPath: string;
   branch: string;
   openParent: boolean;
+  provider: GitProvider;
+  org: string;
+  isLogged: boolean;
   selectCommit: (hash: string) => void;
 }
 
@@ -26,6 +32,9 @@ export function CommitDetails(props: CommitDetailsProps) {
   const [lastProcessedHash, setLastProcessedHash] = createSignal<string | null>(null);
   const [loadingDiff, setLoadingDiff] = createSignal(false);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
+  const [workItemId, setWorkItemId] = createSignal("");
+  const [modalWorkItemOpen, setModalWorkItemOpen] = createSignal(false);
+
   const { t, locale } = useApp();
 
   const fetchFileDiff = async (file: any) => {
@@ -128,7 +137,15 @@ export function CommitDetails(props: CommitDetailsProps) {
                   <div class="container-branch-list flex-1 mr-2">
                     <div class="flex mt-0 select-text">
                       <div>
-                        <b class="text-2x1"><CommitMessage message={props.commit.subject} /></b> <br />
+                        <b class="text-2x1">
+                          <CommitMessage message={props.commit.subject} 
+                            canClickOnCard={true} 
+                            onClickCard={(cardId) => {
+                              setWorkItemId(cardId);
+                              setModalWorkItemOpen(true);
+                            }} 
+                          />
+                        </b> <br />
                         <p class="whitespace-pre-wrap mt-2 text-sm text-gray-500 dark:text-gray-400">{props.commit.body}</p>
                       </div>
                     </div>
@@ -215,6 +232,7 @@ export function CommitDetails(props: CommitDetailsProps) {
           {t('commits').select_commit} 
         </div>
       </Show>
+
       <Show when={modalUserProfileOpen()}>
         <Dialog open={modalUserProfileOpen()} onClose={() => setModalUserProfileOpen(false)} title={t('auth').user_profile} width={"90vw"}>
           <UserProfileDialog 
@@ -226,6 +244,16 @@ export function CommitDetails(props: CommitDetailsProps) {
             onClose={() => setModalUserProfileOpen(false)}
           />
         </Dialog>
+      </Show>
+
+      <Show when={modalWorkItemOpen()}>
+        <CardDetailView 
+          repoPath={props.repoName} 
+          cardId={workItemId()}
+          provider={props.provider}
+          organization={props.org}
+          onClose={() => setModalWorkItemOpen(false)}
+        />
       </Show>
     </div>
   );

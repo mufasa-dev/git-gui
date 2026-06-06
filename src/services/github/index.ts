@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
 import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_TIMELINE_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY } from "./queries";
 import { PRValidationResult } from "../../models/PR.model";
+import { WorkItem } from "../../models/WorkItem";
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
@@ -409,6 +410,40 @@ export const githubService = {
       console.error("Erro na service GitHub (createPullRequest):", error);
       throw error;
     }
+  },
+
+  async getUnifiedIssue(owner: string, repo: string, issueNumber: number): Promise<WorkItem> {
+    const token = await this.getToken();
+    if (!token) throw new Error("Token não encontrado");
+
+    const response = await window.fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error("Erro ao buscar issue no GitHub");
+    const data = await response.json();
+
+    return {
+      id: data.id.toString(),
+      number: data.number,
+      title: data.title,
+      description: data.body || "",
+      state: data.state, // open ou closed
+      stateColor: data.state === "open" ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-purple-500/10 text-purple-500 border-purple-500/20",
+      provider: "github",
+      author: {
+        name: data.user?.login || "unknown",
+        avatarUrl: data.user?.avatar_url
+      },
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      htmlUrl: data.html_url,
+      commentsCount: data.comments || 0,
+      assignee: data.assignee ? { name: data.assignee.login, avatarUrl: data.assignee.avatar_url } : undefined
+    };
   },
 
   async logout() {

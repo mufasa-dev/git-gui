@@ -10,6 +10,7 @@ import CommitMessage from "../ui/CommitMessage";
 import { formatContributorName } from "../../utils/user";
 import { useApp } from "../../context/AppContext";
 import CommitGraph from "./CommitGraph";
+import { GitProvider } from "../../utils/gitProvider";
 
 declare module "solid-js" {
   namespace JSX {
@@ -20,7 +21,16 @@ declare module "solid-js" {
 }
 let isFetchingCommits = false;
 
-export default function CommitsList(props: { repo: Repo; branch?: string, class?: string }) {
+type Props = {
+  repo: Repo; 
+  branch?: string, 
+  class?: string
+  provider: GitProvider;
+  org: string;
+  isLogged: boolean;
+}
+
+export default function CommitsList(props: Props) {
   const [commits, setCommits] = createSignal<any[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
@@ -262,7 +272,17 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       
       {/* Detalhes */}
       <div style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px" }} class="overflow-auto container-branch-list p-0 mt-1">
-        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={props.branch || ""} selectCommit={selectCommit} openParent={true} />
+        <CommitDetails 
+          commit={selectedCommit()}
+          repoName={props.repo.name}
+          repoPath={props.repo.path} 
+          branch={props.branch || ""} 
+          selectCommit={selectCommit} 
+          openParent={true}
+          provider={props.provider}
+          org={props.org}
+          isLogged={props.isLogged}
+        />
       </div>
     </div>
   );
