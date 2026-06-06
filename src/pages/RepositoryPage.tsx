@@ -238,8 +238,12 @@ export default function RepoTabsPage() {
                 <Show when={activeRepo()} fallback={<div>{t('loading').loading_repositories}</div>}>
                   {(currentRepo) => (
                     <RepoView 
-                      repo={currentRepo()} 
-                      refreshBranches={refreshBranches} 
+                      repo={currentRepo()}
+                      provider={provider()}
+                      remoteUrl={remoteUrl()!}
+                      goToPage={(page: string) => setActivePage(page)}
+                      isLogged={isLoggedOnProvider()}
+                      refreshBranches={refreshBranches}
                     />
                   )}
                 </Show>

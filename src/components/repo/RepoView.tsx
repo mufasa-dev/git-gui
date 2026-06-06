@@ -1,18 +1,28 @@
-import { createSignal, createMemo, createEffect, on } from "solid-js";
+import { createSignal, createMemo, createEffect, on, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { Branch } from "../../models/Banch.model";
 import BranchList from "../branch/Branchlist";
 import { buildTree } from "../ui/TreeView";
 import CommitsList from "../commits/CommitsList";
 import { LocalChanges } from "./LocalChanges";
-import { checkoutBranch, getLocalChanges, resetHard, stashChanges, stashPop } from "../../services/gitService";
+import { checkoutBranch, getLocalChanges, openPullRequestRemoteUrl, resetHard, stashChanges, stashPop } from "../../services/gitService";
 import BranchSwitchModal from "../branch/BranchSwitchModal";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import UserConfigModal from "../Config/UserConfig";
 import { useApp } from "../../context/AppContext";
+import CreatePRDialog from "../PullRequest/CreatePRDialog";
+import { GitProvider } from "../../utils/gitProvider";
 
-export default function RepoView(props: { repo: Repo , refreshBranches: (path: string) => Promise<void> }) {
+type Props = {
+  repo: Repo;
+  provider: GitProvider;
+  remoteUrl: string;
+  isLogged: boolean;
+  refreshBranches: (path: string) => Promise<void>;
+  goToPage: (page: string) => void;
+};
+export default function RepoView(props: Props) {
   const minWidth = 200;
   const maxWidth = 600;
 
@@ -21,10 +31,12 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
   const [selectedBranch, setSelectedBranch] = createSignal(props.repo.activeBranch);
+  const [prSelectedBranch, setprSelectedBranch] = createSignal(props.repo.activeBranch);
   const [modalSwtBranchOpen, setModalSwtBranchOpen] = createSignal(false);
   const [targetBranch, setTargetBranch] = createSignal<string | null>(null);
   const { showLoading, hideLoading } = useLoading();
   const [isUserConfigOpen, setIsUserConfigOpen] = createSignal(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = createSignal(false);
   const { t } = useApp();
 
   const startResize = () => setIsResizing(true);
@@ -93,6 +105,35 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
     await checkoutBranch(props.repo.path, targetBranch()!);
     setModalSwtBranchOpen(false);
   }
+  
+  async function openPullRequestUrl(branch: string) {
+    if (props.isLogged) {
+      setprSelectedBranch(branch);
+      setIsCreateDialogOpen(true);
+    } else {
+      await openPullRequestRemoteUrl(props.repo.path, branch)
+    }
+  }
+
+  const repoOwner = createMemo(() => {
+    const url = props.remoteUrl;
+    if (!url) return "";
+
+    try {
+      if (url.includes("dev.azure.com/")) {
+        return url.split("dev.azure.com/")[1]?.split("/")[0] || "";
+      }
+      if (url.includes(".visualstudio.com/")) {
+        return url.split(".visualstudio.com/")[0].replace("https://", "").split("@").pop() || "";
+      }
+      if (url.includes("github.com/")) {
+        return url.split("github.com/")[1]?.split("/")[0] || "";
+      }
+    } catch (e) {
+      console.error("Erro ao fazer o parse da URL remota:", e);
+    }
+    return "";
+  });
 
   // Constrói árvores reativas sempre que os arrays filtrados mudam
   const localTree = createMemo(() => buildTree(filteredBranches()));
@@ -167,8 +208,25 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
             selectedBranch={selectedBranch()}
             onSelectBranch={selectBranch}
             refreshBranches={props.refreshBranches}
+            onCreatePR={(branch: string) => openPullRequestUrl(branch)}
             onActivateBranch={(branch: string) => handleActiveBranch(props.repo.path, branch)}  
+          />
+          <Show when={isCreateDialogOpen()}>
+            <CreatePRDialog 
+              isOpen={isCreateDialogOpen()} 
+              onClose={() => setIsCreateDialogOpen(false)} 
+              branches={props.repo.remoteBranches?.map(x => x.replace('origin/', '')) || []}
+              provider={props.provider}
+              org={repoOwner()}
+              repo={props.repo.name}
+              currentBranch={prSelectedBranch() || ""}
+              onCreatePR={async (data: any) => {
+                setIsCreateDialogOpen(false);
+                props.goToPage("pull-requests");
+                notify.success(t('success').pr_created, "");
+              }}
             />
+          </Show>
         </div>
       </div>
 

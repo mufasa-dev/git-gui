@@ -115,7 +115,11 @@
     "merged": "Merged successfully",
     "rebased": "Rebased successfully",
     "checked_out": "Branch switched successfully",
-    "cloned": "Repository cloned successfully"
+    "cloned": "Repository cloned successfully",
+    "pr_created": "Pull request created successfully",
+    "pr_merged": "Pull request merged successfully",
+    "pr_closed": "Pull request closed successfully",
+    "pr_reopened": "Pull request reopened successfully"
   },
   "error": {
     "error": "Error",

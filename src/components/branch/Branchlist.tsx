@@ -1,7 +1,7 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import TreeView, { TreeNodeMap }  from "../ui/TreeView";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
-import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, mergeBranch, openPullRequestUrl } from "../../services/gitService";
+import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, mergeBranch } from "../../services/gitService";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
@@ -15,7 +15,8 @@ type Props = {
   repoPath: string;
   onSelectBranch?: (branch: string) => void;
   onActivateBranch?: (branch: string) => void;
-  refreshBranches: (path: string) => Promise<void>
+  onCreatePR?: (branch: string) => void;
+  refreshBranches: (path: string) => Promise<void>;
 };
 
 export default function BranchList(props: Props) {
@@ -61,11 +62,8 @@ export default function BranchList(props: Props) {
 
     items.push({ 
       label: t('pr').create_pull_request, action: async () => {
-        try {
-          await openPullRequestUrl(props.repoPath, branch)
-        } catch (error: unknown) {
-          const errorMessage = typeof error === 'string' ? error : String(error);
-          notify.error('Erro ao criar pull request', errorMessage);
+        if (props.onCreatePR) {
+          props.onCreatePR(branch);
         }
       } 
     });

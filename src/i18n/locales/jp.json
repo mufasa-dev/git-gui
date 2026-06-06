@@ -115,7 +115,11 @@
     "merged": "マージが正常に完了しました",
     "rebased": "リベースが正常に完了しました",
     "checked_out": "ブランチの切り替えに成功しました",
-    "cloned": "リポジトリのクローンが成功しました"
+    "cloned": "リポジトリのクローンが成功しました",
+    "pr_created": "Pull request が正常に作成されました",
+    "pr_merged": "Pull request が正常にマージされました",
+    "pr_closed": "Pull request が正常に閉じられました",
+    "pr_reopened": "Pull request が正常に再開されました"
   },
   "error": {
     "error": "エラー",
