@@ -101,7 +101,9 @@
     "no_data": "No data to display",
     "no_user": "No user found",
     "no_commit": "No commit found",
-    "example": "Example"
+    "example": "Example",
+    "confirm_action": "Confirm Action",
+    "confirm_remove": "Confirm Remove"
   },
   "success": {
     "saved": "Saved successfully",
@@ -257,6 +259,8 @@
     "new_branch": "New branch",
     "change_to_branch": "Switch to branch",
     "delete_branch": "Delete branch",
+    "delete_remote_branch": "Delete remote branch",
+    "checkout_remote_branch": "Checkout remote branch",
     "current_branch": "Current branch",
     "default_branch": "Default branch",
     "you_have_changes": "You have local changes. What would you like to do with them?",

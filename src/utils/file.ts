@@ -189,6 +189,8 @@ export const TAG_MAPPING: Record<string, string> = {
   // Refactor
   refactoring: "refactor",
   ref: "refactor",
+  // UI
+  uit: "ui",
   // Chore
   chores: "chore",
   chord: "chore",

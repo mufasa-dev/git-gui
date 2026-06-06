@@ -5,6 +5,7 @@ import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, mergeBranch, op
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
+import ConfirmModal from "../ui/ConfirmModal";
 
 type Props = {
   localTree: TreeNodeMap;
@@ -25,6 +26,11 @@ export default function BranchList(props: Props) {
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
   const [itemName, setItemName] = createSignal<string>("");
   const { showLoading, hideLoading } = useLoading();
+  const [openModalConfirm, setModalConfirmOpen] = createSignal<{ id: string } | null>(null);
+  const [modalConfirmTitle, setModalConfirmTitle] = createSignal<string>("");
+  const [modalConfirmMessage, setModalConfirmMessage] = createSignal<string>("");
+  const [modalConfirmOnExecute, setModalConfirmOnExecute] = createSignal<() => void>(() => {});
+  const [modalConfirmOnCancel, setModalConfirmOnCancel] = createSignal<() => void>(() => {});
   const { t } = useApp();
 
   const openContextMenu = (e: MouseEvent, branch: string) => {
@@ -54,7 +60,7 @@ export default function BranchList(props: Props) {
     }
 
     items.push({ 
-      label: "Criar pull request", action: async () => {
+      label: t('pr').create_pull_request, action: async () => {
         try {
           await openPullRequestUrl(props.repoPath, branch)
         } catch (error: unknown) {
@@ -66,7 +72,7 @@ export default function BranchList(props: Props) {
 
     if (isNotActiveBranch) {
       items.push({ 
-        label: "Deletar Branch", 
+        label: t('git').delete_branch, 
         action: async () => {
           try {
             showLoading("Deletando branch...");
@@ -78,11 +84,11 @@ export default function BranchList(props: Props) {
           } catch (error: any) {
             hideLoading();
             if (error.includes("not fully merged")) {
-              const confirmForce = confirm(
+              setModalConfirmTitle(t('common').confirm_remove);
+              setModalConfirmMessage(
                 `A branch '${branch}' não foi mesclada. Deseja forçar a exclusão (perder alterações)?`
               );
-              
-              if (confirmForce) {
+              setModalConfirmOnExecute(() => async () => {
                 try {
                   showLoading("Forçando exclusão da branch...");
                   await deleteBranch(props.repoPath, branch, true);
@@ -91,9 +97,14 @@ export default function BranchList(props: Props) {
                 } catch (forceError: any) {
                   notify.error('Erro ao deletar', forceError);
                 }
-              }
+              });
+              setModalConfirmOnCancel(() => () => {
+                setModalConfirmOpen(null);
+                notify.error('Erro ao deletar branch', error);
+              });
+              setModalConfirmOpen({ id: branch });
             } else {
-              notify.error('Erro ao deletar branch', error);
+              
             }
           } finally {
             hideLoading();
@@ -116,36 +127,42 @@ export default function BranchList(props: Props) {
 
     if (isNotActiveBranch) {
       items.push({ 
-        label: "Checkout Branch Remota", 
+        label: t("branch").checkout_remote_branch, 
         action: () => checkoutRemote(branch)
       });
       items.push({ 
-        label: "Deletar Branch Remota (Origin)", 
+        label: t("branch").delete_remote_branch +  " (Origin)", 
         action: async () => {
-          const confirmed = confirm(
+          setModalConfirmTitle(t('common').confirm_remove);
+          setModalConfirmMessage(
             `Tem certeza que deseja apagar a branch '${branch}' no servidor remoto (origin)?\n\nEsta ação não pode ser desfeita.`
           );
 
-          if (!confirmed) return;
+          setModalConfirmOnExecute(() => async () => {
+            try {
+              showLoading("Deletando branch remota...");
+              await deleteRemoteBranch(props.repoPath!, branch, "origin");
+              
+              hideLoading();
+              notify.success('Git Remote', `Branch '${branch}' removida do servidor com sucesso!`);
+              
+              await props.refreshBranches(props.repoPath!);
+              
+            } catch (err: unknown) {
+              const errorMessage = typeof err === 'string' ? err : String(err);
+              
+              notify.error('Erro ao deletar remota', errorMessage);
+              console.error("Erro Git Remote:", errorMessage);
+            } finally {
+              hideLoading();
+            }
+          });
 
-          try {
-            showLoading("Deletando branch remota...");
-            await deleteRemoteBranch(props.repoPath!, branch, "origin");
-            
-            hideLoading();
-            notify.success('Git Remote', `Branch '${branch}' removida do servidor com sucesso!`);
-            
-            await props.refreshBranches(props.repoPath!);
-            
-          } catch (err: unknown) {
-            const errorMessage = typeof err === 'string' ? err : String(err);
-            
-            // Erros comuns aqui: Falha de autenticação ou branch protegida (main/master)
-            notify.error('Erro ao deletar remota', errorMessage);
-            console.error("Erro Git Remote:", errorMessage);
-          } finally {
-            hideLoading();
-          }
+          setModalConfirmOnCancel(() => () => {
+            setModalConfirmOpen(null);
+          });
+
+          setModalConfirmOpen({ id: branch });
         } 
       });
     }
@@ -218,6 +235,17 @@ export default function BranchList(props: Props) {
           position={menuPos()}
           onClose={() => setMenuVisible(false)}
         />
+      </Show>
+      <Show when={openModalConfirm()}>
+          <ConfirmModal 
+              isOpen={openModalConfirm() !== null}
+              title={modalConfirmTitle()}
+              message={modalConfirmMessage()}
+              confirmText={t('common').delete}
+              isDanger={true}
+              onConfirm={() => modalConfirmOnExecute()()}
+              onCancel={() => modalConfirmOnCancel()()}
+          />
       </Show>
     </div>
   );

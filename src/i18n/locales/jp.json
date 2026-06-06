@@ -101,7 +101,9 @@
     "no_data": "データがありません",
     "no_user": "ユーザーが見つかりません",
     "no_commit": "コミットが見つかりません",
-    "example": "例"
+    "example": "例",
+    "confirm_action": "アクションを確認",
+    "confirm_remove": "削除を確認"
   },
   "success": {
     "saved": "正常に保存されました",
@@ -257,6 +259,8 @@
     "new_branch": "新しいブランチ",
     "change_to_branch": "ブランチに切り替え",
     "delete_branch": "ブランチを削除",
+    "delete_remote_branch": "リモートブランチを削除",
+    "checkout_remote_branch": "リモートブランチにチェックアウト",
     "current_branch": "現在のブランチ",
     "default_branch": "デフォルトブランチ",
     "you_have_changes": "ローカルに変更があります。どうしますか？",

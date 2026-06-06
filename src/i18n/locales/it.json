@@ -101,7 +101,9 @@
     "no_data": "Nessun dato da visualizzare",
     "no_user": "Nessun utente trovato",
     "no_commit": "Nessun commit trovato",
-    "example": "Esempio"
+    "example": "Esempio",
+    "confirm_action": "Conferma Azione",
+    "confirm_remove": "Conferma Eliminazione"
   },
   "success": {
     "saved": "Salvato con successo",
@@ -257,6 +259,8 @@
     "new_branch": "Nuovo branch",
     "change_to_branch": "Passa al branch",
     "delete_branch": "Elimina branch",
+    "delete_remote_branch": "Elimina branch remota",
+    "checkout_remote_branch": "Checkout per branch remota",
     "current_branch": "Branch attuale",
     "default_branch": "Branch predefinito",
     "you_have_changes": "Hai modifiche locali. Cosa vuoi farne?",
