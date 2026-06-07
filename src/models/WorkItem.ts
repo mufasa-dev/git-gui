@@ -12,6 +12,14 @@ export interface WorkItem {
     name: string;
     avatarUrl?: string;
   };
+  tags: string[];
+  comments: CardComment[];
+  priority?: number;
+  effort?: number;
+  areaPath?: string;
+  iterationPath?: string;
+  tasksReferences?: string[]; // Para sub-tarefas ou itens relacionados
+  commitsReferences?: string[]; // Hashes ou mensagens de commit relacionados
   createdAt: string;
   updatedAt?: string;
   htmlUrl?: string;        // Link direto para a web se precisar
@@ -21,4 +29,14 @@ export interface WorkItem {
     avatarUrl?: string;
   };
   commentsCount: number;
+}
+
+export interface CardComment {
+  id: string | number;
+  author: {
+    name: string;
+    avatarUrl?: string;
+  };
+  text: string; // Conteúdo em Markdown ou HTML
+  createdAt: string;
 }

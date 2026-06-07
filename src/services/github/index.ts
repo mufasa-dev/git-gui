@@ -438,6 +438,8 @@ export const githubService = {
         name: data.user?.login || "unknown",
         avatarUrl: data.user?.avatar_url
       },
+      tags: [],
+      comments: [], // Comentários serão buscados dinamicamente depois
       createdAt: data.created_at,
       updatedAt: data.updated_at,
       htmlUrl: data.html_url,

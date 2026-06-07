@@ -1,7 +1,7 @@
 import { load } from "@tauri-apps/plugin-store";
 import { fetch } from "@tauri-apps/plugin-http";
 import { PRValidationResult, UnifiedPR } from "../../models/PR.model";
-import { WorkItem } from "../../models/WorkItem";
+import { CardComment, WorkItem } from "../../models/WorkItem";
 
 async function getAuthStore() {
   return await load("auth.bin");
@@ -1094,11 +1094,35 @@ export const azureService = {
       }
     });
     if (!response.ok) throw new Error("Erro ao buscar card no Azure");
-    const data = await response.json();
-
-    const fields = data.fields;
     
-    // Mapeamento de cor simples baseado no State padrão do Azure Boards
+    const data = await response.json();
+    const fields = data.fields;
+
+    // 🎯 1. MAPEAMENTO REAL DE TAGS (Separando por ponto e vírgula)
+    const tagsString = fields["System.Tags"] || "";
+    const tags = tagsString ? tagsString.split(";").map((t: string) => t.trim()) : [];
+
+    // 🎯 2. BUSCANDO COMENTÁRIOS REAIS DA TIMELINE
+    const comments = await this.getAzureComments(organization, project, workItemId);
+
+    // 🎯 3. EXTRAINDO TASKS E COMMITS REAIS DO ARRAY DE RELATIONS
+    const relations = data.relations || [];
+    
+    const tasksIds = relations
+    .filter((rel: any) => rel.rel === "System.LinkTypes.Hierarchy-Forward")
+    .map((rel: any) => {
+      return rel.url.split("/").pop(); // Extrai o ID "2" da URL fornecida
+    });
+
+  const commitsHashes = relations
+    .filter((rel: any) => rel.rel === "ArtifactLink" && rel.url.toLowerCase().includes("git/commit"))
+    .map((rel: any) => {
+      // Decodifica a URL: vstfs:///Git/Commit/...%2f[commitHash]
+      const decodedUrl = decodeURIComponent(rel.url);
+      return decodedUrl.split("/").pop() || "";
+    });
+
+    // Cores baseadas no estado atual vindas do seu fields
     const state = fields["System.State"] || "To Do";
     let stateColor = "bg-gray-500/10 text-gray-500 border-gray-500/20";
     if (state === "Active" || state === "Doing") stateColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
@@ -1106,25 +1130,203 @@ export const azureService = {
 
     return {
       id: data.id.toString(),
-      number: data.id, // O Azure usa o ID global como número do card
+      number: data.id,
       title: fields["System.Title"] || "",
       description: fields["System.Description"] || fields["System.History"] || "", 
       state: state,
       stateColor: stateColor,
       provider: "azure",
+      tags: tags,
+      comments: comments,
+      tasksReferences: tasksIds, 
+      commitsReferences: commitsHashes,
+      priority: fields["Microsoft.VSTS.Common.Priority"],
+      effort: fields["Microsoft.VSTS.Scheduling.Effort"] || fields["Microsoft.VSTS.Scheduling.StoryPoints"],
+      areaPath: fields["System.AreaPath"] || "",
+      iterationPath: fields["System.IterationPath"] || "",
       author: {
-        // O Azure retorna objetos estruturados ou strings contendo o DisplayName
-        name: fields["System.CreatedBy"]?.displayName || fields["System.CreatedBy"] || "Azure User",
+        name: fields["System.CreatedBy"]?.displayName || "Azure User",
         avatarUrl: fields["System.CreatedBy"]?._links?.avatar?.href
       },
       createdAt: fields["System.CreatedDate"],
       updatedAt: fields["System.ChangedDate"],
       commentsCount: fields["System.CommentCount"] || 0,
       assignee: fields["System.AssignedTo"] ? {
-        name: fields["System.AssignedTo"].displayName || fields["System.AssignedTo"],
+        name: fields["System.AssignedTo"].displayName,
         avatarUrl: fields["System.AssignedTo"]._links?.avatar?.href
       } : undefined
     };
+  },
+  
+  async getTasksDetails(organization: string, project: string, ids: string[]): Promise<Array<{ id: string, title: string }>> {
+    if (!ids || ids.length === 0) return [];
+    const token = await this.getToken();
+    if (!token) return [];
+    const credentials = btoa(`:${token.trim()}`);
+
+    // O Azure aceita uma lista de IDs separados por vírgula para buscar em lote
+    const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/wit/workitems?ids=${ids.join(",")}&api-version=7.0&fields=System.Title`;
+
+    try {
+      const response = await window.fetch(url, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      return (data.value || []).map((item: any) => ({
+        id: item.id.toString(),
+        title: item.fields["System.Title"] || "Sub-task sem título"
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  async getCommitDetails(organization: string, project: string, repoId: string, commitHash: string): Promise<{ id: string, message: string }> {
+    const token = await this.getToken();
+    if (!token) return { id: commitHash, message: "Mudança vinculada no Azure Repos" };
+    const credentials = btoa(`:${token.trim()}`);
+
+    // Nota: se você não tiver o ID do repositório dinâmico, pode usar o nome do projeto/repositório na rota padrão
+    const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(project)}/commits/${commitHash}?api-version=7.0`;
+
+    try {
+      const response = await window.fetch(url, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+      if (!response.ok) return { id: commitHash, message: "Mudança vinculada no Azure Repos" };
+      const data = await response.json();
+      return {
+        id: commitHash,
+        message: data.comment || "Commit associado"
+      };
+    } catch {
+      return { id: commitHash, message: "Mudança vinculada no Azure Repos" };
+    }
+  },
+
+  async getAzureComments(organization: string, project: string, workItemId: number): Promise<CardComment[]> {
+    const token = await this.getToken();
+    if (!token) return [];
+    const credentials = btoa(`:${token.trim()}`);
+    
+    const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/wit/workitems/${workItemId}/comments?api-version=7.0-preview.3`;
+    
+    try {
+      const response = await window.fetch(url, {
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Accept': 'application/json'
+        }
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      
+      return (data.comments || []).map((c: any) => ({
+        id: c.id,
+        author: {
+          name: c.createdBy?.displayName || "Azure User",
+          avatarUrl: c.createdBy?._links?.avatar?.href
+        },
+        text: c.text || "", // O Azure retorna o texto do comentário em formato HTML/String
+        createdAt: c.createdDate
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  // Substitua o método getWorkItemHistory no seu azureService.ts por esta versão filtrada:
+  async getWorkItemHistory(organization: string, project: string, workItemId: number): Promise<Array<any>> {
+    const token = await this.getToken();
+    if (!token) return [];
+    const credentials = btoa(`:${token.trim()}`);
+
+    const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/wit/workitems/${workItemId}/updates?api-version=7.0`;
+
+    try {
+      const response = await window.fetch(url, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      
+      const mappedUpdates = (data.value || []).map((update: any) => {
+        const fields = update.fields || {};
+        const relations = update.relations || {};
+        const cleanedChanges: Array<{ type: string; field: string; value: any }> = [];
+
+        // 1. Detectar Mudança de Estado (Coluna / Kanban)
+        if (fields["System.State"]) {
+          cleanedChanges.push({ type: "state", field: "State", value: fields["System.State"].newValue });
+        }
+        if (fields["System.BoardColumn"]) {
+          cleanedChanges.push({ type: "board", field: "Board Column", value: fields["System.BoardColumn"].newValue });
+        }
+
+        // 2. Detectar Atribuição de Responsável
+        if (fields["System.AssignedTo"]) {
+          cleanedChanges.push({ type: "assignee", field: "Assigned To", value: fields["System.AssignedTo"].newValue?.displayName || "Ninguém" });
+        }
+
+        // 3. Detectar Mudanças em Parâmetros de Planejamento (Priority / Effort)
+        if (fields["System.Priority"]) {
+          cleanedChanges.push({ type: "planning", field: "Priority", value: fields["System.Priority"].newValue });
+        }
+        if (fields["Microsoft.VSTS.Common.Effort"]) {
+          cleanedChanges.push({ type: "planning", field: "Effort", value: fields["Microsoft.VSTS.Common.Effort"].newValue });
+        }
+
+        // 4. Detectar Inclusão ou Alteração de Tags
+        if (fields["System.Tags"]) {
+          cleanedChanges.push({ type: "tags", field: "Tags", value: fields["System.Tags"].newValue });
+        }
+
+        // 5. Detectar Comentários na Discussão
+        if (fields["System.History"]) {
+          cleanedChanges.push({ type: "comment", field: "Comment", value: fields["System.History"].newValue });
+        }
+
+        // 6. Detectar Vínculos de Links Novos (Commits ou Sub-tasks)
+        if (relations.added) {
+          relations.added.forEach((link: any) => {
+            if (link.rel === "ArtifactLink" && link.url.toLowerCase().includes("git/commit")) {
+              cleanedChanges.push({ type: "commit_link", field: "Commit link", value: "Added Commit link" });
+            } else if (link.rel === "System.LinkTypes.Hierarchy-Forward") {
+              cleanedChanges.push({ type: "task_link", field: "Child link", value: "Added Child link" });
+            }
+          });
+        }
+
+        // Se a API não mandou campos mapeados mas tem histórico bruto, gera um título genérico amigável
+        let eventSummary = "made field changes";
+        if (cleanedChanges.length > 0) {
+          const primary = cleanedChanges[0];
+          if (primary.type === "state" || primary.type === "board") eventSummary = `changed State to ${primary.value}`;
+          else if (primary.type === "tags") eventSummary = "changed Tags";
+          else if (primary.type === "comment") eventSummary = "added a comment";
+          else if (primary.type === "commit_link") eventSummary = "added Commit link";
+          else if (primary.type === "task_link") eventSummary = "added Child link";
+          else if (primary.type === "assignee") eventSummary = `assigned to ${primary.value}`;
+        }
+
+        // CORREÇÃO DA DATA: Usar obrigatoriamente mudado em (changedDate) que sempre vem preenchido
+        return {
+          id: update.id,
+          rev: update.rev,
+          user: update.changedBy?.displayName || "Sistema",
+          avatar: update.changedBy?._links?.avatar?.href,
+          date: update.changedDate ? new Date(update.changedDate) : new Date(),
+          summary: eventSummary,
+          changes: cleanedChanges
+        };
+      });
+
+      // Ordena do mais recente para o mais antigo (igual ao layout do Azure)
+      return mappedUpdates.reverse();
+    } catch {
+      return [];
+    }
   },
 
   async logout() {
