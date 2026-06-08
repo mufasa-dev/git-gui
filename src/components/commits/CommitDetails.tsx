@@ -193,8 +193,8 @@ export function CommitDetails(props: CommitDetailsProps) {
                 </div>
 
                 {/* Área do Diff */}
-                <div class="w-2/3 overflow-y-auto bg-white dark:bg-gray-800">
-                  <Show when={selectedFile()} fallback={<div class="p-10 text-center text-gray-500 text-sm">Selecione um arquivo para ver o diff</div>}>
+                <div class="w-2/3 overflow-auto bg-white dark:bg-gray-800 border-l border-gray-300 dark:border-gray-700 ">
+                  <Show when={selectedFile()} fallback={<div class="p-10 text-center text-gray-500 text-sm">{t('pr').select_file_see_changes}</div>}>
                     <Show when={!loadingDiff()}>
                       <DiffViewer 
                         path={props.repoPath}

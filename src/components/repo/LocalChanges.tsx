@@ -270,7 +270,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}>
-      <div class="container-branch-list mb-4 overflow-auto border-r py-3 px-0" style={{ width: `${sidebarWidth()}px` }}>
+      <div class="container-branch-list mb-2 overflow-auto border-r py-3 px-0" style={{ width: `${sidebarWidth()}px` }}>
         <div style={{"height": "40px"}} class="flex flex-col">
           <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 mb-3 flex items-center" onContextMenu={showContextMenu}>
             <b>{t('file').updates}</b>
@@ -309,8 +309,8 @@ export function LocalChanges(props: { repo: Repo; }) {
         onMouseDown={startResize}
       ></div>
 
-      <div  class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
-        <div class="flex-1 overflow-auto px-2 container-branch-list min-w-0">
+      <div class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+        <div class="flex-1 overflow-auto p-2 container-branch-list min-w-0 border border-gray-300 dark:border-gray-700">
           <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
             path={props.repo.path} isStaged={isVisualizingStaged()}
             onMergeStatusChange={(open) => setIsMerging(open)}
@@ -320,7 +320,7 @@ export function LocalChanges(props: { repo: Repo; }) {
               loadChanges();
             }} />
         </div>
-        <div class="mt-2 container-branch-list mb-4">
+        <div class="mt-2 container-branch-list mb-2">
           <input type="text" class="w-full input-text" placeholder={t('commits').commit_message}
             value={commitMessage()}
             onInput={(e) => setCommitMessage(e.currentTarget.value)} />

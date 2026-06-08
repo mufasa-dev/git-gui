@@ -159,40 +159,44 @@ export default function DiffViewer(props: Props) {
         </div>
       </Show>
       <Show when={!isBinary() && (!hasConflict() || (hasConflict() && props.isStaged))}>
-        <div class="h-[100px] py-2">
-          <div class="font-mono text-sm border border-gray-300 dark:border-gray-700 rounded-md overflow-hidden">
-            <table class="w-full border-collapse">
-              <tbody>
-                <For each={diffLines()}>
-                  {(line) => (
-                    <tr
-                      class={
-                        line.type === "add"
-                          ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200"
-                          : line.type === "del"
-                          ? "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200"
-                          : line.type === "hunk"
-                          ? "bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-300 font-bold opacity-80"
-                          : "hover:bg-gray-50 dark:hover:bg-white/5"
-                      }
-                    >
-                      <td class="w-12 text-right px-2 text-gray-400 select-none border-r border-gray-300 dark:border-gray-700 text-[11px]">
-                        <Show when={line.oldLine !== undefined}>{line.oldLine}</Show>
-                      </td>
-                      <td class="w-12 text-right px-2 text-gray-400 select-none border-r border-gray-300 dark:border-gray-700 text-[11px]">
-                        <Show when={line.newLine !== undefined}>{line.newLine}</Show>
-                      </td>
-                      <td class="px-4 whitespace-pre-wrap select-text font-mono leading-6" innerHTML={highlightCode(line.content, props.file)}>
-
-                      </td>
-                    </tr>
-                  )}
-                </For>
-              </tbody>
-            </table>
+        <div class="w-full max-w-[200px] min-w-full">
+          <div class="font-mono text-sm rounded-md w-full custom-scrollbar">
+            <div class="min-w-max flex flex-col">
+              <For each={diffLines()}>
+                {(line) => (
+                  <div
+                    class={`flex items-stretch w-full border-b border-transparent last:border-0 ${
+                      line.type === "add"
+                        ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200"
+                        : line.type === "del"
+                        ? "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200"
+                        : line.type === "hunk"
+                        ? "bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-300 font-bold opacity-80"
+                        : "hover:bg-gray-50 dark:hover:bg-white/5"
+                    }`}
+                  >
+                    {/* Número da Linha Antiga */}
+                    <div class="w-12 min-w-[48px] text-right px-2 text-gray-400 select-none border-r border-gray-300 dark:border-gray-700 text-[11px] flex items-center justify-end bg-gray-50/50 dark:bg-slate-900/20">
+                      <Show when={line.oldLine !== undefined}>{line.oldLine}</Show>
+                    </div>
+                    
+                    {/* Número da Linha Nova */}
+                    <div class="w-12 min-w-[48px] text-right px-2 text-gray-400 select-none border-r border-gray-300 dark:border-gray-700 text-[11px] flex items-center justify-end bg-gray-50/50 dark:bg-slate-900/20">
+                      <Show when={line.newLine !== undefined}>{line.newLine}</Show>
+                    </div>
+                    
+                    {/* Conteúdo do Código */}
+                    <div 
+                      class="flex-1 px-4 whitespace-pre select-text font-mono leading-6 alignment-baseline" 
+                      innerHTML={highlightCode(line.content, props.file)}
+                    />
+                  </div>
+                )}
+              </For>
+            </div>
           </div>
         </div>
-     </Show>
+      </Show>
      <Show when={hasConflict() && !props.isStaged}>
         <div class="flex flex-col items-center justify-center h-full w-full h-100 p-8 text-center rounded-lg">
           {/* Ícone Hero Centralizado */}
