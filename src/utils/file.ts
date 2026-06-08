@@ -107,6 +107,9 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   aspx : "Aspx",
   vbs: "VBScript",
   oca: "VBScript",
+  // Andoird
+  kt: "Kotlin",
+  kts: "Kotlin",
   // Frameworks
   svelte: "Svelte",
   vue: "Vue",
@@ -236,6 +239,7 @@ export const GROUP_COLORS: Record<string, string> = {
   "Aspx": "#6a40fd",
   "Asax": "#6a40fd",
   "VBScript": "#145cab",
+  "Kotlin": "#746ff3",
   "Python": "#3572A8",
   "Java": "#b07219",
   "Ruby": "#701516",
@@ -273,8 +277,8 @@ export const IGNORED_EXTENSIONS = [
   // Configurações e Metadados
   'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'cer', 'dep',
   // Outros arquivos de configuração comuns
-  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults',
-  'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload',
+  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults', "example", "properties",
+  'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload', "pro",
   'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc', 'ini', 'old', 'new', 'lic', 'log', 'bak', 'backup', 'temp', 'cache', 'dist', 'out', 'build', 'target', 'obj',
   // Godot
   'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', '.import'
