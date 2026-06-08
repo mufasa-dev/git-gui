@@ -7,6 +7,7 @@ mod azure;
 mod models;
 mod utils;
 mod tests;
+mod ai;
 mod authentication;
 
 use tauri::{Emitter, Listener};
@@ -100,6 +101,7 @@ fn main() {
             tests::golang_test::run_go_tests,
             tests::golang_test::get_go_test_files,
             tests::project_type::detect_project_type,
+            ai::commits::generate_commit_suggestion,
             authentication::login::login_with_supabase,
             authentication::login::register_with_supabase,
             authentication::login::get_my_profile,
