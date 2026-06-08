@@ -11,6 +11,7 @@ import { Diff } from "../../models/Diff.model";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
+import { generateCommitSuggestion } from "../../services/aiService";
 
 let isRefreshing = false;
 
@@ -37,6 +38,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [isMerging, setIsMerging] = createSignal(false);
   const [isVisualizingStaged, setIsVisualizingStaged] = createSignal(false);
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
+  const [isGeneratingAI, setIsGeneratingAI] = createSignal(false);
   const { t } = useApp();
 
   const loadChanges = async () => {
@@ -226,6 +228,29 @@ export function LocalChanges(props: { repo: Repo; }) {
     await loadChanges();
   };
 
+  const handleAIGenerate = async () => {
+    if (staged().length === 0) {
+      notify.error("Ops!", "Você precisa preparar (stage) alguns arquivos antes de pedir ajuda à IA.");
+      return;
+    }
+
+    try {
+      setIsGeneratingAI(true);
+      // Chama o serviço do Tauri que criamos
+      const [suggestedTitle, suggestedDescription] = await generateCommitSuggestion(props.repo.path);
+      
+      // Alimenta os inputs da sua tela automaticamente
+      setCommitMessage(suggestedTitle);
+      setCommitDescription(suggestedDescription);
+      notify.success("Sucesso", "Sugestão de commit aplicada!");
+    } catch (err) {
+      console.error(err);
+      notify.error("Erro na IA", String(err));
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
   const unstage = async (paths: string[]) => {
     await unstageFiles(props.repo.path, paths);
     setSelected([]);
@@ -321,12 +346,34 @@ export function LocalChanges(props: { repo: Repo; }) {
             }} />
         </div>
         <div class="mt-2 container-branch-list mb-2">
-          <input type="text" class="w-full input-text" placeholder={t('commits').commit_message}
-            value={commitMessage()}
-            onInput={(e) => setCommitMessage(e.currentTarget.value)} />
-          <input type="text" class="w-full mt-2 input-text" placeholder={t('common').description}
+          <div class="flex gap-2 items-center w-full">
+            <input type="text" class="flex-1 input-text mt-0" placeholder={t('commits').commit_message}
+              value={commitMessage()} disabled={isGeneratingAI()}
+              onInput={(e) => setCommitMessage(e.currentTarget.value)} 
+            />
+            
+            <button 
+              class="px-3 py-2 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 
+                    border border-gray-300 dark:border-gray-900 text-gray-700 dark:text-white
+                    rounded-lg transition-colors flex items-center justify-center disabled:opacity-40"
+              title="Sugerir mensagem com IA"
+              onClick={handleAIGenerate}
+              disabled={isGeneratingAI() || staged().length === 0}
+            >
+              <Show when={isGeneratingAI()} fallback={<i class="fa fa-wand-magic-sparkles"></i>}>
+                <i class="fa fa-spinner animate-spin"></i>
+              </Show>
+            </button>
+          </div>
+
+          <textarea 
+            class="w-full mt-2 input-text min-h-[20px] max-h-[200px] resize-y py-2 custom-scrollbar" 
+            placeholder={t('common').description}
             value={commitDescription()}
-            onInput={(e) => setCommitDescription(e.currentTarget.value)} />
+            onInput={(e) => setCommitDescription(e.currentTarget.value)} 
+            rows="2" disabled={isGeneratingAI()}
+          />
+
           <div class="flex mt-2">
             <div>
               <input
@@ -336,7 +383,7 @@ export function LocalChanges(props: { repo: Repo; }) {
               <label for="amend" class="ml-1">{t('git').amend}</label>
             </div>
             <button class="pl-2 pr-4 py-1 bg-blue-600 ml-auto text-white rounded-xl" onClick={handleCommit}
-              disabled={staged().length === 0 || !commitMessage().trim()}>
+              disabled={staged().length === 0 || !commitMessage().trim() || isGeneratingAI()}>
               <i class="fa fa-check"></i> {t('git').commit}
             </button>
           </div>

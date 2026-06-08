@@ -40,6 +40,10 @@ function parseDiff(diff: string): DiffLine[] {
   let newLine = 0;
 
   for (const line of lines) {
+    if (line.includes("No newline at end of file")) {
+      continue;
+    }
+    
     if (
       line.startsWith("diff --git") || 
       line.startsWith("index ") || 
@@ -159,7 +163,7 @@ export default function DiffViewer(props: Props) {
         </div>
       </Show>
       <Show when={!isBinary() && (!hasConflict() || (hasConflict() && props.isStaged))}>
-        <div class="w-full max-w-[200px] min-w-full">
+        <div class="w-full max-w-[200px] min-w-full h-[100px]">
           <div class="font-mono text-sm rounded-md w-full custom-scrollbar">
             <div class="min-w-max flex flex-col">
               <For each={diffLines()}>
