@@ -1,6 +1,7 @@
 import { load } from "@tauri-apps/plugin-store";
 import { fetch } from "@tauri-apps/plugin-http";
 import { UnifiedPR } from "../../models/PR.model";
+import { UnifiedPipelineRun } from "../../models/Pipeline.model";
 
 async function getAuthStore() {
   return await load("auth.bin");
@@ -299,6 +300,93 @@ export const azureService = {
       })
     });
     return response.ok;
+  },
+
+  async getPipelineRuns(organization: string, project: string): Promise<UnifiedPipelineRun[]> {
+    try {
+      const token = await this.getToken();
+      if (!token) return [];
+      const credentials = btoa(`:${token.trim()}`);
+      
+      // api-version 7.0 lista os builds mais recentes do projeto
+      // queryParameters opcionais: $top=10 (para limitar a 10 resultados)
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/build/builds?top=15&api-version=7.0`;
+      
+      const response = await window.fetch(url, {
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Accept': 'application/json' 
+        }
+      });
+
+      if (!response.ok) {
+        console.error("Erro ao buscar pipelines no Azure:", response.status);
+        return [];
+      }
+      
+      const data = await response.json();
+      
+      // Mapeia para um formato padronizado que sua UI do SolidJS possa ler facilmente
+      return (data.value || []).map((build: any) => ({
+        id: build.id,
+        number: build.buildNumber,
+        name: build.definition?.name || "Pipeline",
+        status: build.status,       // 'completed', 'inProgress', 'notStarted'
+        result: build.result,       // 'succeeded', 'failed', 'canceled', null se rodando
+        url: build._links?.web?.href || "",
+        trigger: build.reason,      // 'manual', 'individualCI', 'batchedCI'
+        startTime: build.startTime,
+        finishTime: build.finishTime,
+        sourceBranch: build.sourceBranch?.replace('refs/heads/', '') || ""
+      }));
+    } catch (e) {
+      console.error("Erro na request de pipelines do Azure:", e);
+      return [];
+    }
+  },
+
+  async getPipelineRunDetails(organization: string, project: string, buildId: number): Promise<any> {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token.trim()}`);
+      
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/build/builds/${buildId}?api-version=7.0`;
+      
+      const response = await window.fetch(url, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+
+      if (!response.ok) return null;
+      const build = await response.json();
+
+      // Vamos buscar também os erros/logs simplificados ou detalhes do repositório
+      return {
+        id: build.id,
+        number: build.buildNumber,
+        name: build.definition?.name || "Pipeline",
+        status: build.status,
+        result: build.result,
+        url: build._links?.web?.href || "",
+        trigger: build.reason === 'individualCI' ? 'Individual CI' : build.reason,
+        startTime: build.startTime,
+        finishTime: build.finishTime,
+        sourceBranch: build.sourceBranch?.replace('refs/heads/', '') || "",
+        // Dados ricos adicionados para a tela de detalhes:
+        author: {
+          name: build.requestedFor?.displayName || "Desconhecido",
+          avatarUrl: build.requestedFor?._links?.avatar?.href || ""
+        },
+        commit: {
+          id: build.sourceVersion?.substring(0, 7) || "",
+          fullId: build.sourceVersion || "",
+          message: build.triggerInfo?.['ci.message'] || "Disparado por alteração de código"
+        }
+      };
+    } catch (e) {
+      console.error("Erro ao buscar detalhes da pipeline no Azure:", e);
+      return null;
+    }
   },
 
   async logout() {
