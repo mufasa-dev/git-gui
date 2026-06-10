@@ -193,9 +193,8 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                 {/* LISTAGEM DE RUNS COM AVATAR, GATILHO E ICONES CONDENSADOS */}
                 <For each={filteredList()}>
                 {(item) => {
-                    const run = item as any; // Cast temporário para mapear propriedades profundas do Azure
+                    const run = item as any;
 
-                    // 1. CORREÇÃO DO NOME DA RUN (Pega a mensagem do commit ou fallback do Azure)
                     const runDescription = createMemo(() => {
                     if (run.name && run.name !== selectedPipeline()?.name) {
                         return run.name;
@@ -309,7 +308,6 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
     </div>
   );
 }
-
 function RunDetailsPanel(props: { runId: any; repoOwner: string; repo: Repo; provider: GitProvider; fallbackRuns: any[] }) {
   const { locale, t } = useApp();
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
@@ -326,35 +324,98 @@ function RunDetailsPanel(props: { runId: any; repoOwner: string; repo: Repo; pro
     }
   );
 
+  // Trata o nome explicativo/descrição real da run vinda do Azure
+  const runDescription = createMemo(() => {
+    const run = runDetails();
+    if (!run) return "Build Triggered";
+    return run.commit?.message || run.triggerInfo?.["ci.message"] || "Set up CI with Azure Pipelines";
+  });
+
   return (
     <Show when={!runDetails.loading} fallback={<div class="flex-1 flex items-center justify-center"><i class="fa-solid fa-spinner fa-spin text-xl text-blue-500"></i></div>}>
       <div class="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700/50 overflow-y-auto custom-scrollbar flex flex-col">
         
-        {/* BANNER SUPERIOR DO AZURE */}
-        <header class="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 flex items-center justify-between">
-          <div class="space-y-1 min-w-0 flex-1 pr-4">
-            <div class="flex items-center gap-2 text-base font-black dark:text-white truncate">
-              <span class="text-gray-400 font-mono">#{runDetails().number}</span>
-              <span>•</span>
-              <CommitMessage message={runDetails().commit?.message || "Build Triggered"} />
+        {/* BANNER SUPERIOR ATUALIZADO (PADRÃO AZURE DEVOPS) */}
+        <header class="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 flex items-start justify-between gap-4">
+          <div class="flex items-start gap-3 min-w-0 flex-1">
+            {/* Ícone de status posicionado na esquerda do título */}
+            <div class="mt-0.5 shrink-0">
+              <PipelineStatusIcon status={runDetails().status} result={runDetails().result} />
             </div>
-            <div class="text-xs text-gray-500 font-bold flex items-center gap-2">
-              <i class="fa-solid fa-circle text-[5px] text-gray-400"></i>
-              <span>Pipeline: <span class="text-gray-700 dark:text-gray-300 font-black">{runDetails().name}</span></span>
+            
+            <div class="space-y-1 min-w-0 flex-1">
+              <div class="flex items-center gap-2 text-base font-black dark:text-white truncate">
+                <span class="text-gray-400 font-mono shrink-0">#{runDetails().number}</span>
+                <span class="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                <div class="truncate">
+                  <CommitMessage message={runDescription()} />
+                </div>
+              </div>
+              <div class="text-xs text-gray-500 font-bold flex items-center gap-2">
+                <span>Pipeline: <span class="text-gray-700 dark:text-gray-300 font-black">{props.repo?.name || runDetails().name}</span></span>
+              </div>
             </div>
           </div>
-          <PipelineStatusIcon status={runDetails().status} result={runDetails().result} />
+
+          {/* Grupo de botões reposicionado no canto superior direito */}
+          <div class="flex items-center gap-2 shrink-0 relative">
+            {/* Botão Condicional: Rerun se houver falha */}
+            <Show when={runDetails().result?.toLowerCase() === 'failed' || runDetails().result?.toLowerCase() === 'failure'}>
+              <button class="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-black uppercase text-[9px] tracking-wider px-3.5 py-2 rounded-xl transition-all shadow-sm">
+                <i class="fa-solid fa-arrow-rotate-left"></i> Rerun failed jobs
+              </button>
+            </Show>
+
+            {/* Botão Primário: Run New */}
+            <button class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[9px] tracking-wider px-4 py-2 rounded-xl transition-all shadow-md shadow-blue-600/10">
+              <i class="fa-solid fa-play text-[8px]"></i> Run new
+            </button>
+
+            {/* Menu de contexto (...) */}
+            <div class="relative">
+              <button 
+                onClick={() => setDropdownOpen(!dropdownOpen())}
+                class="flex items-center justify-center bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 w-8 h-8 rounded-xl transition-all"
+              >
+                <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
+              </button>
+
+              <Show when={dropdownOpen()}>
+                <div class="absolute top-9 right-0 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl py-1.5 z-50 text-xs font-bold text-gray-700 dark:text-gray-300">
+                  <button class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5">
+                    <i class="fa-solid fa-download text-gray-400 w-3"></i> Download logs
+                  </button>
+                  <button class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5">
+                    <i class="fa-solid fa-code text-gray-400 w-3"></i> See full YAML
+                  </button>
+                  <a 
+                    href={runDetails().url} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5 text-gray-700 dark:text-gray-300"
+                  >
+                    <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 w-3"></i> Ver no console
+                  </a>
+                  <div class="border-t dark:border-gray-800 my-1"></div>
+                  <button class="w-full text-left px-4 py-2 hover:bg-rose-500/10 text-rose-500 flex items-center gap-2.5">
+                    <i class="fa-solid fa-trash w-3"></i> Delete Run
+                  </button>
+                </div>
+                <div class="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)}></div>
+              </Show>
+            </div>
+          </div>
         </header>
 
         {/* METADADOS EM GRID CARD */}
-        <div class="p-6 grid grid-cols-3 gap-6 border-b dark:border-gray-700 text-xs">
+        <div class="p-6 grid grid-cols-3 gap-6 border-b dark:border-gray-700 text-xs bg-white dark:bg-gray-800">
           <div class="space-y-1.5">
             <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">Autor do disparo</span>
             <div class="flex items-center gap-2">
-              <Show when={runDetails().author?.avatarUrl} fallback={<div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] text-white font-black">{runDetails().author?.name?.[0]}</div>}>
+              <Show when={runDetails().author?.avatarUrl} fallback={<div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] text-white font-black">{runDetails().author?.name?.[0] || 'B'}</div>}>
                 <img src={runDetails().author.avatarUrl} class="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600" />
               </Show>
-              <span class="font-bold dark:text-gray-200">{runDetails().author?.name}</span>
+              <span class="font-bold dark:text-gray-200">{runDetails().author?.name || runDetails().requestedFor?.displayName || "bruno ribeiro"}</span>
             </div>
           </div>
 
@@ -363,10 +424,10 @@ function RunDetailsPanel(props: { runId: any; repoOwner: string; repo: Repo; pro
             <div class="font-bold dark:text-gray-200 flex flex-col gap-0.5">
               <span class="text-blue-500"><i class="fa-solid fa-book-bookmark mr-1.5 text-[10px]"></i>{props.repo?.name}</span>
               <span class="text-gray-500 font-mono text-[11px] truncate">
-                <i class="fa-solid fa-code-branch mr-1.5 text-[10px]"></i>{runDetails().sourceBranch} 
-                <Show when={runDetails().commit?.id}>
+                <i class="fa-solid fa-code-branch mr-1.5 text-[10px]"></i>{runDetails().sourceBranch || "main"} 
+                <Show when={runDetails().commitId || runDetails().commit?.id}>
                   <span class="mx-1 text-gray-300">•</span>
-                  <i class="fa-solid fa-code-commit mr-1.5 text-[10px]"></i>{runDetails().commit?.id}
+                  <i class="fa-solid fa-code-commit mr-1.5 text-[10px]"></i>{(runDetails().commitId || runDetails().commit?.id).substring(0, 7)}
                 </Show>
               </span>
             </div>
@@ -381,7 +442,7 @@ function RunDetailsPanel(props: { runId: any; repoOwner: string; repo: Repo; pro
           </div>
         </div>
 
-        {/* CAIXA DE ERROS DO AZURE (Mapeado com ícones e cores vivas) */}
+        {/* CAIXA DE ERROS DO AZURE */}
         <Show when={runDetails().result?.toLowerCase() === 'failed' || runDetails().result?.toLowerCase() === 'failure'}>
           <div class="m-6 p-4 bg-rose-500/5 dark:bg-rose-950/20 border border-rose-500/20 rounded-xl">
             <div class="flex items-center gap-2 text-rose-500 dark:text-rose-400 font-black text-[10px] uppercase tracking-wider mb-2">
@@ -394,12 +455,11 @@ function RunDetailsPanel(props: { runId: any; repoOwner: string; repo: Repo; pro
           </div>
         </Show>
 
-        {/* ÁRVORE DE STAGES & JOBS (Aparência do Console DevOps) */}
+        {/* ÁRVORE DE STAGES & JOBS */}
         <div class="mx-6 mb-6 flex-1 flex flex-col">
           <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-3">Estágios e Jobs</span>
           <div class="border dark:border-gray-700/60 rounded-xl overflow-hidden bg-gray-50/50 dark:bg-gray-900/10 text-xs font-bold">
             
-            {/* Cabeçalho do Stage */}
             <div class="flex items-center justify-between p-3 border-b dark:border-gray-700/50 bg-gray-100/60 dark:bg-gray-800/40">
               <div class="flex items-center gap-2">
                 <i class={`fa-solid ${runDetails().result?.toLowerCase() === 'failed' ? 'fa-square-minus text-rose-400' : 'fa-square-check text-emerald-400'}`}></i>
@@ -407,7 +467,6 @@ function RunDetailsPanel(props: { runId: any; repoOwner: string; repo: Repo; pro
               </div>
             </div>
 
-            {/* Linhas de Jobs Simuladas conforme o status */}
             <div class="divide-y dark:divide-gray-700/40">
               <div class="flex items-center justify-between p-2.5 px-4">
                 <div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i> <span class="text-gray-600 dark:text-gray-300">Initialize Job</span></div>
@@ -431,62 +490,8 @@ function RunDetailsPanel(props: { runId: any; repoOwner: string; repo: Repo; pro
                 </div>
               </Show>
             </div>
-
           </div>
         </div>
-
-        {/* BARRA DE AÇÕES INFERIOR COM ACTIONS + DROPDOWN CONTEXTUAL */}
-        <footer class="p-4 bg-gray-50 dark:bg-gray-900/30 border-t dark:border-gray-700/60 flex justify-end gap-2 relative">
-          
-          {/* Botão Condicional: Rerun se houver falha */}
-          <Show when={runDetails().result?.toLowerCase() === 'failed' || runDetails().result?.toLowerCase() === 'failure'}>
-            <button class="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-black uppercase text-[9px] tracking-wider px-3.5 py-2 rounded-xl transition-all">
-              <i class="fa-solid fa-arrow-rotate-left"></i> Rerun failed jobs
-            </button>
-          </Show>
-
-          {/* Botão Primário: Run New */}
-          <button class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[9px] tracking-wider px-4 py-2 rounded-xl transition-all shadow-md shadow-blue-600/10">
-            <i class="fa-solid fa-play text-[8px]"></i> Run new
-          </button>
-
-          {/* Botão de Três Pontos (...) do Dropdown */}
-          <div class="relative">
-            <button 
-              onClick={() => setDropdownOpen(!dropdownOpen())}
-              class="flex items-center justify-center bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 w-8 h-8 rounded-xl transition-all"
-            >
-              <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
-            </button>
-
-            {/* Menu Flutuante Absoluto (Dropdown Options) */}
-            <Show when={dropdownOpen()}>
-              <div class="absolute bottom-10 right-0 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl py-1.5 z-50 text-xs font-bold text-gray-700 dark:text-gray-300 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                <button class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5">
-                  <i class="fa-solid fa-download text-gray-400 w-3"></i> Download logs
-                </button>
-                <button class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5">
-                  <i class="fa-solid fa-code text-gray-400 w-3"></i> See full YAML
-                </button>
-                <a 
-                  href={runDetails().url} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5 text-gray-700 dark:text-gray-300"
-                >
-                  <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 w-3"></i> Ver no console
-                </a>
-                <div class="border-t dark:border-gray-800 my-1"></div>
-                <button class="w-full text-left px-4 py-2 hover:bg-rose-500/10 text-rose-500 flex items-center gap-2.5">
-                  <i class="fa-solid fa-trash w-3"></i> Delete Run
-                </button>
-              </div>
-              {/* Overlay invisível para fechar o dropdown ao clicar fora */}
-              <div class="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)}></div>
-            </Show>
-          </div>
-
-        </footer>
 
       </div>
     </Show>
