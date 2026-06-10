@@ -55,12 +55,12 @@ export default function LateralBar(props: {
             <img src={prIcon} class="h-10" />
           </Button>
         </Tooltip>
-        {/*<Tooltip text="Pipeline" class="mb-2">
-          <Button class={`left-btn w-full ${props.active === "rocket" ? "selected" : ""}`} onClick={() => props.onChangeActive("rocket")}>
+        <Tooltip text="Pipeline" class="mb-2">
+          <Button class={`left-btn w-full ${props.active === "pipeline" ? "selected" : ""}`} onClick={() => props.onChangeActive("pipeline")}>
             <img src={rocketIcon} class="h-10" />
           </Button>
         </Tooltip>
-        <Tooltip text="Board" class="mb-2">
+        {/*<Tooltip text="Board" class="mb-2">
           <Button class={`left-btn w-full ${props.active === "table" ? "selected" : ""}`} onClick={() => props.onChangeActive("table")}>
             <img src={tableIcon} class="h-10" />
           </Button>
