@@ -3,7 +3,30 @@ use crate::utils::{git_command_async};
 
 #[tauri::command]
 pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<String>) -> Result<Vec<String>, String> {
-    // 1. Coleta o diff completo dos arquivos no Stage utilizando seu comando assíncrono
+    // 1. Validação prévia: Conta quantos arquivos estão no Stage (staged)
+    let files_output = git_command_async(&repo_path)
+        .args(&["diff", "--cached", "--name-only"])
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let files_content = String::from_utf8_lossy(&files_output.stdout);
+    let staged_files_count = files_content.lines().filter(|l| !l.trim().is_empty()).count();
+
+    if staged_files_count == 0 {
+        return Err("Nenhuma alteração preparada (staged) encontrada para analisar.".into());
+    }
+
+    // Se houverem muitos arquivos, interrompe antes de gastar tokens à toa
+    if staged_files_count > 20 {
+        return Err(format!(
+            "Há muitos arquivos preparados ({}) para sugerir uma mensagem via IA. \
+            Por favor, faça commits menores ou mais específicos por contexto.", 
+            staged_files_count
+        ));
+    }
+
+    // 2. Coleta o diff completo dos arquivos no Stage
     let diff_output = git_command_async(&repo_path)
         .args(&["diff", "--cached"])
         .output()
@@ -11,17 +34,14 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
         .map_err(|e| e.to_string())?;
 
     let diff_content = String::from_utf8_lossy(&diff_output.stdout);
-    if diff_content.trim().is_empty() {
-        return Err("Nenhuma alteração preparada (staged) encontrada para analisar.".into());
-    }
-
+    
     let truncated_diff = if diff_content.len() > 12000 {
-        format!("{}... [Diff truncado por tamanho]", &diff_content[..12000])
+        format!("{}... [Diff-truncated due to size constraints]", &diff_content[..12000])
     } else {
         diff_content.into_owned()
     };
 
-    // 2. Busca o título dos últimos 5 commits para dar contexto de estilo/idioma à IA
+    // 3. Busca o título dos últimos 5 commits para dar contexto de estilo/idioma à IA
     let log_output = git_command_async(&repo_path)
         .args(&["log", "-n", "5", "--format=%s"])
         .output()
@@ -31,18 +51,18 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
     let recent_commits = String::from_utf8_lossy(&log_output.stdout);
 
     let prompt = format!(
-        "You are an expert Git assistant tasked with generating a commit message and a detailed description.\n\n\
+        "You are an expert Git assistant tasked with generating a high-level concise commit message and description.\n\n\
         REPOSITORY CONTEXT (Recent commit titles):\n\
         {}\n\n\
         CRITICAL INSTRUCTIONS:\n\
-        1. LANGUAGE: Analyze the repository context above. If the previous commits are in English (e.g., using words like 'ajust', 'add', 'fix', 'reload'), you MUST write both the \"title\" and the \"description\" STRICTORLY IN ENGLISH.\n\
-        2. FORMAT: The \"title\" must strictly follow the Conventional Commits specification (e.g., feat:, fix:, refactor:, chore:, docs:, style:, test:, translate:, assets:, ui:).\n\
-        3. TITLE STYLE: Keep it concise, imperative, and clear. (e.g., 'ui: adjust profile layout').\n\
-        4. DESCRIPTION STYLE: The description should details WHAT changed and WHY, using technical terms properly. Break lines naturally if needed.\n\n\
+        1. LANGUAGE: Analyze the repository context above. If previous commits are in English, you MUST write both the \"title\" and \"description\" STRICTLY IN ENGLISH.\n\
+        2. FORMAT: The \"title\" must strictly follow the Conventional Commits specification.\n\
+        3. TITLE STYLE: Keep it concise, imperative, and brief (e.g., 'ui: update profile layout').\n\
+        4. DESCRIPTION STYLE: Keep it SHORT and CONCISE. Avoid listing every single function or detailed UI behaviors. Use brief bullet points highlighting ONLY the high-level key features or changes made. Do not exceed 3 or 4 short bullets.\n\n\
         OUTPUT FORMAT:\n\
         You must return strictly a JSON object with \"title\" and \"description\" keys. Do not include markdown blocks like ```json or any conversational text.\n\n\
-        EXAMPLE OF EXPECTED OUTPUT:\n\
-        {{\n  \"title\": \"feat: implement local change tracking\",\n  \"description\": \"- Add git service integration to monitor changes\\n- Create custom folder tree view for unstaged files\"\n}}\n\n\
+        EXAMPLE OF EXPECTED CONCISE OUTPUT:\n\
+        {{\n  \"title\": \"feat: implement local change tracking\",\n  \"description\": \"- Add git integration to monitor project unstaged files\\n- Create a flexible custom folder tree view component\"\n}}\n\n\
         GIT DIFF TO ANALYZE:\n{}", 
         recent_commits,
         truncated_diff
@@ -92,19 +112,12 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
     let ai_text = res_body["candidates"][0]["content"]["parts"][0]["text"]
         .as_str()
         .ok_or_else(|| {
-            format!(
-                "Estrutura inesperada na resposta da IA. O JSON recebido foi: {}", 
-                res_body.to_string()
-            )
+            format!("Estrutura inesperada na resposta da IA: {}", res_body.to_string())
         })?;
 
     let parsed_json: serde_json::Value = serde_json::from_str(ai_text)
         .map_err(|e| {
-            format!(
-                "A IA respondeu, mas não conseguimos converter para JSON válido ({}) Texto da IA:\n{}", 
-                e, 
-                ai_text
-            )
+            format!("A IA respondeu, mas não conseguimos converter para JSON válido ({}) Texto da IA:\n{}", e, ai_text)
         })?;
 
     let title = parsed_json["title"].as_str().unwrap_or("").to_string();
