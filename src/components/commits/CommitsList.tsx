@@ -19,6 +19,7 @@ declare module "solid-js" {
   }
 }
 let isFetchingCommits = false;
+let currentFetchId = 0;
 
 export default function CommitsList(props: { repo: Repo; branch?: string, class?: string }) {
   const [commits, setCommits] = createSignal<any[]>([]);
@@ -64,16 +65,21 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
     });
   });
 
-  const loadCommits = async (isNewBranch: boolean) => {
-    if (!props.repo.path || !props.branch || isFetchingCommits) return;
+  const loadCommits = async (repoPath: string | undefined, branchName: string | undefined, isNewBranch: boolean) => {
+    if (!repoPath || !branchName) return;
     
-    isFetchingCommits = true;
+    // Incrementa o ID da requisição atual
+    const myFetchId = ++currentFetchId;
+    
     if (isNewBranch) setLoading(true);
 
     try {
-      const branchName = props.branch.replace("* ", "");
-      const res = await getCommits(props.repo.path, branchName);
+      const cleanBranch = branchName.replace("* ", "");
+      const res = await getCommits(repoPath, cleanBranch);
       
+      // SE um novo efeito rodou enquanto estávamos esperando o Rust, ABORTA aqui!
+      if (myFetchId !== currentFetchId) return;
+
       if (JSON.stringify(res) !== JSON.stringify(commits())) {
         setCommits(res);
       }
@@ -85,11 +91,14 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
         }
       }
     } catch(e) {
-      const errorMessage = typeof e === 'string' ? e : String(e);
-      notify.error(t('error').load_commits, errorMessage);
+      if (myFetchId === currentFetchId) {
+        const errorMessage = typeof e === 'string' ? e : String(e);
+        notify.error(t('error').load_commits, errorMessage);
+      }
     } finally {
-      setLoading(false);
-      isFetchingCommits = false;
+      if (myFetchId === currentFetchId) {
+        setLoading(false);
+      }
     }
   };
 
@@ -97,20 +106,6 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
     const start = (currentPage() - 1) * itemsPerPage;
     console.log('paginatedCommits', filteredCommits().slice(start, start + itemsPerPage))
     return filteredCommits().slice(start, start + itemsPerPage);
-  });
-
-  const graphLines = createMemo(() => {
-    const pageCommits = paginatedCommits();
-    if (!pageCommits.length || !commits().length) return [];
-
-    const firstHash = pageCommits[0].hash;
-    const lastHash = pageCommits[pageCommits.length - 1].hash;
-    
-    const all = commits(); // array original com linhas de gráfico
-    const firstIdx = all.findIndex(c => c.hash === firstHash);
-    const lastIdx = all.findIndex(c => c.hash === lastHash);
-    if (firstIdx === -1 || lastIdx === -1) return pageCommits;
-    return all.slice(firstIdx, lastIdx + 1);
   });
 
   const totalPages = createMemo(() => Math.ceil(filteredCommits().length / itemsPerPage));
@@ -121,31 +116,32 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
     setSelectedCommit({ ...details, _ts: Date.now() });
   }
 
-  createEffect(on(() => [props.repo.path, props.branch], ([path, branch], prev) => {
+  createEffect(on(() => [props.repo.path, props.branch, props.repo.activeBranch], ([path, branch, activeBranch], prev) => {
     const isNewRepo = !prev || path !== prev[0];
     const isNewBranch = !prev || branch !== prev[1];
 
     if (isNewRepo) {
+      // Força o descarte imediato de qualquer requisição paralela anterior
+      currentFetchId++; 
       setCommits([]);
       setCurrentPage(1);
       setSelectedCommit(null);
+
+      if (branch !== activeBranch) {
+        return;
+      }
     }
 
-    const branchExists = props.repo.branches.some(b => b.name === branch) || 
-                        props.repo.remoteBranches?.includes(branch ||  "");
-
     if (isNewRepo || isNewBranch) {
-      if (branchExists) {
-        loadCommits(isNewRepo);
-      }
+      loadCommits(path, branch || "", isNewRepo);
     } else {
-      loadCommits(false);
+      loadCommits(path, branch || "", false);
     }
   }));
 
   const handleFocus = () => {
     if (document.visibilityState === "visible") {
-      loadCommits(false);
+      loadCommits(props.repo.path, props.branch || "", false);
     }
   };
 
