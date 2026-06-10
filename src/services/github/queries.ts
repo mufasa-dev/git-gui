@@ -415,3 +415,25 @@ export const MERGE_PR = `
     }
   }
 `;
+
+export const GET_REPOSITORY_PIPELINES_QUERY = `
+  query($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      workflowRuns(first: 15) {
+        nodes {
+          id
+          runNumber
+          status
+          conclusion
+          url
+          createdAt
+          updatedAt
+          headBranch
+          workflow {
+            name
+          }
+        }
+      }
+    }
+  }
+`;

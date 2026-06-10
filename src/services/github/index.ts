@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
-import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_TIMELINE_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY } from "./queries";
+import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_TIMELINE_QUERY, GET_REPOSITORY_PIPELINES_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY } from "./queries";
+import { UnifiedPipelineRun } from "../../models/Pipeline.model";
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
@@ -286,6 +287,30 @@ export const githubService = {
 
   async minimizeComment(subjectId: string, reason: string = "OUTDATED") {
     return await this.fetchGraphQL(HIDE_PR_COMMENT, { subjectId, reason });
+  },
+
+  async getPipelineRuns(owner: string, name: string): Promise<UnifiedPipelineRun[]> {
+    try {
+      const data = await this.fetchGraphQL(GET_REPOSITORY_PIPELINES_QUERY, { owner, name });
+      
+      const runs = data?.repository?.workflowRuns?.nodes || [];
+      
+      return runs.map((run: any) => ({
+        id: run.id,
+        number: run.runNumber,
+        name: run.workflow?.name || "Workflow",
+        status: run.status?.toLowerCase(),     // 'completed', 'queued', 'in_progress'
+        result: run.conclusion?.toLowerCase(), // 'success', 'failure', 'cancelled', 'skipped'
+        url: run.url,
+        trigger: "push/pr", 
+        startTime: run.createdAt,
+        finishTime: run.updatedAt,
+        sourceBranch: run.headBranch || ""
+      }));
+    } catch (e) {
+      console.error("Erro ao buscar pipelines no GitHub:", e);
+      return [];
+    }
   },
 
   async logout() {
