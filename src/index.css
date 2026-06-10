@@ -44,8 +44,8 @@ html {
 
   .cm-commit-item {
     @apply flex items-center cursor-pointer
-          px-4 py-2 mb-2 mr-1
-          rounded-xl
+          px-4 py-2 mb-[5px] mr-1
+          rounded-xl h-[30px]
 
           bg-gray-200 dark:bg-slate-800/60
           border border-white/5

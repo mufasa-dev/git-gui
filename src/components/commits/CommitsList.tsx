@@ -68,7 +68,6 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
   const loadCommits = async (repoPath: string | undefined, branchName: string | undefined, isNewBranch: boolean) => {
     if (!repoPath || !branchName) return;
     
-    // Incrementa o ID da requisição atual
     const myFetchId = ++currentFetchId;
     
     if (isNewBranch) setLoading(true);
@@ -77,7 +76,6 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       const cleanBranch = branchName.replace("* ", "");
       const res = await getCommits(repoPath, cleanBranch);
       
-      // SE um novo efeito rodou enquanto estávamos esperando o Rust, ABORTA aqui!
       if (myFetchId !== currentFetchId) return;
 
       if (JSON.stringify(res) !== JSON.stringify(commits())) {
@@ -220,20 +218,20 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
         {/* Lista de Commits */}
         <div class="flex flex-1 overflow-auto">
           <div class="sticky left-0 z-10 flex-shrink-0">
-            <CommitGraph commits={paginatedCommits()} rowHeight={41} />
+            <CommitGraph commits={paginatedCommits()} rowHeight={35} />
           </div>
           <div class="flex-1">
             <Show when={!loading()} fallback={<div class="p-4 text-center">{t('common').loading}</div>}>
               <For each={paginatedCommits()}>
                 {(c) => (
                   <div
-                    class={`cm-commit-item ${
+                    class={`cm-commit-item min-w-full max-w-[200px] ${
                       selectedCommit()?.hash === c.hash ? "selected" : ""
                     }`}
                     onClick={() => selectCommit(c.hash)}
                   >
                     <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
-                    <div class="font-semibold px-2 flex-1">
+                    <div class="font-semibold px-2 flex-1 truncate">
                       <CommitMessage message={c.message} />
                     </div>
                     <div class="text-xs ml-auto whitespace-nowrap flex items-center gap-2 w-[200px]">
