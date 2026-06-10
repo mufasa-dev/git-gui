@@ -21,6 +21,7 @@ import { load } from "@tauri-apps/plugin-store";
 import defaultAvatarImg from "../assets/default_avatar.png";
 import { azureService } from "../services/azure";
 import { getProviderFromUrl } from "../utils/gitProvider";
+import PipelinesPage from "../components/pipeleine/PipelinesPage";
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -270,6 +271,7 @@ export default function RepoTabsPage() {
                       branch={activeRepo()?.activeBranch}
                       provider={provider()}
                       remoteUrl={remoteUrl()!}
+                      onMergeSuccess={(prNumber) => refreshBranches(currentRepo().path)}
                     />
                   )}
                 </Show>
@@ -281,6 +283,14 @@ export default function RepoTabsPage() {
                     <TestRunner 
                       repo={currentRepo()} 
                     />
+                  )}
+                </Show>
+              </Match>
+
+              <Match when={active() && activePage() === 'pipeline'}>
+                <Show when={activeRepo()}>
+                  {(currentRepo) => (
+                    <PipelinesPage repo={currentRepo()} provider={provider()} remoteUrl={remoteUrl()!} />
                   )}
                 </Show>
               </Match>
