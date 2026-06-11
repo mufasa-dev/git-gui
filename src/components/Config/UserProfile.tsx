@@ -1,7 +1,7 @@
 import { createSignal, createResource, Show, For, createMemo } from "solid-js";
 import { getGravatarProfile, getGravatarUrl } from "../../services/gravatarService";
 import Dialog from "../ui/Dialog";
-import { getUserCommits } from "../../services/gitService";
+import { getCommitDetails, getUserCommits } from "../../services/gitService";
 import ContributionGraph from "../Dashboard/ContributionGraph";
 import ActivityChart from "../Dashboard/ActivityChart";
 import HourlyActivityChart from "../Dashboard/HourlyActivityChart";
@@ -11,6 +11,7 @@ import CommitTypeDistribution from "../Dashboard/CommitDistributionBar";
 import CommitsModalList from "../commits/CommitsModalList";
 import HotspotsTable from "../Dashboard/HotspotsTable";
 import { useApp } from "../../context/AppContext";
+import { CommitDetails } from "../commits/CommitDetails";
 
 // Helper para formatar data curta
 const formatShortDate = (dateStr: string) => {
@@ -31,6 +32,8 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
   const [profile] = createResource(() => props.email, getGravatarProfile);
   const [showCommits, setShowCommits] = createSignal(false);
   const [selectedCommits, setSelectedCommits] = createSignal<any[]>([]);
+  const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
+  const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   const { t } = useApp();
   
   const [userCommits] = createResource(
@@ -45,6 +48,12 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
     debugger;
     setSelectedCommits(commitsToShow);
     setShowCommits(true);
+  }
+
+  async function selectCommit(hash: string) {
+    const details = await getCommitDetails(props.repoPath, hash);
+    setSelectedCommit({ ...details, _ts: Date.now() });
+    setModalCommitDetails(true);
   }
 
   // Memo para pegar apenas os 5 últimos commits
@@ -165,7 +174,7 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
                     </tr>
                   }>
                     {(commit) => (
-                      <tr class="group">
+                      <tr class="group" onClick={() => selectCommit(commit.hash)}>
                         <td class="p-2 font-mono text-[10px] text-blue-400 opacity-70 group-hover:opacity-100">
                           {commit.hash.substring(0, 7)}
                         </td>
@@ -196,6 +205,17 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
             width="550px" bodyClass="p-0"
           >
             <CommitsModalList commits={selectedCommits()} />
+          </Dialog>
+        </Show>
+
+        <Show when={showModalCommitDetails()}>
+          <Dialog open={showModalCommitDetails()}
+                  title={t('commits').details}
+                  onClose={() => setModalCommitDetails(false)}
+                  bodyClass="p-0"
+                  width={'calc(100vw - 40px)'}
+                  height={'calc(100vh - 100px)'}>
+            <CommitDetails commit={selectedCommit()} repoPath={props.repoPath} branch={""} openParent={false} selectCommit={selectCommit} />
           </Dialog>
         </Show>
       </div>
