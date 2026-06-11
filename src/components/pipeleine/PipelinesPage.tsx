@@ -62,24 +62,33 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
       if (params.currentProvider === "azure") {
         const runs = await azureService.getPipelineRuns(params.owner, params.name);
         
-        const uniquePipesMap = new Map<string, number | string>();
+        const uniquePipesMap = new Map<string, { id: number | string; lastStatus: string; lastResult: string }>();
         
         runs.forEach((r: any) => {
           const pipeId = r.definition?.id || r.pipelineId || r.id;
           const pipeName = r.definition?.name || r.name;
           
           if (pipeName && pipeId) {
-            uniquePipesMap.set(pipeName, pipeId);
+            if (!uniquePipesMap.has(pipeName)) {
+              uniquePipesMap.set(pipeName, {
+                id: pipeId,
+                lastStatus: r.status || "",
+                lastResult: r.result || ""
+              });
+            }
           }
         });
 
-        return Array.from(uniquePipesMap.entries()).map(([name, id]) => ({ 
-          id: id, 
+        return Array.from(uniquePipesMap.entries()).map(([name, data]) => ({ 
+          id: data.id, 
           name: name, 
-          folder: "📂" 
+          folder: "📂",
+          lastStatus: data.lastStatus,
+          lastResult: data.lastResult
         }));
       }
-      return [{ id: "github-actions", name: "GitHub Workflows", folder: "📂" }];
+      
+      return [{ id: "main.yml", name: "GitHub Workflows", folder: "📂", lastStatus: "completed", lastResult: "success" }];
     }
   );
 
@@ -226,10 +235,14 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                       class="flex items-center gap-3 border border-gray-300 dark:border-gray-700/70 rounded-xl p-3 mb-2 hover:bg-gray-200 dark:hover:bg-gray-700/60 cursor-pointer transition-all"
                       onClick={() => { setSelectedPipeline(pipe); setSearchTerm(""); }}
                     >
-                      <span class="text-base">📁</span>
+                      <div class="shrink-0">
+                        <PipelineStatusIcon 
+                          status={pipe.lastStatus || ""} 
+                          result={pipe.lastResult || ""} 
+                        />
+                      </div>
                       <div class="flex-1 min-w-0">
                         <h4 class="text-xs font-black truncate dark:text-gray-200">{pipe.name}</h4>
-                        <span class="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Azure Build Pipeline</span>
                       </div>
                       <i class="fa-solid fa-chevron-right text-[9px] text-gray-400 pr-1"></i>
                     </div>
@@ -281,7 +294,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                       
                       const timeStr = getRelativeTime(run.startTime, t, locale());
                       return timeStr.includes("NaN") || timeStr.toLowerCase().includes("invalid") 
-                        ? "Agora mesmo" 
+                        ? t('date').just_now
                         : timeStr;
                     });
 
