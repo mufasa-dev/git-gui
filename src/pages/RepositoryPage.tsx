@@ -36,51 +36,53 @@ export default function RepoTabsPage() {
     }
   );
   const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
-    
-  const [user, { mutate, refetch }] = createResource(async () => {
-    try {
-      // 1. Busca o usuário do GitHub normalmente
-      const githubUser = await githubService.getCurrentUser();
-      
-      // 2. Carrega as credenciais dinâmicas do Azure gravadas na Store
-      let azureUser = null;
+
+  const [user, { mutate, refetch }] = createResource(
+    () => true, // Fonte estática: roda uma vez no mount e deu.
+    async () => {
       try {
-        const store = await load("auth.bin");
-        const azureToken = await store.get<string>("azure_token");
-        const azureOrg = await store.get<string>("azure_org");
-
-        if (azureToken && azureOrg) {
-          const remoteAvatar = await azureService.getUserAvatar(azureToken, azureOrg);
-
-          azureUser = {
-            login: azureOrg,
-            name: "Azure Developer",
-            avatar_url: remoteAvatar || defaultAvatarImg // Usa o remoto ou o fallback local do projeto
-          };
-        }
-      } catch (e) {
-        console.warn("Não foi possível ler a store do Azure no carregamento global:", e);
-      }
-
-      // 3. Retorna o objeto unificado respeitando quem de fato está conectado
-      return {
-        ...githubUser,
-        github: githubUser ? { 
-          login: githubUser.login, 
-          avatar_url: githubUser.avatar_url 
-        } : undefined,
-        azure: azureUser || undefined,
+        // Busca o usuário de forma isolada do fluxo principal
+        const githubUser = await githubService.getCurrentUser().catch(err => {
+          console.warn("GitHub deu timeout ou erro controlado:", err);
+          return null;
+        });
         
-        // Propriedades raiz híbridas para retrocompatibilidade da UI
-        login: githubUser?.login || azureUser?.login,
-        avatar_url: githubUser?.avatar_url || azureUser?.avatar_url || defaultAvatarImg,
-        provider: githubUser ? 'github' : (azureUser ? 'azure' : undefined)
-      };
-    } catch (err) {
-      console.error("Erro ao unificar provedores de autenticação:", err);
-      return null;
+        let azureUser = null;
+        try {
+          const store = await load("auth.bin");
+          const azureToken = await store.get<string>("azure_token");
+          const azureOrg = await store.get<string>("azure_org");
+
+          if (azureToken && azureOrg) {
+            // Se o avatar travar, não derruba o fluxo inteiro
+            const remoteAvatar = await azureService.getUserAvatar(azureToken, azureOrg).catch(() => null);
+
+            azureUser = {
+              login: azureOrg,
+              name: "Azure Developer",
+              avatar_url: remoteAvatar || defaultAvatarImg
+            };
+          }
+        } catch (e) {
+          console.warn("Não foi possível ler a store do Azure:", e);
+        }
+
+        if (!githubUser && !azureUser) return null;
+
+        return {
+          ...githubUser,
+          github: githubUser ? { login: githubUser.login, avatar_url: githubUser.avatar_url } : undefined,
+          azure: azureUser || undefined,
+          login: githubUser?.login || azureUser?.login,
+          avatar_url: githubUser?.avatar_url || azureUser?.avatar_url || defaultAvatarImg,
+          provider: githubUser ? 'github' : (azureUser ? 'azure' : undefined)
+        };
+      } catch (err) {
+        console.error("Erro crítico ao unificar provedores:", err);
+        return null;
+      }
     }
-  });
+  );
   const { t } = useApp();
 
   const isLoggedOnProvider = () => {
