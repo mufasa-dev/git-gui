@@ -389,6 +389,48 @@ export const azureService = {
     }
   },
 
+  async triggerPipelineRun(owner: string, project: string, pipelineId: string | number, branch: string = "main") {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const targetPipelineId = Number(pipelineId);
+      
+      if (isNaN(targetPipelineId) || targetPipelineId === 0) {
+        throw new Error(`O método triggerPipelineRun exige um ID numérico válido. Recebido: "${pipelineId}"`);
+      }
+
+      const cleanBranch = branch.startsWith("refs/") ? branch : `refs/heads/${branch}`;
+      const url = `https://dev.azure.com/${owner}/${encodeURIComponent(project)}/_apis/build/builds?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: "POST",
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+        body: JSON.stringify({
+          definition: {
+            id: targetPipelineId
+          },
+          sourceBranch: cleanBranch
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao disparar pipeline no Azure: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Erro em triggerPipelineRun (Azure):", error);
+      throw error;
+    }
+  },
+
   async logout() {
     const store = await getAuthStore();
     await store.delete("azure_token");
