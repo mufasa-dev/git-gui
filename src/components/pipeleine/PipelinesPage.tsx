@@ -61,8 +61,23 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
       if (!params.name || !params.owner) return [];
       if (params.currentProvider === "azure") {
         const runs = await azureService.getPipelineRuns(params.owner, params.name);
-        const uniquePipes = Array.from(new Set(runs.map((r: any) => r.name)));
-        return uniquePipes.map(name => ({ id: name, name: name, folder: "📂" }));
+        
+        const uniquePipesMap = new Map<string, number | string>();
+        
+        runs.forEach((r: any) => {
+          const pipeId = r.definition?.id || r.pipelineId || r.id;
+          const pipeName = r.definition?.name || r.name;
+          
+          if (pipeName && pipeId) {
+            uniquePipesMap.set(pipeName, pipeId);
+          }
+        });
+
+        return Array.from(uniquePipesMap.entries()).map(([name, id]) => ({ 
+          id: id, 
+          name: name, 
+          folder: "📂" 
+        }));
       }
       return [{ id: "github-actions", name: "GitHub Workflows", folder: "📂" }];
     }
@@ -99,11 +114,43 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
     }
   });
 
-  const handleTriggerPipeline = () => {
+  const handleTriggerPipeline = async () => {
     const pipe = selectedPipeline();
     if (!pipe) return;
-    console.log(`Disparando nova execução para a pipeline: ${pipe.name}`);
-    // Adicione aqui a chamada para disparar o run via tauri/azureService se houver
+    console.log('pipe', pipe)
+
+    const owner = repoOwner();
+    const repoName = props.repo?.name;
+    
+    // Pegamos a branch atual selecionada no app ou um fallback padrão
+    const currentBranch = "main"; 
+
+    try {
+      if (props.provider === "azure") {
+        // No Azure, se o 'pipe.id' for o nome textual, você pode passar ele ou o ID mapeado
+        await azureService.triggerPipelineRun(
+          owner, 
+          repoName, 
+          pipe.id,
+          currentBranch
+        )
+      } else {
+        // No GitHub, passamos o arquivo padrão do workflow cadastrado ou o ID retornado
+        const workflowFile = "main.yml"; // Ou pipe.id se você já listar os IDs reais de arquivos
+        await githubService.triggerPipelineRun(owner, repoName, workflowFile, currentBranch);
+      }
+
+      // Feedback visual de sucesso (ex: Toast) se você tiver no projeto
+      console.log("Pipeline disparada com sucesso!");
+
+      // Dá um pequeno timeout maroto pro provedor registrar o run e atualiza a lista
+      setTimeout(() => {
+        refetchRuns();
+      }, 1500);
+
+    } catch (error) {
+      console.error("Falha ao executar a pipeline:", error);
+    }
   };
 
   return (
@@ -217,66 +264,82 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                     };
                     });
 
+                    const normalizedStatusAndResult = createMemo(() => {
+                      const status = run.status?.toLowerCase() || '';
+                      const result = run.result?.toLowerCase() || '';
+                      
+                      if (status === 'inprogress' || status === 'queued' || status === 'notstarted') {
+                        return { status: 'inProgress', result: null };
+                      }
+                      return { status: run.status, result: run.result };
+                    });
+
+                    const formattedTime = createMemo(() => {
+                      if (!run.startTime) {
+                        return "Fila / Aguardando";
+                      }
+                      
+                      const timeStr = getRelativeTime(run.startTime, t, locale());
+                      return timeStr.includes("NaN") || timeStr.toLowerCase().includes("invalid") 
+                        ? "Agora mesmo" 
+                        : timeStr;
+                    });
+
                     return (
                     <div 
-                        class={`flex flex-col border rounded-xl p-3 mb-2 transition-all cursor-pointer
-                                ${selectedRunId() === run.id ? 'bg-blue-500/10 border-blue-500/30' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                        onClick={() => setSelectedRunId(run.id)}
+                      class={`flex flex-col border rounded-xl p-3 mb-2 transition-all cursor-pointer
+                              ${selectedRunId() === run.id ? 'bg-blue-500/10 border-blue-500/30' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                      onClick={() => setSelectedRunId(run.id)}
                     >
-                        {/* Linha 1: ID, Mensagem Descritiva da Run e Ícone de Status */}
-                        <div class="flex items-start justify-between gap-2 mb-1.5">
+                      {/* Linha 1 */}
+                      <div class="flex items-start justify-between gap-2 mb-1.5">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                            <span class="bg-gray-300/50 dark:bg-gray-800 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold text-gray-600 dark:text-gray-300 shrink-0">
-                            #{run.number}
-                            </span>
-                            <span 
-                            class="text-xs font-black truncate dark:text-gray-200" 
-                            title={runDescription()}
-                            >
+                          <span class="bg-gray-300/50 dark:bg-gray-800 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold text-gray-600 dark:text-gray-300 shrink-0">
+                            #{run.number || "Fila"}
+                          </span>
+                          <span class="text-xs font-black truncate dark:text-gray-200" title={runDescription()}>
                             {runDescription()}
-                            </span>
+                          </span>
                         </div>
-                        <PipelineStatusIcon status={run.status} result={run.result} />
-                        </div>
+                        {/* USANDO O STATUS TRATADO */}
+                        <PipelineStatusIcon 
+                          status={normalizedStatusAndResult().status} 
+                          result={normalizedStatusAndResult().result} 
+                        />
+                      </div>
 
-                        {/* Linha 2: Informações de Contexto do Disparo (Gatilho + Avatar corrigido) */}
-                        <div class="flex items-center justify-between text-[10px] text-gray-500 font-bold uppercase mb-2">
+                      {/* Linha 2 */}
+                      <div class="flex items-center justify-between text-[10px] text-gray-500 font-bold uppercase mb-2">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                            {/* Ícone ou Avatar Dinâmico do Usuário Real */}
-                            <Show when={triggerDetails().avatar} fallback={
+                          <Show when={triggerDetails().avatar} fallback={
                             <i class={`text-[9px] text-gray-400 ${triggerDetails().isManual ? 'fa-solid fa-user' : 'fa-solid fa-code-commit'}`}></i>
-                            }>
+                          }>
                             <img src={triggerDetails().avatar!} class="w-3.5 h-3.5 rounded-full border border-gray-400/30" />
-                            </Show>
-                            
-                            <span class="truncate text-gray-400 dark:text-gray-400 normal-case">
-                            <span class="font-bold text-gray-500 dark:text-gray-500">
-                                {triggerDetails().label}
-                            </span>
-                            <span class="font-black text-gray-600 dark:text-gray-300">
-                                {triggerDetails().authorName}
-                            </span>
-                            </span>
+                          </Show>
+                          <span class="truncate text-gray-400 dark:text-gray-400 normal-case">
+                            <span class="font-bold text-gray-500 dark:text-gray-500">{triggerDetails().label}</span>
+                            <span class="font-black text-gray-600 dark:text-gray-300"> {triggerDetails().authorName}</span>
+                          </span>
                         </div>
-                        
+                        {/* USANDO A DATA TRATADA */}
                         <span class="font-mono text-[9px] text-gray-400 shrink-0 pl-1">
-                            {getRelativeTime(run.startTime, t, locale())}
+                          {formattedTime()}
                         </span>
-                        </div>
+                      </div>
 
-                        {/* Linha 3: Branch e Commit Id */}
-                        <div class="flex items-center gap-2 text-[10px] text-gray-400 font-mono font-bold border-t border-gray-300/30 dark:border-gray-800 pt-1.5">
+                      {/* Linha 3 */}
+                      <div class="flex items-center gap-2 text-[10px] text-gray-400 font-mono font-bold border-t border-gray-300/30 dark:border-gray-800 pt-1.5">
                         <span class="truncate"><i class="fa-solid fa-code-branch mr-1 text-[9px]"></i>{run.sourceBranch || "main"}</span>
                         <Show when={run.commitId || run.commit?.id}>
-                            <span class="text-gray-300 dark:text-gray-700">•</span>
-                            <span>
+                          <span class="text-gray-300 dark:text-gray-700">•</span>
+                          <span>
                             <i class="fa-solid fa-code-commit mr-1 text-[9px]"></i>
                             {(run.commitId || run.commit?.id).substring(0, 7)}
-                            </span>
+                          </span>
                         </Show>
-                        </div>
+                      </div>
                     </div>
-                    );
+                  );
                 }}
                 </For>
 
@@ -308,6 +371,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
     </div>
   );
 }
+
 function RunDetailsPanel(props: { runId: any; repoOwner: string; repo: Repo; provider: GitProvider; fallbackRuns: any[] }) {
   const { locale, t } = useApp();
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
