@@ -22,7 +22,7 @@ export default function LateralBar(props: {
   const { t } = useApp();
 
   createEffect(() => {
-    if (props.active === "pull-requests" && !props.isLogged) {
+    if (["pull-requests", "pipeline"].includes(props.active || "") && !props.isLogged) {
       props.onChangeActive("profile");
     }
   });
