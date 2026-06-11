@@ -25,14 +25,11 @@ export default function CardDetailView(props: CardDetailViewProps) {
     }
   );
 
-  // 🎯 GERENCIAMENTO DE NAVEGAÇÃO POR ABAS (TABS)
   const [activeTab, setActiveTab] = createSignal<"details" | "history">("details");
 
-  // 🎯 ACORDIONS INTERNOS DA ABA DETAILS
   const [showTasks, setShowTasks] = createSignal(false);
   const [showCommits, setShowCommits] = createSignal(false);
 
-  // Recursos acionados por demanda (Lazy Loading)
   const [tasksDetails] = createResource(
     () => {
       const tasksReferences = cardData()?.tasksReferences;

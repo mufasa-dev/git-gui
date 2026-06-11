@@ -499,7 +499,7 @@ export const azureService = {
         console.error("Erro ao buscar threads da Azure:", error);
         return [];
     }
-},
+  },
 
   // Cria um novo comentário (Nova Thread) no PR do Azure
   async addPRComment(organization: string, repoName: string, prNumber: number, text: string): Promise<boolean> {
@@ -1098,6 +1098,8 @@ export const azureService = {
     const data = await response.json();
     const fields = data.fields;
 
+    console.log("Dados brutos do Work Item da Azure:", data);
+
     // 🎯 1. MAPEAMENTO REAL DE TAGS (Separando por ponto e vírgula)
     const tagsString = fields["System.Tags"] || "";
     const tags = tagsString ? tagsString.split(";").map((t: string) => t.trim()) : [];
@@ -1236,8 +1238,7 @@ export const azureService = {
     }
   },
 
-  // Substitua o método getWorkItemHistory no seu azureService.ts por esta versão filtrada:
-  async getWorkItemHistory(organization: string, project: string, workItemId: number): Promise<Array<any>> {
+   async getWorkItemHistory(organization: string, project: string, workItemId: number): Promise<Array<any>> {
     const token = await this.getToken();
     if (!token) return [];
     const credentials = btoa(`:${token.trim()}`);
@@ -1250,44 +1251,47 @@ export const azureService = {
       });
       if (!response.ok) return [];
       const data = await response.json();
-      
+
       const mappedUpdates = (data.value || []).map((update: any) => {
         const fields = update.fields || {};
         const relations = update.relations || {};
         const cleanedChanges: Array<{ type: string; field: string; value: any }> = [];
 
-        // 1. Detectar Mudança de Estado (Coluna / Kanban)
+        const identity = update.revisedBy;
+        const userName = identity?.displayName || identity?.name?.split("<")[0]?.trim() || "Sistema";
+        const userAvatar = identity?._links?.avatar?.href || null;
+
+        let rawDate = fields["System.ChangedDate"]?.newValue || update.revisedDate;
+        
+        if (!rawDate || rawDate.startsWith("9999")) {
+          rawDate = fields["System.AuthorizedDate"]?.newValue || new Date().toISOString();
+        }
+        
+        const eventDate = new Date(rawDate);
+
         if (fields["System.State"]) {
           cleanedChanges.push({ type: "state", field: "State", value: fields["System.State"].newValue });
         }
         if (fields["System.BoardColumn"]) {
           cleanedChanges.push({ type: "board", field: "Board Column", value: fields["System.BoardColumn"].newValue });
         }
-
-        // 2. Detectar Atribuição de Responsável
         if (fields["System.AssignedTo"]) {
           cleanedChanges.push({ type: "assignee", field: "Assigned To", value: fields["System.AssignedTo"].newValue?.displayName || "Ninguém" });
         }
-
-        // 3. Detectar Mudanças em Parâmetros de Planejamento (Priority / Effort)
         if (fields["System.Priority"]) {
           cleanedChanges.push({ type: "planning", field: "Priority", value: fields["System.Priority"].newValue });
         }
         if (fields["Microsoft.VSTS.Common.Effort"]) {
           cleanedChanges.push({ type: "planning", field: "Effort", value: fields["Microsoft.VSTS.Common.Effort"].newValue });
         }
-
-        // 4. Detectar Inclusão ou Alteração de Tags
         if (fields["System.Tags"]) {
           cleanedChanges.push({ type: "tags", field: "Tags", value: fields["System.Tags"].newValue });
         }
-
-        // 5. Detectar Comentários na Discussão
         if (fields["System.History"]) {
           cleanedChanges.push({ type: "comment", field: "Comment", value: fields["System.History"].newValue });
         }
 
-        // 6. Detectar Vínculos de Links Novos (Commits ou Sub-tasks)
+        // Vínculos de Git e sub-tarefas
         if (relations.added) {
           relations.added.forEach((link: any) => {
             if (link.rel === "ArtifactLink" && link.url.toLowerCase().includes("git/commit")) {
@@ -1298,33 +1302,33 @@ export const azureService = {
           });
         }
 
-        // Se a API não mandou campos mapeados mas tem histórico bruto, gera um título genérico amigável
-        let eventSummary = "made field changes";
+        // Geração inteligente da descrição da ação do cabeçalho
+        let eventSummary = "realizou alterações";
         if (cleanedChanges.length > 0) {
           const primary = cleanedChanges[0];
-          if (primary.type === "state" || primary.type === "board") eventSummary = `changed State to ${primary.value}`;
-          else if (primary.type === "tags") eventSummary = "changed Tags";
-          else if (primary.type === "comment") eventSummary = "added a comment";
-          else if (primary.type === "commit_link") eventSummary = "added Commit link";
-          else if (primary.type === "task_link") eventSummary = "added Child link";
-          else if (primary.type === "assignee") eventSummary = `assigned to ${primary.value}`;
+          if (primary.type === "state" || primary.type === "board") eventSummary = `mudou o estado para ${primary.value}`;
+          else if (primary.type === "tags") eventSummary = "alterou as Tags";
+          else if (primary.type === "comment") eventSummary = "adicionou um comentário";
+          else if (primary.type === "commit_link") eventSummary = "vinculou um Commit";
+          else if (primary.type === "task_link") eventSummary = "adicionou um Link filho";
+          else if (primary.type === "assignee") eventSummary = `atribuiu para ${primary.value}`;
         }
 
-        // CORREÇÃO DA DATA: Usar obrigatoriamente mudado em (changedDate) que sempre vem preenchido
         return {
           id: update.id,
           rev: update.rev,
-          user: update.changedBy?.displayName || "Sistema",
-          avatar: update.changedBy?._links?.avatar?.href,
-          date: update.changedDate ? new Date(update.changedDate) : new Date(),
+          user: userName,
+          avatar: userAvatar,
+          date: eventDate,
           summary: eventSummary,
           changes: cleanedChanges
         };
       });
 
-      // Ordena do mais recente para o mais antigo (igual ao layout do Azure)
+      // Inverte a ordem para deixar os mais novos no topo
       return mappedUpdates.reverse();
-    } catch {
+    } catch (error) {
+      console.error("Erro no parse do histórico:", error);
       return [];
     }
   },
