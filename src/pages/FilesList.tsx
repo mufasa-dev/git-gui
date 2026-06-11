@@ -479,6 +479,7 @@ export default function FileList(props: { repo: Repo }) {
             repoPath={props.repo.path} 
             branch={selectedBranch() || ""} 
             openParent={false} 
+            openProfile={true}
             selectCommit={selectCommit} 
         />
       </Dialog>

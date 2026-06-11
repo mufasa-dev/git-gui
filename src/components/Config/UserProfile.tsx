@@ -215,7 +215,7 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
                   bodyClass="p-0"
                   width={'calc(100vw - 40px)'}
                   height={'calc(100vh - 100px)'}>
-            <CommitDetails commit={selectedCommit()} repoPath={props.repoPath} branch={""} openParent={false} selectCommit={selectCommit} />
+            <CommitDetails commit={selectedCommit()} repoPath={props.repoPath} branch={""} openParent={false} openProfile={false} selectCommit={selectCommit} />
           </Dialog>
         </Show>
       </div>

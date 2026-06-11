@@ -395,7 +395,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
               bodyClass="p-0 h-full"
               width={'calc(100vw - 40px)'}
               height={'calc(100vh - 100px)'}>
-        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={""} openParent={false} selectCommit={selectCommit} />
+        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={""} openParent={false} openProfile={true} selectCommit={selectCommit} />
       </Dialog>
       <Show when={modalUserProfileOpen()}>
         <Dialog open={modalUserProfileOpen()} 

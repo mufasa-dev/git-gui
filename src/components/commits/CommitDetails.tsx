@@ -16,6 +16,7 @@ type CommitDetailsProps = {
   repoPath: string;
   branch: string;
   openParent: boolean;
+  openProfile: boolean;
   selectCommit: (hash: string) => void;
 }
 
@@ -112,11 +113,16 @@ export function CommitDetails(props: CommitDetailsProps) {
                   <img
                     src={getGravatarUrl(props.commit.authorEmail, 80)}
                     alt={props.commit.authorName}
-                    onClick={() => setModalUserProfileOpen(true)}
+                    onClick={() => {
+                      if (props.openProfile) setModalUserProfileOpen(true)
+                    }}
                     class="w-[60px] h-[60px] rounded-full shadow-sm CURSOR-POINTER"
                   />
                   <div class="ml-4 !mt-0 select-text">
-                    <div class="font-bold text-gray-900 dark:text-gray-100 clicked_label" onClick={() => setModalUserProfileOpen(true)}>
+                    <div class="font-bold text-gray-900 dark:text-gray-100 clicked_label" 
+                      onClick={() => {
+                        if (props.openProfile) setModalUserProfileOpen(true)
+                      }}>
                       {formatContributorName(props.commit.authorName)}
                     </div>
                     <div class="text-gray-500 dark:text-gray-200 text-sm">{props.commit.authorEmail}</div>

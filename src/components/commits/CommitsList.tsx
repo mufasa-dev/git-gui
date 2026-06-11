@@ -256,7 +256,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       
       {/* Detalhes */}
       <div style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px" }} class="overflow-auto container-branch-list p-0 mt-1">
-        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={props.branch || ""} selectCommit={selectCommit} openParent={true} />
+        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={props.branch || ""} selectCommit={selectCommit} openParent={true} openProfile={true} />
       </div>
     </div>
   );
