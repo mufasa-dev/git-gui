@@ -13,10 +13,15 @@ import HotspotsTable from "../Dashboard/HotspotsTable";
 import { useApp } from "../../context/AppContext";
 import { CommitDetails } from "../commits/CommitDetails";
 
-// Helper para formatar data curta
 const formatShortDate = (dateStr: string) => {
   const d = new Date(dateStr);
-  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString(undefined, { 
+    day: '2-digit', 
+    month: 'short', 
+    year: 'numeric',
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
 };
 
 interface UserProfileDialogProps {
