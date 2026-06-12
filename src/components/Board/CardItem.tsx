@@ -3,6 +3,7 @@ import { azureService } from "../../services/azure";
 import { githubService } from "../../services/github";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import { GitProvider } from "../../utils/gitProvider";
+import TaskRow from "./TaskRow";
 
 type CardDetailViewProps = {
   cardId: string | number;
@@ -366,16 +367,15 @@ export default function CardDetailView(props: CardDetailViewProps) {
                                             {change.field}
                                           </h4>
                                           
-                                          {/* Renderização condicional com base no tipo de alteração filtrada */}
                                           <Switch>
-                                            {/* Se for comentário, exibe numa caixa estilo markdown */}
+                                            {/* 1. COMENTÁRIOS */}
                                             <Match when={change.type === 'comment'}>
                                               <div class="p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
                                                 <MarkdownViewer content={change.value} />
                                               </div>
                                             </Match>
                                             
-                                            {/* Se for alteração de tags em pílula */}
+                                            {/* 2. TAGS */}
                                             <Match when={change.type === 'tags'}>
                                               <div class="flex flex-wrap gap-1 mt-0.5">
                                                 <span class="px-2 py-0.5 bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-900/40 text-[11px] font-medium rounded">
@@ -384,7 +384,7 @@ export default function CardDetailView(props: CardDetailViewProps) {
                                               </div>
                                             </Match>
 
-                                            {/* Se for mudança de estado ou atribuição */}
+                                            {/* 3. ESTADOS E ATRIBUIÇÕES */}
                                             <Match when={change.type === 'state' || change.type === 'board' || change.type === 'assignee'}>
                                               <div class="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300">
                                                 <i class="fa-solid fa-circle-arrow-right text-blue-500 text-[10px]"></i>
@@ -395,11 +395,25 @@ export default function CardDetailView(props: CardDetailViewProps) {
                                               </div>
                                             </Match>
 
-                                            {/* Se for link anexado (commits/sub-tasks) */}
-                                            <Match when={change.type.includes('_link')}>
-                                              <div class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900/60 border border-gray-200/60 dark:border-gray-800/60 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300">
-                                                <i class={change.type === 'commit_link' ? "fa-solid fa-code-commit text-blue-500" : "fa-solid fa-diagram-project text-purple-500"}></i>
-                                                <span>{change.value}</span>
+                                            {/* 4. TASKS FILHAS (Chama o componente reativo de Lazy Load) */}
+                                            <Match when={change.type === 'task_link'}>
+                                              <div class="flex flex-col gap-2 mt-1">
+                                                <TaskRow id={change.value.id} organization={props.organization} repoPath={props.repoPath} />
+                                              </div>
+                                            </Match>
+
+                                            {/* 5. COMMITS DO GIT */}
+                                            <Match when={change.type === 'commit_link'}>
+                                              <div class="flex flex-col gap-2 mt-1">
+                                                <div class="flex items-center gap-3 p-2.5 bg-gray-50 dark:bg-gray-900/60 border border-gray-200/80 dark:border-gray-800 rounded-lg text-xs">
+                                                  <i class="fa-solid fa-code-commit text-blue-500 text-sm"></i>
+                                                  <span class="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-mono font-bold rounded border border-blue-100 dark:border-blue-900/30 shrink-0">
+                                                    {change.value.id}
+                                                  </span>
+                                                  <span class="flex-1 truncate font-medium text-gray-600 dark:text-gray-300">
+                                                    {change.value.title}
+                                                  </span>
+                                                </div>
                                               </div>
                                             </Match>
                                           </Switch>
