@@ -7,6 +7,7 @@ type CardHistoryTabProps = {
   cardId: string | number;
   organization: string;
   repoPath: string;
+  onNavigateTask: (id: string | number) => void;
 };
 
 export default function CardHistoryTab(props: CardHistoryTabProps) {
@@ -127,7 +128,7 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
 
                               <Match when={change.type === 'task_link'}>
                                 <div class="flex flex-col gap-2 mt-1">
-                                  <TaskRow id={change.value.id} organization={props.organization} repoPath={props.repoPath} />
+                                  <TaskRow id={change.value.id} organization={props.organization} repoPath={props.repoPath} onNavigate={props.onNavigateTask} />
                                 </div>
                               </Match>
 

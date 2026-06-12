@@ -6,6 +6,7 @@ type CardDetailsTabProps = {
   card: any;
   organization: string;
   repoPath: string;
+  onNavigateTask: (id: string | number) => void;
 };
 
 export default function CardDetailsTab(props: CardDetailsTabProps) {
@@ -123,10 +124,14 @@ export default function CardDetailsTab(props: CardDetailsTabProps) {
                 <Show when={!tasksDetails.loading} fallback={<div class="p-2 text-[11px] text-gray-400"><i class="fa-solid fa-circle-notch animate-spin text-blue-500"></i></div>}>
                   <For each={tasksDetails()}>
                     {(task) => (
-                      <div class="p-2 bg-white dark:bg-gray-900 rounded border border-gray-200/60 text-[11px]">
-                        <span class="font-mono font-bold text-gray-400">#{task.id}</span>
-                        <p class="text-gray-700 dark:text-gray-300 font-medium line-clamp-2 mt-0.5">{task.title}</p>
-                      </div>
+                      <button 
+                            type="button"
+                            onClick={() => props.onNavigateTask(task.id)}
+                            class="w-full text-left p-2 bg-white dark:bg-gray-900 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 rounded border border-gray-200/60 hover:border-blue-300 dark:hover:border-blue-900/50 text-[11px] transition-all cursor-pointer group"
+                        >
+                            <span class="font-mono font-bold text-gray-400 group-hover:text-blue-500 transition-colors">#{task.id}</span>
+                            <p class="text-gray-700 dark:text-gray-300 font-medium line-clamp-2 mt-0.5 group-hover:text-gray-900 dark:group-hover:text-white">{task.title}</p>
+                        </button>
                     )}
                   </For>
                 </Show>

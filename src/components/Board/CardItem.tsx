@@ -1,4 +1,4 @@
-import { createResource, createSignal, Show } from "solid-js";
+import { createEffect, createResource, createSignal, Show } from "solid-js";
 import { azureService } from "../../services/azure";
 import { githubService } from "../../services/github";
 import { GitProvider } from "../../utils/gitProvider";
@@ -15,8 +15,15 @@ type CardDetailViewProps = {
 };
 
 export default function CardDetailView(props: CardDetailViewProps) {
+  const [currentCardId, setCurrentCardId] = createSignal<string | number>(props.cardId);
+  const { t } = useApp();
+  
+  createEffect(() => {
+    setCurrentCardId(props.cardId);
+  });
+
   const [cardData] = createResource(
-    () => ({ id: props.cardId, provider: props.provider }),
+    () => ({ id: currentCardId(), provider: props.provider }),
     async ({ id, provider }) => {
       if (provider === "github") {
         return await githubService.getUnifiedIssue(props.organization, props.repoPath, Number(id));
@@ -27,7 +34,11 @@ export default function CardDetailView(props: CardDetailViewProps) {
   );
 
   const [activeTab, setActiveTab] = createSignal<"details" | "history">("details");
-  const { t } = useApp();
+
+  const handleNavigateToTask = (taskId: string | number) => {
+    setCurrentCardId(taskId);
+    setActiveTab("details");
+  };
 
   return (
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={props.onClose}>
@@ -111,7 +122,8 @@ export default function CardDetailView(props: CardDetailViewProps) {
                   <CardDetailsTab 
                     card={card} 
                     organization={props.organization} 
-                    repoPath={props.repoPath} 
+                    repoPath={props.repoPath}
+                    onNavigateTask={handleNavigateToTask}
                   />
                 </Show>
 
@@ -120,6 +132,7 @@ export default function CardDetailView(props: CardDetailViewProps) {
                     cardId={card.number} 
                     organization={props.organization} 
                     repoPath={props.repoPath} 
+                    onNavigateTask={handleNavigateToTask}
                   />
                 </Show>
               </div>
