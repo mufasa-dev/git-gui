@@ -1291,13 +1291,46 @@ export const azureService = {
           cleanedChanges.push({ type: "comment", field: "Comment", value: fields["System.History"].newValue });
         }
 
-        // Vínculos de Git e sub-tarefas
         if (relations.added) {
           relations.added.forEach((link: any) => {
             if (link.rel === "ArtifactLink" && link.url.toLowerCase().includes("git/commit")) {
-              cleanedChanges.push({ type: "commit_link", field: "Commit link", value: "Added Commit link" });
-            } else if (link.rel === "System.LinkTypes.Hierarchy-Forward") {
-              cleanedChanges.push({ type: "task_link", field: "Child link", value: "Added Child link" });
+              let commitHash = "Commit";
+              
+              try {
+                const decodedUrl = decodeURIComponent(link.url);
+                const urlParts = decodedUrl.split("/");
+                const lastPart = urlParts[urlParts.length - 1] || "";
+                if (lastPart) commitHash = lastPart;
+              } catch {
+                const urlParts = link.url.split("/");
+                commitHash = urlParts[urlParts.length - 1] || "Commit";
+              }
+
+              const shortHash = commitHash.length > 7 ? commitHash.substring(0, 7) : commitHash;
+
+              cleanedChanges.push({ 
+                type: "commit_link", 
+                field: "Links", 
+                value: {
+                  id: shortHash,
+                  fullHash: commitHash,
+                  title: ``
+                }
+              });
+            } 
+            
+            else if (link.rel === "System.LinkTypes.Hierarchy-Forward") {
+              const urlParts = link.url.split("/");
+              const childId = urlParts[urlParts.length - 1] || "ID";
+
+              cleanedChanges.push({ 
+                type: "task_link", 
+                field: "Tasks Vinculadas", 
+                value: {
+                  id: childId,
+                  title: ""
+                }
+              });
             }
           });
         }
@@ -1324,7 +1357,7 @@ export const azureService = {
           changes: cleanedChanges
         };
       });
-
+      console.log("Histórico de atualizações mapeado da Azure:", mappedUpdates);
       // Inverte a ordem para deixar os mais novos no topo
       return mappedUpdates.reverse();
     } catch (error) {
