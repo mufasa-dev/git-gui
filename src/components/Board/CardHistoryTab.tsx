@@ -1,7 +1,7 @@
 import { createResource, createSignal, Show, For, Switch, Match } from "solid-js";
 import { azureService } from "../../services/azure";
 import MarkdownViewer from "../ui/MarkdownViewer";
-import TaskRow from "./TaskRow";
+import TaskRow from "./RelatedItemRow";
 
 type CardHistoryTabProps = {
   cardId: string | number;
