@@ -247,8 +247,9 @@ export function CommitDetails(props: CommitDetailsProps) {
       </Show>
 
       <Show when={modalWorkItemOpen()}>
-        <CardDetailView 
-          repoPath={props.repoName} 
+        <CardDetailView
+          repoName={props.repoName}
+          repoPath={props.repoPath} 
           cardId={workItemId()}
           provider={props.provider}
           organization={props.org}

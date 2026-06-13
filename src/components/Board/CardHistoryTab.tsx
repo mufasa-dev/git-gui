@@ -7,13 +7,14 @@ type CardHistoryTabProps = {
   cardId: string | number;
   organization: string;
   repoPath: string;
+  repoName: string;
   onNavigateTask: (id: string | number) => void;
 };
 
 export default function CardHistoryTab(props: CardHistoryTabProps) {
   const [historyData] = createResource(
     () => props.cardId,
-    async (id) => await azureService.getWorkItemHistory(props.organization, props.repoPath, Number(id))
+    async (id) => await azureService.getWorkItemHistory(props.organization, props.repoName, Number(id))
   );
 
   return (
@@ -128,7 +129,7 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
 
                               <Match when={change.type === 'task_link'}>
                                 <div class="flex flex-col gap-2 mt-1">
-                                  <TaskRow id={change.value.id} organization={props.organization} repoPath={props.repoPath} onNavigate={props.onNavigateTask} />
+                                  <TaskRow id={change.value.id} organization={props.organization} repoPath={props.repoName} onNavigate={props.onNavigateTask} />
                                 </div>
                               </Match>
 

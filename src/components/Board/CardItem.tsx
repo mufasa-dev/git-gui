@@ -5,19 +5,25 @@ import { GitProvider } from "../../utils/gitProvider";
 import CardDetailsTab from "./CardDetailsTab";
 import CardHistoryTab from "./CardHistoryTab";
 import { useApp } from "../../context/AppContext";
+import Dialog from "../ui/Dialog";
+import { CommitDetails } from "../commits/CommitDetails";
+import { getCommitDetails } from "../../services/gitService";
 
 type CardDetailViewProps = {
   cardId: string | number;
   provider: GitProvider;
   organization: string;
+  repoName: string;
   repoPath: string;
   onClose: () => void;
 };
 
 export default function CardDetailView(props: CardDetailViewProps) {
   const [currentCardId, setCurrentCardId] = createSignal<string | number>(props.cardId);
+  const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
+  const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   const { t } = useApp();
-  
+
   createEffect(() => {
     setCurrentCardId(props.cardId);
   });
@@ -26,12 +32,20 @@ export default function CardDetailView(props: CardDetailViewProps) {
     () => ({ id: currentCardId(), provider: props.provider }),
     async ({ id, provider }) => {
       if (provider === "github") {
-        return await githubService.getUnifiedIssue(props.organization, props.repoPath, Number(id));
+        return await githubService.getUnifiedIssue(props.organization, props.repoName, Number(id));
       } else {
-        return await azureService.getUnifiedWorkItem(props.organization, props.repoPath, Number(id));
+        return await azureService.getUnifiedWorkItem(props.organization, props.repoName, Number(id));
       }
     }
   );
+
+  async function selectCommit(hash: string) {
+    console.log('hash', hash);
+    console.log('props', props)
+    const details = await getCommitDetails(props.repoPath, hash);
+    setSelectedCommit({ ...details, _ts: Date.now() });
+    setModalCommitDetails(true);
+  }
 
   const [activeTab, setActiveTab] = createSignal<"details" | "history">("details");
 
@@ -123,7 +137,9 @@ export default function CardDetailView(props: CardDetailViewProps) {
                     card={card} 
                     organization={props.organization} 
                     repoPath={props.repoPath}
+                    repoName={props.repoName}
                     onNavigateTask={handleNavigateToTask}
+                    openCommit={selectCommit}
                   />
                 </Show>
 
@@ -132,6 +148,7 @@ export default function CardDetailView(props: CardDetailViewProps) {
                     cardId={card.number} 
                     organization={props.organization} 
                     repoPath={props.repoPath} 
+                    repoName={props.repoName}
                     onNavigateTask={handleNavigateToTask}
                   />
                 </Show>
@@ -140,6 +157,26 @@ export default function CardDetailView(props: CardDetailViewProps) {
             </div>
           </div>
         )}
+      </Show>
+
+      <Show when={showModalCommitDetails()}>
+        <Dialog open={true}
+              title={t('commits').details}
+              onClose={() => setModalCommitDetails(false)}
+              bodyClass="p-0 h-full"
+              width={'calc(100vw - 40px)'}
+              height={'calc(100vh - 100px)'}>
+          <CommitDetails
+            commit={selectedCommit()}
+            repoName={props.repoName}
+            repoPath={props.repoPath} 
+            branch={""} openParent={false} 
+            selectCommit={selectCommit}
+            provider={props.provider}
+            org={props.organization}
+            isLogged={true}
+          />
+        </Dialog>
       </Show>
     </div>
   );

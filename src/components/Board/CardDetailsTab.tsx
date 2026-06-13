@@ -1,12 +1,15 @@
 import { createResource, createSignal, Show, For } from "solid-js";
 import { azureService } from "../../services/azure";
 import MarkdownViewer from "../ui/MarkdownViewer";
+import CommitMessage from "../ui/CommitMessage";
 
 type CardDetailsTabProps = {
   card: any;
   organization: string;
   repoPath: string;
+  repoName: string;
   onNavigateTask: (id: string | number) => void;
+  openCommit: (hash: string) => void;
 };
 
 export default function CardDetailsTab(props: CardDetailsTabProps) {
@@ -28,7 +31,7 @@ export default function CardDetailsTab(props: CardDetailsTabProps) {
 
       try {
         // Busca os títulos dos itens relacionados em lote
-        const details = await azureService.getTasksDetails(props.organization, props.repoPath, ids);
+        const details = await azureService.getTasksDetails(props.organization, props.repoName, ids);
         
         // Mescla os detalhes de títulos com o tipo mapeado (Pai/Filho)
         return references.map((ref: any) => {
@@ -59,7 +62,7 @@ export default function CardDetailsTab(props: CardDetailsTabProps) {
     async (hashes: string[]) => {
       if (!hashes) return [];
       const promises = hashes.map((hash: string) => 
-        azureService.getCommitDetails(props.organization, props.repoPath, props.repoPath, hash)
+        azureService.getCommitDetails(props.organization, props.repoName, props.repoName, hash)
       );
       return await Promise.all(promises);
     }
@@ -186,9 +189,11 @@ export default function CardDetailsTab(props: CardDetailsTabProps) {
                 <Show when={!commitsDetails.loading} fallback={<div class="p-2 text-[11px] text-gray-400"><i class="fa-solid fa-circle-notch animate-spin text-blue-500"></i></div>}>
                   <For each={commitsDetails()}>
                     {(commit) => (
-                      <div class="p-2 bg-white dark:bg-gray-900 rounded border border-gray-200/60 text-[11px]">
+                      <div class="p-2 bg-white dark:bg-gray-900 rounded border border-gray-200/60 text-[11px]" onClick={() => props.openCommit(commit.id)}>
                         <span class="font-mono font-bold text-blue-500">{commit.id.substring(0, 7)}</span>
-                        <p class="text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">{commit.message}</p>
+                        <p class="text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
+                            <CommitMessage message={commit.message} canClickOnCard={false} />
+                        </p>
                       </div>
                     )}
                   </For>
