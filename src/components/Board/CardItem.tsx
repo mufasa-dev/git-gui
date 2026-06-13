@@ -1,4 +1,4 @@
-import { createEffect, createResource, createSignal, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { azureService } from "../../services/azure";
 import { githubService } from "../../services/github";
 import { GitProvider } from "../../utils/gitProvider";
@@ -40,8 +40,6 @@ export default function CardDetailView(props: CardDetailViewProps) {
   );
 
   async function selectCommit(hash: string) {
-    console.log('hash', hash);
-    console.log('props', props)
     const details = await getCommitDetails(props.repoPath, hash);
     setSelectedCommit({ ...details, _ts: Date.now() });
     setModalCommitDetails(true);
@@ -59,7 +57,7 @@ export default function CardDetailView(props: CardDetailViewProps) {
       <Show when={cardData()} keyed>
         {(card: any) => (
           <div 
-            class={`relative w-full h-[92vh] flex flex-col p-6 bg-gray-100 dark:bg-gray-800 rounded-xl border border-y-gray-200 border-r-gray-200 dark:border-y-gray-700/70 dark:border-r-gray-700/70 shadow-2xl overflow-hidden border-l-[6px] ${
+            class={`relative w-full h-[92vh] flex flex-col p-6 bg-gray-100 dark:bg-gray-800 border border-y-gray-200 border-r-gray-200 dark:border-y-gray-700/70 dark:border-r-gray-700/70 shadow-2xl overflow-hidden border-l-[6px] ${
               card.state === 'Done' || card.state === 'Completed' 
                 ? 'border-l-green-500' 
                 : card.state === 'Active' || card.state === 'Doing' || card.state === 'In Progress'
@@ -126,7 +124,23 @@ export default function CardDetailView(props: CardDetailViewProps) {
                     </Show>
                     <span class="font-semibold text-gray-700 dark:text-gray-200">{card.assignee?.name || "Sem responsável"}</span>
                   </div>
-                  <span class="border-l border-gray-300 dark:border-gray-700 pl-3">{t('common').created_at} {new Date(card.createdAt).toLocaleDateString()}</span>
+
+                  <Show when={card.tags && card.tags.length > 0}>
+                    <div class="flex flex-wrap items-center gap-1.5 border-r border-gray-300 dark:border-gray-700/80 pr-4">
+                      <For each={card.tags}>
+                        {(tag: string) => (
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase rounded-md bg-gray-200 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 border border-gray-300/40 dark:border-gray-600/30">
+                            <i class="fa-solid fa-tag text-[9px] opacity-50"></i>
+                            {tag}
+                          </span>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    {t('common').created_at} {new Date(card.createdAt).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
 
@@ -150,6 +164,7 @@ export default function CardDetailView(props: CardDetailViewProps) {
                     repoPath={props.repoPath} 
                     repoName={props.repoName}
                     onNavigateTask={handleNavigateToTask}
+                    openCommit={selectCommit}
                   />
                 </Show>
               </div>
