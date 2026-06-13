@@ -2,6 +2,7 @@ import { createResource, createSignal, Show, For, Switch, Match } from "solid-js
 import { azureService } from "../../services/azure";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import TaskRow from "./RelatedItemRow";
+import { useApp } from "../../context/AppContext";
 
 type CardHistoryTabProps = {
   cardId: string | number;
@@ -13,6 +14,8 @@ type CardHistoryTabProps = {
 };
 
 export default function CardHistoryTab(props: CardHistoryTabProps) {
+  const { t } = useApp();
+
   const [historyData] = createResource(
     () => props.cardId,
     async (id) => await azureService.getWorkItemHistory(props.organization, props.repoName, Number(id))
@@ -51,7 +54,23 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                           </Show>
                           <div class="flex flex-col gap-0.5">
                             <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">
-                              {audit.user} <span class="text-gray-400 font-normal">{audit.summary}</span>
+                              {audit.user}{" "}
+                              <span class="text-gray-400 font-normal">
+                                {(() => {
+                                  const subKey = audit.translation.key.replace("board.", "");
+                                  
+                                  const boardObj = t("board") as Record<string, string>;
+                                  let text = (boardObj[subKey] || boardObj["changed_to"]) as string;
+
+                                  if (audit.translation.params) {
+                                    Object.entries(audit.translation.params).forEach(([paramKey, paramValue]) => {
+                                      text = text.replace(`{{${paramKey}}}`, paramValue as string);
+                                    });
+                                  }
+
+                                  return text;
+                                })()}
+                              </span>
                             </span>
                           </div>
                         </div>
@@ -77,7 +96,7 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
               <div class="lg:col-span-2 flex flex-col border border-gray-200 dark:border-gray-700/60 bg-white dark:bg-gray-900/40 rounded-xl p-4 overflow-y-auto">
                 <Show when={selectedAudit()} fallback={
                   <div class="flex items-center justify-center h-full text-xs italic text-gray-400">
-                    Selecione uma revisão à esquerda para inspecionar os detalhes.
+                    {t('board').select_a_review}
                   </div>
                 }>
                   <div class="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-3 mb-4">
@@ -87,7 +106,7 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                     <div class="flex flex-col">
                       <span class="text-xs font-bold text-gray-800 dark:text-gray-200">{selectedAudit().user}</span>
                       <span class="text-[10px] text-gray-400 font-mono">
-                        Revisão #{selectedAudit().rev} • {new Date(selectedAudit().date).toLocaleString()}
+                        {t('board').review} #{selectedAudit().rev} • {new Date(selectedAudit().date).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -100,7 +119,35 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                         {(change: any) => (
                           <div class="flex flex-col gap-1.5">
                             <h4 class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                              {change.field}
+                              <Switch fallback={<span>{change.field}</span>}>
+                                <Match when={change.field == "Links"}>
+                                  {t('board').links}
+                                </Match>
+                                <Match when={change.field == "Tasks_Links"}>
+                                  {t('board').linked_items}
+                                </Match>
+                                <Match when={change.field == "Comment"}>
+                                  {t('board').comment}
+                                </Match>
+                                <Match when={change.field == "Tags"}>
+                                  {t('board').tags}
+                                </Match>
+                                <Match when={change.field == "Board_Column"}>
+                                  {t('board').board_column}
+                                </Match>
+                                <Match when={change.field == "Assigned_To"}>
+                                  {t('board').assigned_to}
+                                </Match>
+                                <Match when={change.field == "Priority"}>
+                                  {t('board').priority}
+                                </Match>
+                                <Match when={change.field == "Effort"}>
+                                  {t('board').effort}
+                                </Match>
+                                <Match when={change.field == "State"}>
+                                  {t('board').state}
+                                </Match>
+                              </Switch>
                             </h4>
                             
                             <Switch>
@@ -113,7 +160,7 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                               <Match when={change.type === 'tags'}>
                                 <div class="flex flex-wrap gap-1 mt-0.5">
                                   <span class="px-2 py-0.5 bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-900/40 text-[11px] font-medium rounded">
-                                    {change.value || "Nenhuma tag"}
+                                    {change.value || t('board').no_tags}
                                   </span>
                                 </div>
                               </Match>
@@ -121,7 +168,7 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                               <Match when={change.type === 'state' || change.type === 'board' || change.type === 'assignee'}>
                                 <div class="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300">
                                   <i class="fa-solid fa-circle-arrow-right text-blue-500 text-[10px]"></i>
-                                  <span>Alterado para:</span>
+                                  <span>{t('board').changed_to}:</span>
                                   <span class="font-semibold bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded border border-gray-200 dark:border-gray-700 text-[11px]">
                                     {change.value}
                                   </span>

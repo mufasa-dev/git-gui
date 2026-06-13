@@ -1287,10 +1287,10 @@ export const azureService = {
           cleanedChanges.push({ type: "state", field: "State", value: fields["System.State"].newValue });
         }
         if (fields["System.BoardColumn"]) {
-          cleanedChanges.push({ type: "board", field: "Board Column", value: fields["System.BoardColumn"].newValue });
+          cleanedChanges.push({ type: "board", field: "Board_Column", value: fields["System.BoardColumn"].newValue });
         }
         if (fields["System.AssignedTo"]) {
-          cleanedChanges.push({ type: "assignee", field: "Assigned To", value: fields["System.AssignedTo"].newValue?.displayName || "Ninguém" });
+          cleanedChanges.push({ type: "assignee", field: "Assigned_To", value: fields["System.AssignedTo"].newValue?.displayName || "Ninguém" });
         }
         if (fields["System.Priority"]) {
           cleanedChanges.push({ type: "planning", field: "Priority", value: fields["System.Priority"].newValue });
@@ -1339,7 +1339,7 @@ export const azureService = {
 
               cleanedChanges.push({ 
                 type: "task_link", 
-                field: "Tasks Vinculadas", 
+                field: "Tasks_Links", 
                 value: {
                   id: childId,
                   title: ""
@@ -1349,16 +1349,27 @@ export const azureService = {
           });
         }
 
-        // Geração inteligente da descrição da ação do cabeçalho
-        let eventSummary = "realizou alterações";
+        let eventKey = "board.changed_to";
+        let eventParams: any = {};
+
         if (cleanedChanges.length > 0) {
           const primary = cleanedChanges[0];
-          if (primary.type === "state" || primary.type === "board") eventSummary = `mudou o estado para ${primary.value}`;
-          else if (primary.type === "tags") eventSummary = "alterou as Tags";
-          else if (primary.type === "comment") eventSummary = "adicionou um comentário";
-          else if (primary.type === "commit_link") eventSummary = "vinculou um Commit";
-          else if (primary.type === "task_link") eventSummary = "adicionou um Link filho";
-          else if (primary.type === "assignee") eventSummary = `atribuiu para ${primary.value}`;
+          
+          if (primary.type === "state" || primary.type === "board") {
+            eventKey = "board.changed_state";
+            eventParams = { value: primary.value };
+          } else if (primary.type === "tags") {
+            eventKey = "board.changed_tag";
+          } else if (primary.type === "comment") {
+            eventKey = "board.added_comment";
+          } else if (primary.type === "commit_link") {
+            eventKey = "board.linked_commit";
+          } else if (primary.type === "task_link") {
+            eventKey = "board.added_link_child";
+          } else if (primary.type === "assignee") {
+            eventKey = "board.assigned_to_user";
+            eventParams = { user: primary.value };
+          }
         }
 
         return {
@@ -1367,7 +1378,10 @@ export const azureService = {
           user: userName,
           avatar: userAvatar,
           date: eventDate,
-          summary: eventSummary,
+          translation: {
+            key: eventKey,
+            params: eventParams
+          },
           changes: cleanedChanges
         };
       });

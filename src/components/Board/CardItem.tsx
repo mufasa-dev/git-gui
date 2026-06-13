@@ -96,7 +96,7 @@ export default function CardDetailView(props: CardDetailViewProps) {
                       }`}
                     >
                       <i class="fa-solid fa-circle-info"></i>
-                      Details
+                      {t('board').details}
                     </button>
                     <button
                       type="button"
