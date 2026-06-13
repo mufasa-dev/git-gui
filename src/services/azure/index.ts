@@ -1115,14 +1115,27 @@ export const azureService = {
     .map((rel: any) => {
       return rel.url.split("/").pop(); // Extrai o ID "2" da URL fornecida
     });
+    
+    // Criamos uma estrutura que identifica o tipo do vínculo de cada Work Item linkado
+    const relatedReferences: Array<{ id: string; type: "Parent" | "Child" }> = [];
 
-  const commitsHashes = relations
-    .filter((rel: any) => rel.rel === "ArtifactLink" && rel.url.toLowerCase().includes("git/commit"))
-    .map((rel: any) => {
-      // Decodifica a URL: vstfs:///Git/Commit/...%2f[commitHash]
-      const decodedUrl = decodeURIComponent(rel.url);
-      return decodedUrl.split("/").pop() || "";
+    relations.forEach((rel: any) => {
+      const id = rel.url?.split("/").pop();
+      if (!id || isNaN(Number(id))) return;
+
+      if (rel.rel === "System.LinkTypes.Hierarchy-Forward") {
+        relatedReferences.push({ id: id.toString(), type: "Child" });
+      } else if (rel.rel === "System.LinkTypes.Hierarchy-Reverse") {
+        relatedReferences.push({ id: id.toString(), type: "Parent" });
+      }
     });
+
+    const commitsHashes = relations
+      .filter((rel: any) => rel.rel === "ArtifactLink" && rel.url.toLowerCase().includes("git/commit"))
+      .map((rel: any) => {
+        const decodedUrl = decodeURIComponent(rel.url);
+        return decodedUrl.split("/").pop() || "";
+      });
 
     // Cores baseadas no estado atual vindas do seu fields
     const state = fields["System.State"] || "To Do";
@@ -1140,7 +1153,8 @@ export const azureService = {
       provider: "azure",
       tags: tags,
       comments: comments,
-      tasksReferences: tasksIds, 
+      tasksReferences: tasksIds,
+      relatedReferences: relatedReferences,
       commitsReferences: commitsHashes,
       priority: fields["Microsoft.VSTS.Common.Priority"],
       effort: fields["Microsoft.VSTS.Scheduling.Effort"] || fields["Microsoft.VSTS.Scheduling.StoryPoints"],
@@ -1238,7 +1252,7 @@ export const azureService = {
     }
   },
 
-   async getWorkItemHistory(organization: string, project: string, workItemId: number): Promise<Array<any>> {
+  async getWorkItemHistory(organization: string, project: string, workItemId: number): Promise<Array<any>> {
     const token = await this.getToken();
     if (!token) return [];
     const credentials = btoa(`:${token.trim()}`);

@@ -19,6 +19,7 @@ export interface WorkItem {
   areaPath?: string;
   iterationPath?: string;
   tasksReferences?: string[]; // Para sub-tarefas ou itens relacionados
+  relatedReferences?: { id: string; type: "Parent" | "Child" | string }[];
   commitsReferences?: string[]; // Hashes ou mensagens de commit relacionados
   createdAt: string;
   updatedAt?: string;
