@@ -9,6 +9,7 @@ type CardHistoryTabProps = {
   repoPath: string;
   repoName: string;
   onNavigateTask: (id: string | number) => void;
+  openCommit: (hash: string) => void;
 };
 
 export default function CardHistoryTab(props: CardHistoryTabProps) {
@@ -135,7 +136,8 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
 
                               <Match when={change.type === 'commit_link'}>
                                 <div class="flex flex-col gap-2 mt-1">
-                                  <div class="flex items-center gap-3 p-2.5 bg-gray-50 dark:bg-gray-900/60 border border-gray-200/80 dark:border-gray-800 rounded-lg text-xs">
+                                  <div class="flex items-center gap-3 p-2.5 bg-gray-50 dark:bg-gray-900/60 border border-gray-200/80 dark:border-gray-800 rounded-lg text-xs" 
+                                    onClick={() => props.openCommit(change.value.fullHash)}>
                                     <i class="fa-solid fa-code-commit text-blue-500 text-sm"></i>
                                     <span class="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-mono font-bold rounded border border-blue-100 dark:border-blue-900/30 shrink-0">
                                       {change.value.id}
