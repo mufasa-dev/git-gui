@@ -389,6 +389,48 @@ export const azureService = {
     }
   },
 
+  async getPipelineRunChanges(organization: string, project: string, buildId: number): Promise<any[]> {
+    try {
+      const token = await this.getToken();
+      if (!token) return [];
+      const credentials = btoa(`:${token.trim()}`);
+      
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/build/builds/${buildId}/changes?api-version=7.0`;
+      
+      const response = await window.fetch(url, {
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Accept': 'application/json' 
+        }
+      });
+
+      if (!response.ok) return [];
+      const data = await response.json();
+
+      if (!data.value || !Array.isArray(data.value)) return [];
+
+      return data.value.map((change: any) => {
+        const rawMessage = change.message || "Sem mensagem de commit";
+        const shortMessage = rawMessage.split('\n')[0];
+
+        return {
+          id: change.id,
+          commitId: change.id,
+          message: shortMessage,
+          timestamp: change.timestamp || null,
+          author: {
+            name: change.author?.displayName || change.author?.uniqueName || "Autor Desconhecido",
+            imageUrl: change.author?._links?.avatar?.href || null
+          }
+        };
+      });
+
+    } catch (e) {
+      console.error(`Erro ao buscar alterações do build #${buildId} no Azure:`, e);
+      return [];
+    }
+  },
+
   async triggerPipelineRun(owner: string, project: string, pipelineId: string | number, branch: string = "main") {
     try {
       const token = await this.getToken();

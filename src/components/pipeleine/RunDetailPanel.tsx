@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, Show } from "solid-js";
+import { createMemo, createResource, createSignal, Show, For } from "solid-js";
 import CommitMessage from "../ui/CommitMessage";
 import { azureService } from "../../services/azure";
 import { useApp } from "../../context/AppContext";
@@ -6,6 +6,7 @@ import { Repo } from "../../models/Repo.model";
 import { GitProvider } from "../../utils/gitProvider";
 import { getRelativeTime } from "../../utils/date";
 import { PipelineStatusIcon } from "./PipelinesPage";
+import Dialog from "../ui/Dialog";
 
 interface Props {
     runId: any; 
@@ -15,11 +16,12 @@ interface Props {
     fallbackRuns: any[],
     selectCommit: (hash: string) => void
 }
+
 export function RunDetailsPanel(props: Props) {
   const { locale, t } = useApp();
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
+  const [isChangesModalOpen, setIsChangesModalOpen] = createSignal(false);
 
-  // Busca dados profundos da run selecionada
   const [runDetails] = createResource(
     () => ({ owner: props.repoOwner, name: props.repo?.name, runId: props.runId, currentProvider: props.provider }),
     async (params) => {
@@ -31,7 +33,19 @@ export function RunDetailsPanel(props: Props) {
     }
   );
 
-  // Trata o nome explicativo/descrição real da run vinda do Azure
+  const [runChanges] = createResource(
+    () => ({ owner: props.repoOwner, name: props.repo?.name, runId: props.runId, currentProvider: props.provider }),
+    async (params) => {
+      if (!params.runId || !params.name || !params.owner || params.currentProvider !== "azure") return [];
+      try {
+        return await azureService.getPipelineRunChanges?.(params.owner, params.name, params.runId) || [];
+      } catch (e) {
+        console.error("Falha ao carregar alterações da run:", e);
+        return [];
+      }
+    }
+  );
+
   const runDescription = createMemo(() => {
     const run = runDetails();
     if (!run) return "Build Triggered";
@@ -42,10 +56,9 @@ export function RunDetailsPanel(props: Props) {
     <Show when={!runDetails.loading} fallback={<div class="flex-1 flex items-center justify-center"><i class="fa-solid fa-spinner fa-spin text-xl text-blue-500"></i></div>}>
       <div class="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700/50 overflow-y-auto custom-scrollbar flex flex-col">
         
-        {/* BANNER SUPERIOR ATUALIZADO (PADRÃO AZURE DEVOPS) */}
+        {/* BANNER SUPERIOR (PADRÃO AZURE DEVOPS) */}
         <header class="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 flex items-start justify-between gap-4">
           <div class="flex items-start gap-3 min-w-0 flex-1">
-            {/* Ícone de status posicionado na esquerda do título */}
             <div class="mt-0.5 shrink-0">
               <PipelineStatusIcon status={runDetails().status} result={runDetails().result} />
             </div>
@@ -64,21 +77,17 @@ export function RunDetailsPanel(props: Props) {
             </div>
           </div>
 
-          {/* Grupo de botões reposicionado no canto superior direito */}
           <div class="flex items-center gap-2 shrink-0 relative">
-            {/* Botão Condicional: Rerun se houver falha */}
             <Show when={runDetails().result?.toLowerCase() === 'failed' || runDetails().result?.toLowerCase() === 'failure'}>
               <button class="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-black uppercase text-[9px] tracking-wider px-3.5 py-2 rounded-xl transition-all shadow-sm">
                 <i class="fa-solid fa-arrow-rotate-left"></i> Rerun failed jobs
               </button>
             </Show>
 
-            {/* Botão Primário: Run New */}
             <button class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[9px] tracking-wider px-4 py-2 rounded-xl transition-all shadow-md shadow-blue-600/10">
               <i class="fa-solid fa-play text-[8px]"></i> Run new
             </button>
 
-            {/* Menu de contexto (...) */}
             <div class="relative">
               <button 
                 onClick={() => setDropdownOpen(!dropdownOpen())}
@@ -115,7 +124,7 @@ export function RunDetailsPanel(props: Props) {
         </header>
 
         {/* METADADOS EM GRID CARD */}
-        <div class="p-6 grid grid-cols-3 gap-6 border-b dark:border-gray-700 text-xs bg-white dark:bg-gray-800">
+        <div class="p-6 grid grid-cols-4 gap-6 border-b dark:border-gray-700 text-xs bg-white dark:bg-gray-800">
           <div class="space-y-1.5">
             <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">Autor do disparo</span>
             <div class="flex items-center gap-2">
@@ -134,12 +143,26 @@ export function RunDetailsPanel(props: Props) {
                 <i class="fa-solid fa-code-branch mr-1.5 text-[10px]"></i>{runDetails().sourceBranch || "main"} 
                 <Show when={runDetails().commitId || runDetails().commit?.id}>
                   <span class="mx-1 text-gray-300">•</span>
-                  <span class="cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => props.selectCommit(runDetails().commit?.fullId)}>
+                  <span class="cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => props.selectCommit(runDetails().commit?.fullId || runDetails().commitId || runDetails().commit?.id)}>
                     <i class="fa-solid fa-code-commit mr-1.5 text-[10px]"></i>
                     {(runDetails().commitId || runDetails().commit?.id).substring(0, 7)}
                   </span>
                 </Show>
               </span>
+            </div>
+          </div>
+
+          {/* NOVO BLOCO: ALTERAÇÕES VINCULADAS (IGUAL AO AZURE DEVOPS) */}
+          <div class="space-y-1.5">
+            <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">Modificações</span>
+            <div class="flex items-center">
+              <button 
+                onClick={() => setIsChangesModalOpen(true)}
+                class="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600/70 text-gray-700 dark:text-gray-200 font-black text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-lg transition-all"
+              >
+                <i class="fa-solid fa-clock-rotate-left text-[9px] text-gray-400"></i>
+                View {runChanges() ? runChanges()?.length : 0} changes
+              </button>
             </div>
           </div>
 
@@ -204,6 +227,47 @@ export function RunDetailsPanel(props: Props) {
         </div>
 
       </div>
+
+      {/* MODAL DE HISTÓRICO DE COMMITS (ALTERAÇÕES) */}
+      <Dialog open={isChangesModalOpen()} onClose={() => setIsChangesModalOpen(false)} title={'Commits associados à Run #' + runDetails().number}>
+          <div class="max-h-[350px] overflow-y-auto custom-scrollbar space-y-2 pr-1">
+            <Show when={runChanges() && runChanges()!.length > 0} fallback={
+              <div class="text-center py-8 text-xs text-gray-400 font-bold uppercase tracking-wider">
+                Nenhum commit incremental detectado nesta execução.
+              </div>
+            }>
+              <For each={runChanges()}>
+                {(commit: any) => (
+                  <div 
+                    onClick={() => {
+                      props.selectCommit(commit.id || commit.commitId);
+                    }}
+                    class="flex items-start justify-between p-3 border border-gray-200 dark:border-gray-700/70 rounded-xl hover:bg-blue-500/5 hover:border-blue-500/30 cursor-pointer transition-all group"
+                  >
+                    <div class="min-w-0 flex-1 pr-3">
+                      <div class="text-xs font-black dark:text-gray-200 group-hover:text-blue-500 transition-colors truncate">
+                        <CommitMessage message={commit.message} />
+                      </div>
+                      <div class="text-[10px] text-gray-400 font-bold mt-1 flex items-center gap-2">
+                        <span class="text-gray-500 dark:text-gray-400 font-black">
+                          {commit.author?.name || commit.committer?.name || "Autor desconhecido"}
+                        </span>
+                        <Show when={commit.timestamp || commit.author?.date}>
+                          <span>•</span>
+                          <span>{getRelativeTime(commit.timestamp || commit.author?.date, t, locale())}</span>
+                        </Show>
+                      </div>
+                    </div>
+                    
+                    <span class="font-mono text-[10px] font-bold bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-gray-500 dark:text-gray-400 group-hover:bg-blue-500 group-hover:text-white transition-all shrink-0">
+                      {(commit.id || commit.commitId || "").substring(0, 7)}
+                    </span>
+                  </div>
+                )}
+              </For>
+            </Show>
+          </div>
+      </Dialog>
     </Show>
   );
 }
