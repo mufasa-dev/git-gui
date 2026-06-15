@@ -107,7 +107,6 @@ export default function Header(props: Props) {
           tokenToSend = await githubService.getToken() || "";
         }
 
-        // Envia o token para o comando Rust fazer a autenticação silenciosa
         await pushRepo(props.active!, "origin", branch, tokenToSend, provider());
         
         notify.success('Git Push', `Push realizado com sucesso!`);
@@ -125,8 +124,15 @@ export default function Header(props: Props) {
       setPulling(true);
       showLoading("Realizando pull...");
       try {
+        let tokenToSend = "";
+        if (provider() === 'azure') {
+          tokenToSend = await azureService.getToken() || "";
+        } else if (provider() === 'github') {
+          tokenToSend = await githubService.getToken() || "";
+        }
+
         const branch = await getCurrentBranch(props.active!);
-        const result = await pull(props.active!, branch);
+        const result = await pull(props.active!, branch, tokenToSend, provider());
 
         if (result.needs_resolution) {
           // abre o modal com as informações
@@ -186,7 +192,14 @@ export default function Header(props: Props) {
       setFetching(true);
 
       try {
-        await fetchRepo(props.active!, "origin");
+        let tokenToSend = "";
+        if (provider() === 'azure') {
+          tokenToSend = await azureService.getToken() || "";
+        } else if (provider() === 'github') {
+          tokenToSend = await githubService.getToken() || "";
+        }
+
+        await fetchRepo(props.active!, "origin", tokenToSend, provider());
         notify.success('Git Fetch', `Fetch realizado com sucesso!`);
         await props.refreshBranches(props.active!);
       } catch (err) {
