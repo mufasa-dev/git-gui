@@ -2,6 +2,7 @@ use std::path::Path;
 use crate::models::pull::GitPullResult;
 use tauri::command;
 use crate::utils::git_command;
+use std::process::Command;
 use base64::{engine::general_purpose, Engine as _};
 
 #[tauri::command]
@@ -13,29 +14,20 @@ pub fn open_repo(path: String) -> Result<String, String> {
     }
 }
 
-#[tauri::command]
-pub fn push_repo(
-    path: String,
-    remote: Option<String>,
-    branch: Option<String>,
+fn configure_git_auth(
+    mut cmd: Command,
     token: Option<String>,
     provider: Option<String>,
-) -> Result<String, String> {
-
-    let remote_name = remote.unwrap_or("origin".to_string());
-    let branch_name = branch.unwrap_or("HEAD".to_string());
-
-    let mut cmd = git_command(&path);
-    
+) -> Command {
     cmd.env("GIT_TERMINAL_PROMPT", "0");
-    cmd.env("GIT_ASKPASS", "true");       
+    cmd.env("GIT_ASKPASS", "true");
     cmd.env("SSH_ASKPASS", "true");
-    cmd.env("GCM_INTERACTIVE", "never");  
+    cmd.env("GCM_INTERACTIVE", "never");
 
     if let Some(t) = token {
         if !t.trim().is_empty() {
             let current_provider = provider.unwrap_or_else(|| "github".to_string());
-            
+
             let header = if current_provider == "azure" {
                 let auth_string = format!(":{}", t.trim());
                 let encoded_auth = general_purpose::STANDARD.encode(auth_string);
@@ -49,6 +41,24 @@ pub fn push_repo(
             cmd.args(["-c", &format!("http.extraHeader={}", header)]);
         }
     }
+    cmd
+}
+
+#[tauri::command]
+pub fn push_repo(
+    path: String,
+    remote: Option<String>,
+    branch: Option<String>,
+    token: Option<String>,
+    provider: Option<String>,
+) -> Result<String, String> {
+
+    let remote_name = remote.unwrap_or_else(|| "origin".to_string());
+    let branch_name = branch.unwrap_or_else(|| "HEAD".to_string());
+
+    let mut cmd = git_command(&path);
+    
+    cmd = configure_git_auth(cmd, token, provider);
 
     let output = cmd
         .args(["push", "-u", &remote_name, &branch_name])
@@ -70,10 +80,18 @@ pub fn push_repo(
     }
 }
 
-#[command]
-pub fn git_pull(repo_path: String, branch: String) -> Result<GitPullResult, String> {
+#[tauri::command]
+pub fn git_pull(
+    repo_path: String, 
+    branch: String,
+    token: Option<String>,
+    provider: Option<String>,
+) -> Result<GitPullResult, String> {
 
-    let output = git_command(&repo_path)
+    let mut cmd = git_command(&repo_path);
+    cmd = configure_git_auth(cmd, token, provider);
+
+    let output = cmd
         .args(["pull", "origin", &branch])
         .output()
         .map_err(|e| format!("Falha ao executar git pull: {}", e))?;
@@ -89,10 +107,13 @@ pub fn git_pull(repo_path: String, branch: String) -> Result<GitPullResult, Stri
         });
     }
 
-    // ⚠️ Detecta erro de divergência (padrão do Git)
-    if stderr.contains("divergent branches")
-        || stderr.contains("Need to specify how to reconcile divergent branches")
-    {
+    if stderr.contains("fatal: could not read Password") || 
+       stderr.contains("Authentication failed") ||
+       stderr.contains("terminal prompts disabled") {
+        return Err("Erro de Autenticação: Seu token expirou ou é inválido para este repositório.".to_string());
+    }
+
+    if stderr.contains("divergent branches") || stderr.contains("Need to specify how to reconcile divergent branches") {
         return Ok(GitPullResult {
             success: false,
             message: stderr.to_string(),
@@ -100,23 +121,37 @@ pub fn git_pull(repo_path: String, branch: String) -> Result<GitPullResult, Stri
         });
     }
 
-    // ❌ Outros erros
     Err(stderr.to_string())
 }
 
 #[tauri::command]
-pub fn fetch_repo(repo_path: String, remote: String) -> Result<String, String> {
+pub fn fetch_repo(
+    repo_path: String, 
+    remote: String,
+    token: Option<String>,
+    provider: Option<String>,
+) -> Result<String, String> {
 
-    let output = git_command(&repo_path)
+    let mut cmd = git_command(&repo_path);
+    cmd = configure_git_auth(cmd, token, provider);
+
+    let output = cmd
         .arg("fetch")
         .arg(&remote)
         .output()
         .map_err(|e| e.to_string())?;
 
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+        if stderr.contains("fatal: could not read Password") || 
+           stderr.contains("Authentication failed") ||
+           stderr.contains("terminal prompts disabled") {
+            return Err("Erro de Autenticação: Seu token expirou ou é inválido para este repositório.".to_string());
+        }
+        Err(stderr.to_string())
     }
 }
 

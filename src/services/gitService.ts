@@ -148,9 +148,9 @@ export async function pushRepo(
   return await invoke("push_repo", { path: repoPath, remote, branch, token, provider });
 }
 
-export async function pull(repoPath: string, branch: string): Promise<GitPullResult> {
+export async function pull(repoPath: string, branch: string, token?: string, provider?: string): Promise<GitPullResult> {
   try {
-    const result = await invoke<GitPullResult>("git_pull", { repoPath, branch });
+    const result = await invoke<GitPullResult>("git_pull", { repoPath, branch, token, provider  });
     return result;
   } catch (err: any) {
     throw new Error(err);
@@ -165,8 +165,8 @@ export async function configPullMode(repoPath: string, mode: "merge" | "rebase" 
   }
 }
 
-export async function fetchRepo(path: string, remote: string): Promise<string> {
-  return await invoke("fetch_repo", { repoPath: path, remote });
+export async function fetchRepo(path: string, remote: string, token?: string, provider?: string): Promise<string> {
+  return await invoke("fetch_repo", { repoPath: path, remote, token, provider });
 }
 
 export async function createBranch(branchName: string, branchType: string, checkout: boolean, baseBranch: string, repoPath: string) {
