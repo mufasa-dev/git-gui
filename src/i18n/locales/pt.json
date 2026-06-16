@@ -387,6 +387,8 @@
     "hide_languages": "Esconder linguagens",
     "hide_lanmguages_descri": "Desmarque as linguagens que não deseja ver nas estatísticas (ex: JSON, Lockfiles):",
     "select_days_to_hide": "Selecione os dias que deseja ocultar no gráfico caso não haja atividade",
+    "others_languages": "Outras extenções",
+    "others_ext_desc": "Extensões de arquivos detectadas que não estão mapeadas em grupos específicos:",
     "contributions": "contribuições",
     "contributions_in": "contribuições em",
     "in": "em",

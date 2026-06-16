@@ -387,6 +387,8 @@
     "hide_languages": "言語を隠す",
     "hide_lanmguages_descri": "統計に表示したくない言語（例：JSON、Lockfiles）のチェックを外してください：",
     "select_days_to_hide": "アクティビティがない場合にチャートで非表示にする日を選択",
+    "others_languages": "その他のファイル拡張子",
+    "others_ext_desc": "特定のグループにマッピングされていない検出されたファイル拡張子:",
     "contributions": "コントリビューション",
     "contributions_in": "のコントリビューション",
     "in": "にて",

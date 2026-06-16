@@ -3,10 +3,16 @@ import { GROUP_COLORS, IGNORED_EXTENSIONS, LANGUAGE_GROUPS } from "../../utils/f
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
 
-// O seu componente continua recebendo a lista do Rust: { path, size }
+// Interface para estruturar os detalhes do que está dentro de "Other"
+interface OtherDetail {
+  extension: string;
+  count: number;
+}
+
 export default function LanguageBar(props: { files: { path: string, size: number }[] }) {
 
   const [isModalOpen, setIsModalOpen] = createSignal(false);
+  const [isOtherModalOpen, setIsOtherModalOpen] = createSignal(false); // Modal para o "Other"
   const [hiddenLanguages, setHiddenLanguages] = createSignal<string[]>([]);
   const { t } = useApp();
 
@@ -32,14 +38,13 @@ export default function LanguageBar(props: { files: { path: string, size: number
     return props.files.filter(file => {
       const path = file.path;
     
-      // Ignorar pastas de cache e build comuns
       if (
-        path.includes('.godot/') ||    // Cache da Godot 4
-        path.includes('.import/') ||   // Assets importados
+        path.includes('.godot/') ||    
+        path.includes('.import/') ||   
         path.includes('node_modules/') || 
         path.includes('/bin/') || 
         path.includes('/obj/') || 
-        path.includes('target/')       // Build do Rust
+        path.includes('target/')       
       ) {
         return false;
       }
@@ -57,31 +62,37 @@ export default function LanguageBar(props: { files: { path: string, size: number
     });
   });
 
-  // 2. Memo para gerar as estatísticas finais baseadas apenas no código-fonte
-  const stats = createMemo(() => {
+  // 2. Memo para gerar as estatísticas finais e mapear o que é "Other"
+  const statsSummary = createMemo(() => {
     const files = codeFiles();
-    if (!files.length) return [];
+    if (!files.length) return { list: [], otherDetails: [] };
 
     const sizeByGroup: Record<string, number> = {};
+    const otherExtensionsMap: Record<string, number> = {}; // Guarda a contagem das extensões desconhecidas
     let totalBytes = 0;
-    const hidden = hiddenLanguages(); // Pega o sinal aqui
+    const hidden = hiddenLanguages();
 
     files.forEach(file => {
       const fileName = file.path.split('/').pop()?.toLowerCase() || '';
       const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
       const groupName = LANGUAGE_GROUPS[fileName] || LANGUAGE_GROUPS[ext || ''] || "Other";
       
-      // FILTRO: Se o grupo estiver na lista de ocultos, ignoramos no cálculo
       if (hidden.includes(groupName)) return;
+
+      // Se caiu no grupo "Other", contabilizamos a extensão ou o nome do arquivo
+      if (groupName === "Other") {
+        const identifier = ext ? `.${ext}` : fileName;
+        otherExtensionsMap[identifier] = (otherExtensionsMap[identifier] || 0) + 1;
+      }
 
       const size = file.size || 0;
       sizeByGroup[groupName] = (sizeByGroup[groupName] || 0) + size;
       totalBytes += size;
     });
 
-    if (totalBytes === 0) return [];
+    if (totalBytes === 0) return { list: [], otherDetails: [] };
 
-    return Object.entries(sizeByGroup)
+    const list = Object.entries(sizeByGroup)
       .map(([name, bytes]) => ({
         name: name,
         percent: ((bytes / totalBytes) * 100).toFixed(1),
@@ -90,7 +101,18 @@ export default function LanguageBar(props: { files: { path: string, size: number
       .filter(lang => parseFloat(lang.percent) > 0.0)
       .sort((a, b) => parseFloat(b.percent) - parseFloat(a.percent))
       .slice(0, 14);
+
+    // Transforma o mapa de "Others" em uma lista ordenada por quantidade de arquivos
+    const otherDetails: OtherDetail[] = Object.entries(otherExtensionsMap)
+      .map(([ext, count]) => ({ extension: ext, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return { list, otherDetails };
   });
+
+  // Atalhos para facilitar o uso no JSX
+  const stats = createMemo(() => statsSummary().list);
+  const otherDetails = createMemo(() => statsSummary().otherDetails);
 
   // Memo extra para saber todas as linguagens possíveis (para o modal)
   const allAvailableLangs = createMemo(() => {
@@ -120,24 +142,28 @@ export default function LanguageBar(props: { files: { path: string, size: number
         </button>
       </div>
 
-      {/* Barra de Progresso mais alta */}
+      {/* Barra de Progresso */}
       <div class="w-full h-3 flex rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-8">
         <For each={stats()}>
           {(lang) => (
             <div 
               style={{ width: `${lang.percent}%`, "background-color": lang.color }}
-              class="h-full border-r border-white/10 last:border-0 transition-all duration-700"
+              class={`h-full border-r border-white/10 last:border-0 transition-all duration-700 ${lang.name === 'Other' ? 'cursor-pointer hover:opacity-80' : ''}`}
               title={`${lang.name}: ${lang.percent}%`}
+              onClick={() => lang.name === 'Other' && setIsOtherModalOpen(true)}
             />
           )}
         </For>
       </div>
 
-      {/* Legenda: 1 Coluna em telas pequenas (default), 2 colunas em telas 'sm' ou maiores */}
+      {/* Legenda */}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 overflow-y-auto pr-2">
         <For each={stats()}>
           {(lang) => (
-            <div class="flex items-center justify-between group min-w-0">
+            <div 
+              class={`flex items-center justify-between group min-w-0 ${lang.name === 'Other' ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 p-1 rounded transition-colors' : ''}`}
+              onClick={() => lang.name === 'Other' && setIsOtherModalOpen(true)}
+            >
               <div class="flex items-center gap-3 min-w-0">
                 <span 
                   class="w-3.5 h-3.5 rounded-full shadow-sm shrink-0" 
@@ -145,6 +171,7 @@ export default function LanguageBar(props: { files: { path: string, size: number
                 />
                 <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 truncate">
                   {lang.name}
+                  {lang.name === 'Other' && <i class="fa-solid fa-circle-info ml-1.5 text-xs text-gray-400 group-hover:text-blue-500"></i>}
                 </span>
               </div>
               <span class="text-xs text-gray-500 dark:text-gray-400 font-medium ml-2 shrink-0">
@@ -155,7 +182,7 @@ export default function LanguageBar(props: { files: { path: string, size: number
         </For>
       </div>
 
-      {/* MODAL DE CONFIGURAÇÃO */}
+      {/* MODAL DE CONFIGURAÇÃO (GEAR) */}
       <Dialog 
         open={isModalOpen()} 
         title={t('dashboard').hide_languages}
@@ -184,9 +211,45 @@ export default function LanguageBar(props: { files: { path: string, size: number
             </For>
           </div>
           <div class="pt-4 border-t border-gray-700 flex justify-end">
-             <button onClick={() => setIsModalOpen(false)} class="btn-primary py-2 px-4 text-sm font-bold bg-blue-600 text-white rounded">
+             <button onClick={() => setIsModalOpen(false)} class="btn-primary py-2 px-4 text-sm font-bold bg-blue-600 text-white rounded-xl">
                {t('common').save}
              </button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={isOtherModalOpen()}
+        title={t('dashboard').others_languages}
+        onClose={() => setIsOtherModalOpen(false)}
+        width="400px"
+      >
+        <div class="space-y-4">
+          <p class="text-xs text-gray-400">
+            {t('dashboard').others_ext_desc}
+          </p>
+          
+          <div class="max-h-[300px] overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700/50 pr-1">
+            <Show 
+              when={otherDetails().length > 0} 
+              fallback={<p class="text-sm text-gray-500 text-center py-4">Nenhum arquivo nesta categoria.</p>}
+            >
+              <For each={otherDetails()}>
+                {(item) => (
+                  <div class="flex items-center justify-between py-2.5">
+                    <div class="flex items-center gap-2">
+                      <i class="fa-regular fa-file text-gray-400 text-xs"></i>
+                      <span class="text-sm font-mono font-medium text-gray-800 dark:text-gray-200">
+                        {item.extension}
+                      </span>
+                    </div>
+                    <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">
+                      {item.count} {item.count === 1 ? t('file').file : t('file').files}
+                    </span>
+                  </div>
+                )}
+              </For>
+            </Show>
           </div>
         </div>
       </Dialog>

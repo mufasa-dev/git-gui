@@ -387,6 +387,8 @@
     "hide_languages": "Hide languages",
     "hide_lanmguages_descri": "Uncheck the languages you don't want to see in the statistics (e.g., JSON, Lockfiles):",
     "select_days_to_hide": "Select the days you want to hide in the chart if there is no activity",
+    "others_languages": "Other file extensions",
+    "others_ext_desc": "Detected file extensions that are not mapped to specific groups:",
     "contributions": "contributions",
     "contributions_in": "contributions in",
     "in": "in",
