@@ -363,6 +363,7 @@ export const azureService = {
       // Vamos buscar também os erros/logs simplificados ou detalhes do repositório
       return {
         id: build.id,
+        definitionId: build.definition?.id,
         number: build.buildNumber,
         name: build.definition?.name || "Pipeline",
         status: build.status,
@@ -372,7 +373,6 @@ export const azureService = {
         startTime: build.startTime,
         finishTime: build.finishTime,
         sourceBranch: build.sourceBranch?.replace('refs/heads/', '') || "",
-        // Dados ricos adicionados para a tela de detalhes:
         author: {
           name: build.requestedFor?.displayName || "Desconhecido",
           avatarUrl: build.requestedFor?._links?.avatar?.href || ""

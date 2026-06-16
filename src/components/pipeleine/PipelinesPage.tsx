@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show, createMemo, createEffect } from "solid-js";
+import { createResource, createSignal, For, Show, createMemo, createEffect, onCleanup } from "solid-js";
 import { githubService } from "../../services/github";
 import { azureService } from "../../services/azure";
 import { getRelativeTime } from "../../utils/date";
@@ -10,6 +10,7 @@ import { RunDetailsPanel } from "./RunDetailPanel";
 import Dialog from "../ui/Dialog";
 import { getCommitDetails } from "../../services/gitService";
 import { CommitDetails } from "../commits/CommitDetails";
+import { useLoading } from "../ui/LoadingContext";
 
 export function PipelineStatusIcon(props: { status: string; result: string }) {
   const config = createMemo(() => {
@@ -46,9 +47,76 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
   const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
 
+  const { showLoading, hideLoading } = useLoading();
   const { t, locale } = useApp();
   const [sidebarWidth, setSidebarWidth] = createSignal(380);
   const [isResizing, setIsResizing] = createSignal(false);
+  const [activeBuilds, setActiveBuilds] = createSignal<Record<string, string>>({});
+
+  createEffect(() => {
+    const runs = pipelineRuns();
+    if (!runs || runs.length === 0) return;
+
+    const hasRunningPipelines = runs.some((run: any) => {
+      const status = run.status?.toLowerCase();
+      return status === "inprogress" || status === "queued" || status === "notstarted";
+    });
+
+    if (hasRunningPipelines) {
+      const currentActive: Record<string, string> = {};
+      runs.forEach((run: any) => {
+        const status = run.status?.toLowerCase();
+        if (status === "inprogress" || status === "queued" || status === "notstarted") {
+          currentActive[run.id] = run.number;
+        }
+      });
+      
+      setActiveBuilds(prev => ({ ...prev, ...currentActive }));
+
+      const interval = setInterval(async () => {
+        const pipe = selectedPipeline();
+        const owner = repoOwner();
+        const repoName = props.repo?.name;
+
+        if (!pipe || !owner || !repoName || props.provider !== "azure") return;
+
+        try {
+          const allRuns = await azureService.getPipelineRuns(owner, repoName);
+          const freshRuns = allRuns.filter((run: any) => run.name === pipe.name);
+
+          const currentSignature = runs.map(r => `${r.id}-${r.status}-${r.result}`).join('|');
+          const freshSignature = freshRuns.map((r: any) => `${r.id}-${r.status}-${r.result}`).join('|');
+
+          if (currentSignature !== freshSignature) {
+            mutateRuns(freshRuns);
+
+            if (!selectedPipeline()) {
+              refetchPipelines();
+            }
+          }
+        } catch (err) {
+          console.error("Erro no polling silencioso:", err);
+        }
+      }, 4000);
+
+      onCleanup(() => clearInterval(interval));
+    } else {
+      const savedActive = activeBuilds();
+      if (Object.keys(savedActive).length > 0) {
+        runs.forEach((run: any) => {
+          if (savedActive[run.id]) {
+            if ("Notification" in window && Notification.permission === "granted") {
+              const isSuccess = run.result?.toLowerCase() === "succeeded" || run.result?.toLowerCase() === "success";
+              new Notification(`Pipeline #${run.number || savedActive[run.id]}`, {
+                body: isSuccess ? `🎉 Execução finalizada com SUCESSO!` : `❌ A execução FALHOU. Verifique os erros.`,
+              });
+            }
+          }
+        });
+        setActiveBuilds({});
+      }
+    }
+  });
 
   const repoOwner = createMemo(() => {
     const url = props.remoteUrl;
@@ -71,13 +139,13 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
         const uniquePipesMap = new Map<string, { id: number | string; lastStatus: string; lastResult: string }>();
         
         runs.forEach((r: any) => {
-          const pipeId = r.definition?.id || r.pipelineId || r.id;
-          const pipeName = r.definition?.name || r.name;
+          const pipeId = r.id; 
+          const pipeName = r.name;
           
           if (pipeName && pipeId) {
             if (!uniquePipesMap.has(pipeName)) {
               uniquePipesMap.set(pipeName, {
-                id: pipeId,
+                id: pipeId, 
                 lastStatus: r.status || "",
                 lastResult: r.result || ""
               });
@@ -98,7 +166,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
     }
   );
 
-  const [pipelineRuns, { refetch: refetchRuns }] = createResource<UnifiedPipelineRun[], { owner: string; name: string; pipeline: PipelineDefinition | null; currentProvider: GitProvider }>(
+  const [pipelineRuns, { refetch: refetchRuns, mutate: mutateRuns }] = createResource<UnifiedPipelineRun[], { owner: string; name: string; pipeline: PipelineDefinition | null; currentProvider: GitProvider }>(
     () => ({ owner: repoOwner(), name: props.repo?.name, pipeline: selectedPipeline(), currentProvider: props.provider }),
     async (params) => {
       if (!params.pipeline || !params.name || !params.owner) return [];
@@ -140,39 +208,29 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
   const handleTriggerPipeline = async () => {
     const pipe = selectedPipeline();
     if (!pipe) return;
-    console.log('pipe', pipe)
 
     const owner = repoOwner();
     const repoName = props.repo?.name;
-    
-    // Pegamos a branch atual selecionada no app ou um fallback padrão
     const currentBranch = "main"; 
 
     try {
+      showLoading("Executando pipeline")
       if (props.provider === "azure") {
-        // No Azure, se o 'pipe.id' for o nome textual, você pode passar ele ou o ID mapeado
-        await azureService.triggerPipelineRun(
-          owner, 
-          repoName, 
-          pipe.id,
-          currentBranch
-        )
+        const details = await azureService.getPipelineRunDetails(owner, repoName, Number(pipe.id));
+        console.log('details', details)
+
+        await azureService.triggerPipelineRun(owner, repoName, details.definitionId, currentBranch);
       } else {
-        // No GitHub, passamos o arquivo padrão do workflow cadastrado ou o ID retornado
-        const workflowFile = "main.yml"; // Ou pipe.id se você já listar os IDs reais de arquivos
+        const workflowFile = "main.yml";
         await githubService.triggerPipelineRun(owner, repoName, workflowFile, currentBranch);
       }
 
-      // Feedback visual de sucesso (ex: Toast) se você tiver no projeto
-      console.log("Pipeline disparada com sucesso!");
-
-      // Dá um pequeno timeout maroto pro provedor registrar o run e atualiza a lista
-      setTimeout(() => {
-        refetchRuns();
-      }, 1500);
+      setTimeout(() => { refetchRuns(); }, 1500);
 
     } catch (error) {
       console.error("Falha ao executar a pipeline:", error);
+    } finally {
+      hideLoading();
     }
   };
 
