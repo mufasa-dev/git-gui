@@ -89,10 +89,13 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   java: "Java",
   jsp: "Java",
   rb: "Ruby",
+  godot: "GDScript",
   gd: "GDScript",
-  tscn: "Godot Scene",
-  tres: "Godot Resource",
-  uid: "Godot Resource",
+  tscn: "Scene",
+  res: "Resource",
+  tres: "Resource",
+  uid: "Resource",
+  gdshader: "Resource",
   cfg: "Config",
   cs: "C#",
   csproject: "C#",
@@ -240,8 +243,8 @@ export const GROUP_COLORS: Record<string, string> = {
   "Julia": "#f3705a",
   "Lua": "#000080",
   "GDScript": "#355570",
-  "Godot Scene": "#eb5555",
-  "Godot Resource": "#eb5555",
+  "Scene": "#8e7cc3",
+  "Resource": "#41b375",
   "Svelte": "#ff3e00",
   "Vue": "#2c3e50",
   "Astro": "#ff5a03",
@@ -262,18 +265,18 @@ export const GROUP_COLORS: Record<string, string> = {
 // --- LISTA NEGRA: Extensões que NÃO devem aparecer no gráfico ---
 export const IGNORED_EXTENSIONS = [
   // Imagens
-  'png', 'icns', 'bmp', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp',
+  'png', 'icns', 'bmp', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp', 'glb',
   // Binários e outros
-  'exe', 'dll', 'so', 'lock', 'bin', 'ttf', 'woff', 'woff2', 'mp4', "mp3", 'avi', 'mov', 'zip', 'log', 'map',
+  'exe', 'dll', 'so', 'lock', 'bin', 'ttf', 'woff', 'woff2', 'mp4', "mp3", 'avi', 'mov', 'zip', 'log', 'map', 'brotli', 'br', 'mem',
   'pdf', 'docx', 'xlsx', 'DS_Store',  'yml', 'yaml', 'env', 'env.local', 'env.development', 'env.production',
   'md', 'markdown', 'txt', 'rtf', 'csv', 'tsv', 'log', 'lock', 'bin', 'iso', 'dmg', 'app', 'apk', 'jar', 'war', 'ear', 'txt', 'log',
   'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'ds_store', 'nfo', 'def',
   // Configurações e Metadados
-  'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'cer', 'dep',
+  'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'cer', 'dep', 
   // Outros arquivos de configuração comuns
   'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults',
   'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload',
   'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc', 'ini', 'old', 'new', 'lic', 'log', 'bak', 'backup', 'temp', 'cache', 'dist', 'out', 'build', 'target', 'obj',
   // Godot
-  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', '.import'
+  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', 'depren'
 ];
