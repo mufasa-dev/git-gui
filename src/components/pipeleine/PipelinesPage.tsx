@@ -249,6 +249,63 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
     }
   };
 
+  const handleRerunFailedJobs = async () => {
+    const runId = selectedRunId();
+    if (!runId) return;
+
+    const owner = repoOwner();
+    const repoName = props.repo?.name;
+
+    try {
+      showLoading("Reexecutando jobs falhos");
+      
+      if (props.provider === "azure") {
+        await azureService.rerunFailedJobs(owner, repoName, runId);
+      } else {
+        await githubService.rerunFailedJobs(owner, repoName, runId);
+      }
+
+      // Aguarda um momento para a API processar e atualiza a listagem lateral
+      setTimeout(() => { 
+        refetchRuns(); 
+      }, 1500);
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      notify.error("Erro ao reexecutar jobs", message);
+    } finally {
+      hideLoading();
+    }
+  };
+
+  const handleDeletePipelineRun = async () => {
+    const runId = selectedRunId();
+    if (!runId) return;
+
+    const owner = repoOwner();
+    const repoName = props.repo?.name;
+
+    try {
+      showLoading("Deletando execução");
+      
+      if (props.provider === "azure") {
+        await azureService.deletePipelineRun(owner, repoName, runId);
+      } else {
+        await githubService.deletePipelineRun(owner, repoName, runId);
+      }
+
+      setSelectedRunId(null);
+      
+      refetchRuns();
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      notify.error("Erro ao deletar run", message);
+    } finally {
+      hideLoading();
+    }
+  };
+
   return (
     <div 
       class="flex h-full w-full select-none bg-gray-200 dark:bg-gray-900 overflow-hidden"
@@ -461,6 +518,9 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
             provider={props.provider} 
             fallbackRuns={pipelineRuns() || []}
             selectCommit={selectCommit}
+            run={handleConfirmTriggerPipeline}
+            runFailedJobs={handleRerunFailedJobs}
+            deletePipeline={handleDeletePipelineRun}
           />
         </Show>
       </div>

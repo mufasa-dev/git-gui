@@ -14,7 +14,10 @@ interface Props {
     repo: Repo; 
     provider: GitProvider; 
     fallbackRuns: any[],
-    selectCommit: (hash: string) => void
+    selectCommit: (hash: string) => void,
+    run: () => void,
+    runFailedJobs: () => void,
+    deletePipeline: () => void
 }
 
 export function RunDetailsPanel(props: Props) {
