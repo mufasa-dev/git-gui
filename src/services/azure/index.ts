@@ -473,6 +473,88 @@ export const azureService = {
     }
   },
 
+  async rerunFailedJobs(owner: string, project: string, runId: string | number) {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const targetRunId = Number(runId);
+      if (isNaN(targetRunId) || targetRunId === 0) {
+        throw new Error(`O método rerunFailedJobs exige um ID de run válido. Recebido: "${runId}"`);
+      }
+
+      // No Azure DevOps, reexecutar falhas em pipelines modernos mapeia uma alteração de estado no build (Retry)
+      const url = `https://dev.azure.com/${owner}/${encodeURIComponent(project)}/_apis/build/builds/${targetRunId}?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: "PATCH", // Atualiza o estado da execução existente
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+        body: JSON.stringify({
+          status: "Cancelling"
+        })
+      });
+
+      const retryUrl = `https://dev.azure.com/${owner}/${encodeURIComponent(project)}/_apis/build/builds?buildId=${targetRunId}&api-version=7.0`;
+      
+      const retryResponse = await window.fetch(retryUrl, {
+        method: "POST",
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+      });
+
+      if (!retryResponse.ok) {
+        const errorData = await retryResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao reexecutar run no Azure: ${retryResponse.statusText}`);
+      }
+
+      return await retryResponse.json();
+    } catch (error) {
+      console.error("Erro em rerunFailedJobs (Azure):", error);
+      throw error;
+    }
+  },
+
+  async deletePipelineRun(owner: string, project: string, runId: string | number) {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const targetRunId = Number(runId);
+      if (isNaN(targetRunId) || targetRunId === 0) {
+        throw new Error(`O método deletePipelineRun exige um ID de run válido. Recebido: "${runId}"`);
+      }
+
+      const url = `https://dev.azure.com/${owner}/${encodeURIComponent(project)}/_apis/build/builds/${targetRunId}?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: "DELETE",
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Accept': 'application/json' 
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao deletar run no Azure: ${response.statusText}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Erro em deletePipelineRun (Azure):", error);
+      throw error;
+    }
+  },
+
   async logout() {
     const store = await getAuthStore();
     await store.delete("azure_token");
