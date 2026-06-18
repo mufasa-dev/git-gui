@@ -11,6 +11,7 @@ import Dialog from "../ui/Dialog";
 import { getCommitDetails } from "../../services/gitService";
 import { CommitDetails } from "../commits/CommitDetails";
 import { useLoading } from "../ui/LoadingContext";
+import { notify } from "../../utils/notifications";
 
 export function PipelineStatusIcon(props: { status: string; result: string }) {
   const config = createMemo(() => {
@@ -241,6 +242,8 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
 
     } catch (error) {
       console.error("Falha ao executar a pipeline:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      notify.error("Erro ao executar pipeline", message);
     } finally {
       hideLoading();
     }
