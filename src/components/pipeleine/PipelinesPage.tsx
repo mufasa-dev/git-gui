@@ -47,6 +47,10 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
   const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
 
+  const [showRunModal, setShowRunModal] = createSignal(false);
+  const [selectedTargetBranch, setSelectedTargetBranch] = createSignal("main");
+  const [enableDiagnostics, setEnableDiagnostics] = createSignal(false);
+
   const { showLoading, hideLoading } = useLoading();
   const { t, locale } = useApp();
   const [sidebarWidth, setSidebarWidth] = createSignal(380);
@@ -205,24 +209,32 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
     }
   });
 
-  const handleTriggerPipeline = async () => {
+  const openRunPipelineModal = () => {
+    if (!selectedPipeline()) return;
+    setSelectedTargetBranch("main");
+    setEnableDiagnostics(false);
+    setShowRunModal(true);
+  };
+
+  const handleConfirmTriggerPipeline = async () => {
     const pipe = selectedPipeline();
     if (!pipe) return;
 
     const owner = repoOwner();
     const repoName = props.repo?.name;
-    const currentBranch = "main"; 
+    const branch = selectedTargetBranch();
 
     try {
-      showLoading("Executando pipeline")
+      setShowRunModal(false);
+      showLoading("Executando pipeline");
+      
       if (props.provider === "azure") {
         const details = await azureService.getPipelineRunDetails(owner, repoName, Number(pipe.id));
-        console.log('details', details)
 
-        await azureService.triggerPipelineRun(owner, repoName, details.definitionId, currentBranch);
+        await azureService.triggerPipelineRun(owner, repoName, details.definitionId, branch);
       } else {
         const workflowFile = "main.yml";
-        await githubService.triggerPipelineRun(owner, repoName, workflowFile, currentBranch);
+        await githubService.triggerPipelineRun(owner, repoName, workflowFile, branch);
       }
 
       setTimeout(() => { refetchRuns(); }, 1500);
@@ -268,7 +280,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                 {/* Grupo de botões de controle das runs */}
                 <div class="flex items-center gap-1">
                   <button 
-                    onClick={handleTriggerPipeline}
+                    onClick={openRunPipelineModal}
                     title="Executar Pipeline (Run new)"
                     class="text-gray-400 hover:text-emerald-500 p-1.5 transition-colors"
                   >
@@ -322,7 +334,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                 </For>
               }>
                 
-                {/* LISTAGEM DE RUNS COM AVATAR, GATILHO E ICONES CONDENSADOS */}
+                {/* LISTAGEM DE RUNS */}
                 <For each={filteredList()}>
                 {(item) => {
                     const run = item as any;
@@ -334,9 +346,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                     return run.commit?.message || run.triggerInfo?.["ci.message"] || "Set up CI with Azure Pipelines";
                     });
 
-                    // 2. CORREÇÃO DO AUTOR E TIPO DE GATILHO
                     const triggerDetails = createMemo(() => {
-                    // Verifica se o Azure retornou informações de gatilho manual ou CI
                     const isManual = run.triggerType === 'manual' || run.reason === 'manual';
                     const authorName = run.author?.name || run.requestedFor?.displayName || "bruno ribeiro";
                     const avatar = run.author?.avatarUrl || run.requestedFor?.imageUrl || null;
@@ -351,7 +361,6 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
 
                     const normalizedStatusAndResult = createMemo(() => {
                       const status = run.status?.toLowerCase() || '';
-                      const result = run.result?.toLowerCase() || '';
                       
                       if (status === 'inprogress' || status === 'queued' || status === 'notstarted') {
                         return { status: 'inProgress', result: null };
@@ -386,7 +395,6 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                             {runDescription()}
                           </span>
                         </div>
-                        {/* USANDO O STATUS TRATADO */}
                         <PipelineStatusIcon 
                           status={normalizedStatusAndResult().status} 
                           result={normalizedStatusAndResult().result} 
@@ -406,7 +414,6 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                             <span class="font-black text-gray-600 dark:text-gray-300"> {triggerDetails().authorName}</span>
                           </span>
                         </div>
-                        {/* USANDO A DATA TRATADA */}
                         <span class="font-mono text-[9px] text-gray-400 shrink-0 pl-1">
                           {formattedTime()}
                         </span>
@@ -455,6 +462,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
         </Show>
       </div>
 
+      {/* MODAL ORIGINAL DE COMMITS */}
       <Show when={showModalCommitDetails()}>
         <Dialog open={true}
                 title={t('commits').details}
@@ -467,6 +475,98 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
             openParent={false} openProfile={false}
             selectCommit={selectCommit} 
           />
+        </Dialog>
+      </Show>
+
+      {/* MODAL CONFIGURAÇÃO RUN PIPELINE (ESTILO AZURE DEVOPS) */}
+      <Show when={showRunModal()}>
+        <Dialog open={true}
+                title="Run pipeline"
+                onClose={() => setShowRunModal(false)}
+                width={'480px'}
+                height={'auto'}>
+          <div class="p-0 flex flex-col gap-5 dark:text-gray-200">
+            <span class="text-xs text-gray-500 font-bold -mt-2 block">
+              Select parameters below and manually run the pipeline
+            </span>
+
+            {/* SELEÇÃO DE PIPELINE VERSION (BRANCH) */}
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-black text-gray-700 dark:text-gray-300">Pipeline version</label>
+              <div class="relative">
+                <i class="fa-solid fa-code-branch absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                <select 
+                  value={selectedTargetBranch()}
+                  onChange={(e) => setSelectedTargetBranch(e.currentTarget.value)}
+                  class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-500 appearance-none font-mono"
+                >
+                  <For each={props.repo.remoteBranches}>
+                    {(item) => {
+                      const cleanBranch = item.startsWith("origin/") ? item.replace("origin/", "") : item;
+                      return <option value={cleanBranch}>{cleanBranch}</option>
+                    }}
+                  </For>
+                </select>
+                <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] pointer-events-none"></i>
+              </div>
+              <span class="text-[10px] text-gray-400 font-bold">Select the pipeline to run by branch, commit, or tag</span>
+            </div>
+
+            {/* ARTIFACTS / ADVANCED OPTIONS PLACEHOLDERS */}
+            <div class="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-4">
+              <div>
+                <h4 class="text-xs font-black text-gray-700 dark:text-gray-300 mb-1">Pipeline artifacts</h4>
+                <p class="text-[11px] text-gray-400 font-bold">No pipeline artifacts found.</p>
+              </div>
+
+              <div>
+                <h4 class="text-xs font-black text-gray-700 dark:text-gray-300 mb-2">Advanced options</h4>
+                <div class="border border-gray-300 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 text-xs font-bold overflow-hidden">
+                  <div class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-800/40 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer">
+                    <div>
+                      <p class="text-gray-700 dark:text-gray-300 text-[11px]">Variables</p>
+                      <p class="text-[10px] text-gray-400 normal-case font-normal">This pipeline has no defined variables</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-gray-400"></i>
+                  </div>
+                  <div class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-800/40 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer">
+                    <div>
+                      <p class="text-gray-700 dark:text-gray-300 text-[11px]">Stages to run</p>
+                      <p class="text-[10px] text-gray-400 normal-case font-normal">Run as configured</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-gray-400"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SYSTEM DIAGNOSTICS CHECKBOX */}
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-600 dark:text-gray-400 select-none mt-1">
+              <input 
+                type="checkbox" 
+                checked={enableDiagnostics()} 
+                onChange={(e) => setEnableDiagnostics(e.currentTarget.checked)}
+                class="accent-blue-500 w-3.5 h-3.5 rounded border-gray-300"
+              />
+              Enable system diagnostics
+            </label>
+
+            {/* FOOTER ACTIONS */}
+            <div class="flex items-center justify-end gap-2 border-t border-gray-200 dark:border-gray-800 pt-4 mt-2">
+              <button 
+                onClick={() => setShowRunModal(false)}
+                class="px-4 py-2 text-xs font-black rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmTriggerPipeline}
+                class="px-4 py-2 text-xs font-black rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors"
+              >
+                Run
+              </button>
+            </div>
+          </div>
         </Dialog>
       </Show>
     </div>
