@@ -343,6 +343,60 @@ export const githubService = {
     }
   },
 
+  async rerunFailedJobs(owner: string, repo: string, runId: string | number) {
+    try {
+      const token = await this.getToken();
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/rerun-failed-jobs`,
+        {
+          method: "POST",
+          headers: {
+            'Accept': 'application/vnd.github+json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      // O GitHub retorna 201 Created quando o rerun é aceito com sucesso
+      if (response.status !== 201) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao reexecutar falhas no GitHub: ${response.status}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Erro em rerunFailedJobs (GitHub):", error);
+      throw error;
+    }
+  },
+
+  async deletePipelineRun(owner: string, repo: string, runId: string | number) {
+    try {
+      const token = await this.getToken();
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`,
+        {
+          method: "DELETE",
+          headers: {
+            'Accept': 'application/vnd.github+json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      // O GitHub retorna 204 No Content quando a deleção é concluída
+      if (response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao deletar run no GitHub: ${response.status}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Erro em deletePipelineRun (GitHub):", error);
+      throw error;
+    }
+  },
+
   async logout() {
     const store = await getAuthStore();
     await store.delete("github_token");
