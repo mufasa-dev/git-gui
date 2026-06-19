@@ -258,6 +258,7 @@ export const GROUP_COLORS: Record<string, string> = {
   "Font": "#f7e03d",
   "Adobe Flash": "#f7e03d",
   "Json": "#51aff7",
+  "WebAssembly": "#5d58ea",
   "Coffee": "#6f4c3e",
   "Config": "#555555",
   "Other": "#8b949e"
@@ -266,14 +267,14 @@ export const GROUP_COLORS: Record<string, string> = {
 // --- LISTA NEGRA: Extensões que NÃO devem aparecer no gráfico ---
 export const IGNORED_EXTENSIONS = [
   // Imagens
-  'png', 'icns', 'bmp', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp', 'glb',
+  'png', 'icns', 'bmp', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp', 'glb', 'art', 'tpl',
   // Binários e outros
   'exe', 'dll', 'so', 'lock', 'bin', 'ttf', 'woff', 'woff2', 'mp4', "mp3", 'avi', 'mov', 'zip', 'log', 'map', 'brotli', 'br', 'mem',
   'pdf', 'docx', 'xlsx', 'DS_Store',  'yml', 'yaml', 'env', 'env.local', 'env.development', 'env.production',
   'md', 'markdown', 'txt', 'rtf', 'csv', 'tsv', 'log', 'lock', 'bin', 'iso', 'dmg', 'app', 'apk', 'jar', 'war', 'ear', 'txt', 'log',
   'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'ds_store', 'nfo', 'def',
   // Configurações e Metadados
-  'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'cer', 'dep', 
+  'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'cer', 'dep', 'babelrc', 'appcache',
   // Outros arquivos de configuração comuns
   'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults',
   'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload',

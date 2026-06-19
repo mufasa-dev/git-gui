@@ -55,6 +55,7 @@ import vbsIcon from "../../assets/vbs.png";
 import delphiIcon from "../../assets/delphi.png";
 import pascalIcon from "../../assets/pascal.png";
 import dllIcon from "../../assets/dll.png";
+import webAssemblyIcon from "../../assets/web_assembly.png";
 import flashIcon from "../../assets/flash.png";
 import rpgMakerIcon from "../../assets/rpg_maker.png";
 import androidIcon from "../../assets/android.png";
@@ -160,6 +161,9 @@ export default function FileIcon(props: FileIconProps) {
       r: rIcon,
       b: bIcon,
       asm: asmIcon,
+      wasm: webAssemblyIcon,
+      wat: webAssemblyIcon,
+      wast: webAssemblyIcon,
       elixir: elixirIcon,
       ex: elixirIcon,
       exs: elixirIcon,
