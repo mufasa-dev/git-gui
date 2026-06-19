@@ -526,7 +526,7 @@ export const azureService = {
     try {
       const token = await this.getToken();
       if (!token) return null;
-      const credentials = btoa(`:${token.trim()}`);
+      const credentials = btoa(`:${token?.trim()}`);
 
       const targetRunId = Number(runId);
       if (isNaN(targetRunId) || targetRunId === 0) {

@@ -7,6 +7,7 @@ import { GitProvider } from "../../utils/gitProvider";
 import { getRelativeTime } from "../../utils/date";
 import { PipelineStatusIcon } from "./PipelinesPage";
 import Dialog from "../ui/Dialog";
+import ConfirmModal from "../ui/ConfirmModal";
 
 interface Props {
     runId: any; 
@@ -24,6 +25,12 @@ export function RunDetailsPanel(props: Props) {
   const { locale, t } = useApp();
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [isChangesModalOpen, setIsChangesModalOpen] = createSignal(false);
+
+  const [modalConfirmOpen, setModalConfirmOpen] = createSignal(false);
+  const [modalConfirmTitle, setModalConfirmTitle] = createSignal('');
+  const [modalConfirmMessage, setModalConfirmMessage] = createSignal('');
+  const [modalConfirmButton, setModalConfirmButton] = createSignal('Ok');
+  const [modalConfirmAction, setModalConfirmAction] = createSignal<() => void>(() => () => {});
 
   const [runDetails] = createResource(
     () => ({ owner: props.repoOwner, name: props.repo?.name, runId: props.runId, currentProvider: props.provider }),
@@ -54,6 +61,17 @@ export function RunDetailsPanel(props: Props) {
     if (!run) return "Build Triggered";
     return run.commit?.message || run.triggerInfo?.["ci.message"] || "Set up CI with Azure Pipelines";
   });
+
+  const openModalConfirmDelete = () => {
+    setModalConfirmOpen(true);
+    setModalConfirmTitle('Delete Run');
+    setModalConfirmMessage('Are you sure you want to delete everything in run, including its logs, artifacts, test results, symbols, and label?');
+    setModalConfirmButton(t('common').yes);
+    setModalConfirmAction(() => () => {
+      console.log("Item deletado com sucesso!");
+      props.deletePipeline();
+    });
+  }
 
   return (
     <Show when={!runDetails.loading} fallback={<div class="flex-1 flex items-center justify-center"><i class="fa-solid fa-spinner fa-spin text-xl text-blue-500"></i></div>}>
@@ -116,7 +134,7 @@ export function RunDetailsPanel(props: Props) {
                     <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 w-3"></i> Ver no console
                   </a>
                   <div class="border-t dark:border-gray-800 my-1"></div>
-                  <button class="w-full text-left px-4 py-2 hover:bg-rose-500/10 text-rose-500 flex items-center gap-2.5">
+                  <button class="w-full text-left px-4 py-2 hover:bg-rose-500/10 text-rose-500 flex items-center gap-2.5" onClick={openModalConfirmDelete}>
                     <i class="fa-solid fa-trash w-3"></i> Delete Run
                   </button>
                 </div>
@@ -271,6 +289,16 @@ export function RunDetailsPanel(props: Props) {
             </Show>
           </div>
       </Dialog>
+
+      <ConfirmModal 
+          isOpen={modalConfirmOpen()}
+          title={modalConfirmTitle()}
+          message={modalConfirmMessage()}
+          confirmText={modalConfirmButton()}
+          isDanger={true}
+          onConfirm={() => modalConfirmAction()()}
+          onCancel={() => setModalConfirmOpen(false)}
+      />
     </Show>
   );
 }
