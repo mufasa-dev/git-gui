@@ -145,7 +145,8 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   config: "Config",
   conf: "Config",
   settings: "Config",
-  asa: "Config"
+  asa: "Config",
+  properties: "Config"
 };
 
 export const INFERENCE_RULES: Record<string, string[]> = {
@@ -258,7 +259,7 @@ export const GROUP_COLORS: Record<string, string> = {
   "Adobe Flash": "#f7e03d",
   "Json": "#51aff7",
   "Coffee": "#6f4c3e",
-  "Config": "#8b949e",
+  "Config": "#555555",
   "Other": "#8b949e"
 };
 

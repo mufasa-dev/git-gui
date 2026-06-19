@@ -1,4 +1,5 @@
 import { createSignal, For, Show, createMemo, onMount, onCleanup } from "solid-js";
+import { useApp } from "../../context/AppContext";
 
 export interface SearchableSelectOption {
   value: string;
@@ -18,6 +19,7 @@ export const SearchableSelect = (props: SelectProps) => {
   const [isOpen, setIsOpen] = createSignal(false);
   const [search, setSearch] = createSignal("");
   const [selected, setSelected] = createSignal(props.initialValue || "");
+  const { t } = useApp();
   let selectRef: HTMLDivElement | undefined;
 
   const filteredOptions = createMemo(() => 
@@ -66,14 +68,14 @@ export const SearchableSelect = (props: SelectProps) => {
         <div class="absolute z-50 w-full mt-1 border rounded shadow-xl bg-white dark:bg-gray-800 max-h-72 overflow-y-auto dark:border-gray-700">
           <input
             type="text"
-            placeholder="Filtrar..."
+            placeholder={t('file').search_files}
             class="w-full p-2 border-b border-gray-300 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 outline-none focus:bg-blue-50 dark:focus:bg-gray-700"
             onInput={(e) => setSearch(e.currentTarget.value)}
             value={search()}
             autofocus
           />
           <div class="flex flex-col p-1">
-            <For each={filteredOptions()} fallback={<div class="p-4 text-center text-gray-500 italic">Nada encontrado</div>}>
+            <For each={filteredOptions()} fallback={<div class="p-4 text-center text-gray-500 italic">{t('common').no_results}</div>}>
               {(option) => (
                 <button
                   disabled={option.disabled}

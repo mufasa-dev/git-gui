@@ -147,6 +147,7 @@ export default function FileIcon(props: FileIconProps) {
       bmp: imageIcon,
       gif: imageIcon,
       ico: imageIcon,
+      webp: imageIcon,
       svg: svgIcon,
       cs: cSharpIcon,
       cshtml: cSharpIcon,
@@ -269,6 +270,7 @@ export default function FileIcon(props: FileIconProps) {
       config: configIcon,
       conf: configIcon,
       env: configIcon,
+      properties: configIcon,
       browserslistrc: configIcon
     };
 

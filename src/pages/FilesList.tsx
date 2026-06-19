@@ -142,7 +142,7 @@ export default function FileList(props: { repo: Repo }) {
 
     // Seção Local
     if (props.repo.branches?.length > 0) {
-      options.push({ value: 'header-local', label: 'Local Branches', disabled: true });
+      options.push({ value: 'header-local', label: t('git').local, disabled: true });
       props.repo.branches.forEach(b => {
         options.push({ value: b.name, label: b.name });
       });
@@ -150,7 +150,7 @@ export default function FileList(props: { repo: Repo }) {
 
     // Seção Remota
     if ((props.repo.remoteBranches?.length ?? 0) > 0) {
-      options.push({ value: 'header-remote', label: 'Remote Branches', disabled: true });
+      options.push({ value: 'header-remote', label: t('git').remote, disabled: true });
       props.repo.remoteBranches?.forEach(rb => {
         options.push({ value: rb, label: rb });
       });
@@ -159,13 +159,11 @@ export default function FileList(props: { repo: Repo }) {
     return options;
   });
 
-  // Função para lidar com a troca de branch de forma segura
   const handleBranchChange = (newBranch: string) => {
     if (newBranch === selectedBranch()) return;
 
-    showLoading("Trocando branch...");
+    showLoading(t('loading').checking_out);
     
-    // Limpa estados de visualização para evitar "ghosting" de arquivos da branch anterior
     setFileContent(null);
     setDirectoryContent(null);
     setSelectedFilePath([]);
@@ -173,7 +171,6 @@ export default function FileList(props: { repo: Repo }) {
     setShowHistory(false);
     
     setSelectedBranch(newBranch);
-    // O createEffect que monitora selectedBranch() cuidará do fetch dos arquivos
   };
 
   const handleGoBack = (currentPath: string) => {
