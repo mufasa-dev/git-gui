@@ -14,23 +14,25 @@ import { useLoading } from "../ui/LoadingContext";
 import { notify } from "../../utils/notifications";
 
 export function PipelineStatusIcon(props: { status: string; result: string }) {
+  const { t } = useApp();
+
   const config = createMemo(() => {
     const s = props.status?.toLowerCase();
     const r = props.result?.toLowerCase();
 
     if (s === "inprogress" || s === "in_progress") {
-      return { icon: "fa-solid fa-circle-notch fa-spin text-amber-500", title: "Rodando" };
+      return { icon: "fa-solid fa-circle-notch fa-spin text-amber-500", title: t('pipeline').running };
     }
     if (s === "queued" || s === "notstarted") {
-      return { icon: "fa-regular fa-clock text-gray-400", title: "Na Fila" };
+      return { icon: "fa-regular fa-clock text-gray-400", title: t('pipeline').queue };
     }
     if (r === "succeeded" || r === "success") {
-      return { icon: "fa-solid fa-circle-check text-emerald-500", title: "Sucesso" };
+      return { icon: "fa-solid fa-circle-check text-emerald-500", title: t('pipeline').success };
     }
     if (r === "failed" || r === "failure") {
-      return { icon: "fa-solid fa-circle-xmark text-rose-500", title: "Falhou" };
+      return { icon: "fa-solid fa-circle-xmark text-rose-500", title: t('pipeline').fail };
     }
-    return { icon: "fa-solid fa-ban text-gray-500", title: "Cancelado" };
+    return { icon: "fa-solid fa-ban text-gray-500", title: t('pipeline').canceled };
   });
 
   return (
@@ -112,8 +114,8 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
           if (savedActive[run.id]) {
             if ("Notification" in window && Notification.permission === "granted") {
               const isSuccess = run.result?.toLowerCase() === "succeeded" || run.result?.toLowerCase() === "success";
-              new Notification(`Pipeline #${run.number || savedActive[run.id]}`, {
-                body: isSuccess ? `🎉 Execução finalizada com SUCESSO!` : `❌ A execução FALHOU. Verifique os erros.`,
+              new Notification(`${t('pipeline').pipeline} #${run.number || savedActive[run.id]}`, {
+                body: isSuccess ? `🎉 ${t('pipeline').running_success}}` : `❌ ${t('pipeline').running_error}`,
               });
             }
           }
@@ -227,7 +229,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
 
     try {
       setShowRunModal(false);
-      showLoading("Executando pipeline");
+      showLoading(t('pipeline').running_pipeline);
       
       if (props.provider === "azure") {
         const details = await azureService.getPipelineRunDetails(owner, repoName, Number(pipe.id));
@@ -272,7 +274,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
 
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      notify.error("Erro ao reexecutar jobs", message);
+      notify.error("Erro ao deletar", message);
     } finally {
       hideLoading();
     }
@@ -319,7 +321,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
           <header class="p-4 border-b dark:border-gray-700/50 space-y-3">
             <Show when={selectedPipeline()} fallback={
               <div class="flex items-center justify-between">
-                <span class="text-xs font-black uppercase text-gray-500 tracking-wider">Pipelines</span>
+                <span class="text-xs font-black uppercase text-gray-500 tracking-wider">{t('pipeline').pipelines}</span>
                 <button onClick={() => refetchPipelines()} class="text-gray-400 hover:text-blue-500 transition-colors p-1">
                   <i class={`fa-solid fa-arrow-rotate-right text-xs ${pipelines.loading ? 'fa-spin text-blue-500' : ''}`}></i>
                 </button>
@@ -333,7 +335,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                   <i class="fa-solid fa-arrow-left text-xs"></i>
                 </button>
                 <div class="flex-1 min-w-0">
-                  <span class="text-[10px] font-bold text-gray-500 block uppercase tracking-wider">Runs</span>
+                  <span class="text-[10px] font-bold text-gray-500 block uppercase tracking-wider">{t('pipeline').runs}</span>
                   <span class="text-xs font-black dark:text-white block truncate" title={selectedPipeline()!.name}>{selectedPipeline()!.name}</span>
                 </div>
                 
@@ -341,14 +343,14 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                 <div class="flex items-center gap-1">
                   <button 
                     onClick={openRunPipelineModal}
-                    title="Executar Pipeline (Run new)"
+                    title={t('pipeline').run}
                     class="text-gray-400 hover:text-emerald-500 p-1.5 transition-colors"
                   >
                     <i class="fa-solid fa-play text-xs"></i>
                   </button>
                   <button 
                     onClick={() => refetchRuns()} 
-                    title="Sincronizar"
+                    title={t('pipeline').sync}
                     class="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
                   >
                     <i class={`fa-solid fa-arrow-rotate-right text-xs ${pipelineRuns.loading ? 'fa-spin text-blue-500' : ''}`}></i>
@@ -361,7 +363,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[10px]"></i>
               <input 
                 type="text"
-                placeholder={!selectedPipeline() ? "Buscar pipeline..." : "Buscar run..."}
+                placeholder={!selectedPipeline() ? t('pipeline').search_pipeline + "..." : t('pipeline').search_run + "..."}
                 value={searchTerm()}
                 onInput={(e) => setSearchTerm(e.currentTarget.value)}
                 class="w-full bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 pl-8 pr-3 text-xs outline-none focus:border-blue-500 transition-colors dark:text-gray-200"
@@ -403,12 +405,12 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                     if (run.name && run.name !== selectedPipeline()?.name) {
                         return run.name;
                     }
-                    return run.commit?.message || run.triggerInfo?.["ci.message"] || "Set up CI with Azure Pipelines";
+                    return run.commit?.message || run.triggerInfo?.["ci.message"] || "...";
                     });
 
                     const triggerDetails = createMemo(() => {
                     const isManual = run.triggerType === 'manual' || run.reason === 'manual';
-                    const authorName = run.author?.name || run.requestedFor?.displayName || "bruno ribeiro";
+                    const authorName = run.author?.name || run.requestedFor?.displayName || "none";
                     const avatar = run.author?.avatarUrl || run.requestedFor?.imageUrl || null;
 
                     return {
@@ -430,7 +432,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
 
                     const formattedTime = createMemo(() => {
                       if (!run.startTime) {
-                        return "Fila / Aguardando";
+                        return t('pipeline').queue;
                       }
                       
                       const timeStr = getRelativeTime(run.startTime, t, locale());
@@ -449,7 +451,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                       <div class="flex items-start justify-between gap-2 mb-1.5">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
                           <span class="bg-gray-300/50 dark:bg-gray-800 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold text-gray-600 dark:text-gray-300 shrink-0">
-                            #{run.number || "Fila"}
+                            #{run.number || t('pipeline').queue}
                           </span>
                           <span class="text-xs font-black truncate dark:text-gray-200" title={runDescription()}>
                             {runDescription()}
@@ -508,7 +510,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
         <Show when={selectedRunId()} fallback={
           <div class="flex-1 flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 gap-2">
             <i class="fa-solid fa-layer-group text-4xl"></i>
-            <span class="text-xs font-black uppercase tracking-wider">Selecione uma execução para analisar o sumário</span>
+            <span class="text-xs font-black uppercase tracking-wider">{t('pipeline').select_run}</span>
           </div>
         }>
           <RunDetailsPanel 
@@ -518,7 +520,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
             provider={props.provider} 
             fallbackRuns={pipelineRuns() || []}
             selectCommit={selectCommit}
-            run={handleConfirmTriggerPipeline}
+            run={openRunPipelineModal}
             runFailedJobs={handleRerunFailedJobs}
             deletePipeline={handleDeletePipelineRun}
           />
@@ -544,18 +546,18 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
       {/* MODAL CONFIGURAÇÃO RUN PIPELINE (ESTILO AZURE DEVOPS) */}
       <Show when={showRunModal()}>
         <Dialog open={true}
-                title="Run pipeline"
+                title={t('pipeline').run_pipeline}
                 onClose={() => setShowRunModal(false)}
                 width={'480px'}
                 height={'auto'}>
           <div class="p-0 flex flex-col gap-5 dark:text-gray-200">
             <span class="text-xs text-gray-500 font-bold -mt-2 block">
-              Select parameters below and manually run the pipeline
+              {t('pipeline').select_parameters}
             </span>
 
             {/* SELEÇÃO DE PIPELINE VERSION (BRANCH) */}
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-black text-gray-700 dark:text-gray-300">Pipeline version</label>
+              <label class="text-xs font-black text-gray-700 dark:text-gray-300">{t('pipeline').pipeline_version}</label>
               <div class="relative">
                 <i class="fa-solid fa-code-branch absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
                 <select 
@@ -572,30 +574,30 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                 </select>
                 <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] pointer-events-none"></i>
               </div>
-              <span class="text-[10px] text-gray-400 font-bold">Select the pipeline to run by branch, commit, or tag</span>
+              <span class="text-[10px] text-gray-400 font-bold">{t('pipeline').select_version}</span>
             </div>
 
             {/* ARTIFACTS / ADVANCED OPTIONS PLACEHOLDERS */}
             <div class="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-4">
               <div>
-                <h4 class="text-xs font-black text-gray-700 dark:text-gray-300 mb-1">Pipeline artifacts</h4>
-                <p class="text-[11px] text-gray-400 font-bold">No pipeline artifacts found.</p>
+                <h4 class="text-xs font-black text-gray-700 dark:text-gray-300 mb-1">{t('pipeline').artifacts}</h4>
+                <p class="text-[11px] text-gray-400 font-bold">{t('pipeline').no_artifact}</p>
               </div>
 
               <div>
-                <h4 class="text-xs font-black text-gray-700 dark:text-gray-300 mb-2">Advanced options</h4>
+                <h4 class="text-xs font-black text-gray-700 dark:text-gray-300 mb-2">{t('pipeline').advanced_options}</h4>
                 <div class="border border-gray-300 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 text-xs font-bold overflow-hidden">
                   <div class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-800/40 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer">
                     <div>
-                      <p class="text-gray-700 dark:text-gray-300 text-[11px]">Variables</p>
-                      <p class="text-[10px] text-gray-400 normal-case font-normal">This pipeline has no defined variables</p>
+                      <p class="text-gray-700 dark:text-gray-300 text-[11px]">{t('pipeline').variables}</p>
+                      <p class="text-[10px] text-gray-400 normal-case font-normal">{t('pipeline').no_defined_variables}</p>
                     </div>
                     <i class="fa-solid fa-chevron-right text-[10px] text-gray-400"></i>
                   </div>
                   <div class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-800/40 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer">
                     <div>
-                      <p class="text-gray-700 dark:text-gray-300 text-[11px]">Stages to run</p>
-                      <p class="text-[10px] text-gray-400 normal-case font-normal">Run as configured</p>
+                      <p class="text-gray-700 dark:text-gray-300 text-[11px]">{t('pipeline').stages_to_run}</p>
+                      <p class="text-[10px] text-gray-400 normal-case font-normal">{t('pipeline').run_as_configured}</p>
                     </div>
                     <i class="fa-solid fa-chevron-right text-[10px] text-gray-400"></i>
                   </div>
@@ -611,7 +613,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                 onChange={(e) => setEnableDiagnostics(e.currentTarget.checked)}
                 class="accent-blue-500 w-3.5 h-3.5 rounded border-gray-300"
               />
-              Enable system diagnostics
+              {t('pipeline').error_run_notify}
             </label>
 
             {/* FOOTER ACTIONS */}
@@ -620,13 +622,13 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                 onClick={() => setShowRunModal(false)}
                 class="px-4 py-2 text-xs font-black rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
               >
-                Cancel
+                {t('common').cancel}
               </button>
               <button 
                 onClick={handleConfirmTriggerPipeline}
                 class="px-4 py-2 text-xs font-black rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors"
               >
-                Run
+                {t('pipeline').run}
               </button>
             </div>
           </div>

@@ -59,26 +59,25 @@ export function RunDetailsPanel(props: Props) {
   const runDescription = createMemo(() => {
     const run = runDetails();
     if (!run) return "Build Triggered";
-    return run.commit?.message || run.triggerInfo?.["ci.message"] || "Set up CI with Azure Pipelines";
+    return run.commit?.message || run.triggerInfo?.["ci.message"] || "...";
   });
 
   const openModalConfirmDelete = () => {
     setModalConfirmOpen(true);
-    setModalConfirmTitle('Delete Run');
-    setModalConfirmMessage('Are you sure you want to delete everything in run, including its logs, artifacts, test results, symbols, and label?');
+    setModalConfirmTitle(t('pipeline').delete_run);
+    setModalConfirmMessage(t('pipeline').delete_run_message);
     setModalConfirmButton(t('common').yes);
     setModalConfirmAction(() => () => {
-      console.log("Item deletado com sucesso!");
       props.deletePipeline();
     });
   }
 
   return (
     <Show when={!runDetails.loading} fallback={<div class="flex-1 flex items-center justify-center"><i class="fa-solid fa-spinner fa-spin text-xl text-blue-500"></i></div>}>
-      <div class="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700/50 overflow-y-auto custom-scrollbar flex flex-col">
+      <div class="flex-1  overflow-y-auto custom-scrollbar flex flex-col mb-2">
         
         {/* BANNER SUPERIOR (PADRÃO AZURE DEVOPS) */}
-        <header class="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 flex items-start justify-between gap-4">
+        <header class="p-4 border-b container-branch-list mb-2 flex flex-row items-start justify-between gap-4">
           <div class="flex items-start gap-3 min-w-0 flex-1">
             <div class="mt-0.5 shrink-0">
               <PipelineStatusIcon status={runDetails().status} result={runDetails().result} />
@@ -93,20 +92,25 @@ export function RunDetailsPanel(props: Props) {
                 </div>
               </div>
               <div class="text-xs text-gray-500 font-bold flex items-center gap-2">
-                <span>Pipeline: <span class="text-gray-700 dark:text-gray-300 font-black">{props.repo?.name || runDetails().name}</span></span>
+                <span>{t('pipeline').pipeline}: <span class="text-gray-700 dark:text-gray-300 font-black">{props.repo?.name || runDetails().name}</span></span>
               </div>
             </div>
           </div>
 
           <div class="flex items-center gap-2 shrink-0 relative">
             <Show when={runDetails().result?.toLowerCase() === 'failed' || runDetails().result?.toLowerCase() === 'failure'}>
-              <button class="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-black uppercase text-[9px] tracking-wider px-3.5 py-2 rounded-xl transition-all shadow-sm">
-                <i class="fa-solid fa-arrow-rotate-left"></i> Rerun failed jobs
+              <button onClick={() => props.runFailedJobs()}
+                class="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 
+                    hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-black 
+                      uppercase text-[9px] tracking-wider px-3.5 py-2 rounded-xl transition-all shadow-sm">
+                <i class="fa-solid fa-arrow-rotate-left"></i> {t('pipeline').run_failed_jobs}
               </button>
             </Show>
 
-            <button class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[9px] tracking-wider px-4 py-2 rounded-xl transition-all shadow-md shadow-blue-600/10">
-              <i class="fa-solid fa-play text-[8px]"></i> Run new
+            <button onClick={() => props.run()} 
+                class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black 
+                uppercase text-[9px] tracking-wider px-4 py-2 rounded-xl transition-all shadow-md shadow-blue-600/10">
+              <i class="fa-solid fa-play text-[8px]"></i> {t('pipeline').run_new}
             </button>
 
             <div class="relative">
@@ -120,10 +124,10 @@ export function RunDetailsPanel(props: Props) {
               <Show when={dropdownOpen()}>
                 <div class="absolute top-9 right-0 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl py-1.5 z-50 text-xs font-bold text-gray-700 dark:text-gray-300">
                   <button class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5">
-                    <i class="fa-solid fa-download text-gray-400 w-3"></i> Download logs
+                    <i class="fa-solid fa-download text-gray-400 w-3"></i> {t('pipeline').download_logs}
                   </button>
                   <button class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5">
-                    <i class="fa-solid fa-code text-gray-400 w-3"></i> See full YAML
+                    <i class="fa-solid fa-code text-gray-400 w-3"></i> {t('pipeline').see_full_yaml}
                   </button>
                   <a 
                     href={runDetails().url} 
@@ -131,11 +135,11 @@ export function RunDetailsPanel(props: Props) {
                     rel="noreferrer"
                     class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5 text-gray-700 dark:text-gray-300"
                   >
-                    <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 w-3"></i> Ver no console
+                    <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 w-3"></i> {t('pipeline').see_on_browser}
                   </a>
                   <div class="border-t dark:border-gray-800 my-1"></div>
                   <button class="w-full text-left px-4 py-2 hover:bg-rose-500/10 text-rose-500 flex items-center gap-2.5" onClick={openModalConfirmDelete}>
-                    <i class="fa-solid fa-trash w-3"></i> Delete Run
+                    <i class="fa-solid fa-trash w-3"></i> {t('pipeline').delete_run}
                   </button>
                 </div>
                 <div class="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)}></div>
@@ -145,9 +149,9 @@ export function RunDetailsPanel(props: Props) {
         </header>
 
         {/* METADADOS EM GRID CARD */}
-        <div class="p-6 grid grid-cols-4 gap-6 border-b dark:border-gray-700 text-xs bg-white dark:bg-gray-800">
+        <div class="p-4 grid grid-cols-4 gap-6 border-b container-branch-list mb-2">
           <div class="space-y-1.5">
-            <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">Autor do disparo</span>
+            <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">{t('pipeline').run_author}</span>
             <div class="flex items-center gap-2">
               <Show when={runDetails().author?.avatarUrl} fallback={<div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] text-white font-black">{runDetails().author?.name?.[0] || 'B'}</div>}>
                 <img src={runDetails().author.avatarUrl} class="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600" />
@@ -157,7 +161,7 @@ export function RunDetailsPanel(props: Props) {
           </div>
 
           <div class="space-y-1.5">
-            <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">Repositório e versão</span>
+            <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">{t('pipeline').repository_version}</span>
             <div class="font-bold dark:text-gray-200 flex flex-col gap-0.5">
               <span class="text-blue-500"><i class="fa-solid fa-book-bookmark mr-1.5 text-[10px]"></i>{props.repo?.name}</span>
               <span class="text-gray-500 font-mono text-[11px] truncate">
@@ -175,34 +179,34 @@ export function RunDetailsPanel(props: Props) {
 
           {/* NOVO BLOCO: ALTERAÇÕES VINCULADAS (IGUAL AO AZURE DEVOPS) */}
           <div class="space-y-1.5">
-            <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">Modificações</span>
+            <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">{t('pipeline').modifications}</span>
             <div class="flex items-center">
               <button 
                 onClick={() => setIsChangesModalOpen(true)}
                 class="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600/70 text-gray-700 dark:text-gray-200 font-black text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-lg transition-all"
               >
                 <i class="fa-solid fa-clock-rotate-left text-[9px] text-gray-400"></i>
-                View {runChanges() ? runChanges()?.length : 0} changes
+                {t('pipeline').view_changes.replace('{{changes}}', String(runChanges()?.length ?? 0))}
               </button>
             </div>
           </div>
 
           <div class="space-y-1.5">
-            <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">Duração total</span>
+            <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">{t('pipeline').total_duration}</span>
             <div class="font-bold dark:text-gray-200">
               <i class="fa-regular fa-clock mr-1.5 text-gray-400"></i>
-              {runDetails().finishTime ? getRelativeTime(runDetails().startTime, t, locale()) : "Rodando agora"}
+              {runDetails().finishTime ? getRelativeTime(runDetails().startTime, t, locale()) : t('pipeline').running}
             </div>
           </div>
         </div>
 
         {/* CAIXA DE ERROS DO AZURE */}
         <Show when={runDetails().result?.toLowerCase() === 'failed' || runDetails().result?.toLowerCase() === 'failure'}>
-          <div class="m-6 p-4 bg-rose-500/5 dark:bg-rose-950/20 border border-rose-500/20 rounded-xl">
+          <div class="container-branch-list rounded-xl mb-2 p-4">
             <div class="flex items-center gap-2 text-rose-500 dark:text-rose-400 font-black text-[10px] uppercase tracking-wider mb-2">
               <i class="fa-solid fa-circle-exclamation text-xs text-rose-500"></i> Erros encontrados no Job
             </div>
-            <div class="bg-gray-950 text-rose-400 font-mono text-xs p-3 rounded-lg border border-gray-900 shadow-inner leading-relaxed overflow-x-auto">
+            <div class="bg-rose-500/5 dark:bg-rose-950/20 border-rose-500/20 font-mono text-xs p-3 rounded-lg border shadow-inner leading-relaxed overflow-x-auto">
               Error: Not found wrapperScript: /home/vsts/work/1/s/gradlew <br />
               <span class="text-gray-500 text-[10px] block mt-2 font-sans">► Task afetada: Gradle@3 (Verifique se o wrapper está na raiz do Git)</span>
             </div>
@@ -210,8 +214,8 @@ export function RunDetailsPanel(props: Props) {
         </Show>
 
         {/* ÁRVORE DE STAGES & JOBS */}
-        <div class="mx-6 mb-6 flex-1 flex flex-col">
-          <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-3">Estágios e Jobs</span>
+        <div class="flex-1 flex flex-col container-branch-list p-4">
+          <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-3">{t('pipeline').stages_jobs}</span>
           <div class="border dark:border-gray-700/60 rounded-xl overflow-hidden bg-gray-50/50 dark:bg-gray-900/10 text-xs font-bold">
             
             <div class="flex items-center justify-between p-3 border-b dark:border-gray-700/50 bg-gray-100/60 dark:bg-gray-800/40">
@@ -250,11 +254,12 @@ export function RunDetailsPanel(props: Props) {
       </div>
 
       {/* MODAL DE HISTÓRICO DE COMMITS (ALTERAÇÕES) */}
-      <Dialog open={isChangesModalOpen()} onClose={() => setIsChangesModalOpen(false)} title={'Commits associados à Run #' + runDetails().number}>
+      <Dialog open={isChangesModalOpen()} bodyClass="p-2" onClose={() => setIsChangesModalOpen(false)} 
+            title={t('pipeline').commits_associated.replace("{{run}}", runDetails().number)}>
           <div class="max-h-[350px] overflow-y-auto custom-scrollbar space-y-2 pr-1">
             <Show when={runChanges() && runChanges()!.length > 0} fallback={
               <div class="text-center py-8 text-xs text-gray-400 font-bold uppercase tracking-wider">
-                Nenhum commit incremental detectado nesta execução.
+                {t('pipeline').no_incrimental_commit}
               </div>
             }>
               <For each={runChanges()}>
