@@ -583,7 +583,9 @@
     "rerunning_fail": "失敗したジョブを再実行中",
     "error_run_notify": "パイプラインの実行エラー",
     "deleting_run": "実行を削除中",
-    "commits_associated": "{{run}}の実行に関連付けられたコミット"
+    "commits_associated": "{{run}}の実行に関連付けられたコミット",
+    "agent_pool": "エージェント プール",
+    "available_pools": "利用可能なプール"
   },
   "date": {
     "just_now": "たった今",

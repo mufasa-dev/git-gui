@@ -58,6 +58,8 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
   const { t, locale } = useApp();
   const [sidebarWidth, setSidebarWidth] = createSignal(380);
   const [isResizing, setIsResizing] = createSignal(false);
+  const [agentPools, setAgentPools] = createSignal<any[]>([]);
+  const [selectedAgentPool, setSelectedAgentPool] = createSignal<string>("");
   const [activeBuilds, setActiveBuilds] = createSignal<Record<string, string>>({});
 
   createEffect(() => {
@@ -216,7 +218,21 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
     if (!selectedPipeline()) return;
     setSelectedTargetBranch("main");
     setEnableDiagnostics(false);
+    handleOpenRunModal();
+  };
+
+  const handleOpenRunModal = async () => {
     setShowRunModal(true);
+    
+    if (props.provider === "azure") {
+      const owner = repoOwner();
+      const pools = await azureService.getAgentPools(owner, props.repo.name);
+      setAgentPools(pools);
+      
+      if (pools.length > 0) {
+        setSelectedAgentPool(pools[0].name);
+      }
+    }
   };
 
   const handleConfirmTriggerPipeline = async () => {
@@ -234,7 +250,14 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
       if (props.provider === "azure") {
         const details = await azureService.getPipelineRunDetails(owner, repoName, Number(pipe.id));
 
-        await azureService.triggerPipelineRun(owner, repoName, details.definitionId, branch);
+        await azureService.triggerPipelineRun(
+          owner, 
+          repoName, 
+          details.definitionId, 
+          branch,
+          selectedAgentPool(),
+          enableDiagnostics()
+        );
       } else {
         const workflowFile = "main.yml";
         await githubService.triggerPipelineRun(owner, repoName, workflowFile, branch);
@@ -555,6 +578,32 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
               {t('pipeline').select_parameters}
             </span>
 
+            {/* SELEÇÃO DE AGENT POOL (EXCLUSIVO AZURE) */}
+            <Show when={props.provider === "azure" && agentPools().length > 0}>
+              <div class="flex flex-col gap-1.5 animate-in fade-in duration-150">
+                <label class="text-xs font-black text-gray-700 dark:text-gray-300">{t('pipeline').agent_pool}</label>
+                <div class="relative">
+                  <i class="fa-solid fa-server absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                  <select 
+                    value={selectedAgentPool()}
+                    onChange={(e) => setSelectedAgentPool(e.currentTarget.value)}
+                    class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg py-2 pl-9 pr-3 text-xs outline-none focus:border-blue-500 appearance-none font-sans"
+                  >
+                    <optgroup label={t('pipeline').available_pools}>
+                      <For each={agentPools()}>
+                        {(pool) => (
+                          <option value={pool.name}>
+                            {pool.name}
+                          </option>
+                        )}
+                      </For>
+                    </optgroup>
+                  </select>
+                  <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] pointer-events-none"></i>
+                </div>
+              </div>
+            </Show>
+
             {/* SELEÇÃO DE PIPELINE VERSION (BRANCH) */}
             <div class="flex flex-col gap-1.5">
               <label class="text-xs font-black text-gray-700 dark:text-gray-300">{t('pipeline').pipeline_version}</label>
@@ -613,7 +662,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                 onChange={(e) => setEnableDiagnostics(e.currentTarget.checked)}
                 class="accent-blue-500 w-3.5 h-3.5 rounded border-gray-300"
               />
-              {t('pipeline').error_run_notify}
+              {t('pipeline').enable_system_diagnostic}
             </label>
 
             {/* FOOTER ACTIONS */}

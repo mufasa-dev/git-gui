@@ -583,7 +583,9 @@
     "rerunning_fail": "Rerunning failed jobs",
     "error_run_notify": "Error running pipeline",
     "deleting_run": "Deleting run",
-    "commits_associated": "Commits associated with the execution of {{run}}"
+    "commits_associated": "Commits associated with the execution of {{run}}",
+    "agent_pool": "Agent pool",
+    "available_pools": "Available pools"
   },
   "date": {
     "just_now": "just now",

@@ -2,6 +2,7 @@ import { load } from "@tauri-apps/plugin-store";
 import { fetch } from "@tauri-apps/plugin-http";
 import { UnifiedPR } from "../../models/PR.model";
 import { UnifiedPipelineRun } from "../../models/Pipeline.model";
+import { invoke } from "@tauri-apps/api/core";
 
 async function getAuthStore() {
   return await load("auth.bin");
@@ -431,7 +432,14 @@ export const azureService = {
     }
   },
 
-  async triggerPipelineRun(owner: string, project: string, pipelineId: string | number, branch: string = "main") {
+  async triggerPipelineRun(
+    owner: string, 
+    project: string, 
+    pipelineId: string | number, 
+    branch: string = "main",
+    agentPoolName?: string,
+    enableDiagnostics: boolean = false
+  ) {
     try {
       const token = await this.getToken();
       if (!token) return null;
@@ -446,6 +454,28 @@ export const azureService = {
       const cleanBranch = branch.startsWith("refs/") ? branch : `refs/heads/${branch}`;
       const url = `https://dev.azure.com/${owner}/${encodeURIComponent(project)}/_apis/build/builds?api-version=7.0`;
 
+      const payload: any = {
+        definition: {
+          id: targetPipelineId
+        },
+        sourceBranch: cleanBranch,
+        templateParameters: {},
+        variables: {}
+      };
+
+      if (enableDiagnostics) {
+        payload.variables["system.debug"] = {
+          value: "true",
+          allowOverride: true
+        };
+      }
+
+      if (agentPoolName) {
+        payload.queue = {
+          name: agentPoolName
+        };
+      }
+
       const response = await window.fetch(url, {
         method: "POST",
         headers: { 
@@ -453,12 +483,7 @@ export const azureService = {
           'Content-Type': 'application/json',
           'Accept': 'application/json' 
         },
-        body: JSON.stringify({
-          definition: {
-            id: targetPipelineId
-          },
-          sourceBranch: cleanBranch
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -552,6 +577,36 @@ export const azureService = {
     } catch (error) {
       console.error("Erro em deletePipelineRun (Azure):", error);
       throw error;
+    }
+  },
+
+  async getAgentPools(owner: string, project: string) {
+    try {
+      const store = await getAuthStore();
+      const token = await store.get<string>("azure_token");
+      if (!token) return [];
+
+      // Chama o backend Rust diretamente, eliminando o erro de CORS do navegador
+      const jsonString = await invoke<string>("fetch_azure_queues", { 
+        owner, 
+        project, 
+        token 
+      });
+      
+      const data = JSON.parse(jsonString);
+
+      if (data.value && Array.isArray(data.value)) {
+        return data.value.map((queue: any) => ({
+          id: queue.pool?.id || queue.id,
+          name: queue.pool?.name || queue.name,
+          isHosted: queue.pool?.isHosted
+        }));
+      }
+
+      return [];
+    } catch (error) {
+      console.error("Erro em getAgentPools via Backend Rust:", error);
+      return [];
     }
   },
 

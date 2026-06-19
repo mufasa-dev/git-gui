@@ -583,7 +583,9 @@
     "rerunning_fail": "Riesecuzione dei processi falliti",
     "error_run_notify": "Errore durante l'esecuzione della pipeline",
     "deleting_run": "Eliminazione dell'esecuzione in corso",
-    "commits_associated": "Commit associati all'esecuzione di {{run}}"
+    "commits_associated": "Commit associati all'esecuzione di {{run}}",
+    "agent_pool": "Pool di agenti",
+    "available_pools": "Pool disponibili"
   },
   "date": {
     "just_now": "proprio ora",
