@@ -114,6 +114,11 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   svelte: "Svelte",
   vue: "Vue",
   astro: "Astro",
+  // Assembly
+  asm: "Assembly",
+  wasm: "WebAssembly",
+  wat: "WebAssembly",
+  wast: "WebAssembly",
   // Styles
   css: "CSS",
   sass: "CSS",
@@ -258,6 +263,7 @@ export const GROUP_COLORS: Record<string, string> = {
   "Font": "#f7e03d",
   "Adobe Flash": "#f7e03d",
   "Json": "#51aff7",
+  "Assembly": "#3053a5",
   "WebAssembly": "#5d58ea",
   "Coffee": "#6f4c3e",
   "Config": "#555555",
