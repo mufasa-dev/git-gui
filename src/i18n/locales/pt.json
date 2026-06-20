@@ -541,7 +541,7 @@
     "code_coverage": "Cobertura de código",
     "get_started": "Iniciar",
     "related": "Relacionado",
-    "manually_run_by": "Executado manualmente por {{user}}",
+    "manually_run_by": "Manualmente por {{user}}",
     "individual_ci_for": "CI individual por {{user}}",
     "select_parameters": "Selecione os parâmetros abaixo e execute o pipeline manualmente.",
     "pipeline_version": "Versão da pipeline",

@@ -12,6 +12,7 @@ import { getCommitDetails } from "../../services/gitService";
 import { CommitDetails } from "../commits/CommitDetails";
 import { useLoading } from "../ui/LoadingContext";
 import { notify } from "../../utils/notifications";
+import CommitMessage from "../ui/CommitMessage";
 
 export function PipelineStatusIcon(props: { status: string; result: string }) {
   const { t } = useApp();
@@ -90,7 +91,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
         if (!pipe || !owner || !repoName || props.provider !== "azure") return;
 
         try {
-          const allRuns = await azureService.getPipelineRuns(owner, repoName);
+          const allRuns = await azureService.getPipelineRuns(owner, repoName, props.repo.path);
           const freshRuns = allRuns.filter((run: any) => run.name === pipe.name);
 
           const currentSignature = runs.map(r => `${r.id}-${r.status}-${r.result}`).join('|');
@@ -143,7 +144,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
     async (params) => {
       if (!params.name || !params.owner) return [];
       if (params.currentProvider === "azure") {
-        const runs = await azureService.getPipelineRuns(params.owner, params.name);
+        const runs = await azureService.getPipelineRuns(params.owner, params.name, props.repo.path);
         
         const uniquePipesMap = new Map<string, { id: number | string; lastStatus: string; lastResult: string }>();
         
@@ -180,7 +181,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
     async (params) => {
       if (!params.pipeline || !params.name || !params.owner) return [];
       if (params.currentProvider === "azure") {
-        const allRuns = await azureService.getPipelineRuns(params.owner, params.name);
+        const allRuns = await azureService.getPipelineRuns(params.owner, params.name, props.repo.path);
         return allRuns.filter((run: any) => run.name === params.pipeline!.name);
       }
       return await githubService.getPipelineRuns(params.owner, params.name);
@@ -425,20 +426,20 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                     const run = item as any;
 
                     const runDescription = createMemo(() => {
-                    if (run.name && run.name !== selectedPipeline()?.name) {
-                        return run.name;
-                    }
-                    return run.commit?.message || run.triggerInfo?.["ci.message"] || "...";
+                      if (run.name && run.name !== selectedPipeline()?.name) {
+                          return run.name;
+                      }
+                      return run.commitMessage|| run.triggerInfo?.["ci.message"] || "...";
                     });
 
                     const triggerDetails = createMemo(() => {
-                    const isManual = run.triggerType === 'manual' || run.reason === 'manual';
+                    const isManual = run.trigger === 'manual' || run.reason === 'manual';
                     const authorName = run.author?.name || run.requestedFor?.displayName || "none";
                     const avatar = run.author?.avatarUrl || run.requestedFor?.imageUrl || null;
 
                     return {
                         isManual,
-                        label: isManual ? 'Manually run by ' : 'Individual CI for ',
+                        label: isManual ? t('pipeline').manually_run_by : t('pipeline').individual_ci_for,
                         authorName,
                         avatar
                     };
@@ -477,7 +478,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                             #{run.number || t('pipeline').queue}
                           </span>
                           <span class="text-xs font-black truncate dark:text-gray-200" title={runDescription()}>
-                            {runDescription()}
+                            <CommitMessage message={runDescription()} />
                           </span>
                         </div>
                         <PipelineStatusIcon 
@@ -487,17 +488,16 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                       </div>
 
                       {/* Linha 2 */}
-                      <div class="flex items-center justify-between text-[10px] text-gray-500 font-bold uppercase mb-2">
+                      <div class="flex items-center justify-between text-[10px] text-gray-500 font-bold mb-2">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                          <Show when={triggerDetails().avatar} fallback={
-                            <i class={`text-[9px] text-gray-400 ${triggerDetails().isManual ? 'fa-solid fa-user' : 'fa-solid fa-code-commit'}`}></i>
-                          }>
-                            <img src={triggerDetails().avatar!} class="w-3.5 h-3.5 rounded-full border border-gray-400/30" />
+                          <span class="truncate dark:text-white"><i class="fa-solid fa-code-branch mr-1 text-[9px]"></i>{run.sourceBranch || "main"}</span>
+                          <Show when={run.commitId || run.commit?.id}>
+                            <span class="text-gray-300 dark:text-gray-700">•</span>
+                            <span>
+                              <i class="fa-solid fa-code-commit mr-1 text-[9px]"></i>
+                              {(run.commitId || run.commit?.id).substring(0, 7)}
+                            </span>
                           </Show>
-                          <span class="truncate text-gray-400 dark:text-gray-400 normal-case">
-                            <span class="font-bold text-gray-500 dark:text-gray-500">{triggerDetails().label}</span>
-                            <span class="font-black text-gray-600 dark:text-gray-300"> {triggerDetails().authorName}</span>
-                          </span>
                         </div>
                         <span class="font-mono text-[9px] text-gray-400 shrink-0 pl-1">
                           {formattedTime()}
@@ -506,14 +506,14 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
 
                       {/* Linha 3 */}
                       <div class="flex items-center gap-2 text-[10px] text-gray-400 font-mono font-bold border-t border-gray-300/30 dark:border-gray-800 pt-1.5">
-                        <span class="truncate"><i class="fa-solid fa-code-branch mr-1 text-[9px]"></i>{run.sourceBranch || "main"}</span>
-                        <Show when={run.commitId || run.commit?.id}>
-                          <span class="text-gray-300 dark:text-gray-700">•</span>
-                          <span>
-                            <i class="fa-solid fa-code-commit mr-1 text-[9px]"></i>
-                            {(run.commitId || run.commit?.id).substring(0, 7)}
-                          </span>
+                        <Show when={triggerDetails().avatar} fallback={
+                          <i class={`text-[9px] text-gray-400 ${triggerDetails().isManual ? 'fa-solid fa-user' : 'fa-solid fa-code-commit'}`}></i>
+                        }>
+                          <img src={triggerDetails().avatar!} class="w-3.5 h-3.5 rounded-full border border-gray-400/30" />
                         </Show>
+                        <span class="truncate text-gray-400 dark:text-gray-400 normal-case">
+                            <span class="font-bold text-gray-500 dark:text-gray-500">{triggerDetails().label.replace('{{user}}', triggerDetails().authorName)}</span>
+                        </span>
                       </div>
                     </div>
                   );

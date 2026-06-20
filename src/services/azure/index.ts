@@ -303,14 +303,13 @@ export const azureService = {
     return response.ok;
   },
 
-  async getPipelineRuns(organization: string, project: string): Promise<UnifiedPipelineRun[]> {
+  async getPipelineRuns(organization: string, project: string, repoPath: string): Promise<UnifiedPipelineRun[]> {
     try {
       const token = await this.getToken();
       if (!token) return [];
       const credentials = btoa(`:${token.trim()}`);
       
-      // api-version 7.0 lista os builds mais recentes do projeto
-      // queryParameters opcionais: $top=10 (para limitar a 10 resultados)
+      // Voltamos para a URL leve padrão
       const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/build/builds?top=15&api-version=7.0`;
       
       const response = await window.fetch(url, {
@@ -326,20 +325,71 @@ export const azureService = {
       }
       
       const data = await response.json();
-      
-      // Mapeia para um formato padronizado que sua UI do SolidJS possa ler facilmente
-      return (data.value || []).map((build: any) => ({
-        id: build.id,
-        number: build.buildNumber,
-        name: build.definition?.name || "Pipeline",
-        status: build.status,       // 'completed', 'inProgress', 'notStarted'
-        result: build.result,       // 'succeeded', 'failed', 'canceled', null se rodando
-        url: build._links?.web?.href || "",
-        trigger: build.reason,      // 'manual', 'individualCI', 'batchedCI'
-        startTime: build.startTime,
-        finishTime: build.finishTime,
-        sourceBranch: build.sourceBranch?.replace('refs/heads/', '') || ""
+      const builds = data.value || [];
+
+      // 1. Extrai todos os SHAs únicos da lista de runs
+      const shas: string[] = builds
+        .map((b: any) => b.sourceVersion)
+        .filter((sha: string | undefined) => sha && sha.trim().length > 0);
+
+      // 2. Busca as mensagens em lote diretamente no repositório local usando o Rust
+      let localCommitsMap: Record<string, string> = {};
+      try {
+        if (repoPath) {
+          localCommitsMap = await invoke("get_multiple_commits_subjects", { path: repoPath, hashes: shas });
+        }
+      } catch (err) {
+        console.warn("Falha ao buscar commits locais via Rust:", err);
+      }
+
+      // 3. Monta o mapeamento final com estratégia de Fallback
+      const mappedRuns = await Promise.all(builds.map(async (build: any) => {
+        const sha = build.sourceVersion || "";
+        let commitMessage = "";
+
+        // Estratégia 1: Tenta ler o mapa local retornado pelo Rust
+        if (sha && localCommitsMap[sha]) {
+          commitMessage = localCommitsMap[sha];
+        } 
+        // Estratégia 2: Se não achou local, faz o Fallback seguro via API individual do Azure
+        else if (sha && build.repository?.id && build.repository?.type === "TfsGit") {
+          try {
+            const commitUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/git/repositories/${build.repository.id}/commits/${sha}?api-version=7.0`;
+            const commitRes = await window.fetch(commitUrl, {
+              headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+            });
+            if (commitRes.ok) {
+              const commitData = await commitRes.json();
+              commitMessage = commitData.comment || "";
+            }
+          } catch (apiErr) {
+            console.error(`Erro no fallback do commit ${sha}:`, apiErr);
+          }
+        }
+
+        // Estratégia 3: Último fallback (Gatilhos automáticos)
+        if (!commitMessage && build.triggerInfo) {
+          commitMessage = build.triggerInfo["ci.message"] || "";
+        }
+
+        return {
+          id: build.id,
+          number: build.buildNumber,
+          name: build.definition?.name || "Pipeline",
+          status: build.status,       
+          result: build.result,       
+          url: build._links?.web?.href || "",
+          trigger: build.reason,      
+          startTime: build.startTime,
+          finishTime: build.finishTime,
+          sourceBranch: build.sourceBranch?.replace('refs/heads/', '') || "",
+          commitId: sha.substring(0, 7),
+          commitMessage: commitMessage,
+          requestedFor: build.requestedFor
+        };
       }));
+
+      return mappedRuns;
     } catch (e) {
       console.error("Erro na request de pipelines do Azure:", e);
       return [];
@@ -360,8 +410,7 @@ export const azureService = {
 
       if (!response.ok) return null;
       const build = await response.json();
-
-      // Vamos buscar também os erros/logs simplificados ou detalhes do repositório
+      console.log('build', build)
       return {
         id: build.id,
         definitionId: build.definition?.id,
@@ -374,6 +423,7 @@ export const azureService = {
         startTime: build.startTime,
         finishTime: build.finishTime,
         sourceBranch: build.sourceBranch?.replace('refs/heads/', '') || "",
+        logs: build.logs,
         author: {
           name: build.requestedFor?.displayName || "Desconhecido",
           avatarUrl: build.requestedFor?._links?.avatar?.href || ""

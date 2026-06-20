@@ -3,6 +3,7 @@ use tauri::command;
 use serde_json::{json, Value};
 use crate::utils::git_command;
 use rayon::prelude::*;
+use std::collections::HashMap;
 
 #[derive(Serialize)]
 pub struct Commit {
@@ -192,6 +193,40 @@ pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
         "parents": parents,
         "files": files
     }))
+}
+
+#[tauri::command]
+pub fn get_multiple_commits_subjects(path: String, hashes: Vec<String>) -> Result<HashMap<String, String>, String> {
+    let mut result = HashMap::new();
+    if hashes.is_empty() {
+        return Ok(result);
+    }
+
+    let mut cmd = std::process::Command::new("git");
+    cmd.current_dir(&path)
+       .arg("log")
+       .arg("--no-walk")
+       .arg("--pretty=format:%H||%s");
+
+    for hash in &hashes {
+        if !hash.trim().is_empty() {
+            cmd.arg(hash);
+        }
+    }
+
+    let output = cmd.output().map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            let parts: Vec<&str> = line.split("||").collect();
+            if parts.len() == 2 {
+                result.insert(parts[0].to_string(), parts[1].to_string());
+            }
+        }
+    }
+
+    Ok(result)
 }
 
 #[command]

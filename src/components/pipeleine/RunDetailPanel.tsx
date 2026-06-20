@@ -123,12 +123,19 @@ export function RunDetailsPanel(props: Props) {
 
               <Show when={dropdownOpen()}>
                 <div class="absolute top-9 right-0 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl py-1.5 z-50 text-xs font-bold text-gray-700 dark:text-gray-300">
-                  <button class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5">
+                  <a 
+                    href={runDetails().logs?.url} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5 text-gray-700 dark:text-gray-300"
+                  >
                     <i class="fa-solid fa-download text-gray-400 w-3"></i> {t('pipeline').download_logs}
-                  </button>
-                  <button class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5">
-                    <i class="fa-solid fa-code text-gray-400 w-3"></i> {t('pipeline').see_full_yaml}
-                  </button>
+                  </a>
+                  <Show when={false}>
+                    <button class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2.5">
+                      <i class="fa-solid fa-code text-gray-400 w-3"></i> {t('pipeline').see_full_yaml}
+                    </button>
+                  </Show>
                   <a 
                     href={runDetails().url} 
                     target="_blank" 

@@ -56,6 +56,7 @@ fn main() {
             commands::commit::list_commits,
             commands::commit::list_user_commits,
             commands::commit::get_commit_details,
+            commands::commit::get_multiple_commits_subjects,
             commands::commit::git_commit,
             commands::commit::get_commit_file_diff,
             commands::commit::get_last_commit_for_path,
