@@ -482,6 +482,28 @@ export const azureService = {
     }
   },
 
+  async getPipelineRunTimeline(organization: string, project: string, buildId: number): Promise<any[]> {
+    try {
+      const token = await this.getToken();
+      if (!token) return [];
+      const credentials = btoa(`:${token.trim()}`);
+      
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/build/builds/${buildId}/timeline?api-version=7.0`;
+      
+      const response = await window.fetch(url, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+
+      if (!response.ok) return [];
+      const data = await response.json();
+      
+      return (data.records || []).sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+    } catch (e) {
+      console.error("Erro ao buscar timeline da pipeline no Azure:", e);
+      return [];
+    }
+  },
+
   async triggerPipelineRun(
     owner: string, 
     project: string, 

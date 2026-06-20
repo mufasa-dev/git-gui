@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, Show, For } from "solid-js";
+import { createMemo, createResource, createSignal, Show, For, Switch, Match } from "solid-js";
 import CommitMessage from "../ui/CommitMessage";
 import { azureService } from "../../services/azure";
 import { useApp } from "../../context/AppContext";
@@ -25,6 +25,8 @@ export function RunDetailsPanel(props: Props) {
   const { locale, t } = useApp();
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [isChangesModalOpen, setIsChangesModalOpen] = createSignal(false);
+  const [timelineRecords, setTimelineRecords] = createSignal<any[]>([]);
+  const [timelineErrorsState, setTimelineErrorsState] = createSignal<any[]>([]);
 
   const [modalConfirmOpen, setModalConfirmOpen] = createSignal(false);
   const [modalConfirmTitle, setModalConfirmTitle] = createSignal('');
@@ -55,6 +57,28 @@ export function RunDetailsPanel(props: Props) {
       }
     }
   );
+
+  const [runTimeline] = createResource(
+    () => ({ owner: props.repoOwner, name: props.repo?.name, runId: props.runId, currentProvider: props.provider }),
+    async (params) => {
+      if (!params.runId || !params.name || !params.owner || params.currentProvider !== "azure") return [];
+      try {
+        // Chama a função da service que criamos no passo anterior
+        return await azureService.getPipelineRunTimeline(params.owner, params.name, params.runId) || [];
+      } catch (e) {
+        console.error("Falha ao carregar timeline da run:", e);
+        return [];
+      }
+    }
+  );
+
+  // Memo para processar e filtrar apenas as tasks que falharam e têm mensagens de erro
+  const timelineErrors = createMemo(() => {
+    const records = runTimeline() || [];
+    return records.filter((rec: any) => 
+      rec.result?.toLowerCase() === 'failed' && rec.issues?.length > 0
+    );
+  });
 
   const runDescription = createMemo(() => {
     const run = runDetails();
@@ -207,54 +231,117 @@ export function RunDetailsPanel(props: Props) {
           </div>
         </div>
 
-        {/* CAIXA DE ERROS DO AZURE */}
-        <Show when={runDetails().result?.toLowerCase() === 'failed' || runDetails().result?.toLowerCase() === 'failure'}>
-          <div class="container-branch-list rounded-xl mb-2 p-4">
-            <div class="flex items-center gap-2 text-rose-500 dark:text-rose-400 font-black text-[10px] uppercase tracking-wider mb-2">
-              <i class="fa-solid fa-circle-exclamation text-xs text-rose-500"></i> Erros encontrados no Job
-            </div>
-            <div class="bg-rose-500/5 dark:bg-rose-950/20 border-rose-500/20 font-mono text-xs p-3 rounded-lg border shadow-inner leading-relaxed overflow-x-auto">
-              Error: Not found wrapperScript: /home/vsts/work/1/s/gradlew <br />
-              <span class="text-gray-500 text-[10px] block mt-2 font-sans">► Task afetada: Gradle@3 (Verifique se o wrapper está na raiz do Git)</span>
-            </div>
-          </div>
+        {/* CAIXA DE ERROS DO AZURE DINÂMICA */}
+        <Show when={!runTimeline.loading && timelineErrors().length > 0}>
+          <For each={timelineErrors()}>
+            {(task) => (
+              <div class="container-branch-list rounded-xl mb-2 p-4">
+                <div class="flex items-center gap-2 text-rose-500 dark:text-rose-400 font-black text-[10px] uppercase tracking-wider mb-2">
+                  <i class="fa-solid fa-circle-exclamation text-xs text-rose-500"></i> 
+                  Erros encontrados no Job: {task.name}
+                </div>
+                <div class="bg-rose-500/5 dark:bg-rose-950/20 border-rose-500/20 font-mono text-xs p-3 rounded-lg border shadow-inner leading-relaxed overflow-x-auto text-rose-700 dark:text-rose-300">
+                  <For each={task.issues}>
+                    {(issue) => (
+                      <div class="mb-1 last:mb-0">
+                        {issue.message}
+                      </div>
+                    )}
+                  </For>
+                  <span class="text-gray-500 text-[10px] block mt-2 font-sans">
+                    ► Task afetada: {task.name} (Ref: {task.type})
+                  </span>
+                </div>
+              </div>
+            )}
+          </For>
         </Show>
 
-        {/* ÁRVORE DE STAGES & JOBS */}
+        {/* ÁRVORE DE STAGES & JOBS DINÂMICA */}
         <div class="flex-1 flex flex-col container-branch-list p-4">
-          <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-3">{t('pipeline').stages_jobs}</span>
+          <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-3">
+            {t('pipeline').stages_jobs}
+          </span>
+          
           <div class="border dark:border-gray-700/60 rounded-xl overflow-hidden bg-gray-50/50 dark:bg-gray-900/10 text-xs font-bold">
             
-            <div class="flex items-center justify-between p-3 border-b dark:border-gray-700/50 bg-gray-100/60 dark:bg-gray-800/40">
-              <div class="flex items-center gap-2">
-                <i class={`fa-solid ${runDetails().result?.toLowerCase() === 'failed' ? 'fa-square-minus text-rose-400' : 'fa-square-check text-emerald-400'}`}></i>
-                <span class="dark:text-white">Stage 1 (Build e Verificação)</span>
+            {/* Feedback visual enquanto a timeline carrega */}
+            <Show when={runTimeline.loading}>
+              <div class="p-6 text-center text-gray-400 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-sm"></i>
+                Carregando etapas da execução...
               </div>
-            </div>
+            </Show>
 
-            <div class="divide-y dark:divide-gray-700/40">
-              <div class="flex items-center justify-between p-2.5 px-4">
-                <div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i> <span class="text-gray-600 dark:text-gray-300">Initialize Job</span></div>
-                <span class="font-mono text-[10px] text-gray-400">2s</span>
-              </div>
-              <div class="flex items-center justify-between p-2.5 px-4">
-                <div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i> <span class="text-gray-600 dark:text-gray-300">JavaToolInstaller@0</span></div>
-                <span class="font-mono text-[10px] text-gray-400">5s</span>
-              </div>
-              
-              <Show when={runDetails().result?.toLowerCase() === 'failed' || runDetails().result?.toLowerCase() === 'failure'}>
-                <div class="flex items-center justify-between p-2.5 px-4 bg-rose-500/5">
-                  <div class="flex items-center gap-2"><i class="fa-solid fa-circle-xmark text-rose-500 text-[10px]"></i> <span class="font-black text-rose-600 dark:text-rose-400">Gradle@3 (Task Failed)</span></div>
-                  <span class="font-mono text-[10px] text-rose-400">38s</span>
-                </div>
-              </Show>
-              <Show when={runDetails().status?.toLowerCase() === 'inprogress'}>
-                <div class="flex items-center justify-between p-2.5 px-4 bg-amber-500/5">
-                  <div class="flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-[10px]"></i> <span class="text-amber-600 dark:text-amber-400">Gradle@3 (Compilando código...)</span></div>
-                  <span class="font-mono text-[10px] text-amber-400 fa-bounce">...</span>
-                </div>
-              </Show>
-            </div>
+            <Show when={!runTimeline.loading}>
+              <For each={runTimeline()}>
+                {(record) => {
+                  const status = record.state?.toLowerCase(); 
+                  const result = record.result?.toLowerCase(); 
+                  
+                  let duration = "...";
+                  if (record.startTime && record.finishTime) {
+                    const start = new Date(record.startTime).getTime();
+                    const finish = new Date(record.finishTime).getTime();
+                    duration = `${Math.round((finish - start) / 1000)}s`;
+                  }
+
+                  if (record.type === 'Stage' || record.type === 'Job') {
+                    return (
+                      <div class="flex items-center justify-between p-3 border-b dark:border-gray-700/50 bg-gray-100/60 dark:bg-gray-800/40">
+                        <div class="flex items-center gap-2">
+                          <i class={`fa-solid ${
+                            result === 'succeeded' ? 'fa-square-check text-emerald-400' : 
+                            result === 'failed' ? 'fa-square-minus text-rose-400' : 
+                            status === 'inprogress' ? 'fa-square-notch fa-spin text-amber-400' : 'fa-square text-gray-300'
+                          }`}></i>
+                          <span class="dark:text-white uppercase text-[11px] tracking-wide">{record.name}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (record.type === 'Task') {
+                    return (
+                      <div class={`flex items-center justify-between p-2.5 px-4 border-b dark:border-gray-700/30 last:border-0 ${
+                        result === 'failed' ? 'bg-rose-500/5' : 
+                        status === 'inprogress' ? 'bg-amber-500/5' : ''
+                      }`}>
+                        <div class="flex items-center gap-2">
+                          <Switch fallback={<i class="fa-solid fa-circle text-gray-300 text-[10px]"></i>}>
+                            <Match when={status === 'inprogress'}>
+                              <i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-[10px]"></i>
+                            </Match>
+                            <Match when={result === 'succeeded'}>
+                              <i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i>
+                            </Match>
+                            <Match when={result === 'failed'}>
+                              <i class="fa-solid fa-circle-xmark text-rose-500 text-[10px]"></i>
+                            </Match>
+                            <Match when={result === 'skipped'}>
+                              <i class="fa-solid fa-forward text-gray-400 text-[10px]"></i>
+                            </Match>
+                          </Switch>
+
+                          <span class={`font-medium ${
+                            result === 'failed' ? 'font-black text-rose-600 dark:text-rose-400' :
+                            status === 'inprogress' ? 'text-amber-600 dark:text-amber-400' : 'text-gray-600 dark:text-gray-300'
+                          }`}>
+                            {record.name} {status === 'inprogress' ? '(Processando...)' : ''}
+                          </span>
+                        </div>
+                        <span class={`font-mono text-[10px] ${result === 'failed' ? 'text-rose-400' : 'text-gray-400'}`}>
+                          {duration}
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                }}
+              </For>
+            </Show>
+
           </div>
         </div>
 
