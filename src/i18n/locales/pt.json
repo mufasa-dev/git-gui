@@ -265,7 +265,11 @@
     "open_diff_vscode": "Abrir diff no VS Code",
     "changed_to_branch": "Mudou para a branch {{branch}}",
     "changing_branch": "Trocando para a branch {{branch}}...",
-    "error_changing_branch": "Erro ao trocar de branch"
+    "error_changing_branch": "Erro ao trocar de branch",
+    "switch_local_branch": "Alternar Branch Local",
+    "actual": "Atual",
+    "discarting_local": "Descartando alterações locais...",
+    "saving_on_stash": "Salvando alterações locais no Stash..."
   },
   "file": {
     "file": "Arquivo",
@@ -279,6 +283,7 @@
     "extension": "Extensão",
     "history": "Histórico",
     "commit_history": "Histórico de Commits",
+    "changes_history": "Histórico de Alterações",
     "copy_path": "Copiar caminho",
     "updates": "Alterações",
     "big_file": "Arquivo grande",
@@ -338,7 +343,8 @@
     "manager_files": "Gerenciar arquivos",
     "open_console": "Abrir console",
     "browser": "Abrir no navegador",
-    "vs_code": "Abrir no VS Code"
+    "vs_code": "Abrir no VS Code",
+    "select_repository": "Selecionar repositório"
   },
   "merge": {
     "merge": "Merge",

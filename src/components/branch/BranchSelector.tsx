@@ -63,7 +63,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
   async function doStashAndApply() {
     if (!props.activeRepo || !targetBranch()) return;
     try {
-      showLoading("Salvando alterações locais no Stash...");
+      showLoading(t('branch').saving_on_stash);
       await stashChanges(props.activeRepo.path);
       await checkoutBranch(props.activeRepo.path, targetBranch()!);
       await stashPop(props.activeRepo.path);
@@ -79,7 +79,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
   async function doDiscard() {
     if (!props.activeRepo || !targetBranch()) return;
     try {
-      showLoading("Descartando alterações locais...");
+      showLoading(t('branch').discart_changes);
       await resetHard(props.activeRepo.path);
       await checkoutBranch(props.activeRepo.path, targetBranch()!);
       await props.refreshBranches(props.activeRepo.path);
@@ -134,7 +134,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
             {/* Header Interno do Popover */}
             <div class="p-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-900 flex items-center justify-between">
               <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                <i class="fa fa-laptop mr-1.5 text-blue-500 dark:text-blue-400"></i> Alternar Branch Local
+                <i class="fa fa-laptop mr-1.5 text-blue-500 dark:text-blue-400"></i> {t('branch').switch_local_branch}
               </span>
               <span class="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full font-mono">
                 {props.activeRepo!.branches.length}
@@ -162,7 +162,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
                       
                       <div class="flex items-center gap-2 shrink-0 font-mono text-xs">
                         <Show when={isCurrent}>
-                          <span class="bg-white/20 text-white text-[10px] uppercase px-1.5 py-0.5 rounded font-bold tracking-wider">Atual</span>
+                          <span class="bg-white/20 text-white text-[10px] uppercase px-1.5 py-0.5 rounded font-bold tracking-wider">{t('branch').actual}</span>
                         </Show>
                         <Show when={!isCurrent && branch.ahead > 0}>
                           <span class="text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded">↑{branch.ahead}</span>

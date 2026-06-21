@@ -206,7 +206,7 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
           <Dialog 
             open={showCommits()} 
             onClose={() => setShowCommits(false)} 
-            title="Histórico de Alterações"
+            title={t('file').changes_history}
             width="550px" bodyClass="p-0"
           >
             <CommitsModalList commits={selectedCommits()} />

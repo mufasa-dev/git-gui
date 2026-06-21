@@ -305,7 +305,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         <Dialog 
           open={showCommits()} 
           onClose={() => setShowCommits(false)} 
-          title="Histórico de Alterações"
+          title={t('file').changes_history}
           width="550px" bodyClass="p-0"
         >
           <CommitsModalList commits={selectedCommits()} />

@@ -265,7 +265,11 @@
     "open_diff_vscode": "VS Codeで差分を表示",
     "changed_to_branch": "ブランチ {{branch}} に切り替えました",
     "changing_branch": "ブランチ {{branch}} に切り替えています...",
-    "error_changing_branch": "ブランチの切り替え中にエラーが発生しました"
+    "error_changing_branch": "ブランチの切り替え中にエラーが発生しました",
+    "switch_local_branch": "ローカルブランチを切り替える",
+    "actual": "現在",
+    "discarting_local": "ローカルの変更を破棄しています...",
+    "saving_on_stash": "ローカルの変更をスタッシュに保存しています..."
   },
   "file": {
     "file": "ファイル",
@@ -279,6 +283,7 @@
     "extension": "拡張子",
     "history": "履歴",
     "commit_history": "コミット履歴",
+    "changes_history": "変更履歴",
     "copy_path": "パスをコピー",
     "updates": "更新",
     "big_file": "大きなファイル",
@@ -338,7 +343,8 @@
     "manager_files": "ファイルを管理",
     "open_console": "コンソールを開く",
     "browser": "ブラウザで開く",
-    "vs_code": "VS Codeで開く"
+    "vs_code": "VS Codeで開く",
+    "select_repository": "リポジトリを選択"
   },
   "merge": {
     "merge": "マージ",
