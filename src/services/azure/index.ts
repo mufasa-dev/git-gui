@@ -497,7 +497,7 @@ export const azureService = {
       if (!response.ok) return [];
       const data = await response.json();
       const records = data.records || [];
-      console.log('data', data)
+
       const filteredRecords = records.filter((rec: any) => {
         const type = rec.type;
         const name = rec.name?.toLowerCase() || "";
@@ -516,6 +516,24 @@ export const azureService = {
     } catch (e) {
       console.error("Erro ao buscar timeline da pipeline no Azure:", e);
       return [];
+    }
+  },
+
+  async getTaskLogText(logUrl: string): Promise<string> {
+    try {
+      const token = await this.getToken();
+      if (!token) return "";
+      const credentials = btoa(`:${token.trim()}`);
+      
+      const response = await window.fetch(logUrl, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'text/plain' }
+      });
+
+      if (!response.ok) return "Não foi possível carregar os logs desta etapa.";
+      return await response.text();
+    } catch (e) {
+      console.error("Erro ao buscar texto do log no Azure:", e);
+      return "Erro ao conectar com o servidor de logs.";
     }
   },
 
