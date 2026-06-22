@@ -308,18 +308,34 @@ export function RunDetailsPanel(props: Props) {
                         status === 'inprogress' ? 'bg-amber-500/5' : ''
                       }`}>
                         <div class="flex items-center gap-2">
-                          <Switch fallback={<i class="fa-solid fa-circle text-gray-300 text-[10px]"></i>}>
+                          <Switch fallback={<i class="fa-solid fa-circle text-gray-300 dark:text-gray-600 text-[10px]"></i>}>
+                            {/* EM PROGRESSO */}
                             <Match when={status === 'inprogress'}>
                               <i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-[10px]"></i>
                             </Match>
-                            <Match when={result === 'succeeded'}>
-                              <i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i>
-                            </Match>
+                            
+                            {/* FALHA / ERRO (Vermelho) */}
                             <Match when={result === 'failed'}>
                               <i class="fa-solid fa-circle-xmark text-rose-500 text-[10px]"></i>
                             </Match>
-                            <Match when={result === 'skipped'}>
-                              <i class="fa-solid fa-forward text-gray-400 text-[10px]"></i>
+
+                            {/* SUCESSO NEUTRO / CACHE / NÃO MODIFICADO (Cinza claro com check) */}
+                            <Match when={(result === 'succeeded' && 
+                              (record.name?.toLowerCase().includes('initialize') || 
+                              record.name?.toLowerCase().includes('finalize') || 
+                              record.name?.toLowerCase().includes('report build'))) || 
+                              result === 'abandoned'}>
+                              <i class="fa-solid fa-circle-check text-gray-300 dark:text-gray-500 text-[10px]"></i>
+                            </Match>
+
+                            {/* SUCESSO ATIVO (Verde) */}
+                            <Match when={result === 'succeeded'}>
+                              <i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i>
+                            </Match>
+
+                            {/* IGNORADO / PENDENTE */}
+                            <Match when={result === 'skipped' || status === 'pending' || status === 'queued'}>
+                              <i class="fa-solid fa-circle text-gray-400/40 dark:text-gray-600 text-[10px]"></i>
                             </Match>
                           </Switch>
 
