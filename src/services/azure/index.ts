@@ -496,8 +496,23 @@ export const azureService = {
 
       if (!response.ok) return [];
       const data = await response.json();
-      
-      return (data.records || []).sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+      const records = data.records || [];
+      console.log('data', data)
+      const filteredRecords = records.filter((rec: any) => {
+        const type = rec.type;
+        const name = rec.name?.toLowerCase() || "";
+        
+        if (type === 'Checkpoint' || type === 'Phase') return false;
+        if (name === '__default') return false;
+        
+        return true;
+      });
+
+      return filteredRecords.sort((a: any, b: any) => {
+        const timeA = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const timeB = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return timeA - timeB;
+      });
     } catch (e) {
       console.error("Erro ao buscar timeline da pipeline no Azure:", e);
       return [];
