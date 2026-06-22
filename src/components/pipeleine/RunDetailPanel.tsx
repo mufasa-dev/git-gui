@@ -267,6 +267,7 @@ export function RunDetailsPanel(props: Props) {
           provider={props.provider}
           runTimeline={runTimeline as any}
           timelineErrors={timelineErrors}
+          t={t as any}
         />
 
       </div>
