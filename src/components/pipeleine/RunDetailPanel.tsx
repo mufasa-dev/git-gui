@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, Show, For, Switch, Match } from "solid-js";
+import { createMemo, createResource, createSignal, Show, For } from "solid-js";
 import CommitMessage from "../ui/CommitMessage";
 import { azureService } from "../../services/azure";
 import { useApp } from "../../context/AppContext";
@@ -26,8 +26,6 @@ export function RunDetailsPanel(props: Props) {
   const { locale, t } = useApp();
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [isChangesModalOpen, setIsChangesModalOpen] = createSignal(false);
-  const [timelineRecords, setTimelineRecords] = createSignal<any[]>([]);
-  const [timelineErrorsState, setTimelineErrorsState] = createSignal<any[]>([]);
 
   const [modalConfirmOpen, setModalConfirmOpen] = createSignal(false);
   const [modalConfirmTitle, setModalConfirmTitle] = createSignal('');
@@ -96,33 +94,6 @@ export function RunDetailsPanel(props: Props) {
       props.deletePipeline();
     });
   }
-
-  const [expandedTaskId, setExpandedTaskId] = createSignal<string | null>(null);
-
-  const [taskLog] = createResource(
-    () => {
-      const activeId = expandedTaskId();
-      if (!activeId) return null;
-
-      const records = runTimeline() || [];
-      const activeRecord = records.find((r: any) => r.id === activeId);
-      return activeRecord?.log?.url ? activeRecord.log.url : null;
-    },
-    async (logUrl) => {
-      if (!logUrl) return "Nenhum log disponível para esta etapa.";
-      return await azureService.getTaskLogText(logUrl);
-    }
-  );
-
-  const toggleExpandTask = (record: any) => {
-    if (record.type !== 'Task' || !record.log) return;
-    
-    if (expandedTaskId() === record.id) {
-      setExpandedTaskId(null);
-    } else {
-      setExpandedTaskId(record.id); 
-    }
-  };
 
   return (
     <Show when={!runDetails.loading} fallback={<div class="flex-1 flex items-center justify-center"><i class="fa-solid fa-spinner fa-spin text-xl text-blue-500"></i></div>}>
@@ -208,8 +179,8 @@ export function RunDetailsPanel(props: Props) {
         </header>
 
         {/* METADADOS EM GRID CARD */}
-        <div class="p-4 grid grid-cols-4 gap-6 border-b container-branch-list mb-2">
-          <div class="space-y-1.5">
+        <div class="grid grid-cols-4 gap-2 mb-2">
+          <div class="space-y-1.5 container-branch-list flex items-center justify-center">
             <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">{t('pipeline').run_author}</span>
             <div class="flex items-center gap-2">
               <Show when={runDetails().author?.avatarUrl} fallback={<div class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] text-white font-black">{runDetails().author?.name?.[0] || 'B'}</div>}>
@@ -219,7 +190,7 @@ export function RunDetailsPanel(props: Props) {
             </div>
           </div>
 
-          <div class="space-y-1.5">
+          <div class="space-y-1.5 container-branch-list flex items-center justify-center">
             <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">{t('pipeline').repository_version}</span>
             <div class="font-bold dark:text-gray-200 flex flex-col gap-0.5">
               <span class="text-blue-500"><i class="fa-solid fa-book-bookmark mr-1.5 text-[10px]"></i>{props.repo?.name}</span>
@@ -237,7 +208,7 @@ export function RunDetailsPanel(props: Props) {
           </div>
 
           {/* NOVO BLOCO: ALTERAÇÕES VINCULADAS (IGUAL AO AZURE DEVOPS) */}
-          <div class="space-y-1.5">
+          <div class="space-y-1.5 container-branch-list flex items-center justify-center">
             <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">{t('pipeline').modifications}</span>
             <div class="flex items-center">
               <button 
@@ -250,7 +221,7 @@ export function RunDetailsPanel(props: Props) {
             </div>
           </div>
 
-          <div class="space-y-1.5">
+          <div class="space-y-1.5 container-branch-list flex items-center justify-center">
             <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider">{t('pipeline').total_duration}</span>
             <div class="font-bold dark:text-gray-200">
               <i class="fa-regular fa-clock mr-1.5 text-gray-400"></i>

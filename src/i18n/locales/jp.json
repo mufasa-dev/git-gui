@@ -591,7 +591,16 @@
     "deleting_run": "実行を削除中",
     "commits_associated": "{{run}}の実行に関連付けられたコミット",
     "agent_pool": "エージェント プール",
-    "available_pools": "利用可能なプール"
+    "available_pools": "利用可能なプール",
+    "extensive_log": "詳細なログ ({{lines}} ブロック)",
+    "load_all": "すべて読み込む",
+    "no_logs_on_step": "このステップのログはありません。",
+    "errors_on_job": "ジョブでエラーが見つかりました",
+    "affected_task": "影響を受けたタスク",
+    "loading_steps": "ステップを読み込み中...",
+    "pipe_execution_log": "パイプライン実行ログ",
+    "copy_raw": "Rawをコピー",
+    "download_console_output": "コンソール出力をダウンロード中..."
   },
   "date": {
     "just_now": "たった今",

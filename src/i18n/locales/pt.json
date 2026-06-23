@@ -591,7 +591,16 @@
     "deleting_run": "Apagando execução",
     "commits_associated": "Commits associados a execução {{run}}",
     "agent_pool": "Agent pool",
-    "available_pools": "Pools disponíveis"
+    "available_pools": "Pools disponíveis",
+    "extensive_log": "Log extenso ({{lines}} blocos)",
+    "load_all": "Carregar tudo",
+    "no_logs_on_step": "Nenhum log disponível para esta etapa.",
+    "errors_on_job": "Erros encontrados no Job",
+    "affected_task": "Task afetada",
+    "loading_steps": "Carregando etapas...",
+    "pipe_execution_log": "Logs de Execução da Pipeline",
+    "copy_raw": "Copiar Raw",
+    "download_console_output": "Baixando saída do console..."
   },
   "date": {
     "just_now": "agora mesmo",

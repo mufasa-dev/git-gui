@@ -591,7 +591,16 @@
     "deleting_run": "Deleting run",
     "commits_associated": "Commits associated with the execution of {{run}}",
     "agent_pool": "Agent pool",
-    "available_pools": "Available pools"
+    "available_pools": "Available pools",
+    "extensive_log": "Extensive log ({{lines}} blocks)",
+    "load_all": "Load all",
+    "no_logs_on_step": "No logs available for this step.",
+    "errors_on_job": "Errors found in Job",
+    "affected_task": "Affected task",
+    "loading_steps": "Loading steps...",
+    "pipe_execution_log": "Pipeline Execution Logs",
+    "copy_raw": "Copy Raw",
+    "download_console_output": "Downloading console output..."
   },
   "date": {
     "just_now": "just now",
