@@ -559,7 +559,7 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
                 width={'calc(100vw - 40px)'}
                 height={'calc(100vh - 100px)'}>
           <CommitDetails commit={selectedCommit()}
-            repoPath={props.repo.path} branch={""}
+            repo={props.repo} branch={""}
             openParent={false} openProfile={false}
             selectCommit={selectCommit} 
           />

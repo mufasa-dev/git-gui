@@ -395,7 +395,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
               bodyClass="p-0 h-full"
               width={'calc(100vw - 40px)'}
               height={'calc(100vh - 100px)'}>
-        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={""} openParent={false} openProfile={true} selectCommit={selectCommit} />
+        <CommitDetails commit={selectedCommit()} repo={props.repo} branch={""} openParent={false} openProfile={true} selectCommit={selectCommit} />
       </Dialog>
       <Show when={modalUserProfileOpen()}>
         <Dialog open={modalUserProfileOpen()} 
@@ -404,7 +404,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
               setSelectedUser({ name: "", email: "" });
             }} title={t('auth').user_profile} width={"90vw"}>
           <UserProfileDialog 
-            repoPath={props.repo.path || ""} 
+            repo={props.repo} 
             branch={props.branch || ""}
             email={selectedUser()?.email || ""}
             fallbackName={formatContributorName(selectedUser()?.name) || "Usuário Desconhecido"} 

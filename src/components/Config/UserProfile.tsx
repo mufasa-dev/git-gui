@@ -12,6 +12,7 @@ import CommitsModalList from "../commits/CommitsModalList";
 import HotspotsTable from "../Dashboard/HotspotsTable";
 import { useApp } from "../../context/AppContext";
 import { CommitDetails } from "../commits/CommitDetails";
+import { Repo } from "../../models/Repo.model";
 
 const formatShortDate = (dateStr: string) => {
   const d = new Date(dateStr);
@@ -27,7 +28,7 @@ const formatShortDate = (dateStr: string) => {
 interface UserProfileDialogProps {
   email: string;
   fallbackName: string;
-  repoPath: string;
+  repo: Repo;
   branch: string;
   open: boolean;
   onClose: () => void;
@@ -42,7 +43,7 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
   const { t } = useApp();
   
   const [userCommits] = createResource(
-    () => ({ path: props.repoPath, branch: props.branch, email: props.email }),
+    () => ({ path: props.repo.path, branch: props.branch, email: props.email }),
     async (params) => {
       if (!params.path || !params.email) return [];
       return await getUserCommits(params.path, params.branch, params.email);
@@ -56,7 +57,7 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
   }
 
   async function selectCommit(hash: string) {
-    const details = await getCommitDetails(props.repoPath, hash);
+    const details = await getCommitDetails(props.repo.path, hash);
     setSelectedCommit({ ...details, _ts: Date.now() });
     setModalCommitDetails(true);
   }
@@ -151,7 +152,7 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
                 <HourlyActivityChart commits={userCommits() || []} />
             </div>
             <div class="container-branch-list p-1 h-64">
-                <HotspotsTable path={props.repoPath} branch={props.branch} email={props.email} />
+                <HotspotsTable path={props.repo.path} repo={props.repo} branch={props.branch} email={props.email} selectCommit={selectCommit} />
             </div>
           </div>
         </div>
@@ -220,7 +221,7 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
                   bodyClass="p-0"
                   width={'calc(100vw - 40px)'}
                   height={'calc(100vh - 100px)'}>
-            <CommitDetails commit={selectedCommit()} repoPath={props.repoPath} branch={""} openParent={false} openProfile={false} selectCommit={selectCommit} />
+            <CommitDetails commit={selectedCommit()} repo={props.repo} branch={""} openParent={false} openProfile={false} selectCommit={selectCommit} />
           </Dialog>
         </Show>
       </div>

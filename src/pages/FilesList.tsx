@@ -11,6 +11,7 @@ import {
 } from "../services/gitService";
 import { FileSidebar } from "../components/files/FileSidebar";
 import { FileViewerContainer } from "../components/files/FileViewerContainer";
+import { UNSUPPORTED_EXTENSIONS } from "../utils/file";
 
 export default function FileList(props: { repo: Repo }) {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
@@ -32,8 +33,6 @@ export default function FileList(props: { repo: Repo }) {
   
   const { t, locale } = useApp();
   const { showLoading, hideLoading } = useLoading();
-
-  const UNSUPPORTED_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.bin', '.mp4', '.mkv', '.mov', '.mp3', '.ogg', '.avi', '.ds_store', '.ifc', '.bim'];
 
   // Limpa estados ao trocar de Repositório
   createEffect(() => {
@@ -202,7 +201,7 @@ export default function FileList(props: { repo: Repo }) {
       />
 
       <Dialog open={showModalCommitDetails()} title={t('commits').details} onClose={() => setModalCommitDetails(false)} bodyClass="p-0 h-full" width={'calc(100vw - 40px)'} height={'calc(100vh - 100px)'}>
-        <CommitDetails commit={selectedCommit()} repoPath={props.repo.path} branch={selectedBranch() || ""} openParent={false} openProfile={true} selectCommit={selectCommit} />
+        <CommitDetails commit={selectedCommit()} repo={props.repo} branch={selectedBranch() || ""} openParent={false} openProfile={true} selectCommit={selectCommit} />
       </Dialog>
     </div>
   );

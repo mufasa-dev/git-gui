@@ -10,10 +10,11 @@ import { UserProfileDialog } from "../Config/UserProfile";
 import { formatContributorName } from "../../utils/user";
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
+import { Repo } from "../../models/Repo.model";
 
 type CommitDetailsProps = {
   commit: any;
-  repoPath: string;
+  repo: Repo;
   branch: string;
   openParent: boolean;
   openProfile: boolean;
@@ -33,7 +34,7 @@ export function CommitDetails(props: CommitDetailsProps) {
     setSelectedFile(file);
     setLoadingDiff(true);
     try {
-      const res = await getCommitFileDiff(props.repoPath, props.commit.hash, file.file);
+      const res = await getCommitFileDiff(props.repo.path, props.commit.hash, file.file);
       console.log("Diff recebido:", res);
       setFileDiff(res);
     } catch (e) {
@@ -203,7 +204,7 @@ export function CommitDetails(props: CommitDetailsProps) {
                   <Show when={selectedFile()} fallback={<div class="p-10 text-center text-gray-500 text-sm">{t('pr').select_file_see_changes}</div>}>
                     <Show when={!loadingDiff()}>
                       <DiffViewer 
-                        path={props.repoPath}
+                        path={props.repo.path}
                         file={selectedFile().file}
                         diff={fileDiff()}
                         class="text-xs"
@@ -224,7 +225,7 @@ export function CommitDetails(props: CommitDetailsProps) {
       <Show when={modalUserProfileOpen()}>
         <Dialog open={modalUserProfileOpen()} onClose={() => setModalUserProfileOpen(false)} title={t('auth').user_profile} width={"90vw"}>
           <UserProfileDialog 
-            repoPath={props.repoPath} 
+            repo={props.repo} 
             branch={props.branch || ""}
             email={props.commit?.authorEmail}
             fallbackName={props.commit?.authorName} 
