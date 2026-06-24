@@ -289,7 +289,10 @@
     "big_file": "Arquivo grande",
     "showing_first": "Exibindo as primeiras",
     "load_complete_file": "Carregar arquivo completo (pode travar)",
-    "end_file": "Fim do arquivo"
+    "end_file": "Fim do arquivo",
+    "select_file_branch": "Selecione um arquivo na branch",
+    "preview_unavailable": "Visualização indisponível",
+    "cannot_see_ext": "Arquivos do tipo {{ext}} não podem ser exibidos."
   },
   "test": {
     "test": "Teste",

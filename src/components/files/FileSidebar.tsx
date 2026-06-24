@@ -46,7 +46,7 @@ export function FileSidebar(props: FileSidebarProps) {
             <SearchableSelect 
               options={allBranchOptions()}
               initialValue={props.selectedBranch}
-              placeholder="Buscar branch..."
+              placeholder={props.t('repository').search_branch + "..."}
               onSelect={props.onBranchChange}
               class="mb-4 w-full"
             />

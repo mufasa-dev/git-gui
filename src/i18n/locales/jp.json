@@ -289,7 +289,10 @@
     "big_file": "大きなファイル",
     "showing_first": "最初の",
     "load_complete_file": "完全なファイルをロード (動作が遅れる場合あり)",
-    "end_file": "ファイルの終端"
+    "end_file": "ファイルの終端",
+    "select_file_branch": "ブランチ内のファイルを選択してください",
+    "preview_unavailable": "プレビューは利用できません",
+    "cannot_see_ext": "{{ext}} 形式のファイルは表示できません。"
   },
   "test": {
     "test": "テスト",

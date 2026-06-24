@@ -289,7 +289,10 @@
     "big_file": "Big file",
     "showing_first": "Showing first",
     "load_complete_file": "Load complete file (may slow down)",
-    "end_file": "End of file"
+    "end_file": "End of file",
+    "select_file_branch": "Select a file in branch",
+    "preview_unavailable": "Preview unavailable",
+    "cannot_see_ext": "Files of type {{ext}} cannot be displayed."
   },
   "test": {
     "test": "Test",

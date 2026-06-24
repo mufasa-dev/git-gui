@@ -36,7 +36,7 @@ export function FileViewerContainer(props: FileViewerContainerProps) {
       <div class="flex-1 flex flex-col container-branch-list overflow-auto">
         <Show when={props.fileContent !== null} fallback={
           <div class="flex-1 flex items-center justify-center opacity-30 italic text-sm">
-            Selecione um arquivo na branch {props.selectedBranch}
+            {props.t('file').select_file_branch} {props.selectedBranch}
           </div>
         }>
           <div class="flex items-center pr-2">
@@ -126,8 +126,8 @@ export function FileViewerContainer(props: FileViewerContainerProps) {
                   <div class="p-20 flex flex-col items-center justify-center text-center gap-4 mb-auto">
                     <i class="fa-solid fa-file-zipper text-6xl opacity-20"></i>
                     <div>
-                      <p class="text-lg font-semibold">Visualização indisponível</p>
-                      <p class="text-sm opacity-60">Arquivos do tipo {props.selectedFilePath[0]?.split('.').pop()?.toUpperCase()} não podem ser exibidos.</p>
+                      <p class="text-lg font-semibold">{props.t('file').preview_unavailable}</p>
+                      <p class="text-sm opacity-60">{props.t('file').cannot_see_ext.replace('{{ext}}', props.selectedFilePath[0]?.split('.').pop()?.toUpperCase())}</p>
                     </div>
                   </div>
                 </Match>
