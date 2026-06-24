@@ -432,19 +432,31 @@ export const githubService = {
       
       const data = await issueRes.json();
       let timelineData: Array<any> = [];
-      console.log('data', data)
-      if (timelineRes.ok) {
-        timelineData = await timelineRes.json();
-      }
-      console.log('timeline', timelineData)
-      // 🎯 1. MAPEAMENTO DE TAGS (Labels)
-      const tags = (data.labels || []).map((label: any) => label.name);
+      if (timelineRes.ok) timelineData = await timelineRes.json();
 
-      // Arrays onde vamos consolidar o que for achado na timeline
+      const tags = (data.labels || []).map((label: any) => label.name);
       const relatedReferences: Array<{ id: string; type: "Parent" | "Child" }> = [];
       const commitsHashes: string[] = [];
 
-      // 🎯 1. CAPTURA DIRETA DO PARENT (Via recurso nativo do GitHub no 'data')
+      if (data.sub_issues_summary && data.sub_issues_summary.total > 0) {
+        try {
+          const subIssuesRes = await window.fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/sub_issues`, { headers });
+          if (subIssuesRes.ok) {
+            const subIssuesData = await subIssuesRes.json();
+            // subIssuesData é um array contendo as issues filhas conectadas
+            (subIssuesData || []).forEach((sub: any) => {
+              const subId = sub.number?.toString();
+              if (subId && !relatedReferences.some(r => r.id === subId)) {
+                relatedReferences.push({ id: subId, type: "Child" });
+              }
+            });
+          }
+        } catch (subErr) {
+          console.warn("Erro ao buscar sub_issues dedicado no GitHub:", subErr);
+        }
+      }
+
+      // 🎯 3. CAPTURA DIRETA DO PARENT (Se este card for o filho)
       if (data.parent_issue_url) {
         const parentId = data.parent_issue_url.split("/").pop();
         if (parentId && !isNaN(Number(parentId))) {
@@ -452,16 +464,15 @@ export const githubService = {
         }
       }
 
-      // 🎯 2. VARRENDO A TIMELINE REAL DO GITHUB
+      // 🎯 4. VARRENDO A TIMELINE PARA COMMITS E INTERCONEXÕES ADICIONAIS
       timelineData.forEach((event: any) => {
-        // Encontrou um Commit referenciando a issue
         if (event.event === "referenced" && event.commit_id) {
           if (!commitsHashes.includes(event.commit_id)) {
             commitsHashes.push(event.commit_id);
           }
         }
 
-        // 🟢 CAPTURA VIA EVENTO DA TIMELINE (Caso a API não traga direto no body do data)
+        // Casos alternativos de parent adicionado via log
         if (event.event === "parent_issue_added" && event.parent_issue) {
           const parentId = event.parent_issue.number?.toString();
           if (parentId && !relatedReferences.some(r => r.id === parentId)) {
@@ -469,32 +480,18 @@ export const githubService = {
           }
         }
 
-        // Se houver adição de Sub-issues por essa issue (Ela sendo a Parent)
-        if (event.event === "sub_issue_added" && event.sub_issue) {
-          const subId = event.sub_issue.number?.toString();
-          if (subId && !relatedReferences.some(r => r.id === subId)) {
-            relatedReferences.push({ id: subId, type: "Child" });
-          }
-        }
-
-        // Vínculos por menções cruzadas (Cross-Referenced)
+        // Links cruzados entre repositórios/mencionados por fora
         if (event.event === "cross-referenced" && event.source?.issue) {
-          const linkedIssue = event.source.issue;
-          const linkedId = linkedIssue.number.toString();
-
+          const linkedId = event.source.issue.number.toString();
           if (linkedId !== issueNumber.toString()) {
-            // Se já foi mapeado como Parent acima, pula para evitar duplicar como Child
             if (!relatedReferences.some(r => r.id === linkedId)) {
-              relatedReferences.push({
-                id: linkedId,
-                type: "Child" // Menção padrão vira filho/relacionado comum
-              });
+              relatedReferences.push({ id: linkedId, type: "Child" });
             }
           }
         }
       });
 
-      // 🎯 3. FALLBACK: Se ainda assim o corpo tiver checklists manuais (Ex: - [ ] #10)
+      // Fallback clássico por texto no body (Markdown checklists)
       const bodyText = data.body || "";
       const childRegex = /(?:-\s*\[[x\s]\]\s*#(\d+))/gi;
       let match: any;
@@ -504,12 +501,8 @@ export const githubService = {
         }
       }
 
-      // Normalização de cores do estado (Aberto/Fechado)
       const state = data.state; 
-      let stateColor = "bg-green-500/10 text-green-500 border-green-500/20";
-      if (state === "closed") {
-        stateColor = "bg-purple-500/10 text-purple-500 border-purple-500/20";
-      }
+      const stateColor = state === "open" ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-purple-500/10 text-purple-500 border-purple-500/20";
 
       const comments = await this.getGitHubComments(owner, repo, issueNumber);
 
