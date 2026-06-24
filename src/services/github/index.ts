@@ -511,6 +511,8 @@ export const githubService = {
         stateColor = "bg-purple-500/10 text-purple-500 border-purple-500/20";
       }
 
+      const comments = await this.getGitHubComments(owner, repo, issueNumber);
+
       return {
         id: data.id.toString(),
         number: data.number,
@@ -520,7 +522,7 @@ export const githubService = {
         stateColor: stateColor,
         provider: "github",
         tags: tags,
-        comments: [], 
+        comments: comments, 
         tasksReferences: relatedReferences.filter(r => r.type === "Child").map(r => r.id),
         relatedReferences: relatedReferences, 
         commitsReferences: commitsHashes,
