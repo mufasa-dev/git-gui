@@ -423,7 +423,6 @@ export const githubService = {
     };
 
     try {
-      // 🟢 Buscamos os dados básicos da Issue e a Timeline em paralelo para performance
       const [issueRes, timelineRes] = await Promise.all([
         window.fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, { headers }),
         window.fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/timeline`, { headers })
@@ -524,7 +523,7 @@ export const githubService = {
         comments: [], 
         tasksReferences: relatedReferences.filter(r => r.type === "Child").map(r => r.id),
         relatedReferences: relatedReferences, 
-        commitsReferences: commitsHashes, // 🟢 Prontinho! Agora os hashes reais entram aqui
+        commitsReferences: commitsHashes,
         priority: undefined,
         effort: undefined,
         areaPath: repo,
@@ -545,6 +544,133 @@ export const githubService = {
     } catch (error) {
       console.error("Erro ao unificar dados do GitHub:", error);
       throw error;
+    }
+  },
+
+  async getIssueHistory(owner: string, repo: string, issueNumber: number): Promise<Array<any>> {
+    const token = await this.getToken();
+    if (!token) return [];
+
+    const url = `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/timeline`;
+
+    try {
+      const response = await window.fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) return [];
+      const timelineData = await response.json();
+      console.log('timeline', timelineData)
+      // Mapeia os eventos do GitHub para o padrão estruturado da Azure
+      const mappedUpdates = timelineData
+        .map((event: any, index: number) => {
+          const cleanedChanges: Array<{ type: string; field: string; value: any }> = [];
+          
+          // Captura do usuário que realizou a ação
+          const actor = event.actor || event.user;
+          const userName = actor?.login || "Sistema";
+          const userAvatar = actor?.avatar_url || null;
+          const eventDate = new Date(event.created_at || event.updated_at || new Date());
+
+          // 🎯 1. MAPEAMENTO DE ALTERAÇÃO DE ESTADO
+          if (event.event === "closed") {
+            cleanedChanges.push({ type: "state", field: "State", value: "Closed" });
+          } else if (event.event === "reopened") {
+            cleanedChanges.push({ type: "state", field: "State", value: "Open" });
+          }
+
+          // 🎯 2. MAPEAMENTO DE ATRIBUIÇÃO (Assignee)
+          else if (event.event === "assigned") {
+            cleanedChanges.push({ type: "assignee", field: "Assigned_To", value: event.assignee?.login || "Ninguém" });
+          }
+
+          // 🎯 3. MAPEAMENTO DE TAGS (Labels)
+          else if (event.event === "labeled") {
+            cleanedChanges.push({ type: "tags", field: "Tags", value: event.label?.name || "" });
+          }
+
+          // 🎯 4. MAPEAMENTO DE COMENTÁRIOS
+          else if (event.event === "commented") {
+            cleanedChanges.push({ type: "comment", field: "Comment", value: event.body || "" });
+          }
+
+          // 🎯 5. MAPEAMENTO DE COMMITS VINCULADOS
+          else if (event.event === "referenced" && event.commit_id) {
+            const shortHash = event.commit_id.substring(0, 7);
+            cleanedChanges.push({
+              type: "commit_link",
+              field: "Links",
+              value: {
+                id: shortHash,
+                fullHash: event.commit_id,
+                title: ""
+              }
+            });
+          }
+
+          // 🎯 6. MAPEAMENTO DE RELACIONAMENTOS (Parent / Child)
+          else if (event.event === "parent_issue_added") {
+            const parentId = event.parent_issue?.number?.toString() || "ID";
+            cleanedChanges.push({
+              type: "task_link",
+              field: "Tasks_Links",
+              value: {
+                id: parentId,
+                title: "" // O mini-componente TaskRow tratará o lazy-load do título
+              }
+            });
+          }
+
+          // Ignora eventos puramente internos do GitHub que não geram mudanças visuais na UI
+          if (cleanedChanges.length === 0) return null;
+
+          // 🎯 7. GERAÇÃO INTELIGENTE DAS CHAVES DE TRADUÇÃO (Igual à Azure)
+          let eventKey = "board.changed_to";
+          let eventParams: any = {};
+          
+          const primary = cleanedChanges[0];
+          if (primary.type === "state") {
+            debugger;
+            eventKey = "board.changed_state";
+            eventParams = { value: primary.value };
+          } else if (primary.type === "tags") {
+            eventKey = "board.changed_tag";
+          } else if (primary.type === "comment") {
+            eventKey = "board.added_comment";
+          } else if (primary.type === "commit_link") {
+            eventKey = "board.linked_commit";
+          } else if (primary.type === "task_link") {
+            eventKey = "board.added_link_child"; // Reutiliza a chave de link adicionado
+          } else if (primary.type === "assignee") {
+            eventKey = "board.assigned_to_user";
+            eventParams = { user: primary.value };
+          }
+
+          return {
+            id: event.id || `gh-${index}`,
+            rev: index + 1, // Simula o número de revisão sequencial
+            user: userName,
+            avatar: userAvatar,
+            date: eventDate,
+            translation: {
+              key: eventKey,
+              params: eventParams
+            },
+            changes: cleanedChanges
+          };
+        })
+        .filter(Boolean); // Remove os eventos ignorados (null)
+
+      console.log("Histórico de atualizações mapeado do GitHub:", mappedUpdates);
+      
+      // Inverte a ordem para deixar os eventos mais recentes no topo
+      return mappedUpdates.reverse();
+    } catch (error) {
+      console.error("Erro no parse do histórico do GitHub:", error);
+      return [];
     }
   },
 

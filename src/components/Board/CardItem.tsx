@@ -163,6 +163,7 @@ export default function CardDetailView(props: CardDetailViewProps) {
                     organization={props.organization} 
                     repoPath={props.repoPath} 
                     repoName={props.repoName}
+                    provider={props.provider}
                     onNavigateTask={handleNavigateToTask}
                     openCommit={selectCommit}
                   />

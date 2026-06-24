@@ -3,12 +3,15 @@ import { azureService } from "../../services/azure";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import TaskRow from "./RelatedItemRow";
 import { useApp } from "../../context/AppContext";
+import { GitProvider } from "../../utils/gitProvider";
+import { githubService } from "../../services/github";
 
 type CardHistoryTabProps = {
   cardId: string | number;
   organization: string;
   repoPath: string;
   repoName: string;
+  provider: GitProvider;
   onNavigateTask: (id: string | number) => void;
   openCommit: (hash: string) => void;
 };
@@ -18,7 +21,14 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
 
   const [historyData] = createResource(
     () => props.cardId,
-    async (id) => await azureService.getWorkItemHistory(props.organization, props.repoName, Number(id))
+    async (id) => {
+      if (props.provider == "azure"){
+        return await azureService.getWorkItemHistory(props.organization, props.repoName, Number(id))
+      } else if (props.provider == "github") {
+        return await githubService.getIssueHistory(props.organization, props.repoName, Number(id))
+      }
+      return [];
+    }
   );
 
   return (
