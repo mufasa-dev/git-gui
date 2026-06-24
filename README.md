@@ -79,6 +79,7 @@ npm run tauri build
 
 * [X] Show commit history with diffs 🔍
 * [ ] Support GitHub and Azure Devops Pull Requests 🌎
+* [ ] Support GitHub and Azure Devops Pipelines 🚀
 * [ ] Visual merge & rebase 🧩
 * [X] Git user settings ⚙️
 * [ ] Git stash and tags 📝
