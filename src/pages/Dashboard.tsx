@@ -16,6 +16,7 @@ import { formatContributorName } from "../utils/user";
 import Dialog from "../components/ui/Dialog";
 import CommitsModalList from "../components/commits/CommitsModalList";
 import { useApp } from "../context/AppContext";
+import { FileViewerContainer } from "../components/files/FileViewerContainer";
 
 declare module "solid-js" {
   namespace JSX {
@@ -207,7 +208,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         </div>
 
         <div class="row-span-2 container-branch-list">
-          <HotspotsTable path={props.repo.path} branch={props.branch || ""} />
+          <HotspotsTable path={props.repo.path} branch={props.branch || ""} repo={props.repo} selectCommit={selectCommit} />
         </div>
 
         <div class="col-span-2 container-branch-list">
@@ -288,7 +289,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
               setSelectedUser({ name: "", email: "" });
             }} title={t('auth').user_profile} width={"90vw"}>
           <UserProfileDialog 
-            repoPath={props.repo.path || ""} 
+            repo={props.repo} 
             branch={props.branch || ""}
             email={selectedUser()?.email || ""}
             fallbackName={formatContributorName(selectedUser()?.name) || "Usuário Desconhecido"} 

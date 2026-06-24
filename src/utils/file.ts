@@ -288,3 +288,8 @@ export const IGNORED_EXTENSIONS = [
   // Godot
   'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', 'depren'
 ];
+
+export const UNSUPPORTED_EXTENSIONS = [
+  '.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.bin', '.mp4', '.mkv', 
+  '.mov', '.mp3', '.ogg', '.avi', '.ds_store', '.ifc', '.bim'
+];

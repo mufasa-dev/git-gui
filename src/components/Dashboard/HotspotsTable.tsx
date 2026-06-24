@@ -1,16 +1,31 @@
-import { createResource, For, Show } from "solid-js";
-import { getMostModifiedFiles, getUserMostModifiedFiles } from "../../services/gitService";
+import { createResource, createSignal, For, Show } from "solid-js";
+import { getBranchFileContent, getBranchFileMetadata, getMostModifiedFiles, getUserMostModifiedFiles } from "../../services/gitService";
 import FileIcon from "../ui/FileIcon";
 import { useApp } from "../../context/AppContext";
+import Dialog from "../ui/Dialog";
+import { FileViewerContainer } from "../files/FileViewerContainer";
+import { Repo } from "../../models/Repo.model";
+import { useLoading } from "../ui/LoadingContext";
+import { UNSUPPORTED_EXTENSIONS } from "../../utils/file";
 
 interface Props {
   path: string;
+  repo: Repo;
   branch: string;
   email?: string;
+  selectCommit: (hash: string) => void
 }
 
 export default function HotspotsTable(props: Props) {
-  const { t } = useApp();
+  const [showFileModal, setShowFileModal] = createSignal(false);
+  const [selectedFile, setSelectedFile] = createSignal({} as { name: string });
+  const [fileContent, setFileContent] = createSignal<string | null>(null);
+  const [isImage, setIsImage] = createSignal(false);
+  const [isBinary, setIsBinary] = createSignal(false);
+  const [selectedFilePath, setSelectedFilePath] = createSignal<string[]>([]);
+  const [fileMeta, setFileMeta] = createSignal<{size: number, lines: number | null} | null>(null);
+  const { t, locale } = useApp();
+  const { showLoading, hideLoading } = useLoading();
 
   const [hotspots] = createResource(
     () => ({ path: props.path, branch: props.branch }),
@@ -22,6 +37,36 @@ export default function HotspotsTable(props: Props) {
       return await getMostModifiedFiles(params.path, params.branch);
     }
   );
+
+  const handleFileClick = async (path: string) => {
+    const extension = path.substring(path.lastIndexOf('.')).toLowerCase();
+    const unsupported = UNSUPPORTED_EXTENSIONS.includes(extension);
+    setIsBinary(unsupported);
+
+    if (unsupported) {
+      setFileContent("");
+      setIsImage(false);
+      setSelectedFilePath([path]);
+      const data = await getBranchFileMetadata(props.repo.path, props.repo.activeBranch!, path);
+      setFileMeta({size: data.size, lines: 0});
+      return; 
+    }
+    
+    showLoading(t('loading').loading_file);
+    try {
+      const data = await getBranchFileContent(props.repo.path, props.repo.activeBranch!, path);
+      setIsImage(data.isImage);
+      setFileContent(data.content);
+      setFileMeta({size: data.size, lines: data.lineCount});
+      setSelectedFilePath([path]);
+      setSelectedFile({name: path});
+      setShowFileModal(true);
+    } catch (e) {
+      setFileContent(t('error').load_file);
+    } finally {
+      hideLoading();
+    }
+  }
 
   return (
     <div class="p-2 h-full flex flex-col overflow-hidden">
@@ -52,7 +97,7 @@ export default function HotspotsTable(props: Props) {
               </tr>
             }>
               {(file) => (
-                <tr class="group">
+                <tr class="group" onClick={() => handleFileClick(file.name)}>
                   <td class="max-w-[200px]">
                     <div class="flex flex-col">
                       <span class="truncate text-xs text-gray-900 dark:text-gray-200 font-mono group-hover:text-blue-400 transition-colors flex items-center gap-1">
@@ -89,6 +134,35 @@ export default function HotspotsTable(props: Props) {
       <div class="mt-3 text-[9px] text-gray-600 dark:text-gray-200 italic">
         * {t('dashboard').basead_activit_branch}
       </div>
+
+      <Show when={showFileModal()}>
+        <Dialog
+            open={true}
+            onClose={() => setShowFileModal(false)}
+            title={selectedFile()?.name.split('/').pop()}
+            width="calc(100% - 30px)" bodyClass="p-2"
+        >
+          <FileViewerContainer
+            repoName={props.repo.name}
+            selectedBranch={props.repo.activeBranch!}
+            selectedFilePath={selectedFilePath()}
+            fileContent={fileContent()}
+            directoryContent={null}
+            pathHistory={null}
+            lastCommit={null}
+            fileMeta={fileMeta()}
+            isImage={isImage()}
+            isBinary={isBinary()}
+            showHistory={false}
+            setShowHistory={() => {}}
+            onFileClick={() => {}}
+            onGoBack={() => {}}
+            onSelectCommit={props.selectCommit}
+            t={t}
+            locale={locale()}
+          />
+        </Dialog>
+      </Show>
     </div>
   );
 }

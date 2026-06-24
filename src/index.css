@@ -149,7 +149,7 @@ html {
 
   .table-striped thead tr {
     @apply border-b border-gray-300 bg-gray-200 
-           dark:border-gray-700 dark:bg-gray-800; /* Ajustei para bg-gray-800 no dark para contrastar melhor */
+           dark:border-gray-700 dark:bg-gray-800;
   }
 
   .table-striped th {
