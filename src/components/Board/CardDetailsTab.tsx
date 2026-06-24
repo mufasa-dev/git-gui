@@ -31,7 +31,12 @@ export default function CardDetailsTab(props: CardDetailsTabProps) {
       const ids = references.map((ref: any) => ref.id);
 
       try {
-        const details = await azureService.getTasksDetails(props.organization, props.repoName, ids);
+        let details;
+        if (props.provider == "azure") {
+          details = await azureService.getTasksDetails(props.organization, props.repoName, ids);
+        } else {
+          details = await githubService.getTasksDetails(props.organization, props.repoName, ids);
+        }
         
         return references.map((ref: any) => {
           const detail = details.find((d: any) => d.id === ref.id);

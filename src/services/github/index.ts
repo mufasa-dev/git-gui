@@ -621,7 +621,7 @@ export const githubService = {
               field: "Tasks_Links",
               value: {
                 id: parentId,
-                title: "" // O mini-componente TaskRow tratará o lazy-load do título
+                title: ""
               }
             });
           }
@@ -645,7 +645,7 @@ export const githubService = {
           } else if (primary.type === "commit_link") {
             eventKey = "board.linked_commit";
           } else if (primary.type === "task_link") {
-            eventKey = "board.added_link_child"; // Reutiliza a chave de link adicionado
+            eventKey = "board.added_link_child";
           } else if (primary.type === "assignee") {
             eventKey = "board.assigned_to_user";
             eventParams = { user: primary.value };
@@ -698,6 +698,42 @@ export const githubService = {
       };
     } catch {
       return { id: commitHash, message: "Mudança vinculada no GitHub" };
+    }
+  },
+
+  async getTasksDetails(owner: string, repo: string, ids: string[]): Promise<Array<{ id: string, title: string }>> {
+    if (!ids || ids.length === 0) return [];
+    const token = await this.getToken();
+    if (!token) return [];
+
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    };
+
+    try {
+      const promises = ids.map(async (id) => {
+        try {
+          const response = await window.fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${id}`, { headers });
+          if (!response.ok) return null;
+          
+          const data = await response.json();
+          return {
+            id: id.toString(),
+            title: data.title || "Sub-task sem título"
+          };
+        } catch {
+          return null;
+        }
+      });
+
+      const results = await Promise.all(promises);
+      
+      return results.filter((item): item is { id: string; title: string } => item !== null);
+    } catch (error) {
+      console.error("Erro ao buscar detalhes das tasks no GitHub:", error);
+      return [];
     }
   },
 
