@@ -565,9 +565,9 @@
     "links": "リンク",
     "linked_items": "リンクされたアイテム",
     "no_links": "階層リンクはありません",
-    "changed_state": "状態を以下に変更しました:",
+    "changed_state": "状態を以下に変更しました: {{value}}",
     "board_column": "ボードの列",
-    "assigned_to": "担当者",
+    "assigned_to": "{{user}}に割り当て済み",
     "changed_to": "変更先",
     "child": "子",
     "parent": "親"

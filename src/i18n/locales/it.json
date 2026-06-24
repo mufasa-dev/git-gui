@@ -565,9 +565,9 @@
     "links": "Collegamenti",
     "linked_items": "Element collegati",
     "no_links": "Nenhum vínculo hierárquico.",
-    "changed_state": "Ha cambiato lo stato in",
+    "changed_state": "Ha cambiato lo stato in {{value}}",
     "board_column": "Colonna della Board",
-    "assigned_to": "Assegnato a",
+    "assigned_to": "Assegnato a {{user}}",
     "changed_to": "Cambiato in",
     "child": "figlio",
     "parent": "padre"

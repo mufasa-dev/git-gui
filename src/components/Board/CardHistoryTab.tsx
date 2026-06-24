@@ -71,7 +71,6 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                                   
                                   const boardObj = t("board") as Record<string, string>;
                                   let text = (boardObj[subKey] || boardObj["changed_to"]) as string;
-
                                   if (audit.translation.params) {
                                     Object.entries(audit.translation.params).forEach(([paramKey, paramValue]) => {
                                       text = text.replace(`{{${paramKey}}}`, paramValue as string);
@@ -93,7 +92,13 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                             <i class="fa-solid fa-link text-gray-400"></i>
                           </Show>
                           <span>
-                            {new Date(audit.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(audit.date).toLocaleString(['pt-BR'], {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
                           </span>
                         </div>
                       </button>

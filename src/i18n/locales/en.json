@@ -565,9 +565,9 @@
     "links": "Links",
     "linked_items": "Linked items",
     "no_links": "No hierarchical links.",
-    "changed_state": "Changed state to",
+    "changed_state": "Changed state to {{value}}",
     "board_column": "Board Column",
-    "assigned_to": "Assigned to",
+    "assigned_to": "Assigned to {{user}}",
     "changed_to": "Changed para",
     "child": "child",
     "parent": "parent"

@@ -628,7 +628,6 @@ export const githubService = {
           
           const primary = cleanedChanges[0];
           if (primary.type === "state") {
-            debugger;
             eventKey = "board.changed_state";
             eventParams = { value: primary.value };
           } else if (primary.type === "tags") {
@@ -640,7 +639,7 @@ export const githubService = {
           } else if (primary.type === "task_link") {
             eventKey = "board.added_link_child";
           } else if (primary.type === "assignee") {
-            eventKey = "board.assigned_to_user";
+            eventKey = "board.assigned_to";
             eventParams = { user: primary.value };
           }
 

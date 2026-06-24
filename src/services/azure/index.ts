@@ -1367,7 +1367,7 @@ export const azureService = {
           } else if (primary.type === "task_link") {
             eventKey = "board.added_link_child";
           } else if (primary.type === "assignee") {
-            eventKey = "board.assigned_to_user";
+            eventKey = "board.assigned_to";
             eventParams = { user: primary.value };
           }
         }

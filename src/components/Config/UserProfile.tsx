@@ -42,12 +42,10 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
   );
 
   const openModalWithCommits = (commitsToShow: any[]) => {
-    debugger;
     setSelectedCommits(commitsToShow);
     setShowCommits(true);
   }
 
-  // Memo para pegar apenas os 5 últimos commits
   const recentCommits = createMemo(() => (userCommits() || []).slice(0, 5));
 
   const getAccountIcon = (shortname: string) => {
