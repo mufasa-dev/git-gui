@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
 import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_TIMELINE_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY } from "./queries";
 import { PRValidationResult } from "../../models/PR.model";
-import { WorkItem } from "../../models/WorkItem";
+import { CardComment, WorkItem } from "../../models/WorkItem";
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
@@ -651,7 +651,7 @@ export const githubService = {
 
           return {
             id: event.id || `gh-${index}`,
-            rev: index + 1, // Simula o número de revisão sequencial
+            rev: index + 1,
             user: userName,
             avatar: userAvatar,
             date: eventDate,
@@ -670,6 +670,63 @@ export const githubService = {
       return mappedUpdates.reverse();
     } catch (error) {
       console.error("Erro no parse do histórico do GitHub:", error);
+      return [];
+    }
+  },
+
+  async getCommitDetails(owner: string, repo: string, commitHash: string): Promise<{ id: string, message: string }> {
+    const token = await this.getToken();
+    if (!token) return { id: commitHash, message: "Mudança vinculada no GitHub" };
+
+    const url = `https://api.github.com/repos/${owner}/${repo}/commits/${commitHash}`;
+
+    try {
+      const response = await window.fetch(url, {
+        headers: { 
+          'Authorization': `Bearer ${token}`, 
+          'Accept': 'application/vnd.github.v3+json' 
+        }
+      });
+      if (!response.ok) return { id: commitHash, message: "Mudança vinculada no GitHub" };
+      const data = await response.json();
+      
+      return {
+        id: commitHash,
+        message: data.commit?.message || "Commit associado"
+      };
+    } catch {
+      return { id: commitHash, message: "Mudança vinculada no GitHub" };
+    }
+  },
+
+  async getGitHubComments(owner: string, repo: string, issueNumber: number): Promise<CardComment[]> {
+    const token = await this.getToken();
+    if (!token) return [];
+
+    const url = `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
+
+    try {
+      const response = await window.fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+
+      // Mapeia os dados exatamente para o mesmo formato CardComment da Azure
+      return (data || []).map((c: any) => ({
+        id: c.id,
+        author: {
+          name: c.user?.login || "GitHub User",
+          avatarUrl: c.user?.avatar_url
+        },
+        text: c.body || "", // O GitHub devolve o corpo em Markdown/texto no campo 'body'
+        createdAt: c.created_at
+      }));
+    } catch {
       return [];
     }
   },

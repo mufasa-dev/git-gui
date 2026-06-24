@@ -3,12 +3,14 @@ import { azureService } from "../../services/azure";
 import MarkdownViewer from "../ui/MarkdownViewer";
 import CommitMessage from "../ui/CommitMessage";
 import { useApp } from "../../context/AppContext";
+import { githubService } from "../../services/github";
 
 type CardDetailsTabProps = {
   card: any;
   organization: string;
   repoPath: string;
   repoName: string;
+  provider: string;
   onNavigateTask: (id: string | number) => void;
   openCommit: (hash: string) => void;
 };
@@ -58,9 +60,13 @@ export default function CardDetailsTab(props: CardDetailsTabProps) {
     },
     async (hashes: string[]) => {
       if (!hashes) return [];
-      const promises = hashes.map((hash: string) => 
-        azureService.getCommitDetails(props.organization, props.repoName, props.repoName, hash)
-      );
+      const promises = hashes.map((hash: string) => {
+        if (props.provider == "azure") {
+          return azureService.getCommitDetails(props.organization, props.repoName, props.repoName, hash)
+        } else {
+          return githubService.getCommitDetails(props.organization, props.repoName, hash)
+        }
+      });
       return await Promise.all(promises);
     }
   );
