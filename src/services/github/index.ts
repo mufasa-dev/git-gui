@@ -416,36 +416,136 @@ export const githubService = {
     const token = await this.getToken();
     if (!token) throw new Error("Token não encontrado");
 
-    const response = await window.fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      }
-    });
-    if (!response.ok) throw new Error("Erro ao buscar issue no GitHub");
-    const data = await response.json();
-
-    return {
-      id: data.id.toString(),
-      number: data.number,
-      title: data.title,
-      description: data.body || "",
-      state: data.state, // open ou closed
-      stateColor: data.state === "open" ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-purple-500/10 text-purple-500 border-purple-500/20",
-      provider: "github",
-      author: {
-        name: data.user?.login || "unknown",
-        avatarUrl: data.user?.avatar_url
-      },
-      tags: [],
-      comments: [], // Comentários serão buscados dinamicamente depois
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-      htmlUrl: data.html_url,
-      commentsCount: data.comments || 0,
-      assignee: data.assignee ? { name: data.assignee.login, avatarUrl: data.assignee.avatar_url } : undefined
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
     };
+
+    try {
+      // 🟢 Buscamos os dados básicos da Issue e a Timeline em paralelo para performance
+      const [issueRes, timelineRes] = await Promise.all([
+        window.fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, { headers }),
+        window.fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/timeline`, { headers })
+      ]);
+
+      if (!issueRes.ok) throw new Error("Erro ao buscar issue no GitHub");
+      
+      const data = await issueRes.json();
+      let timelineData: Array<any> = [];
+      console.log('data', data)
+      if (timelineRes.ok) {
+        timelineData = await timelineRes.json();
+      }
+      console.log('timeline', timelineData)
+      // 🎯 1. MAPEAMENTO DE TAGS (Labels)
+      const tags = (data.labels || []).map((label: any) => label.name);
+
+      // Arrays onde vamos consolidar o que for achado na timeline
+      const relatedReferences: Array<{ id: string; type: "Parent" | "Child" }> = [];
+      const commitsHashes: string[] = [];
+
+      // 🎯 1. CAPTURA DIRETA DO PARENT (Via recurso nativo do GitHub no 'data')
+      if (data.parent_issue_url) {
+        const parentId = data.parent_issue_url.split("/").pop();
+        if (parentId && !isNaN(Number(parentId))) {
+          relatedReferences.push({ id: parentId, type: "Parent" });
+        }
+      }
+
+      // 🎯 2. VARRENDO A TIMELINE REAL DO GITHUB
+      timelineData.forEach((event: any) => {
+        // Encontrou um Commit referenciando a issue
+        if (event.event === "referenced" && event.commit_id) {
+          if (!commitsHashes.includes(event.commit_id)) {
+            commitsHashes.push(event.commit_id);
+          }
+        }
+
+        // 🟢 CAPTURA VIA EVENTO DA TIMELINE (Caso a API não traga direto no body do data)
+        if (event.event === "parent_issue_added" && event.parent_issue) {
+          const parentId = event.parent_issue.number?.toString();
+          if (parentId && !relatedReferences.some(r => r.id === parentId)) {
+            relatedReferences.push({ id: parentId, type: "Parent" });
+          }
+        }
+
+        // Se houver adição de Sub-issues por essa issue (Ela sendo a Parent)
+        if (event.event === "sub_issue_added" && event.sub_issue) {
+          const subId = event.sub_issue.number?.toString();
+          if (subId && !relatedReferences.some(r => r.id === subId)) {
+            relatedReferences.push({ id: subId, type: "Child" });
+          }
+        }
+
+        // Vínculos por menções cruzadas (Cross-Referenced)
+        if (event.event === "cross-referenced" && event.source?.issue) {
+          const linkedIssue = event.source.issue;
+          const linkedId = linkedIssue.number.toString();
+
+          if (linkedId !== issueNumber.toString()) {
+            // Se já foi mapeado como Parent acima, pula para evitar duplicar como Child
+            if (!relatedReferences.some(r => r.id === linkedId)) {
+              relatedReferences.push({
+                id: linkedId,
+                type: "Child" // Menção padrão vira filho/relacionado comum
+              });
+            }
+          }
+        }
+      });
+
+      // 🎯 3. FALLBACK: Se ainda assim o corpo tiver checklists manuais (Ex: - [ ] #10)
+      const bodyText = data.body || "";
+      const childRegex = /(?:-\s*\[[x\s]\]\s*#(\d+))/gi;
+      let match: any;
+      while ((match = childRegex.exec(bodyText)) !== null) {
+        if (match[1] && !relatedReferences.some(r => r.id === match[1])) {
+          relatedReferences.push({ id: match[1], type: "Child" });
+        }
+      }
+
+      // Normalização de cores do estado (Aberto/Fechado)
+      const state = data.state; 
+      let stateColor = "bg-green-500/10 text-green-500 border-green-500/20";
+      if (state === "closed") {
+        stateColor = "bg-purple-500/10 text-purple-500 border-purple-500/20";
+      }
+
+      return {
+        id: data.id.toString(),
+        number: data.number,
+        title: data.title,
+        description: bodyText,
+        state: state === "open" ? "Active" : "Done",
+        stateColor: stateColor,
+        provider: "github",
+        tags: tags,
+        comments: [], 
+        tasksReferences: relatedReferences.filter(r => r.type === "Child").map(r => r.id),
+        relatedReferences: relatedReferences, 
+        commitsReferences: commitsHashes, // 🟢 Prontinho! Agora os hashes reais entram aqui
+        priority: undefined,
+        effort: undefined,
+        areaPath: repo,
+        iterationPath: data.milestone ? data.milestone.title : "No Milestone",
+        author: {
+          name: data.user?.login || "unknown",
+          avatarUrl: data.user?.avatar_url
+        },
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        htmlUrl: data.html_url,
+        commentsCount: data.comments || 0,
+        assignee: data.assignee ? { 
+          name: data.assignee.login, 
+          avatarUrl: data.assignee.avatar_url 
+        } : undefined
+      };
+    } catch (error) {
+      console.error("Erro ao unificar dados do GitHub:", error);
+      throw error;
+    }
   },
 
   async logout() {
