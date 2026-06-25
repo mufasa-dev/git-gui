@@ -510,7 +510,9 @@
     "sending reply": "Sending reply...",
     "error_reply": "Error on reply",
     "reacting": "Reacting",
-    "deleting": "Deletind"
+    "deleting": "Deletind",
+    "oldest_first": "Oldest first",
+    "newest_first": "Newest first"
   },
   "carousel": {
     "carousel_git_title": "Smart Control",

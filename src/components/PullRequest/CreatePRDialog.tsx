@@ -181,13 +181,13 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
       {/* 1. Seleção de Branches (Topo) */}
       <div class="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700/60 flex items-center gap-3 text-xs">
         <div class="flex flex-col gap-1 w-64">
-          <span class="text-gray-500 dark:text-gray-400 font-bold ml-1">Source branch</span>
+          <span class="text-gray-500 dark:text-gray-400 font-bold ml-1">{t('pr').source_branch}</span>
           <Show when={sourceKey() >= 0}>
             <SearchableSelect 
               options={branchOptions()}
               initialValue={sourceBranch()}
               onSelect={(val) => setSourceBranch(val)}
-              placeholder="Select source branch..."
+              placeholder={t('pr').sel_source_branch}
               class="w-full font-semibold"
             />
           </Show>
@@ -205,13 +205,13 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
         </div>
 
         <div class="flex flex-col gap-1 w-64">
-          <span class="text-gray-500 dark:text-gray-400 font-bold ml-1">Target branch</span>
+          <span class="text-gray-500 dark:text-gray-400 font-bold ml-1">{t('pr').target_branch}</span>
           <Show when={targetKey() >= 0}>
             <SearchableSelect 
               options={branchOptions()}
               initialValue={targetBranch()}
               onSelect={(val) => setTargetBranch(val)}
-              placeholder="Select target branch..."
+              placeholder={t('pr').sel_target_branch}
               class="w-full font-semibold"
             />
           </Show>
@@ -224,7 +224,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
           class={`px-4 py-2.5 border-b-2 font-bold transition-colors ${activeTab() === 'overview' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
           onClick={() => setActiveTab("overview")}
         >
-          Overview
+          {t('pr').overview}
         </button>
         <button 
           disabled={!canProceed()}
@@ -249,7 +249,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
         <Show when={validation.loading}>
           <div class="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400 text-xs gap-3">
             <i class="fa-solid fa-spinner fa-spin text-blue-500 text-xl"></i>
-            <span>Verificando compatibilidade e histórico de alterações...</span>
+            <span>{t('pr').check_compatibility}</span>
           </div>
         </Show>
 
@@ -260,8 +260,8 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
             <div class="p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/40 rounded-xl text-yellow-800 dark:text-yellow-400 text-xs flex items-center gap-3 shadow-sm my-4">
               <i class="fa-solid fa-triangle-exclamation text-base text-yellow-500"></i>
               <div>
-                <p class="font-bold">As branches não podem ser idênticas</p>
-                <p class="opacity-80 mt-0.5">Selecione uma branch de origem diferente para poder comparar as diferenças.</p>
+                <p class="font-bold">{t('pr').branchs_cannot_identicals}</p>
+                <p class="opacity-80 mt-0.5">{t('pr').select_diferent_branchs}</p>
               </div>
             </div>
           </Show>
@@ -271,8 +271,8 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
               <div class="flex items-center gap-3">
                 <i class="fa-solid fa-circle-info text-base text-blue-500"></i>
                 <div>
-                  <p class="font-bold">Já existe um pull request ativo entre essas branches.</p>
-                  <p class="opacity-80 mt-0.5">Você não pode criar duplicatas para o mesmo mapeamento de origem e destino.</p>
+                  <p class="font-bold">{t('pr').has_active_pr}</p>
+                  <p class="opacity-80 mt-0.5">{t('pr').cannot_create_duplicates}</p>
                 </div>
               </div>
               <Show when={validation()?.existingPrId}>
@@ -281,7 +281,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                   class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm whitespace-nowrap"
                   onClick={() => console.log("Navegar para o PR: ", validation()?.existingPrId)}
                 >
-                  Ver Pull Request #{validation()?.existingPrId}
+                  {t('pr').see_pr_number.replace("{{pr}}", String(validation()?.existingPrId))}
                 </button>
               </Show>
             </div>
@@ -293,8 +293,8 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                 <i class="fa-solid fa-code-commit text-2xl"></i>
               </div>
               <div>
-                <p class="font-bold text-gray-700 dark:text-gray-300 text-sm">Nenhuma alteração encontrada</p>
-                <p class="max-w-sm mx-auto opacity-80 mt-1">A branch <span class="font-mono bg-gray-150 dark:bg-gray-700 px-1 py-0.5 rounded text-blue-500">{sourceBranch()}</span> já está totalmente sincronizada com <span class="font-mono bg-gray-150 dark:bg-gray-700 px-1 py-0.5 rounded text-blue-500">{targetBranch()}</span>.</p>
+                <p class="font-bold text-gray-700 dark:text-gray-300 text-sm">{t('pr').no_changes_found}</p>
+                <p class="max-w-sm mx-auto opacity-80 mt-1">{t('pr').branchs_already_synchronized}</p>
               </div>
             </div>
           </Show>
@@ -323,7 +323,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                   <label class="font-bold text-gray-600 dark:text-gray-400 block mb-1">{t('common').description}</label>
                   <MarkdownEditor 
                     value={description()}
-                    placeholder="Adicione os detalhes da implementação em Markdown..."
+                    placeholder={t('pr').add_markdown_add_details}
                     onInput={(val) => setDescription(val)}
                   />
                 </div>
@@ -339,7 +339,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                   <div class="flex gap-1.5 mb-2">
                     <input 
                       type="text" 
-                      placeholder="Adicionar revisor..." 
+                      placeholder={t('pr').add_reviewer + "..."} 
                       value={newReviewer()}
                       onInput={(e) => setNewReviewer(e.currentTarget.value)}
                       class="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-xs text-gray-800 dark:text-gray-100 outline-none"
@@ -361,7 +361,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                 <div class="">
                   <div class="flex items-center gap-1.5 font-bold text-gray-700 dark:text-gray-300 mb-2">
                     <i class="fa-solid fa-link text-xs opacity-70"></i>
-                    <span>Work items to link</span>
+                    <span>{t('pr').work_items_link}</span>
                     <Show when={linkedWorkItems().length > 0}>
                       <span class="bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-mono text-[11px] px-1.5 py-0.2 rounded-full border border-blue-200/40">
                         {linkedWorkItems().length}
@@ -374,7 +374,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                         onClick={() => setLinkedWorkItems([])}
                         class="ml-auto text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:underline font-semibold text-[11px]"
                       >
-                        Clear all
+                        {t('pr').clear_all}
                       </button>
                     </Show>
                   </div>

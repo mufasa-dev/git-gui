@@ -366,7 +366,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                     <Show when={isMerging()} fallback={<i class="fa-solid fa-arrow-rotate-left"></i>}>
                       <i class="fa-solid fa-circle-notch animate-spin"></i>
                     </Show>
-                    Reactivate
+                    {t('pr').reactive}
                   </button>
 
                   {/* Botão Dropdown Secundário (Reticências) */}
@@ -424,10 +424,10 @@ export default function PRDetailView(props: PRDetailViewProps) {
                       <Show when={isApproving()} fallback={
                         <Switch fallback={<><i class="fa-regular fa-circle-check text-green-500"></i> {currentFeedback()}</>}>
                           <Match when={currentFeedback() === 'Reject'}>
-                            <i class="fa-solid fa-circle-xmark text-red-500"></i> Reject
+                            <i class="fa-solid fa-circle-xmark text-red-500"></i> {t('pr').reject}
                           </Match>
                           <Match when={currentFeedback() === 'Wait for author'}>
-                            <i class="fa-solid fa-clock text-amber-500"></i> Wait for author
+                            <i class="fa-solid fa-clock text-amber-500"></i> {t('pr').wait_author}
                           </Match>
                         </Switch>
                       }>
@@ -448,17 +448,17 @@ export default function PRDetailView(props: PRDetailViewProps) {
                           <i class="fa-solid fa-circle-check text-green-500"></i> {t('pr').approve}
                         </button>
                         <button onClick={(e) => handleFeedbackSelect('Approve with suggestions', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
-                          <i class="fa-solid fa-circle-check text-green-600/70"></i> Approve with suggestions
+                          <i class="fa-solid fa-circle-check text-green-600/70"></i> {t('pr').approve_with_suggestions}
                         </button>
                         <button onClick={(e) => handleFeedbackSelect('Wait for author', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
-                          <i class="fa-solid fa-clock text-amber-500"></i> Wait for author
+                          <i class="fa-solid fa-clock text-amber-500"></i> {t('pr').wait_author}
                         </button>
                         <button onClick={(e) => handleFeedbackSelect('Reject', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
-                          <i class="fa-solid fa-circle-xmark text-red-500"></i> Reject
+                          <i class="fa-solid fa-circle-xmark text-red-500"></i> {t('pr').reject}
                         </button>
                         <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
                         <button onClick={(e) => handleFeedbackSelect('Reset feedback', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-gray-500">
-                          <i class="fa-regular fa-circle text-gray-400"></i> Reset feedback
+                          <i class="fa-regular fa-circle text-gray-400"></i> {t('pr').reset_feedback}
                         </button>
                       </div>
                     </Show>
@@ -473,7 +473,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                     >
                       <Show when={isMerging()} fallback={
                         <Show when={hasPendingRequiredReviewers()} fallback={<><i class="fa-solid fa-code-merge"></i> {t('pr').complete}</>}>
-                          <i class="fa-solid fa-bolt-lightning text-amber-300"></i> Set auto-complete
+                          <i class="fa-solid fa-bolt-lightning text-amber-300"></i> {t('pr').set_auto_complete}
                         </Show>
                       }>
                         <i class="fa-solid fa-circle-notch animate-spin"></i> {t('loading').merging}
@@ -493,13 +493,13 @@ export default function PRDetailView(props: PRDetailViewProps) {
                           <i class="fa-solid fa-code-branch"></i> {t('pr').complete}
                         </button>
                         <button onClick={(e) => handleActionExecute('Autocomplete', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
-                          <i class="fa-solid fa-bolt-lightning text-blue-500"></i> Set auto-complete
+                          <i class="fa-solid fa-bolt-lightning text-blue-500"></i> {t('pr').set_auto_complete}
                         </button>
                         <button onClick={(e) => handleActionExecute('Draft', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
-                          <i class="fa-solid fa-pen-to-square"></i> Mark as draft
+                          <i class="fa-solid fa-pen-to-square"></i> {t('pr').mark_draft}
                         </button>
                         <button onClick={(e) => handleActionExecute('Abandon', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-red-500">
-                          <i class="fa-solid fa-trash-can"></i> Abandon
+                          <i class="fa-solid fa-trash-can"></i> {t('pr').abandon}
                         </button>
                       </div>
                     </Show>

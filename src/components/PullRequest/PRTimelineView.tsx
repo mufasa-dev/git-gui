@@ -332,7 +332,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
 
     const onReact = async (subjectId: string, content: string, hasReacted: boolean) => {
         try {
-            showLoading(hasReacted ? "Removendo..." : "Reagindo...");
+            showLoading(hasReacted ? t('pr').deleting + '...' : t('pr').reacting + '...');
             
             if (props.provider === 'azure') {
                 const [threadId, commentId] = subjectId.split('_');
