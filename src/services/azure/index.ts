@@ -1165,6 +1165,11 @@ export const azureService = {
         email: fields["System.CreatedBy"]?.uniqueName,
         avatarUrl: fields["System.CreatedBy"]?._links?.avatar?.href
       },
+      subIssues: {
+        completed: 0,
+        percent: 100,
+        total: 0
+      },
       createdAt: fields["System.CreatedDate"],
       updatedAt: fields["System.ChangedDate"],
       commentsCount: fields["System.CommentCount"] || 0,

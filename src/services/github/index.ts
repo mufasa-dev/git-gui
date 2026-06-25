@@ -433,7 +433,7 @@ export const githubService = {
       const data = await issueRes.json();
       let timelineData: Array<any> = [];
       if (timelineRes.ok) timelineData = await timelineRes.json();
-
+      console.log('data', data)
       const tags = (data.labels || []).map((label: any) => label.name);
       const relatedReferences: Array<{ id: string; type: "Parent" | "Child" }> = [];
       const commitsHashes: string[] = [];
@@ -527,6 +527,11 @@ export const githubService = {
           name: data.user?.login || "unknown",
           email: '',
           avatarUrl: data.user?.avatar_url
+        },
+        subIssues: {
+          total: data.sub_issues_summary?.total || 0,
+          completed: data.sub_issues_summary?.completed || 0,
+          percent: data.sub_issues_summary?.percent_completed || 0
         },
         createdAt: data.created_at,
         updatedAt: data.updated_at,

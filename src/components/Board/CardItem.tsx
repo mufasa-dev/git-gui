@@ -119,6 +119,21 @@ export default function CardDetailView(props: CardDetailViewProps) {
                   <span class={`px-2.5 py-0.5 rounded-full border text-[11px] font-bold uppercase ${card.stateColor}`}>
                     {card.state}
                   </span>
+                  
+                  <Show when={card.subIssues?.total > 0}>
+                    <span 
+                      class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold tracking-wide rounded-xl 
+                        text-black dark:text-white border border-gray-green/40 dark:border-green-600/30"
+                      style={{
+                        background: `linear-gradient(to right, rgb(40, 161, 82) ${card.subIssues?.percent ?? 0}%, transparent ${card.subIssues?.percent ?? 0}%)`
+                      }}
+                    >
+                      <i class="fa-solid fa-list-check"></i>
+                      {card.subIssues?.completed} / {card.subIssues?.total}
+                    </span>
+                  </Show>
+
+
                   <div class="flex items-center gap-1.5">
                     <Show when={card.assignee?.avatarUrl} fallback={<i class="fa-solid fa-circle-user text-base text-gray-400"></i>}>
                       <AuthenticatedAvatar
@@ -131,6 +146,7 @@ export default function CardDetailView(props: CardDetailViewProps) {
                     </Show>
                     <span class="font-semibold text-gray-700 dark:text-gray-200">{card.assignee?.name || "Sem responsável"}</span>
                   </div>
+
 
                   <Show when={card.tags && card.tags.length > 0}>
                     <div class="flex flex-wrap items-center gap-1.5 border-r border-gray-300 dark:border-gray-700/80 pr-4">

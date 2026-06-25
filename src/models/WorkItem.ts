@@ -13,6 +13,11 @@ export interface WorkItem {
     email: string;
     avatarUrl?: string;
   };
+  subIssues: {
+    total: number;
+    completed: number;
+    percent: number;
+  };
   tags: string[];
   comments: CardComment[];
   priority?: number;
