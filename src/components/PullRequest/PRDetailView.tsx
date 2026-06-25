@@ -445,7 +445,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                     <Show when={showApproveMenu()}>
                       <div class="absolute left-0 top-9 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl z-50 py-1 text-xs text-gray-700 dark:text-gray-200">
                         <button onClick={(e) => handleFeedbackSelect('Approve', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
-                          <i class="fa-solid fa-circle-check text-green-500"></i> Approve
+                          <i class="fa-solid fa-circle-check text-green-500"></i> {t('pr').approve}
                         </button>
                         <button onClick={(e) => handleFeedbackSelect('Approve with suggestions', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
                           <i class="fa-solid fa-circle-check text-green-600/70"></i> Approve with suggestions
@@ -472,7 +472,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                       class="px-4 py-1.5 text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 rounded-l-md"
                     >
                       <Show when={isMerging()} fallback={
-                        <Show when={hasPendingRequiredReviewers()} fallback={<><i class="fa-solid fa-code-merge"></i> Complete</>}>
+                        <Show when={hasPendingRequiredReviewers()} fallback={<><i class="fa-solid fa-code-merge"></i> {t('pr').complete}</>}>
                           <i class="fa-solid fa-bolt-lightning text-amber-300"></i> Set auto-complete
                         </Show>
                       }>
@@ -490,7 +490,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                     <Show when={showActionMenu()}>
                       <div class="absolute right-0 top-9 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl z-50 py-1 text-xs text-gray-700 dark:text-gray-200">
                         <button onClick={(e) => handleActionExecute('Complete', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
-                          <i class="fa-solid fa-code-branch"></i> Complete
+                          <i class="fa-solid fa-code-branch"></i> {t('pr').complete}
                         </button>
                         <button onClick={(e) => handleActionExecute('Autocomplete', e)} class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
                           <i class="fa-solid fa-bolt-lightning text-blue-500"></i> Set auto-complete

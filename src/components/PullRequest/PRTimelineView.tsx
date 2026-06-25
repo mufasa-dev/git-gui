@@ -914,14 +914,14 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                                     onClick={() => setReplyTargetId(null)}
                                                                     class="px-3 py-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-white transition-colors"
                                                                 >
-                                                                    Cancelar
+                                                                    {t('common').cancel}
                                                                 </button>
                                                                 <button 
                                                                     onClick={() => handleSaveReply(item.threadId, item.id)}
                                                                     disabled={!replyText().trim()}
                                                                     class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-40 transition-opacity"
                                                                 >
-                                                                    Responder
+                                                                    {t('pr').answer}
                                                                 </button>
                                                             </div>
                                                         </div>

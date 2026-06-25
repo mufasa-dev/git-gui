@@ -472,14 +472,14 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
           onClick={props.onClose} 
           class="px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg font-bold transition-colors"
         >
-          Cancelar
+          {t('common').cancel}
         </button>
         <button 
           disabled={!canProceed() || !title().trim() || validation.loading}
           onClick={handleSubmit}
           class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg disabled:opacity-40 disabled:hover:bg-blue-600 transition-colors shadow-sm"
         >
-          Criar Pull Request
+          {t('pr').create_pull_request}
         </button>
       </div>
     </Dialog>
