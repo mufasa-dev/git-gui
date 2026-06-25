@@ -412,6 +412,38 @@ export const githubService = {
     }
   },
 
+  async searchIssues(owner: string, repo: string, queryText: string): Promise<Array<{ id: string; title: string; state?: string }>> {
+    if (!queryText || queryText.trim().length < 2) return [];
+
+    const token = await this.getToken();
+    if (!token) return [];
+
+    const searchQuery = `repo:${owner}/${repo} type:issue ${queryText.trim()}`;
+    const url = `https://api.github.com/search/issues?q=${encodeURIComponent(searchQuery)}`;
+
+    try {
+      const response = await window.fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) return [];
+      const data = await response.json();
+
+      return (data.items || []).slice(0, 10).map((item: any) => ({
+        id: item.number.toString(),
+        title: item.title,
+        state: item.state === "open" ? "Active" : "Closed"
+      }));
+    } catch (error) {
+      console.error("Erro ao buscar Issues no GitHub:", error);
+      return [];
+    }
+  },
+
   async getUnifiedIssue(owner: string, repo: string, issueNumber: number): Promise<WorkItem> {
     const token = await this.getToken();
     if (!token) throw new Error("Token não encontrado");

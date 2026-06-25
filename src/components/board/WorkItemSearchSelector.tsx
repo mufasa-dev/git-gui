@@ -1,6 +1,7 @@
 import { createResource, createSignal, For, Show } from "solid-js";
 import { GitProvider } from "../../utils/gitProvider";
 import { githubService } from "../../services/github";
+import { azureService } from "../../services/azure";
 
 interface SearchSelectorProps {
   provider: GitProvider;
@@ -13,39 +14,15 @@ export function WorkItemSearchSelector(props: SearchSelectorProps) {
   const [query, setQuery] = createSignal("");
   const [isFocused, setIsFocused] = createSignal(false);
 
-  // Recurso reativo para fazer o autocomplete
   const [searchResults] = createResource(
     () => ({ text: query(), provider: props.provider, org: props.org, repo: props.repo }),
     async ({ text, provider, org, repo }) => {
       if (text.trim().length < 2) return [];
 
-      try {
-        if (provider === "azure") {
-          // Caso queira usar um método de query por texto no Azure WIT
-          // Exemplo fictício assumindo que seu service tem busca por texto/id:
-          // return await azureService.searchWorkItems(org, repo, text);
-          return [
-            { id: "1", title: "Start project", state: "Doing" },
-            { id: "2", title: "Task 1", state: "Doing" }
-          ].filter(i => i.title.toLowerCase().includes(text.toLowerCase()) || i.id === text);
-        } else {
-          // Fallback seguro usando o search de issues do GitHubService
-          // GET /search/issues?q=repo:owner/repo+type:issue+text
-          const token = await githubService.getToken();
-          const res = await window.fetch(
-            `https://api.github.com/search/issues?q=repo:${org}/${repo}+type:issue+${encodeURIComponent(text)}`,
-            { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' } }
-          );
-          if (!res.ok) return [];
-          const data = await res.json();
-          return (data.items || []).slice(0, 5).map((item: any) => ({
-            id: item.number.toString(),
-            title: item.title,
-            state: item.state === "open" ? "Active" : "Closed"
-          }));
-        }
-      } catch {
-        return [];
+      if (provider === "azure") {
+        return await azureService.searchWorkItems(org, repo, text);
+      } else {
+        return await githubService.searchIssues(org, repo, text);
       }
     }
   );

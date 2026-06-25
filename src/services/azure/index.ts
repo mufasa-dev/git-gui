@@ -1079,6 +1079,64 @@ export const azureService = {
     return `data:${contentType || "image/jpeg"};base64,${btoa(binary)}`;
   },
 
+  async searchWorkItems(organization: string, project: string, queryText: string): Promise<Array<{ id: string; title: string; state?: string }>> {
+    if (!queryText || queryText.trim().length < 2) return [];
+    
+    const token = await this.getToken();
+    if (!token) return [];
+    const credentials = btoa(`:${token.trim()}`);
+
+    const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/wit/wiql?api-version=7.0`;
+
+    const isNumber = !isNaN(Number(queryText.trim()));
+    
+    const wiqlQuery = {
+      query: `SELECT [System.Id], [System.Title], [System.State] 
+              FROM WorkItems 
+              WHERE [System.TeamProject] = '${project}' 
+              AND (
+                [System.Title] CONTAINS '${queryText.replace(/'/g, "''")}'
+                ${isNumber ? `OR [System.Id] = ${queryText.trim()}` : ''}
+              )`
+    };
+
+    try {
+      const response = await window.fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(wiqlQuery)
+      });
+
+      if (!response.ok) return [];
+      const result = await response.json();
+      
+      const workItemIds = (result.workItems || []).map((item: any) => item.id);
+      if (workItemIds.length === 0) return [];
+
+      const urlDetails = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/wit/workitems?ids=${workItemIds.slice(0, 10).join(",")}&api-version=7.0&fields=System.Id,System.Title,System.State`;
+      
+      const detailsResponse = await window.fetch(urlDetails, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+      
+      if (!detailsResponse.ok) return [];
+      const detailsData = await detailsResponse.json();
+
+      return (detailsData.value || []).map((item: any) => ({
+        id: item.id.toString(),
+        title: item.fields["System.Title"] || "Work Item sem título",
+        state: item.fields["System.State"]
+      }));
+    } catch (error) {
+      console.error("Erro ao buscar Work Items no Azure:", error);
+      return [];
+    }
+  },
+
   async getUnifiedWorkItem(organization: string, project: string, workItemId: number): Promise<WorkItem | null> {
     const token = await this.getToken();
     if (!token) return null;
