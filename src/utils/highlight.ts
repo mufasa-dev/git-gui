@@ -3,7 +3,7 @@ import { getExtension } from "./file";
     const keywordMap: Record<string, string[]> = {
         js: ['const', 'let', 'async', 'await', 'return', 'export', 'import', 'from', 'default', 'function', 'class', 'if', 'else'],
         ts: ['const', 'let', 'async', 'await', 'return', 'type', 'interface', 'enum', 'readonly', 'public', 'private', 'protected', 
-            'import', 'from', 'declare', 'module', 'namespace', 'export', 'function', 'if', 'else', 'try', 'catch'],
+            'import', 'from', 'declare', 'module', 'namespace', 'export', 'function', 'if', 'else', 'try', 'catch', 'get', 'this.', 'class'],
         rs: ['pub', 'fn', 'match', 'impl', 'mut', 'use', 'let', 'return', 'mod', 'crate', 'async', 'if'],
         go: ['func', 'chan', 'defer', 'go', 'select', 'package', 'type', 'struct', 'interface', 'map', 'range', 'if', 'else', 'for', 'return', 'var'],
         java: [
@@ -116,7 +116,7 @@ import { getExtension } from "./file";
         { 
             name: "yml-comment", 
             regex: /(#.*)/g, 
-            class: "text-gray-500 italic" 
+            class: "text-green-500 italic" 
         },
         // 2. Chaves (Keys) - Tudo que vem antes de ":"
         // Captura "key:", "- key:" ou chaves com espaços
