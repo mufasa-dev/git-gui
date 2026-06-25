@@ -7,6 +7,7 @@ import { githubService } from "../../services/github";
 import MarkdownEditor from "../ui/MarkdownEditor";
 import { useApp } from "../../context/AppContext";
 import { WorkItemSearchSelector } from "../board/WorkItemSearchSelector";
+import CommitMessage from "../ui/CommitMessage";
 
 interface CreatePRDialogProps {
   isOpen: boolean;
@@ -171,7 +172,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
   return (
     <Dialog
       open={props.isOpen}
-      title="New pull request"
+      title={t('pr').new_pull_request}
       width="850px"
       bodyClass="p-0 flex flex-col max-h-[85vh] overflow-hidden"
       onClose={props.onClose}
@@ -331,7 +332,10 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
               <div class="mt-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700/70 bg-gray-50/50 dark:bg-gray-900/30">
                 {/* Reviewers */}
                 <div>
-                  <label class="font-bold text-gray-600 dark:text-gray-400 block mb-1">{t('pr').reviewers}</label>
+                  <div class="flex items-center gap-1.5 font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    <i class="fa-solid fa-user text-xs opacity-70"></i>
+                    <span>{t('pr').reviewers}</span>
+                  </div>
                   <div class="flex gap-1.5 mb-2">
                     <input 
                       type="text" 
@@ -450,7 +454,9 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                       <span class="text-blue-600 dark:text-blue-400 font-bold">{commit.id}</span>
                       <span class="text-gray-400 dark:text-gray-500 text-[10px]">{commit.author}</span>
                     </div>
-                    <p class="text-gray-800 dark:text-gray-200 font-medium">{commit.message}</p>
+                    <p class="text-gray-800 dark:text-gray-200 font-medium">
+                      <CommitMessage message={commit.message} />
+                    </p>
                   </div>
                 )}
               </For>
