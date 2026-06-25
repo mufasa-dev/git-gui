@@ -133,7 +133,6 @@ export default function CardDetailView(props: CardDetailViewProps) {
                     </span>
                   </Show>
 
-
                   <div class="flex items-center gap-1.5">
                     <Show when={card.assignee?.avatarUrl} fallback={<i class="fa-solid fa-circle-user text-base text-gray-400"></i>}>
                       <AuthenticatedAvatar

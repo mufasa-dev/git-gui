@@ -11,7 +11,7 @@ import { formatContributorName } from "../../utils/user";
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
 import { GitProvider } from "../../utils/gitProvider";
-import CardDetailView from "../Board/CardItem";
+import CardDetailView from "../board/CardItem";
 
 type CommitDetailsProps = {
   commit: any;
