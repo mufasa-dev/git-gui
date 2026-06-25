@@ -4,6 +4,7 @@ import MarkdownViewer from "../ui/MarkdownViewer";
 import CommitMessage from "../ui/CommitMessage";
 import { useApp } from "../../context/AppContext";
 import { githubService } from "../../services/github";
+import AuthenticatedAvatar from "../PullRequest/AuthenticatedAvatar";
 
 type CardDetailsTabProps = {
   card: any;
@@ -90,13 +91,22 @@ export default function CardDetailsTab(props: CardDetailsTabProps) {
         </div>
 
         <div class="flex flex-col gap-3 border-t border-gray-200 dark:border-gray-700/70 pt-4 pb-6">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">{t('board').discuss} ({props.card.comments?.length || 0})</h3>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">
+            <i class="fa-regular fa-comment-dots mr-1 text-blue-400"></i>
+            {t('board').discuss} ({props.card.comments?.length || 0})
+          </h3>
           <div class="flex flex-col gap-3">
             <For each={props.card.comments}>
               {(comment: any) => (
                 <div class="flex gap-3 p-3 bg-white/60 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700/50 rounded-xl">
                   <Show when={comment.author.avatarUrl} fallback={<i class="fa-solid fa-circle-user text-xl text-gray-400"></i>}>
-                    <img src={comment.author.avatarUrl} class="w-7 h-7 rounded-full" />
+                    <AuthenticatedAvatar 
+                      src={comment.author.avatarUrl} 
+                      alt={comment.author.name}
+                      email={comment.author.email || ""}
+                      fallbackName={comment.author.name}
+                      class="w-7 h-7 rounded-full" 
+                    />
                   </Show>
                   <div class="flex flex-col gap-1 w-full">
                     <div class="flex items-center justify-between text-xs">
@@ -121,7 +131,13 @@ export default function CardDetailsTab(props: CardDetailsTabProps) {
             <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">{t('board').original_creator}</h4>
             <div class="flex items-center gap-2">
               <Show when={props.card.author?.avatarUrl} fallback={<i class="fa-solid fa-circle-user text-xl text-gray-400"></i>}>
-                <img src={props.card.author?.avatarUrl} class="w-6 h-6 rounded-full" />
+                <AuthenticatedAvatar 
+                  src={props.card.author?.avatarUrl} 
+                  alt={props.card.author?.name}
+                  email={props.card.author?.email || ""}
+                  fallbackName={props.card?.author.name}
+                  class="w-6 h-6 rounded-full" 
+                />
               </Show>
               <span class="text-xs font-semibold text-gray-600 dark:text-gray-400">{props.card.author?.name}</span>
             </div>

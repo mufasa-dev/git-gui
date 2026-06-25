@@ -1142,7 +1142,7 @@ export const azureService = {
     let stateColor = "bg-gray-500/10 text-gray-500 border-gray-500/20";
     if (state === "Active" || state === "Doing") stateColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
     if (state === "Done" || state === "Completed") stateColor = "bg-green-500/10 text-green-500 border-green-500/20";
-
+      console.log('fields["System.CreatedBy"]', fields["System.CreatedBy"])
     return {
       id: data.id.toString(),
       number: data.id,
@@ -1162,6 +1162,7 @@ export const azureService = {
       iterationPath: fields["System.IterationPath"] || "",
       author: {
         name: fields["System.CreatedBy"]?.displayName || "Azure User",
+        email: fields["System.CreatedBy"]?.uniqueName,
         avatarUrl: fields["System.CreatedBy"]?._links?.avatar?.href
       },
       createdAt: fields["System.CreatedDate"],
@@ -1237,12 +1238,13 @@ export const azureService = {
       });
       if (!response.ok) return [];
       const data = await response.json();
-      
+
       return (data.comments || []).map((c: any) => ({
         id: c.id,
         author: {
           name: c.createdBy?.displayName || "Azure User",
-          avatarUrl: c.createdBy?._links?.avatar?.href
+          avatarUrl: c.createdBy?._links?.avatar?.href,
+          email: c.createdBy?.uniqueName || ""
         },
         text: c.text || "", // O Azure retorna o texto do comentário em formato HTML/String
         createdAt: c.createdDate
@@ -1265,7 +1267,7 @@ export const azureService = {
       });
       if (!response.ok) return [];
       const data = await response.json();
-
+      console.log('historyu', data)
       const mappedUpdates = (data.value || []).map((update: any) => {
         const fields = update.fields || {};
         const relations = update.relations || {};
@@ -1273,7 +1275,8 @@ export const azureService = {
 
         const identity = update.revisedBy;
         const userName = identity?.displayName || identity?.name?.split("<")[0]?.trim() || "Sistema";
-        const userAvatar = identity?._links?.avatar?.href || null;
+        const userAvatar = identity?.imageUrl || identity?._links?.avatar?.href || null;
+        const userEmail = identity?.uniqueName;
 
         let rawDate = fields["System.ChangedDate"]?.newValue || update.revisedDate;
         
@@ -1376,6 +1379,7 @@ export const azureService = {
           id: update.id,
           rev: update.rev,
           user: userName,
+          userEmail: userEmail,
           avatar: userAvatar,
           date: eventDate,
           translation: {

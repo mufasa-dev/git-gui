@@ -10,6 +10,7 @@ export interface WorkItem {
   provider: GitProvider;
   author: {
     name: string;
+    email: string;
     avatarUrl?: string;
   };
   tags: string[];

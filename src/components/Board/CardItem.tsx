@@ -8,6 +8,7 @@ import { useApp } from "../../context/AppContext";
 import Dialog from "../ui/Dialog";
 import { CommitDetails } from "../commits/CommitDetails";
 import { getCommitDetails } from "../../services/gitService";
+import AuthenticatedAvatar from "../PullRequest/AuthenticatedAvatar";
 
 type CardDetailViewProps = {
   cardId: string | number;
@@ -120,7 +121,13 @@ export default function CardDetailView(props: CardDetailViewProps) {
                   </span>
                   <div class="flex items-center gap-1.5">
                     <Show when={card.assignee?.avatarUrl} fallback={<i class="fa-solid fa-circle-user text-base text-gray-400"></i>}>
-                      <img src={card.assignee?.avatarUrl} class="w-5 h-5 rounded-full" />
+                      <AuthenticatedAvatar
+                        src={card.author?.avatarUrl} 
+                        alt={card.author?.name}
+                        email={card.author?.email || ""}
+                        fallbackName={card?.author.name}
+                        class="w-5 h-5 rounded-full" 
+                      />
                     </Show>
                     <span class="font-semibold text-gray-700 dark:text-gray-200">{card.assignee?.name || "Sem responsável"}</span>
                   </div>
@@ -129,8 +136,7 @@ export default function CardDetailView(props: CardDetailViewProps) {
                     <div class="flex flex-wrap items-center gap-1.5 border-r border-gray-300 dark:border-gray-700/80 pr-4">
                       <For each={card.tags}>
                         {(tag: string) => (
-                          <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase rounded-md bg-gray-200 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 border border-gray-300/40 dark:border-gray-600/30">
-                            <i class="fa-solid fa-tag text-[9px] opacity-50"></i>
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase rounded-xl bg-gray-200 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 border border-gray-300/40 dark:border-gray-600/30">
                             {tag}
                           </span>
                         )}

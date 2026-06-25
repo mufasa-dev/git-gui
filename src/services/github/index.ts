@@ -525,6 +525,7 @@ export const githubService = {
         iterationPath: data.milestone ? data.milestone.title : "No Milestone",
         author: {
           name: data.user?.login || "unknown",
+          email: '',
           avatarUrl: data.user?.avatar_url
         },
         createdAt: data.created_at,

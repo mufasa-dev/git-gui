@@ -5,6 +5,7 @@ import TaskRow from "./RelatedItemRow";
 import { useApp } from "../../context/AppContext";
 import { GitProvider } from "../../utils/gitProvider";
 import { githubService } from "../../services/github";
+import AuthenticatedAvatar from "../PullRequest/AuthenticatedAvatar";
 
 type CardHistoryTabProps = {
   cardId: string | number;
@@ -60,7 +61,13 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                       >
                         <div class="flex items-center gap-3">
                           <Show when={audit.avatar} fallback={<div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">{audit.user[0]}</div>}>
-                            <img src={audit.avatar} class="w-6 h-6 rounded-full" />
+                            <AuthenticatedAvatar 
+                              src={audit.avatar} 
+                              alt={audit.user}
+                              email={audit.userEmail || ""}
+                              fallbackName={audit.user}
+                              class="w-6 h-6 rounded-full" 
+                            />
                           </Show>
                           <div class="flex flex-col gap-0.5">
                             <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">
@@ -86,10 +93,19 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                         
                         <div class="flex items-center gap-2 text-gray-400 text-[11px] font-mono">
                           <Show when={audit.changes.some((c: any) => c.type === 'comment')}>
-                            <i class="fa-regular fa-comment-dots text-gray-400"></i>
+                            <i class="fa-regular fa-comment-dots text-blue-400"></i>
                           </Show>
                           <Show when={audit.changes.some((c: any) => c.type.includes('link'))}>
-                            <i class="fa-solid fa-link text-gray-400"></i>
+                            <i class="fa-solid fa-link text-blue-500 dark:text-blue-200"></i>
+                          </Show>
+                          <Show when={audit.changes.some((c: any) => c.type.includes('tags'))}>
+                            <i class="fa-solid fa-tags text-yellow-400"></i>
+                          </Show>
+                          <Show when={audit.changes.some((c: any) => c.type.includes('state'))}>
+                            <i class="fa-solid fa-circle text-green-400"></i>
+                          </Show>
+                          <Show when={audit.changes.some((c: any) => c.type.includes('assignee'))}>
+                            <i class="fa-solid fa-user text-gray-400"></i>
                           </Show>
                           <span>
                             {new Date(audit.date).toLocaleString(['pt-BR'], {
@@ -116,7 +132,13 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                 }>
                   <div class="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-3 mb-4">
                     <Show when={selectedAudit().avatar} fallback={<i class="fa-solid fa-user-gear text-lg text-gray-400"></i>}>
-                      <img src={selectedAudit().avatar} class="w-7 h-7 rounded-full" />
+                      <AuthenticatedAvatar 
+                        src={selectedAudit().avatar} 
+                        alt={selectedAudit().user}
+                        email={selectedAudit().userEmail || ""}
+                        fallbackName={selectedAudit().user}
+                        class="w-7 h-7 rounded-full" 
+                      />
                     </Show>
                     <div class="flex flex-col">
                       <span class="text-xs font-bold text-gray-800 dark:text-gray-200">{selectedAudit().user}</span>
@@ -151,7 +173,7 @@ export default function CardHistoryTab(props: CardHistoryTabProps) {
                                   {t('board').board_column}
                                 </Match>
                                 <Match when={change.field == "Assigned_To"}>
-                                  {t('board').assigned_to}
+                                  {t('pr').assignees}
                                 </Match>
                                 <Match when={change.field == "Priority"}>
                                   {t('board').priority}

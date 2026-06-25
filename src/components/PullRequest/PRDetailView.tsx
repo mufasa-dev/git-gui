@@ -399,7 +399,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                 <div class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-md">
                   <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
                   <span class="text-[10px] font-bold text-red-500 uppercase tracking-tight">
-                    Existem conflitos que devem ser resolvidos
+                    {t('pr').has_conflicts}
                   </span>
                   <button 
                     onClick={() => setActiveTab('Files')} 
