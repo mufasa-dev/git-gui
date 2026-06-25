@@ -286,7 +286,7 @@ import { getExtension } from "./file";
         if (ext == 'md') return mdPatterns;
         if (ext == 'json') return jsonPatterns;
         if (ext === 'yml' || ext === 'yaml') return ymlPatterns;
-        if (['gitignore', 'dockerignore', 'npmignore'].includes(ext)) {
+        if (['gitignore', 'dockerignore', 'npmignore', 'browserslistrc'].includes(ext)) {
             return gitignorePatterns;
         }
         if (fileName.toLowerCase() === 'makefile' || ext === 'mk') {
