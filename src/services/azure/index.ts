@@ -1113,7 +1113,7 @@ export const azureService = {
     const tasksIds = relations
     .filter((rel: any) => rel.rel === "System.LinkTypes.Hierarchy-Forward")
     .map((rel: any) => {
-      return rel.url.split("/").pop(); // Extrai o ID "2" da URL fornecida
+      return rel.url.split("/").pop();
     });
     
     // Criamos uma estrutura que identifica o tipo do vínculo de cada Work Item linkado
@@ -1142,7 +1142,7 @@ export const azureService = {
     let stateColor = "bg-gray-500/10 text-gray-500 border-gray-500/20";
     if (state === "Active" || state === "Doing") stateColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
     if (state === "Done" || state === "Completed") stateColor = "bg-green-500/10 text-green-500 border-green-500/20";
-      console.log('fields["System.CreatedBy"]', fields["System.CreatedBy"])
+
     return {
       id: data.id.toString(),
       number: data.id,

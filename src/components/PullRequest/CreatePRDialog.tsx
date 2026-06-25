@@ -6,6 +6,7 @@ import { azureService } from "../../services/azure";
 import { githubService } from "../../services/github";
 import MarkdownEditor from "../ui/MarkdownEditor";
 import { useApp } from "../../context/AppContext";
+import { WorkItemSearchSelector } from "../board/WorkItemSearchSelector";
 
 interface CreatePRDialogProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
   const [description, setDescription] = createSignal("");
   const [reviewers, setReviewers] = createSignal<string[]>([]);
   const [newReviewer, setNewReviewer] = createSignal("");
+  const [linkedWorkItems, setLinkedWorkItems] = createSignal<Array<{ id: string; title: string; state?: string }>>([]);
 
   // Chaves de controle para forçar o SearchableSelect a remontar e atualizar visualmente
   const [sourceKey, setSourceKey] = createSignal(0);
@@ -146,6 +148,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
         sourceBranch: sourceBranch(),
         targetBranch: targetBranch(),
         reviewers: reviewers(),
+        workItems: linkedWorkItems().map(item => item.id),
       };
 
       if (provider === "azure") {
@@ -325,7 +328,8 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                 </div>
               </div>
 
-              <div class="col-span-1 border-l border-gray-200 dark:border-gray-700 pl-4 flex flex-col gap-3">
+              <div class="mt-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700/70 bg-gray-50/50 dark:bg-gray-900/30">
+                {/* Reviewers */}
                 <div>
                   <label class="font-bold text-gray-600 dark:text-gray-400 block mb-1">{t('pr').reviewers}</label>
                   <div class="flex gap-1.5 mb-2">
@@ -344,6 +348,76 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                         <span class="bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-[10px] px-2 py-0.5 rounded-full font-medium">
                           {r}
                         </span>
+                      )}
+                    </For>
+                  </div>
+                </div>
+
+                {/* Work Items */}
+                <div class="">
+                  <div class="flex items-center gap-1.5 font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    <i class="fa-solid fa-link text-xs opacity-70"></i>
+                    <span>Work items to link</span>
+                    <Show when={linkedWorkItems().length > 0}>
+                      <span class="bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-mono text-[11px] px-1.5 py-0.2 rounded-full border border-blue-200/40">
+                        {linkedWorkItems().length}
+                      </span>
+                    </Show>
+                    
+                    <Show when={linkedWorkItems().length > 0}>
+                      <button 
+                        type="button" 
+                        onClick={() => setLinkedWorkItems([])}
+                        class="ml-auto text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:underline font-semibold text-[11px]"
+                      >
+                        Clear all
+                      </button>
+                    </Show>
+                  </div>
+
+                  {/* Componente de Busca Adaptativo */}
+                  <div class="relative w-full max-w-md">
+                    <WorkItemSearchSelector 
+                      provider={props.provider}
+                      org={props.org}
+                      repo={props.repo}
+                      onSelect={(item) => {
+                        // Evita duplicados
+                        if (!linkedWorkItems().some(i => i.id === item.id)) {
+                          setLinkedWorkItems([...linkedWorkItems(), item]);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Lista de Itens Vinculados (Tags abaixo do input) */}
+                  <div class="flex flex-col gap-1.5 mt-3">
+                    <For each={linkedWorkItems()}>
+                      {(item) => (
+                        <div class="flex items-center gap-2 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg group shadow-sm transition-all hover:border-gray-300 dark:hover:border-gray-600">
+                          {/* Ícone verde de item aberto (Igual ao print) */}
+                          <i class="fa-regular fa-circle-dot text-emerald-500 text-xs"></i>
+                          
+                          <span class="font-semibold text-gray-800 dark:text-gray-200 truncate max-w-lg">
+                            <span class="text-blue-500 font-mono mr-1">#{item.id}:</span> {item.title}
+                          </span>
+
+                          {/* Tag de Estado opcional */}
+                          <Show when={item.state}>
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200/30">
+                              {item.state}
+                            </span>
+                          </Show>
+
+                          {/* Botão de Remover Item individual */}
+                          <button
+                            type="button"
+                            onClick={() => setLinkedWorkItems(linkedWorkItems().filter(i => i.id !== item.id))}
+                            class="ml-auto text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1 transition-colors"
+                          >
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                          </button>
+                        </div>
                       )}
                     </For>
                   </div>
