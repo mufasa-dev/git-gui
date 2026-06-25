@@ -78,12 +78,12 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
   // 🎯 2. RECURSO DE VALIDAÇÃO MULTI-PROVIDER (Dispara automaticamente nas mudanças)
   const [validation] = createResource(
     () => ({ 
-        source: sourceBranch(), 
-        target: targetBranch(), 
-        provider: props.provider,
-        org: props.org,
-        repo: props.repo
-    }),
+      source: sourceBranch(), 
+      target: targetBranch(), 
+      provider: props.provider,
+      org: props.org,
+      repo: props.repo
+  }),
     async ({ source, target, provider, org, repo }) => {
         if (!source || !target || source === target) return null;
 
@@ -93,44 +93,44 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
         return await githubService.validatePullRequest(org, repo, source, target);
         }
     }
-    );
+  );
 
-    // Memos lógicos baseados no resultado da API
-    const isIdentical = createMemo(() => sourceBranch() === targetBranch());
+  // Memos lógicos baseados no resultado da API
+  const isIdentical = createMemo(() => sourceBranch() === targetBranch());
 
-    const prExists = createMemo(() => {
-        const data = validation();
-        if (!data || validation.loading) return false;
-        return data.alreadyExists; 
-    });
+  const prExists = createMemo(() => {
+      const data = validation();
+      if (!data || validation.loading) return false;
+      return data.alreadyExists; 
+  });
 
-    const noChanges = createMemo(() => {
-        if (validation.loading) return false;
-        const data = validation();
-        if (!data) return false;
-        return !data.hasChanges;
-    });
+  const noChanges = createMemo(() => {
+      if (validation.loading) return false;
+      const data = validation();
+      if (!data) return false;
+      return !data.hasChanges;
+  });
 
-    // Condição final para renderizar os campos do formulário
-    const canProceed = createMemo(() => {
-        if (isIdentical() || validation.loading) return false;
-        const data = validation();
-        if (!data) return false;
-        
-        // Pode prosseguir se houver mudanças E não houver nenhum PR idêntico em estado ATIVO
-        return data.hasChanges && !data.alreadyExists;
-    });
+  // Condição final para renderizar os campos do formulário
+  const canProceed = createMemo(() => {
+      if (isIdentical() || validation.loading) return false;
+      const data = validation();
+      if (!data) return false;
+      
+      // Pode prosseguir se houver mudanças E não houver nenhum PR idêntico em estado ATIVO
+      return data.hasChanges && !data.alreadyExists;
+  });
 
-    const countCommits = createMemo(() => validation()?.commits?.length || 0);
-    const countFiles = createMemo(() => validation()?.files?.length || 0);
+  const countCommits = createMemo(() => validation()?.commits?.length || 0);
+  const countFiles = createMemo(() => validation()?.files?.length || 0);
 
-    const handleAddReviewer = (e: Event) => {
-        e.preventDefault();
-        if (newReviewer().trim()) {
-            setReviewers([...reviewers(), newReviewer().trim()]);
-            setNewReviewer("");
-        }
-    };
+  const handleAddReviewer = (e: Event) => {
+      e.preventDefault();
+      if (newReviewer().trim()) {
+          setReviewers([...reviewers(), newReviewer().trim()]);
+          setNewReviewer("");
+      }
+  };
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
@@ -197,7 +197,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
             type="button"
             onClick={handleInvertBranches}
             title="Invert source and target"
-            class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-900 transition-all shadow-sm active:scale-95"
+            class="px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-900 transition-all shadow-sm active:scale-95"
           >
             <i class="fa-solid fa-right-left"></i>
           </button>
