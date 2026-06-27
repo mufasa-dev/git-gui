@@ -11,6 +11,11 @@ const keywordMap: Record<string, string[]> = {
         'void', 'extends', 'implements', 'new', 'return', 'if', 'else', 'for', 'while', 
         'try', 'catch', 'finally', 'throw', 'throws', 'instanceof', 'synchronized', 'volatile', 'package', 'import'
     ],
+    kt: [
+        'public', 'private', 'protected', 'static', 'final', 'class', 'interface', 'enum', 'init', 'var',
+        'void', 'extends', 'implements', 'new', 'return', 'if', 'else', 'for', 'while', 'val', 'fun', 'by',
+        'try', 'catch', 'finally', 'throw', 'throws', 'instanceof', 'synchronized', 'volatile', 'package', 'import'
+    ],
     cs: [
         'public', 'private', 'internal', 'protected', 'static', 'readonly', 'partial', 'class', 'interface', 'struct', 'enum',
         'void', 'async', 'await', 'task', 'var', 'new', 'return', 'if', 'else', 'foreach', 'using', 'namespace', 'get', 'set',
