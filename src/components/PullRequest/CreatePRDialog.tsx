@@ -8,6 +8,8 @@ import MarkdownEditor from "../ui/MarkdownEditor";
 import { useApp } from "../../context/AppContext";
 import { WorkItemSearchSelector } from "../board/WorkItemSearchSelector";
 import CommitMessage from "../ui/CommitMessage";
+import { ReviewerSearchSelector } from "./ReviewerSearchSelector";
+import { ReviewerItem } from "../../models/PR.model";
 
 interface CreatePRDialogProps {
   isOpen: boolean;
@@ -31,6 +33,10 @@ interface PRValidationResult {
 
 export default function CreatePRDialog(props: CreatePRDialogProps) {
   
+  const [activeOrg, setActiveOrg] = createSignal(props.org);
+  const [activeRepo, setActiveRepo] = createSignal(props.repo);
+  const [activeProvider, setActiveProvider] = createSignal(props.provider);
+
   // Estados de Seleção de Branches
   const [sourceBranch, setSourceBranch] = createSignal(props.currentBranch || "");
   const [targetBranch, setTargetBranch] = createSignal("main");
@@ -39,7 +45,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
   // Campos do Formulário
   const [title, setTitle] = createSignal("");
   const [description, setDescription] = createSignal("");
-  const [reviewers, setReviewers] = createSignal<string[]>([]);
+  const [reviewers, setReviewers] = createSignal<ReviewerItem[]>([]);
   const [newReviewer, setNewReviewer] = createSignal("");
   const [linkedWorkItems, setLinkedWorkItems] = createSignal<Array<{ id: string; title: string; state?: string }>>([]);
 
@@ -62,36 +68,38 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
     setTargetKey(prev => prev + 1);
   };
 
-  // Reseta o formulário toda vez que o Dialog abre
   createEffect(() => {
     if (props.isOpen) {
+      setActiveOrg(props.org);
+      setActiveRepo(props.repo);
+      setActiveProvider(props.provider);
+
       setSourceBranch(props.currentBranch || "");
       setTargetBranch("main");
       setTitle("");
       setDescription("");
-      setReviewers([]);
+      
       setActiveTab("overview");
       setSourceKey(prev => prev + 1);
       setTargetKey(prev => prev + 1);
     }
   });
 
-  // 🎯 2. RECURSO DE VALIDAÇÃO MULTI-PROVIDER (Dispara automaticamente nas mudanças)
   const [validation] = createResource(
     () => ({ 
       source: sourceBranch(), 
       target: targetBranch(), 
-      provider: props.provider,
-      org: props.org,
-      repo: props.repo
-  }),
+      provider: activeProvider(),
+      org: activeOrg(),
+      repo: activeRepo()
+    }),
     async ({ source, target, provider, org, repo }) => {
         if (!source || !target || source === target) return null;
 
         if (provider === "azure") {
-        return await azureService.validatePullRequest(org, repo, source, target);
+          return await azureService.validatePullRequest(org, repo, source, target);
         } else {
-        return await githubService.validatePullRequest(org, repo, source, target);
+          return await githubService.validatePullRequest(org, repo, source, target);
         }
     }
   );
@@ -125,23 +133,15 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
   const countCommits = createMemo(() => validation()?.commits?.length || 0);
   const countFiles = createMemo(() => validation()?.files?.length || 0);
 
-  const handleAddReviewer = (e: Event) => {
-      e.preventDefault();
-      if (newReviewer().trim()) {
-          setReviewers([...reviewers(), newReviewer().trim()]);
-          setNewReviewer("");
-      }
-  };
-
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
     
     if (!canProceed() || !title().trim()) return;
 
     try {
-      const org = props.org;
-      const repo = props.repo;
-      const provider = props.provider
+      const org = activeOrg();
+      const repo = activeRepo();
+      const provider = activeProvider()
 
       const prPayload = {
         title: title(),
@@ -253,9 +253,8 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
           </div>
         </Show>
 
-        {/* 🎯 ZONA DE MENSAGENS BLOQUEANTES (Esconde o formulário igual ao Azure DevOps) */}
+        {/* 🎯 ZONA DE MENSAGENS BLOQUEANTES */}
         <Show when={!validation.loading}>
-          
           <Show when={isIdentical()}>
             <div class="p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/40 rounded-xl text-yellow-800 dark:text-yellow-400 text-xs flex items-center gap-3 shadow-sm my-4">
               <i class="fa-solid fa-triangle-exclamation text-base text-yellow-500"></i>
@@ -311,7 +310,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                   <label class="font-bold text-gray-600 dark:text-gray-400 block mb-1">{t('pr').title}</label>
                   <input 
                     type="text" 
-                    placeholder="Ex: chore: ajust local properties"
+                    placeholder={t('common').example + ": chore: ajust local properties"}
                     value={title()}
                     onInput={(e) => setTitle(e.currentTarget.value)}
                     required
@@ -336,21 +335,78 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                     <i class="fa-solid fa-user text-xs opacity-70"></i>
                     <span>{t('pr').reviewers}</span>
                   </div>
-                  <div class="flex gap-1.5 mb-2">
-                    <input 
-                      type="text" 
-                      placeholder={t('pr').add_reviewer + "..."} 
-                      value={newReviewer()}
-                      onInput={(e) => setNewReviewer(e.currentTarget.value)}
-                      class="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-xs text-gray-800 dark:text-gray-100 outline-none"
+                  
+                  {/* Componente de busca para revisores */}
+                  <div class="relative w-full mb-3">
+                    <ReviewerSearchSelector 
+                      provider={activeProvider()}
+                      org={activeOrg()}
+                      repo={activeRepo()}
+                      onSelect={(user) => {
+                        // Evita adicionar o mesmo revisor duas vezes
+                        if (!reviewers().some(r => r.login === user.login)) {
+                          setReviewers([...reviewers(), { 
+                            login: user.login, 
+                            avatarUrl: user.avatarUrl, 
+                            isRequired: true // Começa como obrigatório por padrão
+                          }]);
+                        }
+                      }}
                     />
-                    <button onClick={handleAddReviewer} class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-2.5 rounded-md font-bold transition-colors">+</button>
                   </div>
-                  <div class="flex flex-wrap gap-1">
+
+                  {/* Lista Única de Revisores Adicionados (Lado a lado) */}
+                  <div class="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto custom-scrollbar p-0.5">
                     <For each={reviewers()}>
-                      {(r) => (
-                        <span class="bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-[10px] px-2 py-0.5 rounded-full font-medium">
-                          {r}
+                      {(reviewer) => (
+                        <span 
+                          class={`inline-flex items-center gap-1.5 border text-[11px] pl-1 pr-2 py-0.5 rounded-full font-medium transition-all duration-200 ${
+                            reviewer.isRequired 
+                              ? 'bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 text-blue-800 dark:text-blue-300' 
+                              : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400'
+                          }`}
+                        >
+                          {/* Avatar ou Círculo com as Iniciais */}
+                          {reviewer.avatarUrl ? (
+                            <img src={reviewer.avatarUrl} class="w-4 h-4 rounded-full object-cover" alt="" />
+                          ) : (
+                            <div class={`w-4 h-4 rounded-full flex items-center justify-center font-bold text-[9px] uppercase ${
+                              reviewer.isRequired ? 'bg-blue-500/10 text-blue-500' : 'bg-gray-500/10 text-gray-400'
+                            }`}>
+                              {reviewer.login.substring(0, 2)}
+                            </div>
+                          )}
+
+                          <span>{reviewer.login}</span>
+                          
+                          {/* Botão de Alternância Dinâmico (req / opt) */}
+                          <button
+                            type="button"
+                            title={reviewer.isRequired ? "Mudar para opcional" : "Mudar para obrigatório"}
+                            onClick={() => {
+                              setReviewers(reviewers().map(r => 
+                                r.login === reviewer.login ? { ...r, isRequired: !r.isRequired } : r
+                              ));
+                            }}
+                            class={`text-[9px] px-1 rounded-md font-semibold transition-colors ${
+                              reviewer.isRequired 
+                                ? 'bg-blue-200/60 dark:bg-blue-900/60 text-blue-700 dark:text-blue-400 hover:bg-blue-300 dark:hover:bg-blue-800' 
+                                : 'bg-gray-200 dark:bg-zinc-700 text-gray-500 dark:text-zinc-400 hover:bg-gray-300 dark:hover:bg-zinc-600'
+                            }`}
+                          >
+                            {reviewer.isRequired ? 'req' : 'opt'}
+                          </button>
+
+                          {/* Botão de Remover */}
+                          <button 
+                            type="button"
+                            onClick={() => setReviewers(reviewers().filter(r => r.login !== reviewer.login))}
+                            class={`transition-colors ml-0.5 text-[10px] ${
+                              reviewer.isRequired ? 'text-blue-400 hover:text-red-500' : 'text-gray-400 hover:text-red-500'
+                            }`}
+                          >
+                            <i class="fa-solid fa-xmark"></i>
+                          </button>
                         </span>
                       )}
                     </For>
@@ -382,9 +438,9 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                   {/* Componente de Busca Adaptativo */}
                   <div class="relative w-full max-w-md">
                     <WorkItemSearchSelector 
-                      provider={props.provider}
-                      org={props.org}
-                      repo={props.repo}
+                      provider={activeProvider()}
+                      org={activeOrg()}
+                      repo={activeRepo()}
                       onSelect={(item) => {
                         // Evita duplicados
                         if (!linkedWorkItems().some(i => i.id === item.id)) {

@@ -22,3 +22,9 @@ export interface PRValidationResult {
   commits: Array<{ id: string; message: string; author: string }>;
   files: Array<{ path: string; status: 'added' | 'modified' | 'deleted' }>;
 }
+
+export interface ReviewerItem {
+  login: string;
+  avatarUrl?: string;
+  isRequired: boolean;
+}
