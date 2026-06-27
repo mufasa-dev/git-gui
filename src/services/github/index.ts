@@ -3,7 +3,7 @@ import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
 import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_TIMELINE_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY } from "./queries";
-import { PRValidationResult } from "../../models/PR.model";
+import { PRValidationResult, ReviewerItem } from "../../models/PR.model";
 import { CardComment, WorkItem } from "../../models/WorkItem";
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
@@ -356,7 +356,7 @@ export const githubService = {
       description: string;
       sourceBranch: string;
       targetBranch: string;
-      reviewers: string[];
+      reviewers: ReviewerItem[];
     }
   ): Promise<any> {
     try {
@@ -400,7 +400,7 @@ export const githubService = {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            reviewers: data.reviewers // Array de logins do GitHub (ex: ["brunoribeiro96"])
+            reviewers: data.reviewers.map(x => x.login) // Array de logins do GitHub (ex: ["brunoribeiro96"])
           })
         });
       }
@@ -795,6 +795,35 @@ export const githubService = {
         createdAt: c.created_at
       }));
     } catch {
+      return [];
+    }
+  },
+
+  async searchCollaborators(owner: string, repo: string, queryText: string): Promise<Array<{ id: string; login: string; avatarUrl: string }>> {
+    const token = await this.getToken();
+    if (!token) return [];
+
+    try {
+      const response = await window.fetch(`https://api.github.com/repos/${owner}/${repo}/collaborators`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (!response.ok) return [];
+      const users = await response.json();
+
+      return (users || [])
+        .filter((u: any) => u.login.toLowerCase().includes(queryText.toLowerCase()))
+        .slice(0, 5)
+        .map((u: any) => ({
+          id: u.id.toString(),
+          login: u.login,
+          avatarUrl: u.avatar_url
+        }));
+    } catch (error) {
+      console.error("Erro ao buscar colaboradores no GitHub:", error);
       return [];
     }
   },

@@ -1,6 +1,6 @@
 import { load } from "@tauri-apps/plugin-store";
 import { fetch } from "@tauri-apps/plugin-http";
-import { PRValidationResult, UnifiedPR } from "../../models/PR.model";
+import { PRValidationResult, ReviewerItem, UnifiedPR } from "../../models/PR.model";
 import { CardComment, WorkItem } from "../../models/WorkItem";
 
 async function getAuthStore() {
@@ -968,7 +968,7 @@ export const azureService = {
       description: string;
       sourceBranch: string;
       targetBranch: string;
-      reviewers: string[];
+      reviewers: ReviewerItem[];
     }
   ): Promise<any> {
     try {
@@ -1457,6 +1457,50 @@ export const azureService = {
       return mappedUpdates.reverse();
     } catch (error) {
       console.error("Erro no parse do histórico:", error);
+      return [];
+    }
+  },
+
+  async searchProjectMembers(organization: string, project: string, queryText: string): Promise<Array<{ id: string; login: string; avatarUrl?: string }>> {
+    if (!queryText || queryText.trim().length < 1) return [];
+    
+    const token = await this.getToken();
+    if (!token) return [];
+    const credentials = btoa(`:${token.trim()}`);
+
+    const url = `https://vssps.dev.azure.com/${organization}/_apis/graph/users?api-version=7.1-preview.1`;
+
+    try {
+      const response = await window.fetch(url, {
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Accept': 'application/json' 
+        }
+      });
+
+      if (!response.ok) return [];
+      const data = await response.json();
+      
+      return (data.value || [])
+        .filter((user: any) => {
+          if (user.domain === "Build" || user.domain === "AgentPool") return false;
+          
+          if (!user.mailAddress || user.mailAddress.trim() === "") return false;
+
+          const matchesQuery = 
+            user.displayName?.toLowerCase().includes(queryText.toLowerCase()) ||
+            user.mailAddress?.toLowerCase().includes(queryText.toLowerCase());
+
+          return matchesQuery;
+        })
+        .slice(0, 5)
+        .map((user: any) => ({
+          id: user.descriptor,
+          login: user.displayName || user.principalName,
+          avatarUrl: `https://dev.azure.com/${organization}/_apis/GraphProfile/MemberAvatars/${user.descriptor}?size=small`
+        }));
+    } catch (error) {
+      console.error("Erro ao buscar membros no Azure Graph:", error);
       return [];
     }
   },
