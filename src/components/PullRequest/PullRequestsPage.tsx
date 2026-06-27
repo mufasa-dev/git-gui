@@ -143,7 +143,7 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
                 class="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm"
               >
                 <i class="fa-solid fa-plus text-[10px]"></i>
-                New Pull Request
+                {t('pr').new_pull_request}
               </button>
             </Show>
 

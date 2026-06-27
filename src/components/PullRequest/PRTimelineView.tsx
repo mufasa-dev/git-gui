@@ -366,7 +366,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         if (!replyText().trim()) return;
 
         try {
-            showLoading("Enviando resposta...");
+            showLoading(t('pr').sending_reply);
             if (props.provider === 'azure') {
                 // Na Azure passamos o ID da Thread original para emendar o comentário abaixo dela
                 await azureService.addPRCommentReply?.(props.owner, props.repo, props.pr.number, threadId, replyText());
@@ -485,7 +485,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                             >
                                 <i class={`fa-solid ${sortOrder() === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up'}`}></i>
                                 <span>
-                                    {sortOrder() === 'asc' ? 'Mais antigos primeiro' : 'Mais novos primeiro'}
+                                    {sortOrder() === 'asc' ? t('pr').oldest_first : t('pr').newest_first}
                                 </span>
                             </button>
                         </div>
