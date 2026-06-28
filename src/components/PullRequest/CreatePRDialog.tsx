@@ -347,6 +347,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                         // Evita adicionar o mesmo revisor duas vezes
                         if (!reviewers().some(r => r.login === user.login)) {
                           setReviewers([...reviewers(), { 
+                            id: Number(user.id),
                             login: user.login, 
                             avatarUrl: user.avatarUrl, 
                             isRequired: true // Começa como obrigatório por padrão

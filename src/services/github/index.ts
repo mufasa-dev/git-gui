@@ -357,6 +357,7 @@ export const githubService = {
       sourceBranch: string;
       targetBranch: string;
       reviewers: ReviewerItem[];
+      workItems: string[]; // Adicionado array de IDs das Issues/Cards (ex: ["16", "19"])
     }
   ): Promise<any> {
     try {
@@ -365,7 +366,15 @@ export const githubService = {
 
       const url = `https://api.github.com/repos/${owner}/${repo}/pulls`;
 
-      // 1. Cria o Pull Request básico
+      // 1. Adaptação para o GitHub vincular os Work Items (Issues) automaticamente:
+      // Concatenamos palavras-chave como "Closes #id" no final da descrição do PR.
+      let finalDescription = data.description || "";
+      if (data.workItems && data.workItems.length > 0) {
+        const links = data.workItems.map(id => `Closes #${id}`).join(", ");
+        finalDescription += `\n\n### Linked Issues\n${links}`;
+      }
+
+      // 2. Cria o Pull Request básico
       const response = await window.fetch(url, {
         method: 'POST',
         headers: {
@@ -375,9 +384,9 @@ export const githubService = {
         },
         body: JSON.stringify({
           title: data.title,
-          body: data.description,
-          head: data.sourceBranch, // Origem
-          base: data.targetBranch  // Destino
+          body: finalDescription,
+          head: data.sourceBranch,
+          base: data.targetBranch
         })
       });
 
@@ -388,7 +397,7 @@ export const githubService = {
 
       const prResult = await response.json();
 
-      // 2. Se houver revisores adicionados no formulário, associa-os ao PR recém-criado
+      // 3. Associa todos os revisores (O GitHub receberá tanto req quanto opt na mesma lista de requested_reviewers)
       if (data.reviewers && data.reviewers.length > 0) {
         const reviewersUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${prResult.number}/requested_reviewers`;
         
@@ -400,7 +409,7 @@ export const githubService = {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            reviewers: data.reviewers.map(x => x.login) // Array de logins do GitHub (ex: ["brunoribeiro96"])
+            reviewers: data.reviewers.map(x => x.login)
           })
         });
       }

@@ -969,6 +969,7 @@ export const azureService = {
       sourceBranch: string;
       targetBranch: string;
       reviewers: ReviewerItem[];
+      workItems: string[];
     }
   ): Promise<any> {
     try {
@@ -976,27 +977,27 @@ export const azureService = {
       if (!token) throw new Error("Token não encontrado");
       const credentials = btoa(`:${token.trim()}`);
 
-      // O Azure exige o escopo completo das refs
       const sourceRef = data.sourceBranch.startsWith("refs/") ? data.sourceBranch : `refs/heads/${data.sourceBranch}`;
       const targetRef = data.targetBranch.startsWith("refs/") ? data.targetBranch : `refs/heads/${data.targetBranch}`;
 
       const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests?api-version=7.0`;
 
-      // Mapeia os revisores para o formato que o Azure espera (Reviewer ID)
-      // Nota: Se você estiver passando apenas strings de texto/e-mail, o Azure pode exigir que você busque o ID do GUID do usuário antes.
-      const mappedReviewers = data.reviewers.map(reviewerId => ({
-        id: reviewerId 
+      // 1. Mapeia os revisores diferenciando isRequired para o formato do Azure
+      // O Azure aceita a flag 'isRequired' diretamente na criação do PR!
+      const mappedReviewers = data.reviewers.map(reviewer => ({
+        id: reviewer.id || reviewer.login, // Use o ID/GUID se disponível, ou o identificador correspondente no Azure
+        isRequired: reviewer.isRequired
       }));
 
-      const body = {
+      const body: any = {
         title: data.title,
         description: data.description,
         sourceRefName: sourceRef,
         targetRefName: targetRef,
-        // Se seu app lida com IDs de revisores, descomente a linha abaixo:
-        // reviewers: mappedReviewers
+        reviewers: mappedReviewers
       };
 
+      // 2. Cria o Pull Request
       const response = await window.fetch(url, {
         method: 'POST',
         headers: {
@@ -1011,7 +1012,25 @@ export const azureService = {
         throw new Error(`Erro ao criar Pull Request no Azure (${response.status}): ${errorText}`);
       }
 
-      return await response.json(); // Retorna o objeto do PR criado (contendo ID, URL, etc.)
+      const prResult = await response.json();
+
+      // 3. Vincula os Work Items se houver algum selecionado
+      // No Azure, vinculamos associando a URL do Work Item à API do PR criado
+      if (data.workItems && data.workItems.length > 0 && prResult.pullRequestId) {
+        for (const workItemId of data.workItems) {
+          const workItemUrl = `https://dev.azure.com/${organization}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prResult.pullRequestId}/workitems/${workItemId}?api-version=7.0`;
+          
+          await window.fetch(workItemUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${credentials}`,
+              'Content-Type': 'application/json'
+            }
+          }).catch(err => console.error(`Falha ao vincular work item #${workItemId}:`, err));
+        }
+      }
+
+      return prResult;
     } catch (error) {
       console.error("Erro na service Azure (createPullRequest):", error);
       throw error;
