@@ -197,7 +197,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
           <button
             type="button"
             onClick={handleInvertBranches}
-            title="Invert source and target"
+            title={t('pr').invert_source_target}
             class="px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-900 transition-all shadow-sm active:scale-95"
           >
             <i class="fa-solid fa-right-left"></i>
@@ -342,6 +342,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                       provider={activeProvider()}
                       org={activeOrg()}
                       repo={activeRepo()}
+                      t={t}
                       onSelect={(user) => {
                         // Evita adicionar o mesmo revisor duas vezes
                         if (!reviewers().some(r => r.login === user.login)) {
@@ -441,6 +442,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                       provider={activeProvider()}
                       org={activeOrg()}
                       repo={activeRepo()}
+                      t={t}
                       onSelect={(item) => {
                         // Evita duplicados
                         if (!linkedWorkItems().some(i => i.id === item.id)) {

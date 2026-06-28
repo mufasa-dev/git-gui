@@ -284,9 +284,9 @@ export default function PRDetailView(props: PRDetailViewProps) {
       );
 
       if (success) {
-        notify.success("Sucesso", "Pull Request mesclado com sucesso!");
+        notify.success(t('common').success, t('success').pr_merged);
         setShowAzureMergeModal(false);
-        props.onMergeSuccess(props.pr.number); // Atualiza listagem global
+        props.onMergeSuccess(props.pr.number);
       } else {
         notify.error("Erro", "Não foi possível completar o merge do Pull Request.");
       }
@@ -311,7 +311,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
         await githubService.mergePullRequest(prId);
       }
 
-      notify.success("Sucesso", "Pull Request mesclado com sucesso!");
+      notify.success(t('common').success, t('success').pr_merged);
       props.onMergeSuccess(props.pr.number);
     } catch (err) {
       notify.error("Falha no Merge", String(err));

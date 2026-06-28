@@ -512,7 +512,15 @@
     "reacting": "Reacting",
     "deleting": "Deletind",
     "oldest_first": "Oldest first",
-    "newest_first": "Newest first"
+    "newest_first": "Newest first",
+    "no_pr_descri": "There are no requests matching this status filter or search parameters.",
+    "search_reviewers": "Search reviewers...",
+    "search_workitems_id": "Search work items by ID or title",
+    "search_tags": "Search tags",
+    "nothing_to_view": "Nothing to view",
+    "invert_source_target": "Invert source and target",
+    "filter": "filter",
+    "select_pr_details": "Select a pull request from the list to view details"
   },
   "carousel": {
     "carousel_git_title": "Smart Control",

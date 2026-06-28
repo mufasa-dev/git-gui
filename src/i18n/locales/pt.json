@@ -512,7 +512,15 @@
     "reacting": "Reagindo",
     "deleting": "Excluindo",
     "oldest_first": "Mais antigos primeiro",
-    "newest_first": "Mais recentes primeiro"
+    "newest_first": "Mais recentes primeiro",
+    "no_pr_descri": "Não há pull requests que correspondam a este filtro de status ou parâmetros de busca.",
+    "search_reviewers": "Buscar revisores...",
+    "search_workitems_id": "Buscar work items por ID ou título",
+    "search_tags": "Buscar tags",
+    "nothing_to_view": "Nada para exibir",
+    "invert_source_target": "Inverter origem e destino",
+    "filter": "filtrar",
+    "select_pr_details": "Selecione um pull request para ver os detalhes"
   },
   "carousel": {
     "carousel_git_title": "Controle Inteligente",

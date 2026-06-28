@@ -7,6 +7,7 @@ interface SearchSelectorProps {
   provider: GitProvider;
   org: string;
   repo: string;
+  t: any;
   onSelect: (item: { id: string; title: string; state?: string }) => void;
 }
 
@@ -33,7 +34,7 @@ export function WorkItemSearchSelector(props: SearchSelectorProps) {
         <input
           type="text"
           value={query()}
-          placeholder="Search work items by ID or title"
+          placeholder={props.t('pr').search_workitems_id}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setTimeout(() => setIsFocused(false), 200)} // Delay para registrar o clique na lista
           onInput={(e) => setQuery(e.currentTarget.value)}

@@ -173,8 +173,8 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
                 fallback={
                   <div class="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-gray-300 dark:border-gray-800 rounded-xl m-2">
                     <i class="fa-solid fa-code-pull-request text-gray-400 dark:text-gray-600 text-2xl mb-2"></i>
-                    <p class="text-xs font-bold text-gray-500 dark:text-gray-400">No Pull Requests found</p>
-                    <p class="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">There are no requests matching this status filter or search parameters.</p>
+                    <p class="text-xs font-bold text-gray-500 dark:text-gray-400">{t('pr').no_pr}</p>
+                    <p class="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">{t('pr').no_pr_descri}</p>
                   </div>
                 }
               >
@@ -231,7 +231,7 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
               fallback={
                 <div class="flex-1 flex flex-col items-center justify-center text-gray-400 dark:text-zinc-600 font-medium text-xs">
                   <i class="fa-solid fa-sidebar text-3xl mb-3 opacity-50"></i>
-                  Select a pull request from the list to view details
+                  {t('pr').select_pr_details}
                 </div>
               }
             >

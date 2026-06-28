@@ -7,6 +7,7 @@ interface ReviewerSearchProps {
   provider: GitProvider;
   org: string;
   repo: string;
+  t: any;
   onSelect: (user: { id: string; login: string; avatarUrl?: string }) => void;
 }
 
@@ -35,7 +36,7 @@ export function ReviewerSearchSelector(props: ReviewerSearchProps) {
         <input
           type="text"
           value={query()}
-          placeholder="Search reviewers..."
+          placeholder={props.t('pr').search_reviewers}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setTimeout(() => setIsFocused(false), 200)}
           onInput={(e) => setQuery(e.currentTarget.value)}

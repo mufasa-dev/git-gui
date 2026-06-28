@@ -64,7 +64,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
 
       {/* CONTENT AREA */}
       <div class="p-4 min-h-[150px]">
-        <Show when={mode() === "write"} fallback={<div class="min-h-[150px]"><MarkdownViewer content={text() || "_Nada para visualizar_"} /></div>}>
+        <Show when={mode() === "write"} fallback={<div class="min-h-[150px]"><MarkdownViewer content={text() || "_" + t('pr').nothing_to_view + "_"} /></div>}>
           <textarea
             ref={textAreaRef}
             value={text()}

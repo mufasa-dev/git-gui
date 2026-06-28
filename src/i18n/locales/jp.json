@@ -512,7 +512,15 @@
     "reacting": "リアクション中",
     "deleting": "削除中",
     "oldest_first": "古い順",
-    "newest_first": "新しい順"
+    "newest_first": "新しい順",
+    "no_pr_descri": "このステータスフィルターまたは検索条件に一致するプルリクエストはありません。",
+    "search_reviewers": "レビュアーを検索...",
+    "search_workitems_id": "IDまたはタイトルでワークアイテムを検索",
+    "search_tags": "タグを検索",
+    "nothing_to_view": "表示する項目はありません",
+    "invert_source_target": "送信元と送信先を入れ替える",
+    "filter": "フィルター",
+    "select_pr_details": "リストからプルリクエストを選択して詳細を表示"
   },
   "carousel": {
     "carousel_git_title": "スマートコントロール",
