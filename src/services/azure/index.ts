@@ -1048,9 +1048,7 @@ export const azureService = {
       // 1. Vincula os Revisores usando o endpoint PATCH em Lot
       if (data.reviewers && data.reviewers.length > 0 && prId) {
         for (const reviewer of data.reviewers) {
-          // reviewer.login contém o e-mail limpo do usuário
-          // reviewer.id contém o descriptor "msa.NWY4..."
-          const reviewersUrl = `https://dev.azure.com/${organization}/${projectId}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prId}/reviewers/${encodeURIComponent(reviewer.login)}?api-version=7.0`;
+          const reviewersUrl = `https://dev.azure.com/${organization}/${projectId}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prId}/reviewers/${encodeURIComponent(reviewer.id)}?api-version=7.0`;
           
           await window.fetch(reviewersUrl, {
             method: 'PUT', // PUT individual conforme a postagem do SO
@@ -1533,7 +1531,7 @@ export const azureService = {
     }
   },
 
-  async searchProjectMembers(organization: string, project: string, queryText: string): Promise<Array<{ id: string; login: string; avatarUrl?: string }>> {
+  async searchProjectMembers(organization: string, project: string, queryText: string): Promise<Array<{ id: string; descriptor: string; login: string; avatarUrl?: string }>> {
     if (!queryText || queryText.trim().length < 1) return [];
     
     const token = await this.getToken();
@@ -1552,29 +1550,49 @@ export const azureService = {
 
       if (!response.ok) return [];
       const data = await response.json();
-      
+      console.log('data', data)
       return (data.value || [])
         .filter((user: any) => {
           if (user.domain === "Build" || user.domain === "AgentPool") return false;
-          
           if (!user.mailAddress || user.mailAddress.trim() === "") return false;
 
-          const matchesQuery = 
-            user.displayName?.toLowerCase().includes(queryText.toLowerCase()) ||
-            user.mailAddress?.toLowerCase().includes(queryText.toLowerCase());
-
-          return matchesQuery;
+          const query = queryText.toLowerCase();
+          return user.displayName?.toLowerCase().includes(query) ||
+                 user.mailAddress?.toLowerCase().includes(query);
         })
         .slice(0, 5)
         .map((user: any) => ({
-          id: user.descriptor,
-          descriptor: user.descriptor, 
-          login: user.principalName || user.mailAddress, // 🟢 GARANTE O E-MAIL AQUI (ex: bruno.ribeiro96@hotmail.com.br)
+          // Armazena o descriptor para uso futuro, mas retornamos também o email
+          descriptor: user.descriptor,
+          login: user.displayName,
           avatarUrl: `https://dev.azure.com/${organization}/_apis/GraphProfile/MemberAvatars/${user.descriptor}?size=small`
         }));
     } catch (error) {
       console.error("Erro ao buscar membros no Azure Graph:", error);
       return [];
+    }
+  },
+
+  async getUserIdByEmail(organization: string, email: string): Promise<string | null> {
+    const token = await this.getToken();
+    if (!token) return null;
+    const credentials = btoa(`:${token.trim()}`);
+
+    const url = `https://vssps.dev.azure.com/${organization}/_apis/identities?searchFilter=General&filterValue=${encodeURIComponent(email)}&api-version=7.0`;
+
+    try {
+        const response = await window.fetch(url, {
+            headers: { 
+                'Authorization': `Basic ${credentials}`, 
+                'Accept': 'application/json' 
+            }
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        const user = data.value?.[0];
+        return user?.id || null;
+    } catch {
+        return null;
     }
   },
 
