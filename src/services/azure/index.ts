@@ -299,6 +299,47 @@ export const azureService = {
       return {};
     }
   },
+  
+  async removeWorkItemFromPR(organization: string, repoName: string, prNumber: number, workItemId: number): Promise<boolean> {
+    try {
+        const token = await this.getToken();
+        if (!token) return false;
+        const credentials = btoa(`:${token.trim()}`);
+
+        // Primeiro, precisamos do projectId (do repositório ou do projeto)
+        // Você pode obter isso ao criar o PR ou fazer uma chamada para obter o repo
+        const repoUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}?api-version=7.0`;
+        const repoResponse = await window.fetch(repoUrl, {
+            headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+        });
+        if (!repoResponse.ok) {
+            console.error('Erro ao buscar repositório:', repoResponse.status);
+            return false;
+        }
+        const repoData = await repoResponse.json();
+        const projectId = repoData.project?.id || repoName;
+
+        // Endpoint para remover work item do PR (método DELETE)
+        const url = `https://dev.azure.com/${organization}/${projectId}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/workitems/${workItemId}?api-version=7.0`;
+        
+        const response = await window.fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Basic ${credentials}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            console.error('Erro ao remover work item:', response.status, await response.text());
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('Erro ao remover work item:', error);
+        return false;
+    }
+  },
 
   async addPRCommentLike(organization: string, repoName: string, prNumber: number, threadId: string, commentId: string): Promise<boolean> {
     try {
