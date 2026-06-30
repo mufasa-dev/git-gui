@@ -960,6 +960,43 @@ export const azureService = {
     }
   },
 
+  decodeAzureDescriptorToGuid(descriptor: string): string {
+    if (!descriptor || !descriptor.includes('.')) return descriptor;
+    
+    try {
+      const base64Part = descriptor.split('.')[1];
+      // Decodifica o Base64 base do Azure limpo
+      const binaryString = atob(base64Part.replace(/-/g, '+').replace(/_/g, '/'));
+      
+      // Converte a string binária diretamente para uma representação Hexadecimal formatada como GUID
+      const hex: string[] = [];
+      for (let i = 0; i < binaryString.length; i++) {
+        const h = binaryString.charCodeAt(i).toString(16).padStart(2, '0');
+        hex.push(h);
+      }
+      
+      // Agrupa os blocos no formato exato de um GUID (8-4-4-4-12)
+      // Azure inverte os primeiros blocos devido à representação Little Endian de bytes de StorageKey
+      if (hex.length >= 16) {
+        const data1 = hex.slice(0, 4).reverse().join('');
+        const data2 = hex.slice(4, 6).reverse().join('');
+        const data3 = hex.slice(6, 8).reverse().join('');
+        const data4 = hex.slice(8, 10).join('');
+        const data5 = hex.slice(10, 16).join('');
+        
+        const constructedGuid = `${data1}-${data2}-${data3}-${data4}-${data5}`;
+        
+        // Valida se a string montada é um GUID legítimo
+        if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(constructedGuid)) {
+          return constructedGuid;
+        }
+      }
+    } catch (e) {
+      console.error("Falha ao converter descriptor para GUID local:", e);
+    }
+    return descriptor;
+  },
+
   async createPullRequest(
     organization: string,
     repoName: string,
@@ -980,24 +1017,16 @@ export const azureService = {
       const sourceRef = data.sourceBranch.startsWith("refs/") ? data.sourceBranch : `refs/heads/${data.sourceBranch}`;
       const targetRef = data.targetBranch.startsWith("refs/") ? data.targetBranch : `refs/heads/${data.targetBranch}`;
 
+      // Rota para criar o Pull Request base
       const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests?api-version=7.0`;
-
-      // 1. Mapeia os revisores diferenciando isRequired para o formato do Azure
-      // O Azure aceita a flag 'isRequired' diretamente na criação do PR!
-      const mappedReviewers = data.reviewers.map(reviewer => ({
-        id: reviewer.id || reviewer.login, // Use o ID/GUID se disponível, ou o identificador correspondente no Azure
-        isRequired: reviewer.isRequired
-      }));
-
-      const body: any = {
+      
+      const body = {
         title: data.title,
         description: data.description,
         sourceRefName: sourceRef,
-        targetRefName: targetRef,
-        reviewers: mappedReviewers
+        targetRefName: targetRef
       };
 
-      // 2. Cria o Pull Request
       const response = await window.fetch(url, {
         method: 'POST',
         headers: {
@@ -1013,12 +1042,36 @@ export const azureService = {
       }
 
       const prResult = await response.json();
+      const prId = prResult.pullRequestId;
+      const projectId = prResult.repository?.project?.id || repoName;
 
-      // 3. Vincula os Work Items se houver algum selecionado
-      // No Azure, vinculamos associando a URL do Work Item à API do PR criado
-      if (data.workItems && data.workItems.length > 0 && prResult.pullRequestId) {
+      // 1. Vincula os Revisores usando o endpoint PATCH em Lot
+      if (data.reviewers && data.reviewers.length > 0 && prId) {
+        for (const reviewer of data.reviewers) {
+          // reviewer.login contém o e-mail limpo do usuário
+          // reviewer.id contém o descriptor "msa.NWY4..."
+          const reviewersUrl = `https://dev.azure.com/${organization}/${projectId}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prId}/reviewers/${encodeURIComponent(reviewer.login)}?api-version=7.0`;
+          
+          await window.fetch(reviewersUrl, {
+            method: 'PUT', // PUT individual conforme a postagem do SO
+            headers: {
+              'Authorization': `Basic ${credentials}`,
+              'Content-Type': 'application/json'
+            },
+            // O corpo exige o descriptor explícito no ID de primeiro nível
+            body: JSON.stringify({
+              id: reviewer.id, // Envia "msa.NWY4NjJlN2MtNmZhZC03ZWU0LTgxNDItNTBkNjRlYmNkNjYw"
+              isRequired: reviewer.isRequired,
+              vote: 0
+            })
+          });
+        }
+      }
+
+      // 2. Vincula os Work Items (Corrigido com o ID do projeto)
+      if (data.workItems && data.workItems.length > 0 && prId) {
         for (const workItemId of data.workItems) {
-          const workItemUrl = `https://dev.azure.com/${organization}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prResult.pullRequestId}/workitems/${workItemId}?api-version=7.0`;
+          const workItemUrl = `https://dev.azure.com/${organization}/${projectId}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prId}/workitems/${workItemId}?api-version=7.0`;
           
           await window.fetch(workItemUrl, {
             method: 'POST',
@@ -1515,7 +1568,8 @@ export const azureService = {
         .slice(0, 5)
         .map((user: any) => ({
           id: user.descriptor,
-          login: user.displayName || user.principalName,
+          descriptor: user.descriptor, 
+          login: user.principalName || user.mailAddress, // 🟢 GARANTE O E-MAIL AQUI (ex: bruno.ribeiro96@hotmail.com.br)
           avatarUrl: `https://dev.azure.com/${organization}/_apis/GraphProfile/MemberAvatars/${user.descriptor}?size=small`
         }));
     } catch (error) {
