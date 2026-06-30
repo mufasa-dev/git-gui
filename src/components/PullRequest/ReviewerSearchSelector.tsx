@@ -2,6 +2,7 @@ import { createResource, createSignal, For, Show } from "solid-js";
 import { GitProvider } from "../../utils/gitProvider";
 import { azureService } from "../../services/azure";
 import { githubService } from "../../services/github";
+import AuthenticatedAvatar from "./AuthenticatedAvatar";
 
 interface ReviewerSearchProps {
   provider: GitProvider;
@@ -68,7 +69,13 @@ export function ReviewerSearchSelector(props: ReviewerSearchProps) {
                     {user.login.substring(0, 2).toUpperCase()}
                   </div>
                 }>
-                  <img src={user.avatarUrl} class="w-5 h-5 rounded-full object-cover" alt="" />
+                  <AuthenticatedAvatar
+                    src={user.avatarUrl || ""} 
+                    alt={user.login}
+                    email={user.login || ""}
+                    fallbackName={user.login}
+                    class="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-700 mx-3" 
+                  />
                 </Show>
 
                 <span class="truncate flex-1 font-semibold">{user.login}</span>

@@ -24,7 +24,7 @@ export interface PRValidationResult {
 }
 
 export interface ReviewerItem {
-  id: number;
+  id: string;
   login: string;
   avatarUrl?: string;
   isRequired: boolean;
