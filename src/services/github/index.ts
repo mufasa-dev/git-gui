@@ -808,7 +808,7 @@ export const githubService = {
     }
   },
 
-  async searchCollaborators(owner: string, repo: string, queryText: string): Promise<Array<{ id: string; login: string; avatarUrl: string }>> {
+  async searchCollaborators(owner: string, repo: string, queryText: string): Promise<Array<{ id: string; descriptor: string; login: string; avatarUrl: string }>> {
     const token = await this.getToken();
     if (!token) return [];
 
@@ -828,6 +828,7 @@ export const githubService = {
         .slice(0, 5)
         .map((u: any) => ({
           id: u.id.toString(),
+          descriptor: u.id.toString(),
           login: u.login,
           avatarUrl: u.avatar_url
         }));

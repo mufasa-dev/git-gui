@@ -31,6 +31,19 @@ export function ReviewerSearchSelector(props: ReviewerSearchProps) {
     }
   );
 
+  const handleSelect = async (user: { id: string; descriptor: string; login: string; avatarUrl?: string }) => {
+    if (props.provider === "azure") {
+      const guid = await azureService.getUserIdByEmail(props.org, user.login);
+      if (guid) {
+          props.onSelect({ id: guid, login: user.login, avatarUrl: user.avatarUrl });
+      } else {
+          props.onSelect({ id: user.descriptor, login: user.login, avatarUrl: user.avatarUrl });
+      }
+      console.log('guid', guid)
+    }
+    setQuery("");
+  };
+
   return (
     <div class="w-full relative text-xs">
       <div class="flex items-center relative">
@@ -57,10 +70,7 @@ export function ReviewerSearchSelector(props: ReviewerSearchProps) {
             {(user) => (
               <button
                 type="button"
-                onClick={() => {
-                  props.onSelect(user);
-                  setQuery("");
-                }}
+                onClick={() => handleSelect(user)}
                 class="w-full text-left flex items-center gap-2.5 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-md transition-colors text-gray-700 dark:text-gray-300 font-medium"
               >
                 {/* Exibe o avatar redondo se houver (caso do GitHub), senão usa um placeholder */}
