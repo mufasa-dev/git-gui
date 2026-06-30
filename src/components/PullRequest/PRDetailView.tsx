@@ -658,6 +658,33 @@ export default function PRDetailView(props: PRDetailViewProps) {
             </div>
           </div>
 
+          {/* Work Items */}
+          <div>
+            <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
+              <span>Work Items</span>
+            </div>
+            <div class="space-y-2">
+              <Show when={details()?.workItems && details()!.workItems!.length > 0}>
+                <For each={details()!.workItems}>
+                  {(wi) => (
+                    <a 
+                      href={wi.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      class="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      <i class="fa-regular fa-rectangle-list text-gray-400"></i>
+                      <span>#{wi.id} - {wi.title}</span>
+                    </a>
+                  )}
+                </For>
+              </Show>
+              <Show when={!details()?.workItems || details()!.workItems!.length === 0}>
+                <div class="text-[10px] text-gray-500 italic">Nenhum work item vinculado</div>
+              </Show>
+            </div>
+          </div>
+
           <Show when={props.provider === 'github'}>
             <div>
               <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
