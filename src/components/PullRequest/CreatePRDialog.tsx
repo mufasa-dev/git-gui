@@ -10,6 +10,7 @@ import { WorkItemSearchSelector } from "../board/WorkItemSearchSelector";
 import CommitMessage from "../ui/CommitMessage";
 import { ReviewerSearchSelector } from "./ReviewerSearchSelector";
 import { ReviewerItem } from "../../models/PR.model";
+import AuthenticatedAvatar from "./AuthenticatedAvatar";
 
 interface CreatePRDialogProps {
   isOpen: boolean;
@@ -76,8 +77,6 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
 
       setSourceBranch(props.currentBranch || "");
       setTargetBranch("main");
-      setTitle("");
-      setDescription("");
       
       setActiveTab("overview");
       setSourceKey(prev => prev + 1);
@@ -338,19 +337,18 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                   
                   {/* Componente de busca para revisores */}
                   <div class="relative w-full mb-3">
-                    <ReviewerSearchSelector 
+                    <ReviewerSearchSelector
                       provider={activeProvider()}
                       org={activeOrg()}
                       repo={activeRepo()}
                       t={t}
                       onSelect={(user) => {
-                        // Evita adicionar o mesmo revisor duas vezes
                         if (!reviewers().some(r => r.login === user.login)) {
                           setReviewers([...reviewers(), { 
-                            id: Number(user.id),
+                            id: user.id,
                             login: user.login, 
                             avatarUrl: user.avatarUrl, 
-                            isRequired: true // Começa como obrigatório por padrão
+                            isRequired: true 
                           }]);
                         }
                       }}
@@ -358,19 +356,25 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                   </div>
 
                   {/* Lista Única de Revisores Adicionados (Lado a lado) */}
-                  <div class="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto custom-scrollbar p-0.5">
+                  <div class="flex flex-wrap max-h-48 overflow-y-auto custom-scrollbar p-0.5">
                     <For each={reviewers()}>
                       {(reviewer) => (
                         <span 
-                          class={`inline-flex items-center gap-1.5 border text-[11px] pl-1 pr-2 py-0.5 rounded-full font-medium transition-all duration-200 ${
+                          class={`inline-flex items-center gap-1.5 border text-[11px] pl-1 pr-2 py-2 rounded-md font-medium transition-all duration-200 w-full mb-2 ${
                             reviewer.isRequired 
-                              ? 'bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 text-blue-800 dark:text-blue-300' 
-                              : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400'
+                              ? 'bg-blue-50/80 dark:bg-gray-900 border-blue-200 dark:border-gray-700 text-blue-800 dark:text-blue-300' 
+                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-zinc-400'
                           }`}
                         >
                           {/* Avatar ou Círculo com as Iniciais */}
                           {reviewer.avatarUrl ? (
-                            <img src={reviewer.avatarUrl} class="w-4 h-4 rounded-full object-cover" alt="" />
+                            <AuthenticatedAvatar
+                              src={reviewer.avatarUrl || ""} 
+                              alt={reviewer.login}
+                              email={reviewer.login || ""}
+                              fallbackName={reviewer.login}
+                              class="w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-700 mx-3" 
+                            />
                           ) : (
                             <div class={`w-4 h-4 rounded-full flex items-center justify-center font-bold text-[9px] uppercase ${
                               reviewer.isRequired ? 'bg-blue-500/10 text-blue-500' : 'bg-gray-500/10 text-gray-400'
@@ -390,7 +394,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                                 r.login === reviewer.login ? { ...r, isRequired: !r.isRequired } : r
                               ));
                             }}
-                            class={`text-[9px] px-1 rounded-md font-semibold transition-colors ${
+                            class={`text-[9px] px-1 rounded-md font-semibold transition-colors ml-auto ${
                               reviewer.isRequired 
                                 ? 'bg-blue-200/60 dark:bg-blue-900/60 text-blue-700 dark:text-blue-400 hover:bg-blue-300 dark:hover:bg-blue-800' 
                                 : 'bg-gray-200 dark:bg-zinc-700 text-gray-500 dark:text-zinc-400 hover:bg-gray-300 dark:hover:bg-zinc-600'
@@ -432,7 +436,7 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
                         onClick={() => setLinkedWorkItems([])}
                         class="ml-auto text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:underline font-semibold text-[11px]"
                       >
-                        {t('pr').clear_all}
+                        {t('pr').clear}
                       </button>
                     </Show>
                   </div>

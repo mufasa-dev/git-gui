@@ -485,6 +485,7 @@
     "target_branch": "Branch di destinazione",
     "sel_target_branch": "Seleziona il branch di destinazione",
     "delete_source_branch": "Elimina il branch di origine",
+    "clear": "Cancella",
     "clear_all": "Cancella tutto",
     "reactive": "Riattiva",
     "reject": "Rifiuta",

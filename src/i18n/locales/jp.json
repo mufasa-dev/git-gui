@@ -485,6 +485,7 @@
     "target_branch": "ターゲットブランチ",
     "sel_target_branch": "ターゲットブランチを選択",
     "delete_source_branch": "ソースブランチを削除",
+    "clear": "クリア",
     "clear_all": "すべてクリア",
     "reactive": "再アクティブ化",
     "reject": "却下",

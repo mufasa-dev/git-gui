@@ -485,6 +485,7 @@
     "target_branch": "Target branch",
     "sel_target_branch": "Select target branch",
     "delete_source_branch": "Delete source branch",
+    "clear": "Clear",
     "clear_all": "Clear all",
     "reactive": "Reactivate",
     "reject": "Reject",
