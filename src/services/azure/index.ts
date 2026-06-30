@@ -206,32 +206,64 @@ export const azureService = {
     }
   },
 
-  async getPullRequestDescription(organization: string, repoName: string, prNumber: number): Promise<Partial<UnifiedPR & { mergeable: string, reviewers: any[] }>> {
+  async getPullRequestDescription(organization: string, repoName: string, prNumber: number): Promise<Partial<UnifiedPR & { mergeable: string, reviewers: any[], workItems: { id: number, url: string }[] }>> {
     try {
       const token = await this.getToken();
       if (!token) return {};
       const credentials = btoa(`:${token.trim()}`);
       
-      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
-      
-      const response = await window.fetch(url, {
+      // 1. Buscar o PR principal
+      const prUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
+      const prResponse = await window.fetch(prUrl, {
         headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
       });
-
-      if (!response.ok) {
-        console.error("Erro ao buscar descrição do PR no Azure:", response.status);
+      if (!prResponse.ok) {
+        console.error("Erro ao buscar descrição do PR no Azure:", prResponse.status);
         return {};
       }
-      
-      const pr = await response.json();
+      const pr = await prResponse.json();
 
+      // 2. Buscar os work items associados
+      const projectId = pr.repository?.project?.id || repoName; // pode ser o nome ou ID
+      const workItemsUrl = `https://dev.azure.com/${organization}/${projectId}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/workitems?api-version=7.0`;
+      const wiResponse = await window.fetch(workItemsUrl, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+      let workItems: { id: number; url: string }[] = [];
+      if (wiResponse.ok) {
+        const wiData = await wiResponse.json();
+        workItems = (wiData.value || []).map((item: any) => ({
+          id: item.id,
+          url: item.url
+        }));
+      }
+
+      if (workItems.length) {
+        const ids = workItems.map(wi => wi.id).join(',');
+        const wiDetailsUrl = `https://dev.azure.com/${organization}/${projectId}/_apis/wit/workitems?ids=${ids}&api-version=7.0`;
+        const detailsResp = await window.fetch(wiDetailsUrl, {
+            headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+        });
+        if (detailsResp.ok) {
+          const detailsData = await detailsResp.json();
+          console.log('detailsData', detailsData);
+
+          workItems = workItems.map(wi => {
+              const detail = detailsData.value?.find((d: any) => String(d.id) === String(wi.id));
+              console.log(`Buscando WI ${wi.id} -> encontrado:`, !!detail, detail?.fields?.['System.Title']);
+              return {
+                  ...wi,
+                  title: detail?.fields?.['System.Title'] || 'Sem título'
+              };
+          });
+        }
+      }
+
+      // 3. Mapear revisores (como já estava)
       const reviewers = (pr.reviewers || []).map((rev: any) => {
         let state = "PENDING";
-        if (rev.vote === 10) state = "APPROVED";
-        if (rev.vote === 5) state = "APPROVED";
-        if (rev.vote === -5) state = "CHANGES_REQUESTED";
-        if (rev.vote === -10) state = "CHANGES_REQUESTED";
-
+        if (rev.vote === 10 || rev.vote === 5) state = "APPROVED";
+        if (rev.vote === -5 || rev.vote === -10) state = "CHANGES_REQUESTED";
         return {
           login: rev.uniqueName,
           name: rev.displayName,
@@ -242,7 +274,8 @@ export const azureService = {
 
       return {
         mergeable: pr.mergeStatus === 'conflicts' ? 'CONFLICTING' : 'MERGEABLE',
-        reviewers: reviewers
+        reviewers: reviewers,
+        workItems: workItems
       } as any;
     } catch (e) {
       console.error(e);
