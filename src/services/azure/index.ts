@@ -250,10 +250,27 @@ export const azureService = {
 
           workItems = workItems.map(wi => {
               const detail = detailsData.value?.find((d: any) => String(d.id) === String(wi.id));
-              console.log(`Buscando WI ${wi.id} -> encontrado:`, !!detail, detail?.fields?.['System.Title']);
+              if (detail) {
+                  const fields = detail.fields || {};
+                  return {
+                      id: wi.id,
+                      url: wi.url,
+                      title: fields['System.Title'] || 'Sem título',
+                      state: fields['System.State'] || 'Unknown',
+                      updatedDate: fields['System.ChangedDate'] || fields['System.CreatedDate'] || '',
+                      workItemType: fields['System.WorkItemType'] || '',
+                      assignedTo: fields['System.AssignedTo']?.displayName || '',
+                      areaPath: fields['System.AreaPath'] || '',
+                  };
+              }
               return {
                   ...wi,
-                  title: detail?.fields?.['System.Title'] || 'Sem título'
+                  title: 'Sem título',
+                  state: 'Unknown',
+                  updatedDate: '',
+                  workItemType: '',
+                  assignedTo: '',
+                  areaPath: '',
               };
           });
         }
