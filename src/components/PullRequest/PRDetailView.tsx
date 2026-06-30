@@ -660,29 +660,99 @@ export default function PRDetailView(props: PRDetailViewProps) {
 
           {/* Work Items */}
           <div>
-            <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
-              <span>Work Items</span>
-            </div>
-            <div class="space-y-2">
-              <Show when={details()?.workItems && details()!.workItems!.length > 0}>
-                <For each={details()!.workItems}>
-                  {(wi) => (
-                    <a 
-                      href={wi.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      class="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      <i class="fa-regular fa-rectangle-list text-gray-400"></i>
-                      <span>#{wi.id} - {wi.title}</span>
-                    </a>
-                  )}
-                </For>
-              </Show>
-              <Show when={!details()?.workItems || details()!.workItems!.length === 0}>
-                <div class="text-[10px] text-gray-500 italic">Nenhum work item vinculado</div>
-              </Show>
-            </div>
+              <div class="flex justify-between items-center mb-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                  <span>Work Items</span>
+                  <span class="text-[9px] font-normal text-gray-500">
+                      {details()?.workItems?.length || 0}
+                  </span>
+              </div>
+              <div class="space-y-3">
+                  <Show when={details()?.workItems && details()!.workItems!.length > 0}>
+                      <For each={details()!.workItems}>
+                          {(wi) => {
+                              const [isRemoving, setIsRemoving] = createSignal(false);
+                              const handleRemove = async () => {
+                                  if (!confirm(`Remover work item #${wi.id} deste PR?`)) return;
+                                  setIsRemoving(true);
+                                  try {
+                                      const success = await azureService.removeWorkItemFromPR(
+                                          props.owner,
+                                          props.repo.name,
+                                          props.pr.number,
+                                          wi.id
+                                      );
+                                      if (success) {
+                                          // Atualiza a lista local (refetch)
+                                          refetch();
+                                      } else {
+                                          alert('Erro ao remover work item.');
+                                      }
+                                  } catch (e) {
+                                      console.error(e);
+                                      alert('Erro ao remover work item.');
+                                  } finally {
+                                      setIsRemoving(false);
+                                  }
+                              };
+
+                              return (
+                                  <div class="flex items-center justify-between group p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+                                      <div class="flex-1 min-w-0">
+                                          <a 
+                                              href={wi.url} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              class="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate"
+                                          >
+                                              <i class={`fa-regular ${wi.workItemType === 'Issue' ? 'fa-circle' : wi.workItemType === 'Task' ? 'fa-check-square' : 'fa-rectangle-list'} text-gray-400 text-xs`}></i>
+                                              <span class="truncate">#{wi.id} - {wi.title}</span>
+                                          </a>
+                                          <div class="flex items-center gap-3 mt-1 text-[10px] text-gray-500">
+                                              <span class="flex items-center gap-1">
+                                                  <span class={`inline-block w-1.5 h-1.5 rounded-full ${
+                                                      wi.state === 'Doing' ? 'bg-blue-500' :
+                                                      wi.state === 'Done' ? 'bg-green-500' :
+                                                      wi.state === 'To Do' ? 'bg-gray-400' :
+                                                      'bg-yellow-500'
+                                                  }`}></span>
+                                                  {wi.state}
+                                              </span>
+                                              <span class="flex items-center gap-1">
+                                                  <i class="fa-regular fa-clock text-[8px]"></i>
+                                                  {wi.updatedDate ? new Date(wi.updatedDate).toLocaleDateString('pt-BR', { 
+                                                      day: '2-digit', 
+                                                      month: 'short', 
+                                                      hour: '2-digit', 
+                                                      minute: '2-digit' 
+                                                  }) : ''}
+                                              </span>
+                                              {wi.assignedTo && (
+                                                  <span class="flex items-center gap-1">
+                                                      <i class="fa-regular fa-user text-[8px]"></i>
+                                                      {wi.assignedTo}
+                                                  </span>
+                                              )}
+                                          </div>
+                                      </div>
+                                      <button
+                                          onClick={handleRemove}
+                                          disabled={isRemoving()}
+                                          class="ml-2 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                          title="Remover work item do PR"
+                                      >
+                                          <Show when={!isRemoving()} fallback={<i class="fa-solid fa-spinner fa-spin"></i>}>
+                                              <i class="fa-regular fa-circle-xmark text-base"></i>
+                                          </Show>
+                                      </button>
+                                  </div>
+                              );
+                          }}
+                      </For>
+                  </Show>
+                  <Show when={!details()?.workItems || details()!.workItems!.length === 0}>
+                      <div class="text-[10px] text-gray-500 italic">Nenhum work item vinculado</div>
+                  </Show>
+              </div>
           </div>
 
           <Show when={props.provider === 'github'}>
