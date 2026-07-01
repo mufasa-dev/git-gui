@@ -20,6 +20,7 @@ import { GitProvider } from "../../utils/gitProvider";
 import AzureMergeDialog from "./AzureMergeDialog";
 import AuthenticatedAvatar from "./AuthenticatedAvatar";
 import ConfirmModal from "../ui/ConfirmModal";
+import { WorkItemSearchSelector } from "../board/WorkItemSearchSelector";
 
 interface PRDetailViewProps {
   pr: any;
@@ -673,6 +674,37 @@ export default function PRDetailView(props: PRDetailViewProps) {
                       {details()?.workItems?.length || 0}
                   </span>
               </div>
+              <div class="relative w-full max-w-md">
+                <WorkItemSearchSelector 
+                  provider={props.provider}
+                  org={props.owner}
+                  repo={props.repo.name}
+                  t={t}
+                  onSelect={async (item) => {
+                    if (props.provider == 'azure') {
+                      const projectId = details()?.projectId;
+                      const repositoryId = details()?.repositoryId;
+                      if (!projectId || !repositoryId) {
+                        alert('IDs do projeto/repositório não disponíveis.');
+                        return;
+                      }
+                      console.log('Selected work item:', item);
+                      const success = await azureService.addWorkItemToPR(
+                        props.owner,
+                        projectId,
+                        repositoryId,
+                        props.pr.number,
+                        item.id
+                      );
+                      if (success) {
+                          refetch();
+                      } else {
+                          notify.error('Erro', 'Erro ao adicionar work item.');
+                      }
+                    }
+                  }}
+                />
+              </div>
               <div class="space-y-3">
                   <Show when={details()?.workItems && details()!.workItems!.length > 0}>
                       <For each={details()!.workItems}>
@@ -687,7 +719,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                                     setModalConfirmOpen(null);
                                     try {
                                       if (props.provider == 'azure') {
-                                         const projectId = details()?.projectId;
+                                        const projectId = details()?.projectId;
                                         const repositoryId = details()?.repositoryId;
                                         if (!projectId || !repositoryId) {
                                           alert('IDs do projeto/repositório não disponíveis.');
