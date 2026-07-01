@@ -320,6 +320,58 @@ export const azureService = {
     const data = await resp.json();
     return data.id;
   },
+
+  async addWorkItemToPR(
+    organization: string,
+    projectId: string,
+    repositoryId: string,
+    prNumber: number,
+    workItemId: string
+  ): Promise<boolean> {
+    try {
+      const token = await this.getToken();
+      if (!token) return false;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const artifactUrl = `vstfs:///Git/PullRequestId/${projectId}%2f${repositoryId}%2f${prNumber}`;
+
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(projectId)}/_apis/wit/workitems/${workItemId}?api-version=7.0`;
+
+      const patchBody = [
+        {
+          "op": "add",
+          "path": "/relations/-",
+          "value": {
+            "rel": "ArtifactLink",
+            "url": artifactUrl,
+            "attributes": {
+              "name": "Pull Request"
+            }
+          }
+        }
+      ];
+
+      const response = await window.fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json-patch+json'
+        },
+        body: JSON.stringify(patchBody)
+      });
+
+      if (response.ok) {
+        return true;
+      }
+
+      const errorText = await response.text();
+      console.error(`Erro ao associar Work Item #${workItemId} ao PR #${prNumber}:`, response.status, errorText);
+      return false;
+    } catch (error) {
+      console.error('Erro na requisição de associação de work item:', error);
+      return false;
+    }
+  },
   
   async removeWorkItemFromPR(
     organization: string,
