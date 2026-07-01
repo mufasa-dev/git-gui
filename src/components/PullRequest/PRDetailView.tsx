@@ -19,6 +19,7 @@ import { azureService } from "../../services/azure";
 import { GitProvider } from "../../utils/gitProvider";
 import AzureMergeDialog from "./AzureMergeDialog";
 import AuthenticatedAvatar from "./AuthenticatedAvatar";
+import ConfirmModal from "../ui/ConfirmModal";
 
 interface PRDetailViewProps {
   pr: any;
@@ -43,6 +44,12 @@ export default function PRDetailView(props: PRDetailViewProps) {
   const [showApproveMenu, setShowApproveMenu] = createSignal(false);
   const [showActionMenu, setShowActionMenu] = createSignal(false);
   const [currentFeedback, setCurrentFeedback] = createSignal('Approve');
+
+  const [openModalConfirm, setModalConfirmOpen] = createSignal<{ id: string } | null>(null);
+  const [modalConfirmTitle, setModalConfirmTitle] = createSignal<string>("");
+  const [modalConfirmMessage, setModalConfirmMessage] = createSignal<string>("");
+  const [modalConfirmOnExecute, setModalConfirmOnExecute] = createSignal<() => void>(() => {});
+  const [modalConfirmOnCancel, setModalConfirmOnCancel] = createSignal<() => void>(() => {});
   
   const { t, locale } = useApp();
   
@@ -672,27 +679,41 @@ export default function PRDetailView(props: PRDetailViewProps) {
                           {(wi) => {
                               const [isRemoving, setIsRemoving] = createSignal(false);
                               const handleRemove = async () => {
-                                  if (!confirm(`Remover work item #${wi.id} deste PR?`)) return;
-                                  setIsRemoving(true);
-                                  try {
-                                      const success = await azureService.removeWorkItemFromPR(
+                                  setModalConfirmOpen({ id: wi.id });
+                                  setModalConfirmTitle("Remover Work Item");
+                                  setModalConfirmMessage(`Deseja realmente remover o work item #${wi.id} deste Pull Request?`);
+                                  setModalConfirmOnExecute(() => async () => {
+                                    setIsRemoving(true);
+                                    try {
+                                      if (props.provider == 'azure') {
+                                         const projectId = details()?.projectId;
+                                        const repositoryId = details()?.repositoryId;
+                                        if (!projectId || !repositoryId) {
+                                          alert('IDs do projeto/repositório não disponíveis.');
+                                          return;
+                                        }
+                                        const success = await azureService.removeWorkItemFromPR(
                                           props.owner,
-                                          props.repo.name,
+                                          projectId,
+                                          repositoryId,
                                           props.pr.number,
                                           wi.id
-                                      );
-                                      if (success) {
-                                          // Atualiza a lista local (refetch)
-                                          refetch();
-                                      } else {
-                                          alert('Erro ao remover work item.');
+                                        );
+                                        if (success) {
+                                            // Atualiza a lista local (refetch)
+                                            refetch();
+                                        } else {
+                                            notify.error('Erro', 'Erro ao remover work item.');
+                                        }
                                       }
-                                  } catch (e) {
-                                      console.error(e);
-                                      alert('Erro ao remover work item.');
-                                  } finally {
-                                      setIsRemoving(false);
-                                  }
+                                        
+                                    } catch (e) {
+                                        console.error(e);
+                                        notify.error('Erro', 'Erro ao remover work item.');
+                                    } finally {
+                                        setIsRemoving(false);
+                                    }
+                                  });
                               };
 
                               return (
@@ -828,6 +849,17 @@ export default function PRDetailView(props: PRDetailViewProps) {
         onClose={() => setShowAzureMergeModal(false)}
         onConfirm={handleConfirmAzureMerge}
       />
+      <Show when={openModalConfirm()}>
+          <ConfirmModal
+              isOpen={openModalConfirm() !== null}
+              title={modalConfirmTitle()}
+              message={modalConfirmMessage()}
+              confirmText={t('common').delete}
+              isDanger={true}
+              onConfirm={() => modalConfirmOnExecute()()}
+              onCancel={() => setModalConfirmOpen(null)}
+          />
+      </Show>
     </div>
   );
 }
