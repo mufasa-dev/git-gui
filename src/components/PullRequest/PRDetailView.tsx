@@ -684,6 +684,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                                   setModalConfirmMessage(`Deseja realmente remover o work item #${wi.id} deste Pull Request?`);
                                   setModalConfirmOnExecute(() => async () => {
                                     setIsRemoving(true);
+                                    setModalConfirmOpen(null);
                                     try {
                                       if (props.provider == 'azure') {
                                          const projectId = details()?.projectId;
@@ -700,7 +701,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                                           wi.id
                                         );
                                         if (success) {
-                                            // Atualiza a lista local (refetch)
+                                            notify.success('Sucesso', 'Work item removido com sucesso.');
                                             refetch();
                                         } else {
                                             notify.error('Erro', 'Erro ao remover work item.');
