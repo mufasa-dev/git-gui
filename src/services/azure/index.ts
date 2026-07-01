@@ -206,138 +206,186 @@ export const azureService = {
     }
   },
 
-  async getPullRequestDescription(organization: string, repoName: string, prNumber: number): Promise<Partial<UnifiedPR & { mergeable: string, reviewers: any[], workItems: { id: number, url: string }[] }>> {
+  async getPullRequestDescription(organization: string, repoName: string, prNumber: number): Promise<Partial<UnifiedPR & { 
+    mergeable: string, 
+    reviewers: any[], 
+    workItems: any[],
+    projectId: string,
+    repositoryId: string
+  }>> {
     try {
       const token = await this.getToken();
       if (!token) return {};
       const credentials = btoa(`:${token.trim()}`);
-      
-      // 1. Buscar o PR principal
+
+      // 1. Buscar PR (usando o nome do repositório no lugar do projeto)
       const prUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
-      const prResponse = await window.fetch(prUrl, {
-        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
-      });
+      const prResponse = await window.fetch(prUrl, { headers: { 'Authorization': `Basic ${credentials}` } });
       if (!prResponse.ok) {
-        console.error("Erro ao buscar descrição do PR no Azure:", prResponse.status);
+        console.error("Erro ao buscar PR:", prResponse.status);
         return {};
       }
       const pr = await prResponse.json();
 
-      // 2. Buscar os work items associados
-      const projectId = pr.repository?.project?.id || repoName; // pode ser o nome ou ID
-      const workItemsUrl = `https://dev.azure.com/${organization}/${projectId}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/workitems?api-version=7.0`;
-      const wiResponse = await window.fetch(workItemsUrl, {
-        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
-      });
-      let workItems: { id: number; url: string }[] = [];
-      if (wiResponse.ok) {
-        const wiData = await wiResponse.json();
-        workItems = (wiData.value || []).map((item: any) => ({
-          id: item.id,
-          url: item.url
-        }));
+      // 2. Obter projectId e repositoryId (GUIDs)
+      let projectId = pr.repository?.project?.id;
+      let repositoryId = pr.repository?.id;
+
+      // Se não veio do PR, busca o repositório explicitamente
+      if (!projectId || !repositoryId) {
+        const repoUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}?api-version=7.0`;
+        const repoResp = await window.fetch(repoUrl, { headers: { 'Authorization': `Basic ${credentials}` } });
+        if (repoResp.ok) {
+          const repoData = await repoResp.json();
+          projectId = repoData.project?.id;
+          repositoryId = repoData.id;
+        }
       }
 
+      // Fallback para nomes (caso GUID não venha)
+      const finalProjectId = projectId || repoName;
+      const finalRepoId = repositoryId || repoName;
+
+      // 3. Buscar work items (usando o projectId, seja GUID ou nome)
+      const workItemsUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(finalProjectId)}/_apis/git/repositories/${encodeURIComponent(finalRepoId)}/pullRequests/${prNumber}/workitems?api-version=7.0`;
+      const wiResponse = await window.fetch(workItemsUrl, { headers: { 'Authorization': `Basic ${credentials}` } });
+      let workItems = [];
+      if (wiResponse.ok) {
+        const wiData = await wiResponse.json();
+        workItems = (wiData.value || []).map((item: any) => ({ id: item.id, url: item.url }));
+      }
+
+      // 4. Enriquecer work items com detalhes
       if (workItems.length) {
-        const ids = workItems.map(wi => wi.id).join(',');
-        const wiDetailsUrl = `https://dev.azure.com/${organization}/${projectId}/_apis/wit/workitems?ids=${ids}&api-version=7.0`;
-        const detailsResp = await window.fetch(wiDetailsUrl, {
-            headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
-        });
+        const ids = workItems.map((wi: any) => wi.id).join(',');
+        const wiDetailsUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(finalProjectId)}/_apis/wit/workitems?ids=${ids}&api-version=7.0`;
+        const detailsResp = await window.fetch(wiDetailsUrl, { headers: { 'Authorization': `Basic ${credentials}` } });
         if (detailsResp.ok) {
           const detailsData = await detailsResp.json();
-          console.log('detailsData', detailsData);
-
-          workItems = workItems.map(wi => {
-              const detail = detailsData.value?.find((d: any) => String(d.id) === String(wi.id));
-              if (detail) {
-                  const fields = detail.fields || {};
-                  return {
-                      id: wi.id,
-                      url: wi.url,
-                      title: fields['System.Title'] || 'Sem título',
-                      state: fields['System.State'] || 'Unknown',
-                      updatedDate: fields['System.ChangedDate'] || fields['System.CreatedDate'] || '',
-                      workItemType: fields['System.WorkItemType'] || '',
-                      assignedTo: fields['System.AssignedTo']?.displayName || '',
-                      areaPath: fields['System.AreaPath'] || '',
-                  };
-              }
+          workItems = workItems.map((wi: any) => {
+            const detail = detailsData.value?.find((d: any) => String(d.id) === String(wi.id));
+            if (detail) {
+              const fields = detail.fields || {};
               return {
-                  ...wi,
-                  title: 'Sem título',
-                  state: 'Unknown',
-                  updatedDate: '',
-                  workItemType: '',
-                  assignedTo: '',
-                  areaPath: '',
+                id: wi.id,
+                url: wi.url,
+                title: fields['System.Title'] || 'Sem título',
+                state: fields['System.State'] || 'Unknown',
+                updatedDate: fields['System.ChangedDate'] || fields['System.CreatedDate'] || '',
+                workItemType: fields['System.WorkItemType'] || '',
               };
+            }
+            return { ...wi, title: 'Sem título', state: 'Unknown', updatedDate: '' };
           });
         }
       }
 
-      // 3. Mapear revisores (como já estava)
-      const reviewers = (pr.reviewers || []).map((rev: any) => {
-        let state = "PENDING";
-        if (rev.vote === 10 || rev.vote === 5) state = "APPROVED";
-        if (rev.vote === -5 || rev.vote === -10) state = "CHANGES_REQUESTED";
-        return {
-          login: rev.uniqueName,
-          name: rev.displayName,
-          avatarUrl: rev._links?.avatar?.href || "",
-          state: state
-        };
-      });
+      // 5. Revisores
+      const reviewers = (pr.reviewers || []).map((rev: any) => ({
+        login: rev.uniqueName,
+        name: rev.displayName,
+        avatarUrl: rev._links?.avatar?.href || "",
+        state: rev.vote === 10 || rev.vote === 5 ? "APPROVED" : rev.vote === -5 || rev.vote === -10 ? "CHANGES_REQUESTED" : "PENDING"
+      }));
 
       return {
         mergeable: pr.mergeStatus === 'conflicts' ? 'CONFLICTING' : 'MERGEABLE',
-        reviewers: reviewers,
-        workItems: workItems
+        reviewers,
+        workItems,
+        projectId: finalProjectId,
+        repositoryId: finalRepoId
       } as any;
     } catch (e) {
       console.error(e);
       return {};
     }
   },
+
+  async getProjectId(organization: string, repoName: string): Promise<string> {
+    const token = await this.getToken();
+    if (!token) return "";
+    const credentials = btoa(`:${token.trim()}`);
+    const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${encodeURIComponent(repoName)}?api-version=7.0`;
+    const resp = await window.fetch(url, { headers: { 'Authorization': `Basic ${credentials}` } });
+    const data = await resp.json();
+    return data.project.id;
+  },
+
+  async getRepositoryId(organization: string, projectId: string, repoName: string): Promise<string> {
+    const token = await this.getToken();
+    if (!token) return "";
+    const credentials = btoa(`:${token.trim()}`);
+    const url = `https://dev.azure.com/${organization}/${projectId}/_apis/git/repositories/${encodeURIComponent(repoName)}?api-version=7.0`;
+    const resp = await window.fetch(url, { headers: { 'Authorization': `Basic ${credentials}` } });
+    const data = await resp.json();
+    return data.id;
+  },
   
-  async removeWorkItemFromPR(organization: string, repoName: string, prNumber: number, workItemId: number): Promise<boolean> {
+  async removeWorkItemFromPR(
+    organization: string,
+    projectId: string,
+    repoName: string,
+    prNumber: number,
+    workItemId: number
+  ): Promise<boolean> {
     try {
-        const token = await this.getToken();
-        if (!token) return false;
-        const credentials = btoa(`:${token.trim()}`);
+      const token = await this.getToken();
+      if (!token) return false;
+      const credentials = btoa(`:${token.trim()}`);
 
-        // Primeiro, precisamos do projectId (do repositório ou do projeto)
-        // Você pode obter isso ao criar o PR ou fazer uma chamada para obter o repo
-        const repoUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}?api-version=7.0`;
-        const repoResponse = await window.fetch(repoUrl, {
-            headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
-        });
-        if (!repoResponse.ok) {
-            console.error('Erro ao buscar repositório:', repoResponse.status);
-            return false;
-        }
-        const repoData = await repoResponse.json();
-        const projectId = repoData.project?.id || repoName;
+      const getWorkItemUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(projectId)}/_apis/wit/workitems/${workItemId}?$expand=relations&api-version=7.0`;
+      
+      const getResponse = await window.fetch(getWorkItemUrl, {
+        method: 'GET',
+        headers: { 'Authorization': `Basic ${credentials}` }
+      });
 
-        // Endpoint para remover work item do PR (método DELETE)
-        const url = `https://dev.azure.com/${organization}/${projectId}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/workitems/${workItemId}?api-version=7.0`;
-        
-        const response = await window.fetch(url, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Basic ${credentials}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            console.error('Erro ao remover work item:', response.status, await response.text());
-            return false;
-        }
-        return true;
-    } catch (error) {
-        console.error('Erro ao remover work item:', error);
+      if (!getResponse.ok) {
+        console.error('Erro ao buscar metadados do work item para remoção:', getResponse.status);
         return false;
+      }
+
+      const workItemData = await getResponse.json();
+      const relations = workItemData.relations || [];
+
+      const prLinkIndex = relations.findIndex((rel: any) => {
+        if (rel.rel !== "ArtifactLink") return false;
+        const urlLower = rel.url?.toLowerCase() || "";
+        return urlLower.includes(`/pullrequestid/`) && urlLower.endsWith(`%2f${prNumber}`);
+      });
+
+      if (prLinkIndex === -1) {
+        console.warn(`O Pull Request #${prNumber} já não estava associado ao Work Item #${workItemId}.`);
+        return true;
+      }
+
+      const patchUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(projectId)}/_apis/wit/workitems/${workItemId}?api-version=7.0`;
+      
+      const patchBody = [
+        {
+          "op": "remove",
+          "path": `/relations/${prLinkIndex}`
+        }
+      ];
+
+      const patchResponse = await window.fetch(patchUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json-patch+json'
+        },
+        body: JSON.stringify(patchBody)
+      });
+
+      if (patchResponse.ok) {
+        return true;
+      }
+
+      console.error('Erro ao remover o link do PR no Work Item:', patchResponse.status, await patchResponse.text());
+      return false;
+    } catch (error) {
+      console.error('Erro na remoção do vínculo:', error);
+      return false;
     }
   },
 
