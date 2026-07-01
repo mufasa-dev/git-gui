@@ -33,16 +33,16 @@ export default function ConfirmModal(props: ConfirmModalProps) {
                             </p>
                         </div>
 
-                        <div class="flex border-t border-gray-100 dark:border-gray-700">
+                        <div class="flex p-2">
                             <button 
                                 onClick={props.onCancel}
-                                class="flex-1 px-4 py-3 text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                class="flex-1 px-4 py-3 text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 dark:hover:text-white transition-colors"
                             >
                                 {props.cancelText || t('common').cancel}
                             </button>
                             <button 
                                 onClick={props.onConfirm}
-                                class={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-widest text-white transition-all
+                                class={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-widest rounded-full text-white transition-all
                                     ${props.isDanger ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'}`}
                             >
                                 {props.confirmText || t('common').confirm}

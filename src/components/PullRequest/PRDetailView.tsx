@@ -851,13 +851,13 @@ export default function PRDetailView(props: PRDetailViewProps) {
       />
       <Show when={openModalConfirm()}>
           <ConfirmModal
-              isOpen={openModalConfirm() !== null}
-              title={modalConfirmTitle()}
-              message={modalConfirmMessage()}
-              confirmText={t('common').delete}
-              isDanger={true}
-              onConfirm={() => modalConfirmOnExecute()()}
-              onCancel={() => setModalConfirmOpen(null)}
+            isOpen={openModalConfirm() !== null}
+            title={modalConfirmTitle()}
+            message={modalConfirmMessage()}
+            confirmText={t('common').delete}
+            isDanger={true}
+            onConfirm={() => modalConfirmOnExecute()()}
+            onCancel={() => setModalConfirmOpen(null)}
           />
       </Show>
     </div>
