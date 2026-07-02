@@ -1,41 +1,83 @@
-import { createMemo } from "solid-js";
-// @ts-ignore
-import { marked } from "marked";
+import { createMemo, createEffect, onCleanup } from "solid-js";
+import { marked, Renderer } from "marked";
+import { azureService } from "../../services/azure";
 
 export default function MarkdownViewer(props: { content: string | undefined, class?: string }) {
-  
+  const renderer = new Renderer();
+  console.log("MarkdownViewer: props.content", props.content);
+  // Sobrescreve o método link usando a assinatura antiga (compatível com marked v4)
+  // Usamos `as any` para evitar erro de tipo no TypeScript
+  (renderer as any).link = function(href: string, title: string, text: string) {
+    return `<a href="javascript:void(0)" onclick="window.openExternal('${href}')" title="${title || ''}" class="external-link">${text}</a>`;
+  };
+
   const cleanHtml = createMemo(() => {
-    let rawMd = props.content;
-    if (!rawMd) return "";
+    const rawMd = props.content || "";
+    // Força o retorno como string (marcação síncrona)
+    return marked.parse(rawMd, { gfm: true, breaks: true, renderer }) as string;
+  });
 
-    // 1. Remove links de Markdown: [google](www.google.com) -> [google](javascript:void(0))
-    // Isso mantém o estilo de link (cor azul), mas mata a ação de navegar
-    rawMd = rawMd.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, (match, text, url) => {
-      // Se quiser que ainda seja clicável para abrir externo, usamos o onclick aqui
-      return `<a href="javascript:void(0)" onclick="window.openExternal('${url}')">${text}</a>`;
-    });
+  // Função para carregar imagens autenticadas
+  const loadAuthenticatedImages = async (container: HTMLElement) => {
+    const images = container.querySelectorAll('img[src*="dev.azure.com"]');
+    if (images.length === 0) return;
 
-    // 2. Trata links que já venham como HTML: <a href="url"> -> <a data-url="url">
-    rawMd = rawMd.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"([^>]*)>/gi, (match, href, rest) => {
-      if (href.startsWith('http')) {
-        return `<a href="javascript:void(0)" onclick="window.openExternal('${href}')" ${rest}>`;
+    const token = await azureService.getToken();
+    if (!token) return;
+
+    for (const img of images) {
+      const originalSrc = img.getAttribute('src');
+      if (!originalSrc) continue;
+
+      try {
+        const response = await fetch(originalSrc, {
+          headers: {
+            'Authorization': `Basic ${btoa(`:${token.trim()}`)}`,
+          },
+        });
+        if (!response.ok) throw new Error('Falha ao carregar imagem');
+        
+        const blob = await response.blob();
+        const objectURL = URL.createObjectURL(blob);
+        img.setAttribute('src', objectURL);
+        // Armazena a URL original para limpeza
+        (img as HTMLImageElement).dataset.originalSrc = originalSrc;
+      } catch (error) {
+        console.error('Erro ao carregar imagem autenticada:', originalSrc, error);
+        // Fallback: tenta carregar diretamente (pode não funcionar)
+        // img.src = originalSrc;
       }
-      return match;
-    });
+    }
+  };
 
-    // 3. Se o objetivo for APENAS IMAGEM (bloquear o link das skills)
-    // Procuramos o padrão [![alt](img_url)](link_url) e deixamos só a imagem
-    rawMd = rawMd.replace(/\[(!\[[^\]]*\]\([^)]+\))\]\([^)]+\)/g, "$1");
+  let containerRef: HTMLElement | undefined;
 
-    // Agora passamos a string já "limpa" para o marked
-    // Como já transformamos links em tags <a> manuais, o marked apenas vai ignorar ou formatar o resto
-    return marked.parse(rawMd, { gfm: true, breaks: true }) as string;
+  // Quando o HTML for renderizado, carrega as imagens
+  createEffect(() => {
+    if (cleanHtml() && containerRef) {
+      queueMicrotask(() => {
+        loadAuthenticatedImages(containerRef!);
+      });
+    }
+  });
+
+  // Limpeza das URLs blob quando o componente desmontar
+  onCleanup(() => {
+    if (containerRef) {
+      const blobs = containerRef.querySelectorAll('img[data-original-src]');
+      blobs.forEach(img => {
+        const src = img.getAttribute('src');
+        if (src && src.startsWith('blob:')) {
+          URL.revokeObjectURL(src);
+        }
+      });
+    }
   });
 
   return (
     <article 
+      ref={containerRef}
       class={`prose dark:prose-invert max-w-none ${props.class || ""}`}
-      // @ts-ignore
       innerHTML={cleanHtml()} 
     />
   );
