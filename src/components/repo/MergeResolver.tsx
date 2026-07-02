@@ -1,4 +1,4 @@
-import { createSignal, createMemo, For, Show, createEffect, on } from "solid-js";
+import { createSignal, createMemo, For, Show, createEffect, on, onCleanup } from "solid-js";
 import { createCodeMirror } from "solid-codemirror";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { javascript } from "@codemirror/lang-javascript";
@@ -34,7 +34,20 @@ export default function VSMergeEditor(props: Props) {
 
   let leftRef: HTMLDivElement | undefined;
   let rightRef: HTMLDivElement | undefined;
+  let cmScroller: HTMLElement | null = null;
+  let isSyncing = false;
   let lastProcessedContent = "";
+
+  const synchronizeScrolls = (source: HTMLElement, targets: (HTMLElement | null | undefined)[]) => {
+    const scrollTop = source.scrollTop;
+    const scrollLeft = source.scrollLeft;
+    targets.forEach(el => {
+      if (el && el !== source) {
+        if (el.scrollTop !== scrollTop) el.scrollTop = scrollTop;
+        if (el.scrollLeft !== scrollLeft) el.scrollLeft = scrollLeft;
+      }
+    });
+  };
 
   const autoResult = createMemo(() => {
     const res = resolutions();
@@ -127,6 +140,26 @@ export default function VSMergeEditor(props: Props) {
     return extensions;
   });
 
+  createEffect(() => {
+    const v = view();
+    if (!v) return;
+    const scroller = v.scrollDOM;
+    if (!scroller) return;
+    cmScroller = scroller;
+
+    const onScroll = () => {
+      if (!isSyncing && cmScroller) {
+        isSyncing = true;
+        const targets = [leftRef, rightRef];
+        synchronizeScrolls(cmScroller, targets);
+        queueMicrotask(() => { isSyncing = false; });
+      }
+    };
+
+    scroller.addEventListener('scroll', onScroll);
+    onCleanup(() => scroller.removeEventListener('scroll', onScroll));
+  });
+
   const handleCompleteMerge = () => {
     const v = view();
     const finalContent = v ? v.state.doc.toString() : displayResult();
@@ -145,9 +178,7 @@ export default function VSMergeEditor(props: Props) {
     const v = view();
     if (!v) return;
 
-    // Se o usuário limpou o manualResult (clicou em Reset), voltamos para o auto
     const target = manualResult() ?? autoResult();
-    
     const currentDoc = v.state.doc.toString();
 
     if (currentDoc !== target) {
@@ -216,11 +247,15 @@ export default function VSMergeEditor(props: Props) {
     });
   };
 
+  // ---- Handler de scroll para os painéis superiores (agora com horizontal) ----
   const handleScroll = (e: Event) => {
     const target = e.currentTarget as HTMLDivElement;
-    [leftRef, rightRef].forEach(ref => {
-      if (ref && ref !== target) ref.scrollTop = target.scrollTop;
-    });
+    if (!isSyncing) {
+      isSyncing = true;
+      const targets = [leftRef, rightRef, cmScroller];
+      synchronizeScrolls(target, targets);
+      queueMicrotask(() => { isSyncing = false; });
+    }
   };
 
   return (
