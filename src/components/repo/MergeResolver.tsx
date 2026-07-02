@@ -269,13 +269,14 @@ export default function MergeResolver(props: Props) {
           <div ref={leftRef} onScroll={handleScroll} class="overflow-auto flex-1 p-2 custom-scrollbar">
             <For each={lines()}>{(line) => {
               const isSelected = () => resolutions()[line.conflictId!]?.includes('incoming');
+              if (!line.lineNumber || line.type == 'current') return null;
               return (
                 <div onClick={() => toggleResolution(line.conflictId!, 'incoming')} 
                   class={`flex min-h-[1.5em] items-center border-l-4 border-transparent w-fit min-w-full
-                    ${line.type === 'incoming' ? (isSelected() ? 'bg-blue-600/30 !border-blue-500 py-2' : 'bg-blue-300/30 py-2') : line.type === 'current' ? 'opacity-30 grayscale pointer-events-none' : ''} 
+                    ${line.type === 'incoming' ? (isSelected() ? 'bg-blue-600/30 !border-blue-500 py-2' : 'bg-blue-300/30 py-2') : ''} 
                     ${line.conflictId ? 'cursor-pointer text-black dark:text-white' : 'w-fit '}`}>
                   <span class="w-8 text-right pr-2 text-black dark:text-gray-400 text-[10px]">
-                    {line.type === 'current' || line.type === 'normal' ? line.lineNumber : ''}
+                    {line.type === 'normal' ? line.lineNumber : ''}
                     {isSelected() && line.type === 'incoming' && <span>✅</span>}
                   </span>
                   <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre font-mono select-text'}>
@@ -293,13 +294,14 @@ export default function MergeResolver(props: Props) {
           <div ref={rightRef} onScroll={handleScroll} class="overflow-auto flex-1 p-2 custom-scrollbar">
             <For each={lines()}>{(line) => {
               const isSelected = () => resolutions()[line.conflictId!]?.includes('current');
+              if (!line.lineNumber || line.type == 'incoming') return null;
               return (
                 <div onClick={() => toggleResolution(line.conflictId!, 'current')} 
                   class={`flex min-h-[1.5em] items-center border-l-4 border-transparent w-fit min-w-full
-                    ${line.type === 'current' ? (isSelected() ? 'bg-green-600/30 border-l-2 !border-green-500 py-2' : 'bg-green-300/30 py-2') : line.type === 'incoming' ? 'opacity-30 grayscale pointer-events-none' : ''} 
+                    ${line.type === 'current' ? (isSelected() ? 'bg-green-600/30 border-l-2 !border-green-500 py-2' : 'bg-green-300/30 py-2') : ''} 
                     ${line.conflictId ? 'cursor-pointer text-black dark:text-white' : 'w-fit'}`}>
                   <span class="w-8 text-right pr-2 text-gray-500 dark:text-gray-400 mr-2 text-[10px]">
-                    {line.type === 'incoming' || line.type === 'normal' ? line.lineNumber : ''}
+                    {line.type === 'normal' ? line.lineNumber : ''}
                     {isSelected() && line.type === 'current' && <span>✅</span>}
                   </span>
                   <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre font-mono select-text'}>
