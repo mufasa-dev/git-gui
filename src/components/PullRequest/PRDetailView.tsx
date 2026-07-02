@@ -569,40 +569,40 @@ export default function PRDetailView(props: PRDetailViewProps) {
             {/* RENDERIZAÇÃO CONDICIONAL DO CONTEÚDO */}
             <Switch>
               <Match when={activeTab() === 'Visão Geral'}>
-                  <PRTimelineView 
-                    owner={props.owner} 
-                    repo={props.repo.name} 
-                    pr={props.pr}
-                    provider={props.provider}
-                    details={details()}
-                    currentUserAvatar={props.pr.author?.avatarUrl}
-                    selectCommit={selectCommit}
-                    openUserProfile={openUserProfile}
+                <PRTimelineView 
+                  owner={props.owner} 
+                  repo={props.repo.name} 
+                  pr={props.pr}
+                  provider={props.provider}
+                  details={details()}
+                  currentUserAvatar={props.pr.author?.avatarUrl}
+                  selectCommit={selectCommit}
+                  openUserProfile={openUserProfile}
                 />
               </Match>
 
               <Match when={activeTab() === 'Files'}>
                 <PRFilesTab 
-                    owner={props.owner} 
-                    repoName={props.repo.name} 
-                    prNumber={props.pr.number}
-                    provider={props.provider}
+                  owner={props.owner} 
+                  repoName={props.repo.name} 
+                  prNumber={props.pr.number}
+                  provider={props.provider}
                 />
               </Match>
               <Match when={activeTab() === 'Commits'}>
                 <PRCommitsView 
-                    owner={props.owner} 
-                    repoName={props.repo.name} 
-                    prNumber={props.pr.number} 
-                    selectCommit={selectCommit}
-                    provider={props.provider}
+                  owner={props.owner} 
+                  repoName={props.repo.name} 
+                  prNumber={props.pr.number} 
+                  selectCommit={selectCommit}
+                  provider={props.provider}
                 />
               </Match>
               <Match when={activeTab() === 'Checks'}>
                 <PRChecksView
-                    owner={props.owner} 
-                    repoName={props.repo.name} 
-                    prNumber={props.pr.number} 
+                  owner={props.owner} 
+                  repoName={props.repo.name} 
+                  prNumber={props.pr.number} 
                 />
               </Match>
             </Switch>
@@ -623,7 +623,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
             projectId={details()?.projectId}
             repositoryId={details()?.repositoryId}
             owner={props.owner}
-            repoName={props.repo.name}
+            repo={props.repo}
             prNumber={props.pr.number}
             provider={props.provider}
             t={t}

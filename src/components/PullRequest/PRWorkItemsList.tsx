@@ -4,6 +4,8 @@ import { GitProvider } from "../../utils/gitProvider";
 import ConfirmModal from "../ui/ConfirmModal";
 import { notify } from "../../utils/notifications";
 import { azureService } from "../../services/azure";
+import CardDetailView from "../board/CardItem";
+import { Repo } from "../../models/Repo.model";
 
 interface WorkItem {
   id: number;
@@ -20,7 +22,7 @@ interface PRWorkItemsListProps {
   projectId?: string;
   repositoryId?: string;
   owner: string;
-  repoName: string;
+  repo: Repo;
   prNumber: number;
   provider: GitProvider;
   t: any;
@@ -33,6 +35,9 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
   const [modalConfirmTitle, setModalConfirmTitle] = createSignal<string>("");
   const [modalConfirmMessage, setModalConfirmMessage] = createSignal<string>("");
   const [modalConfirmOnExecute, setModalConfirmOnExecute] = createSignal<() => void>(() => {});
+
+  const [modalWorkItemOpen, setModalWorkItemOpen] = createSignal<boolean>(false);
+  const [workItemId, setWorkItemId] = createSignal<string | null>(null);
 
   const handleRemove = (wi: WorkItem) => {
     setModalConfirmOpen({ id: String(wi.id) });
@@ -82,7 +87,7 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
         <WorkItemSearchSelector 
           provider={props.provider}
           org={props.owner}
-          repo={props.repoName}
+          repo={props.repo.name}
           t={props.t}
           onSelect={async (item) => {
             if (props.provider === 'azure') {
@@ -117,15 +122,16 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
               return (
                 <div class="flex items-center justify-between group p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
                   <div class="flex-1 min-w-0">
-                    <a 
-                      href={wi.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
+                    <button 
+                      onClick={() => {
+                        setWorkItemId(String(wi.id));
+                        setModalWorkItemOpen(true);
+                      }}
                       class="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate"
                     >
                       <i class={`fa-regular ${wi.workItemType === 'Issue' ? 'fa-circle' : wi.workItemType === 'Task' ? 'fa-check-square' : 'fa-rectangle-list'} text-gray-400 text-xs`}></i>
                       <span class="truncate">#{wi.id} - {wi.title}</span>
-                    </a>
+                    </button>
                     <div class="flex items-center gap-3 mt-1 text-[10px] text-gray-500">
                       <span class="flex items-center gap-1">
                         <span class={`inline-block w-1.5 h-1.5 rounded-full ${
@@ -140,7 +146,8 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
                         <i class="fa-regular fa-clock text-[8px]"></i>
                         {wi.updatedDate ? new Date(wi.updatedDate).toLocaleDateString('pt-BR', { 
                           day: '2-digit', 
-                          month: 'short', 
+                          month: 'short',
+                          year: 'numeric',
                           hour: '2-digit', 
                           minute: '2-digit' 
                         }) : ''}
@@ -182,6 +189,17 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
           isDanger={true}
           onConfirm={() => modalConfirmOnExecute()()}
           onCancel={() => setModalConfirmOpen(null)}
+        />
+      </Show>
+
+      <Show when={modalWorkItemOpen()}>
+        <CardDetailView
+            repoName={props.repo.name}
+            repoPath={props.repo.path} 
+            cardId={workItemId()|| 0}
+            provider={props.provider}
+            organization={props.owner}
+            onClose={() => setModalWorkItemOpen(false)}
         />
       </Show>
     </div>
