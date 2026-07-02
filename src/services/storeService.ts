@@ -1,7 +1,8 @@
 import { Store } from "@tauri-apps/plugin-store";
 import type { Repo } from "../models/Repo.model";
 
-const KEY = "repos";
+const REPOS_KEY = "repos";
+const ACTIVE_KEY = "activeRepo";
 
 let store: Store;
 
@@ -12,12 +13,24 @@ async function initStore() {
 export async function saveRepos(repos: Repo[]) {
   if (!store) await initStore();
   const uniquePaths = [...new Set(repos.map(r => r.path))];
-  await store.set(KEY, uniquePaths);
+  await store.set(REPOS_KEY, uniquePaths);
   await store.save();
 }
 
 export async function loadRepos(): Promise<string[]> {
   if (!store) await initStore();
-  const repos = await store.get<string[]>(KEY);
+  const repos = await store.get<string[]>(REPOS_KEY);
   return repos ?? [];
+}
+
+export async function saveActiveRepo(path: string | null) {
+  if (!store) await initStore();
+  await store.set(ACTIVE_KEY, path);
+  await store.save();
+}
+
+export async function loadActiveRepo(): Promise<string | null> {
+  if (!store) await initStore();
+  const active = await store.get<string | null>(ACTIVE_KEY);
+  return active ?? null;
 }

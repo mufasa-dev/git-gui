@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteUrl } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
@@ -6,7 +6,7 @@ import { Repo } from "../models/Repo.model";
 import RepoContext from "../context/RepoContext";
 
 import { path } from "@tauri-apps/api";
-import { loadRepos, saveRepos } from "../services/storeService";
+import { loadActiveRepo, loadRepos, saveActiveRepo, saveRepos } from "../services/storeService";
 import Header from "../components/layout/Header";
 import LateralBar from "../components/ui/LateralBar";
 import FilesList from "./FilesList";
@@ -99,7 +99,7 @@ export default function RepoTabsPage() {
 
     if (isClosingActive) {
       const nextActive = nextRepos.length > 0 ? nextRepos[0].path : null;
-      setActive(nextActive);
+      changeActiveRepo(nextActive);
     }
 
     setRepos(nextRepos);
@@ -125,8 +125,16 @@ export default function RepoTabsPage() {
         console.warn(`Não foi possível reabrir repo ${repoPath}`, err);
       }
     }
+
     if (repos().length > 0) {
-      setActive(repos()[0].path);
+      const savedActive = await loadActiveRepo();
+      const stillExists = repos().some(r => r.path === savedActive);
+      if (savedActive && stillExists) {
+        setActive(savedActive);
+      } else {
+        setActive(repos()[0].path);
+        await saveActiveRepo(repos()[0].path);
+      }
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -198,6 +206,11 @@ export default function RepoTabsPage() {
     return repos().find(r => r.path === currentActive) || null;
   });
 
+  const changeActiveRepo = (newActive: string | null) => {
+    saveActiveRepo(newActive);
+    setActive(newActive);
+  }
+
   return (
      <RepoContext.Provider value={{ 
       repos, 
@@ -211,9 +224,9 @@ export default function RepoTabsPage() {
 
         {/* Abas + conteúdo */}
         <div class="flex flex-col flex-1">
-          <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
+          <TabBar repos={repos()} active={active()} onChangeActive={changeActiveRepo} onClose={closeRepo} />
 
-          <Header repos={repos()} active={active()} activePage={activePage()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
+          <Header repos={repos()} active={active()} activePage={activePage()} refreshBranches={refreshBranches} setActive={changeActiveRepo} setRepos={setRepos} />
 
           <div class="flex flex-1 overflow-auto bg-gray-200 dark:bg-gray-900">
             <Show when={repos().length > 0 && active()}>
@@ -228,7 +241,7 @@ export default function RepoTabsPage() {
               fallback={
                 <WelcomeScreen 
                   repos={repos()} 
-                  setActive={setActive} 
+                  setActive={changeActiveRepo} 
                   setRepos={setRepos}
                 />
               }
