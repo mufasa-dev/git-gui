@@ -121,6 +121,17 @@ export const PR_DESCRIPTION_QUERY = `
         deletions
         mergeable
         viewerCanMergeAsAdmin
+        closingIssuesReferences(first: 20) {
+          nodes {
+            id        # O ID global (ex: "I_kwDO...") que usamos para adicionar/remover
+            number    # O número da issue (ex: 42)
+            title     # O título da issue
+            state     # Estado da issue: OPEN ou CLOSED
+            url       # URL web da issue no GitHub
+            createdAt
+            updatedAt
+          }
+        }
         reviews(first: 10) {
           nodes {
             state

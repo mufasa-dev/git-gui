@@ -62,7 +62,20 @@ export default function PRDetailView(props: PRDetailViewProps) {
       if (p.provider === 'azure') {
         return await azureService.getPullRequestDescription(p.owner, p.name, p.number);
       }
-      return await githubService.getPullRequestDescription(p.owner, p.name, p.number);
+      let data = await githubService.getPullRequestDescription(p.owner, p.name, p.number);
+      const nodes = data.closingIssuesReferences?.nodes || [];
+
+      const workItems = nodes.map((issue: any) => ({
+        id: issue.id,
+        number: issue.number,
+        title: issue.title,
+        state: issue.state,
+        url: issue.url,
+        updatedDate: issue.updatedAt || issue.createdAt,
+        workItemType: 'Issue'
+      }));
+      data.workItems = workItems;
+      return data;
     }
   );
 

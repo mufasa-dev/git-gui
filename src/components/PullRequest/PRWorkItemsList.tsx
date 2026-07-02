@@ -9,6 +9,7 @@ import { Repo } from "../../models/Repo.model";
 
 interface WorkItem {
   id: number;
+  number?: number;
   url: string;
   title?: string;
   state?: string;
@@ -114,7 +115,7 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
         />
       </div>
 
-      <div class="space-y-3 mt-3">
+      <div class="mt-2">
         <Show when={props.workItems && props.workItems.length > 0}>
           <For each={props.workItems}>
             {(wi) => {
@@ -124,13 +125,14 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
                   <div class="flex-1 min-w-0">
                     <button 
                       onClick={() => {
-                        setWorkItemId(String(wi.id));
+                        let id = props.provider === 'azure' ? String(wi.id) : String(wi.number);
+                        setWorkItemId(id);
                         setModalWorkItemOpen(true);
                       }}
                       class="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate"
                     >
                       <i class={`fa-regular ${wi.workItemType === 'Issue' ? 'fa-circle' : wi.workItemType === 'Task' ? 'fa-check-square' : 'fa-rectangle-list'} text-gray-400 text-xs`}></i>
-                      <span class="truncate">#{wi.id} - {wi.title}</span>
+                      <span class="truncate">#{props.provider === 'azure' ? wi.id : wi.number} - {wi.title}</span>
                     </button>
                     <div class="flex items-center gap-3 mt-1 text-[10px] text-gray-500">
                       <span class="flex items-center gap-1">
@@ -141,16 +143,6 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
                           'bg-yellow-500'
                         }`}></span>
                         {wi.state}
-                      </span>
-                      <span class="flex items-center gap-1">
-                        <i class="fa-regular fa-clock text-[8px]"></i>
-                        {wi.updatedDate ? new Date(wi.updatedDate).toLocaleDateString('pt-BR', { 
-                          day: '2-digit', 
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        }) : ''}
                       </span>
                       {wi.assignedTo && (
                         <span class="flex items-center gap-1">
@@ -167,7 +159,7 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
                     title="Remover work item do PR"
                   >
                     <Show when={!isRemoving()} fallback={<i class="fa-solid fa-spinner fa-spin"></i>}>
-                      <i class="fa-regular fa-circle-xmark text-base"></i>
+                      <i class="fa-regular fa-times text-base"></i>
                     </Show>
                   </button>
                 </div>
