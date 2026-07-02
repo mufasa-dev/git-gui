@@ -6,6 +6,7 @@ import { notify } from "../../utils/notifications";
 import { azureService } from "../../services/azure";
 import CardDetailView from "../board/CardItem";
 import { Repo } from "../../models/Repo.model";
+import { githubService } from "../../services/github";
 
 interface WorkItem {
   id: number;
@@ -41,9 +42,10 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
   const [workItemId, setWorkItemId] = createSignal<string | null>(null);
 
   const handleRemove = (wi: WorkItem) => {
-    setModalConfirmOpen({ id: String(wi.id) });
+    let id = props.provider === 'azure' ? String(wi.id) : String(wi.number);
+    setModalConfirmOpen({ id: id });
     setModalConfirmTitle("Remover Work Item");
-    setModalConfirmMessage(`Deseja realmente remover o work item #${wi.id} deste Pull Request?`);
+    setModalConfirmMessage(`Deseja realmente remover o work item #${id} deste Pull Request?`);
     setModalConfirmOnExecute(() => async () => {
       setModalConfirmOpen(null);
       try {
@@ -60,6 +62,19 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
             repositoryId,
             props.prNumber,
             wi.id
+          );
+          if (success) {
+            notify.success('Sucesso', 'Work item removido com sucesso.');
+            props.onWorkItemRemoved();
+          } else {
+            notify.error('Erro', 'Erro ao remover work item.');
+          }
+        } else if (props.provider === 'github') {
+          const success = await githubService.removeIssueFromPR(
+            props.owner,
+            props.repo.name,
+            props.prNumber,
+            String(wi.number)
           );
           if (success) {
             notify.success('Sucesso', 'Work item removido com sucesso.');
