@@ -8,6 +8,7 @@ import { Transaction, Annotation } from "@codemirror/state";
 import { notify } from "../../utils/notifications";
 import { conflictHighlightPlugin } from "../../utils/conflictHighlight";
 import { useApp } from "../../context/AppContext";
+import { highlightCode } from "../../utils/highlight";
 
 // Helper para identificar mudanças programáticas vs manuais
 const ExternalChange = Annotation.define<boolean>();
@@ -21,11 +22,12 @@ interface Line {
 
 type Props = {
   diffContent: string;
+  fileName: string;
   onSave: (resolved: string) => void;
   onClose: () => void;
 };
 
-export default function VSMergeEditor(props: Props) {
+export default function MergeResolver(props: Props) {
   const [lines, setLines] = createSignal<Line[]>([]);
   const [resolutions, setResolutions] = createSignal<Record<number, ("current" | "incoming")[]>>({});
   const [manualResult, setManualResult] = createSignal<string | null>(null);
@@ -277,7 +279,7 @@ export default function VSMergeEditor(props: Props) {
                     {isSelected() && line.type === 'incoming' && <span>✅</span>}
                   </span>
                   <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre font-mono select-text'}>
-                    {line.content}
+                    <div innerHTML={highlightCode(line.content, props.fileName)} />
                   </pre>
                 </div>
               )}}
@@ -301,7 +303,7 @@ export default function VSMergeEditor(props: Props) {
                     {isSelected() && line.type === 'current' && <span>✅</span>}
                   </span>
                   <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre font-mono select-text'}>
-                    {line.content}
+                    <div innerHTML={highlightCode(line.content, props.fileName)} />
                   </pre>
                 </div>
               )}}
