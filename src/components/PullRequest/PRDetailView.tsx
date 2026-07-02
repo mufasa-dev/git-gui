@@ -21,6 +21,8 @@ import AzureMergeDialog from "./AzureMergeDialog";
 import AuthenticatedAvatar from "./AuthenticatedAvatar";
 import ConfirmModal from "../ui/ConfirmModal";
 import { WorkItemSearchSelector } from "../board/WorkItemSearchSelector";
+import { PRReviewersList } from "./PRReviewersList";
+import { PRWorkItemsList } from "./PRWorkItemsList";
 
 interface PRDetailViewProps {
   pr: any;
@@ -609,206 +611,27 @@ export default function PRDetailView(props: PRDetailViewProps) {
 
         {/* SIDEBAR DE METADADOS */}
         <aside class="container-branch-list w-72 ml-2 p-4 space-y-10">
-          <div>
-            <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
-              <span>{t('pr').reviewers}</span>
-              <i class="fa-solid fa-gear hover:text-blue-500 cursor-pointer transition-colors"></i>
-            </div>
-            
-            <div class="space-y-5">
-              <For each={reviewersList()}>
-                {(reviewer) => (
-                  <div class="flex items-center justify-between group">
-                    <div class="flex items-center gap-3">
-                      <div class="relative">
-                        <AuthenticatedAvatar 
-                          src={reviewer.avatarUrl} 
-                          alt={reviewer.login}
-                          email={reviewer.login || ""}
-                          fallbackName={reviewer.name || reviewer.login}
-                          class="w-7 h-7 rounded-full border-2 border-gray-200 dark:border-gray-600 
-                              hover:scale-110 transition-transform" 
-                        />
-                      </div>
-                      <div class="flex flex-col">
-                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200">
-                          {reviewer.name || reviewer.login}
-                        </span>
-                        <span class="text-[9px] text-gray-500 uppercase font-black tracking-tighter">
-                          {reviewer.state.replace('_', ' ')}
-                        </span>
-                      </div>
-                    </div>
-
-                    <Switch>
-                      <Match when={reviewer.state === 'APPROVED'}>
-                        <i class="fa-solid fa-circle-check text-green-500 text-sm shadow-[0_0_8px_rgba(34,197,94,0.4)]"></i>
-                      </Match>
-                      <Match when={reviewer.state === 'CHANGES_REQUESTED'}>
-                        <i class="fa-solid fa-circle-exclamation text-red-500 text-sm"></i>
-                      </Match>
-                      <Match when={reviewer.state === 'PENDING'}>
-                        <div class="flex gap-1 items-center">
-                          <span class="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span>
-                        </div>
-                      </Match>
-                      <Match when={reviewer.state === 'COMMENTED'}>
-                        <i class="fa-solid fa-comment-dots text-gray-400 text-sm"></i>
-                      </Match>
-                    </Switch>
-                  </div>
-                )}
-              </For>
-              
-              <Show when={reviewersList().length === 0}>
-                <div class="text-[10px] text-gray-500 italic">{t('pr').no_reviewers}</div>
-              </Show>
-            </div>
-          </div>
+          {/* Revisores */}
+          <PRReviewersList
+            reviewers={reviewersList()} 
+            t={t} 
+          />
 
           {/* Work Items */}
-          <div>
-              <div class="flex justify-between items-center mb-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">
-                  <span>Work Items</span>
-                  <span class="text-[9px] font-normal text-gray-500">
-                      {details()?.workItems?.length || 0}
-                  </span>
-              </div>
-              <div class="relative w-full max-w-md">
-                <WorkItemSearchSelector 
-                  provider={props.provider}
-                  org={props.owner}
-                  repo={props.repo.name}
-                  t={t}
-                  onSelect={async (item) => {
-                    if (props.provider == 'azure') {
-                      const projectId = details()?.projectId;
-                      const repositoryId = details()?.repositoryId;
-                      if (!projectId || !repositoryId) {
-                        alert('IDs do projeto/repositório não disponíveis.');
-                        return;
-                      }
-                      console.log('Selected work item:', item);
-                      const success = await azureService.addWorkItemToPR(
-                        props.owner,
-                        projectId,
-                        repositoryId,
-                        props.pr.number,
-                        item.id
-                      );
-                      if (success) {
-                          refetch();
-                      } else {
-                          notify.error('Erro', 'Erro ao adicionar work item.');
-                      }
-                    }
-                  }}
-                />
-              </div>
-              <div class="space-y-3">
-                  <Show when={details()?.workItems && details()!.workItems!.length > 0}>
-                      <For each={details()!.workItems}>
-                          {(wi) => {
-                              const [isRemoving, setIsRemoving] = createSignal(false);
-                              const handleRemove = async () => {
-                                  setModalConfirmOpen({ id: wi.id });
-                                  setModalConfirmTitle("Remover Work Item");
-                                  setModalConfirmMessage(`Deseja realmente remover o work item #${wi.id} deste Pull Request?`);
-                                  setModalConfirmOnExecute(() => async () => {
-                                    setIsRemoving(true);
-                                    setModalConfirmOpen(null);
-                                    try {
-                                      if (props.provider == 'azure') {
-                                        const projectId = details()?.projectId;
-                                        const repositoryId = details()?.repositoryId;
-                                        if (!projectId || !repositoryId) {
-                                          alert('IDs do projeto/repositório não disponíveis.');
-                                          return;
-                                        }
-                                        const success = await azureService.removeWorkItemFromPR(
-                                          props.owner,
-                                          projectId,
-                                          repositoryId,
-                                          props.pr.number,
-                                          wi.id
-                                        );
-                                        if (success) {
-                                            notify.success('Sucesso', 'Work item removido com sucesso.');
-                                            refetch();
-                                        } else {
-                                            notify.error('Erro', 'Erro ao remover work item.');
-                                        }
-                                      }
-                                        
-                                    } catch (e) {
-                                        console.error(e);
-                                        notify.error('Erro', 'Erro ao remover work item.');
-                                    } finally {
-                                        setIsRemoving(false);
-                                    }
-                                  });
-                              };
+          <PRWorkItemsList
+            workItems={details()?.workItems || []}
+            projectId={details()?.projectId}
+            repositoryId={details()?.repositoryId}
+            owner={props.owner}
+            repoName={props.repo.name}
+            prNumber={props.pr.number}
+            provider={props.provider}
+            t={t}
+            onWorkItemAdded={refetch}
+            onWorkItemRemoved={refetch}
+          />
 
-                              return (
-                                  <div class="flex items-center justify-between group p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
-                                      <div class="flex-1 min-w-0">
-                                          <a 
-                                              href={wi.url} 
-                                              target="_blank" 
-                                              rel="noopener noreferrer"
-                                              class="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate"
-                                          >
-                                              <i class={`fa-regular ${wi.workItemType === 'Issue' ? 'fa-circle' : wi.workItemType === 'Task' ? 'fa-check-square' : 'fa-rectangle-list'} text-gray-400 text-xs`}></i>
-                                              <span class="truncate">#{wi.id} - {wi.title}</span>
-                                          </a>
-                                          <div class="flex items-center gap-3 mt-1 text-[10px] text-gray-500">
-                                              <span class="flex items-center gap-1">
-                                                  <span class={`inline-block w-1.5 h-1.5 rounded-full ${
-                                                      wi.state === 'Doing' ? 'bg-blue-500' :
-                                                      wi.state === 'Done' ? 'bg-green-500' :
-                                                      wi.state === 'To Do' ? 'bg-gray-400' :
-                                                      'bg-yellow-500'
-                                                  }`}></span>
-                                                  {wi.state}
-                                              </span>
-                                              <span class="flex items-center gap-1">
-                                                  <i class="fa-regular fa-clock text-[8px]"></i>
-                                                  {wi.updatedDate ? new Date(wi.updatedDate).toLocaleDateString('pt-BR', { 
-                                                      day: '2-digit', 
-                                                      month: 'short', 
-                                                      hour: '2-digit', 
-                                                      minute: '2-digit' 
-                                                  }) : ''}
-                                              </span>
-                                              {wi.assignedTo && (
-                                                  <span class="flex items-center gap-1">
-                                                      <i class="fa-regular fa-user text-[8px]"></i>
-                                                      {wi.assignedTo}
-                                                  </span>
-                                              )}
-                                          </div>
-                                      </div>
-                                      <button
-                                          onClick={handleRemove}
-                                          disabled={isRemoving()}
-                                          class="ml-2 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                          title="Remover work item do PR"
-                                      >
-                                          <Show when={!isRemoving()} fallback={<i class="fa-solid fa-spinner fa-spin"></i>}>
-                                              <i class="fa-regular fa-circle-xmark text-base"></i>
-                                          </Show>
-                                      </button>
-                                  </div>
-                              );
-                          }}
-                      </For>
-                  </Show>
-                  <Show when={!details()?.workItems || details()!.workItems!.length === 0}>
-                      <div class="text-[10px] text-gray-500 italic">Nenhum work item vinculado</div>
-                  </Show>
-              </div>
-          </div>
-
+          {/* Participantes (GitHub) */}
           <Show when={props.provider === 'github'}>
             <div>
               <div class="flex justify-between items-center mb-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">
@@ -883,15 +706,15 @@ export default function PRDetailView(props: PRDetailViewProps) {
         onConfirm={handleConfirmAzureMerge}
       />
       <Show when={openModalConfirm()}>
-          <ConfirmModal
-            isOpen={openModalConfirm() !== null}
-            title={modalConfirmTitle()}
-            message={modalConfirmMessage()}
-            confirmText={t('common').delete}
-            isDanger={true}
-            onConfirm={() => modalConfirmOnExecute()()}
-            onCancel={() => setModalConfirmOpen(null)}
-          />
+        <ConfirmModal
+          isOpen={openModalConfirm() !== null}
+          title={modalConfirmTitle()}
+          message={modalConfirmMessage()}
+          confirmText={t('common').delete}
+          isDanger={true}
+          onConfirm={() => modalConfirmOnExecute()()}
+          onCancel={() => setModalConfirmOpen(null)}
+        />
       </Show>
     </div>
   );
