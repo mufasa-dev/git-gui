@@ -415,3 +415,34 @@ export const MERGE_PR = `
     }
   }
 `;
+
+export const UPDATE_PR_ISSUES_MUTATION = `
+  mutation ($pullRequestId: ID!, $issueIds: [ID!]) {
+    updatePullRequest(input: { pullRequestId: $pullRequestId, issueIds: $issueIds }) {
+      pullRequest {
+        id
+        closingIssuesReferences(first: 10) {
+          nodes {
+            id
+            number
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const GET_PR_ISSUES_QUERY = `
+  query ($owner: String!, $name: String!, $number: Int!) {
+    repository(owner: $owner, name: $name) {
+      pullRequest(number: $number) {
+        id
+        closingIssuesReferences(first: 50) {
+          nodes {
+            id
+          }
+        }
+      }
+    }
+  }
+`;

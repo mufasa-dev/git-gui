@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
-import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_TIMELINE_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY } from "./queries";
+import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_ISSUES_QUERY, GET_PR_TIMELINE_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY, UPDATE_PR_ISSUES_MUTATION } from "./queries";
 import { PRValidationResult, ReviewerItem } from "../../models/PR.model";
 import { CardComment, WorkItem } from "../../models/WorkItem";
 
@@ -295,8 +295,6 @@ export const githubService = {
       const token = await this.getToken();
       if (!token) throw new Error("Token não encontrado");
 
-      // 🎯 URL Oficial do GitHub para listar PRs abertos filtrando head e base
-      // O GitHub espera o head no formato "owner:branch" ou apenas "branch"
       const prUrl = `https://api.github.com/repos/${owner}/${repo}/pulls?head=${encodeURIComponent(source)}&base=${encodeURIComponent(target)}&state=open`;
 
       const prResponse = await window.fetch(prUrl, {
@@ -317,7 +315,6 @@ export const githubService = {
         };
       }
 
-      // 🎯 URL Oficial do GitHub para comparar as duas branches (base...head)
       const compareUrl = `https://api.github.com/repos/${owner}/${repo}/compare/${encodeURIComponent(target)}...${encodeURIComponent(source)}`;
 
       const compareResponse = await window.fetch(compareUrl, {
@@ -835,6 +832,57 @@ export const githubService = {
     } catch (error) {
       console.error("Erro ao buscar colaboradores no GitHub:", error);
       return [];
+    }
+  },
+
+  async getPRIssuesData(owner: string, name: string, number: number) {
+    const data = await this.fetchGraphQL(GET_PR_ISSUES_QUERY, { owner, name, number });
+    const pr = data?.repository?.pullRequest;
+    return {
+      prId: pr?.id,
+      currentIssueIds: pr?.closingIssuesReferences?.nodes.map((n: any) => n.id) || []
+    };
+  },
+
+  async addIssueToPR(owner: string, name: string, prNumber: number, issueId: string): Promise<boolean> {
+    try {
+      const { prId, currentIssueIds } = await this.getPRIssuesData(owner, name, prNumber);
+      if (!prId) return false;
+
+      if (currentIssueIds.includes(issueId)) return true;
+
+      const newIssueIds = [...currentIssueIds, issueId];
+
+      await this.fetchGraphQL(UPDATE_PR_ISSUES_MUTATION, {
+        pullRequestId: prId,
+        issueIds: newIssueIds
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Erro ao associar issue ao PR no GitHub:", error);
+      return false;
+    }
+  },
+
+  async removeIssueFromPR(owner: string, name: string, prNumber: number, issueId: string): Promise<boolean> {
+    try {
+      const { prId, currentIssueIds } = await this.getPRIssuesData(owner, name, prNumber);
+      if (!prId) return false;
+
+      if (!currentIssueIds.includes(issueId)) return true;
+
+      const newIssueIds = currentIssueIds.filter((id: string) => id !== issueId);
+
+      await this.fetchGraphQL(UPDATE_PR_ISSUES_MUTATION, {
+        pullRequestId: prId,
+        issueIds: newIssueIds
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Erro ao desassociar issue do PR no GitHub:", error);
+      return false;
     }
   },
 
