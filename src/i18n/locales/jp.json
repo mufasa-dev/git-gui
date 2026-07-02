@@ -373,7 +373,20 @@
     "merged_version": "マージされたバージョン",
     "conflicts_resolved": "競合が解決し保存されました！",
     "pull_strategy_changed": "プル戦略が更新されました！",
-    "changing_to": "{{strategy}} プル戦略に変更しています..."
+    "changing_to": "{{strategy}} プル戦略に変更しています...",
+    "conflicts": "競合",
+    "conflicts_resolved_success": "競合が正常に解決されました",
+    "conflicts_resolved_error": "競合の解決中にエラーが発生しました",
+    "resolved": "{{number}}件解決済み",
+    "next_conflict": "次の競合",
+    "previous_conflict": "前の競合",
+    "no_conflict": "競合なし",
+    "conflict_resolved": "競合が解決されました",
+    "complete": "マージを完了する",
+    "incoming": "受信側",
+    "current": "現在の",
+    "result_merged": "マージ結果",
+    "reset_to_auto": "自動的にリセット"
   },
   "dashboard": {
     "dashboard": "ダッシュボード",

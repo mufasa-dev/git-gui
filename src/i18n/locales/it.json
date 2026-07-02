@@ -373,7 +373,20 @@
     "merged_version": "Versione unita",
     "conflicts_resolved": "Conflitti risolti e salvati!",
     "pull_strategy_changed": "Strategia di pull aggiornata!",
-    "changing_to": "Cambiando alla strategia di pull {{strategy}}..."
+    "changing_to": "Cambiando alla strategia di pull {{strategy}}...",
+    "conflicts": "Conflitti",
+    "conflicts_resolved_success": "Conflitti risolti con successo",
+    "conflicts_resolved_error": "Errore durante la risoluzione dei conflitti",
+    "resolved": "{{number}} risolti",
+    "next_conflict": "Prossimo conflitto",
+    "previous_conflict": "Conflitto precedente",
+    "no_conflict": "Nessun conflitto",
+    "conflict_resolved": "Conflitto risolto",
+    "complete": "Completa merge",
+    "incoming": "In arrivo",
+    "current": "Corrente",
+    "result_merged": "Risultato merge",
+    "reset_to_auto": "Reimposta su automatico"
   },
   "dashboard": {
     "dashboard": "Dashboard",

@@ -326,7 +326,7 @@ export default function MergeResolver(props: Props) {
       <div class="flex items-center justify-between px-4 py-2 bg-gray-200 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700">
         <div class="flex items-center gap-4">
           <span class="text-sm font-semibold">
-            Conflitos: <span class="text-green-500">{conflictStats().resolved}</span> / {conflictStats().total} resolvidos
+            {t('merge').conflicts}: <span class="text-green-500">{conflictStats().resolved}</span> / {t('merge').resolved.replace("{{number}}", String(conflictStats().total))}
           </span>
         </div>
         <div class="flex items-center gap-2">
@@ -334,7 +334,7 @@ export default function MergeResolver(props: Props) {
             onClick={goToPrevConflict}
             disabled={conflictIds().length === 0}
             class="p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-700 disabled:opacity-30"
-            title="Conflito anterior"
+            title={t('merge').previous_conflict}
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
@@ -344,7 +344,7 @@ export default function MergeResolver(props: Props) {
             onClick={goToNextConflict}
             disabled={conflictIds().length === 0}
             class="p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-700 disabled:opacity-30"
-            title="Próximo conflito"
+            title={t('merge').next_conflict}
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -429,13 +429,13 @@ export default function MergeResolver(props: Props) {
       {/* PAINEL INFERIOR (Resultado) */}
       <div class="flex-1 flex flex-col min-h-0">
         <div class="bg-gray-200 dark:bg-gray-900 px-4 py-2 flex justify-between items-center border-b border-white/5">
-          <span class="text-[11px] font-bold uppercase text-orange-400">Resultado (Merged)</span>
+          <span class="text-[11px] font-bold uppercase text-orange-400">{t('merge').result_merged}</span>
           <div class="flex gap-3 text-[11px]">
             <Show when={manualResult() !== null}>
-              <button onClick={() => setManualResult(null)} class="text-gray-400 hover:text-white underline italic">Reset to Auto</button>
+              <button onClick={() => setManualResult(null)} class="text-gray-400 hover:text-white underline italic">{t('merge').reset_to_auto}</button>
             </Show>
             <button onClick={props.onClose} class="hover:text-white text-gray-400">{t('common').cancel}</button>
-            <button onClick={handleCompleteMerge} class="px-3 py-1 bg-blue-600 text-white rounded-xl font-bold">Completar Merge</button>
+            <button onClick={handleCompleteMerge} class="px-3 py-1 bg-blue-600 text-white rounded-xl font-bold">{t('merge').complete}</button>
           </div>
         </div>
         {/* CodeMirror */}

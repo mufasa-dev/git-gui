@@ -373,7 +373,20 @@
     "merged_version": "Merged version",
     "conflicts_resolved": "Conflicts resolved and saved!",
     "pull_strategy_changed": "Pull strategy updated!",
-    "changing_to": "Changing to the {{strategy}} pull strategy..."
+    "changing_to": "Changing to the {{strategy}} pull strategy...",
+    "conflicts": "Conflicts",
+    "conflicts_resolved_success": "Conflicts resolved successfully",
+    "conflicts_resolved_error": "Error resolving conflicts",
+    "resolved": "{{number}} resolved",
+    "next_conflict": "Next conflict",
+    "previous_conflict": "Previous conflict",
+    "no_conflict": "No conflict",
+    "conflict_resolved": "Conflict resolved",
+    "complete": "Complete merge",
+    "incoming": "Incoming",
+    "current": "Current",
+    "result_merged": "Result (merged)",
+    "reset_to_auto": "Reset to Auto"
   },
   "dashboard": {
     "dashboard": "Dashboard",
