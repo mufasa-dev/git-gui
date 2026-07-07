@@ -86,6 +86,8 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   mod: "Go",
   sum: "Go",
   py: "Python",
+  pyw: "Python",
+  pyc: "Python",
   java: "Java",
   jsp: "Java",
   rb: "Ruby",
@@ -110,6 +112,17 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   // Andoird
   kt: "Kotlin",
   kts: "Kotlin",
+  // Dart
+  dart: "Dart",
+  // Swift
+  swift: "Swift",
+  xib: "Swift",
+  playground: "Swift",
+  storyboard: "Swift",
+  // PHP
+  php: "PHP",
+  phpt: "PHP",
+  phtml: "PHP",
   // Frameworks
   svelte: "Svelte",
   vue: "Vue",
@@ -123,7 +136,6 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   html: "HTML",
   htm: "HTML",
   ghtml: "HTML",
-  php: "PHP",
   makefile: "MakeFile",
   dockerfile: "Dockerfile",
   graphql: "GraphQL",
@@ -252,6 +264,8 @@ export const GROUP_COLORS: Record<string, string> = {
   "Vue": "#2c3e50",
   "Astro": "#ff5a03",
   "MakeFile": "#427819",
+  "Dart": "#4fb6f2",
+  "Swift": "#e84d31",
   "Dockerfile": "#384d54",
   "GraphQL": "#e10098",
   "SQL": "#e38c00",
