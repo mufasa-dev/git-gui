@@ -44,44 +44,65 @@ export default function HotspotsTable(props: Props) {
             </tr>
           </thead>
           <tbody>
-            <For each={hotspots()} fallback={
-              <tr>
-                <td colspan="2" class="text-center py-10 text-xs text-gray-500 italic">
-                  {t('common').no_data}
-                </td>
-              </tr>
-            }>
-              {(file) => (
-                <tr class="group">
-                  <td class="max-w-[200px]">
-                    <div class="flex flex-col">
-                      <span class="truncate text-xs text-gray-900 dark:text-gray-200 font-mono group-hover:text-blue-400 transition-colors flex items-center gap-1">
-                        <FileIcon fileName={file.name.split('/').pop()} /> {file.name.split('/').pop()}
-                      </span>
-                      <span class="text-[9px] text-gray-800 dark:text-gray-400 truncate">
-                        {file.name.split('/').slice(0, -1).join('/') || './'}
-                      </span>
-                    </div>
-                  </td>
-                  <td class="text-right">
-                    <div class="flex items-center justify-end gap-2">
-                      <span class="text-xs font-bold text-orange-400 font-mono">
-                        {file.count}
-                      </span>
-                      {/* Pequena barra visual de intensidade */}
-                      <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-900 rounded-full overflow-hidden hidden sm:block">
-                        <div 
-                          class="h-full bg-orange-500/50" 
-                          style={{ 
-                            width: `${Math.min((file.count / (hotspots()?.[0]?.count || 1)) * 100, 100)}%` 
-                          }}
-                        />
-                      </div>
-                    </div>
+            <Show 
+              when={!hotspots.loading} 
+              fallback={
+                <For each={[1, 2, 3]}>
+                  {() => (
+                    <tr class="animate-pulse">
+                      <td>
+                        <div class="flex flex-col gap-1.5 py-1">
+                          <div class="h-3 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
+                          <div class="h-2 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
+                        </div>
+                      </td>
+                      <td class="flex justify-end items-center h-full py-2">
+                        <div class="h-3 bg-gray-300 dark:bg-gray-700 rounded w-8 mr-2"></div>
+                        <div class="w-12 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full hidden sm:block"></div>
+                      </td>
+                    </tr>
+                  )}
+                </For>
+              }
+            >
+              <For each={hotspots()} fallback={
+                <tr>
+                  <td colspan="2" class="text-center py-10 text-xs text-gray-500 italic">
+                    {t('common').no_data}
                   </td>
                 </tr>
-              )}
-            </For>
+              }>
+                {(file) => (
+                  <tr class="group">
+                    <td class="max-w-[200px]">
+                      <div class="flex flex-col">
+                        <span class="truncate text-xs text-gray-900 dark:text-gray-200 font-mono group-hover:text-blue-400 transition-colors flex items-center gap-1">
+                          <FileIcon fileName={file.name.split('/').pop()} /> {file.name.split('/').pop()}
+                        </span>
+                        <span class="text-[9px] text-gray-800 dark:text-gray-400 truncate">
+                          {file.name.split('/').slice(0, -1).join('/') || './'}
+                        </span>
+                      </div>
+                    </td>
+                    <td class="text-right">
+                      <div class="flex items-center justify-end gap-2">
+                        <span class="text-xs font-bold text-orange-400 font-mono">
+                          {file.count}
+                        </span>
+                        <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-900 rounded-full overflow-hidden hidden sm:block">
+                          <div 
+                            class="h-full bg-orange-500/50" 
+                            style={{ 
+                              width: `${Math.min((file.count / (hotspots()?.[0]?.count || 1)) * 100, 100)}%` 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </For>
+            </Show>
           </tbody>
         </table>
       </div>
