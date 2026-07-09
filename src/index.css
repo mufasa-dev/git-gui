@@ -29,6 +29,7 @@ html {
 
   .input-text {
     @apply border rounded border-gray-300 py-1 px-2 mt-2 dark:bg-gray-700 dark:border-gray-900;
+    @apply focus:outline-none focus:ring-0; 
   }
 
   .input-select {
