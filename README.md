@@ -69,12 +69,6 @@ npm run tauri build
 
 ---
 
-## 🖼️ Preview
-
-> *(Em breve)* 📸
-
----
-
 ## 📌 Roadmap
 
 * [X] Show commit history with diffs 🔍
