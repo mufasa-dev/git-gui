@@ -78,8 +78,3 @@ npm run tauri build
 * [X] Git user settings ⚙️
 * [ ] Git stash and tags 📝
 
----
-
-## 📜 License
-
-This project is licensed under the **MIT License** 💖
