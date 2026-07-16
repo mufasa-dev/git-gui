@@ -91,6 +91,7 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   java: "Java",
   jsp: "Java",
   rb: "Ruby",
+  rbx: "Ruby",
   gd: "GDScript",
   tscn: "Godot Scene",
   tres: "Godot Resource",
@@ -123,6 +124,7 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   php: "PHP",
   phpt: "PHP",
   phtml: "PHP",
+  phps: "PHP",
   // Frameworks
   svelte: "Svelte",
   vue: "Vue",
@@ -135,6 +137,7 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   // Outros
   html: "HTML",
   htm: "HTML",
+  htc: "HTML",
   ghtml: "HTML",
   makefile: "MakeFile",
   dockerfile: "Dockerfile",
@@ -153,6 +156,7 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   eot: "Font",
   swf: "Adobe Flash",
   swc: "Adobe Flash",
+  psd: "Adobe Photoshop",
   json: "Json",
   config: "Config",
   conf: "Config",
@@ -273,6 +277,7 @@ export const GROUP_COLORS: Record<string, string> = {
   "Bat": "#1f1f1f",
   "Font": "#f7e03d",
   "Adobe Flash": "#f7e03d",
+  "Adobe Photoshop": "#3a86ff",
   "Json": "#51aff7",
   "Coffee": "#6f4c3e",
   "Config": "#8b949e",
@@ -287,7 +292,7 @@ export const IGNORED_EXTENSIONS = [
   'exe', 'dll', 'so', 'lock', 'bin', 'ttf', 'woff', 'woff2', 'mp4', "mp3", 'avi', 'mov', 'zip', 'log', 'map',
   'pdf', 'docx', 'xlsx', 'DS_Store',  'yml', 'yaml', 'env', 'env.local', 'env.development', 'env.production',
   'md', 'markdown', 'txt', 'rtf', 'csv', 'tsv', 'log', 'lock', 'bin', 'iso', 'dmg', 'app', 'apk', 'jar', 'war', 'ear', 'txt', 'log',
-  'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'ds_store', 'nfo', 'def',
+  'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'xaml', 'ds_store', 'nfo', 'def',
   // Configurações e Metadados
   'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'cer', 'dep',
   // Outros arquivos de configuração comuns
