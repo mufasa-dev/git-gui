@@ -69,12 +69,6 @@ npm run tauri build
 
 ---
 
-## 🖼️ Preview
-
-> *(Em breve)* 📸
-
----
-
 ## 📌 Roadmap
 
 * [X] Show commit history with diffs 🔍
@@ -84,8 +78,3 @@ npm run tauri build
 * [X] Git user settings ⚙️
 * [ ] Git stash and tags 📝
 
----
-
-## 📜 License
-
-This project is licensed under the **MIT License** 💖
