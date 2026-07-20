@@ -282,7 +282,7 @@ export const IGNORED_EXTENSIONS = [
   // Configurações e Metadados
   'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'cer', 'dep', 'babelrc', 'appcache',
   // Outros arquivos de configuração comuns
-  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults',
+  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults', 'example', 'rules',
   'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload',
   'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc', 'ini', 'old', 'new', 'lic', 'log', 'bak', 'backup', 'temp', 'cache', 'dist', 'out', 'build', 'target', 'obj',
   // Godot
