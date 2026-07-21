@@ -165,9 +165,8 @@ pub async fn get_angular_test_files(project_path: String) -> Result<Vec<TestFile
     let mut test_files = Vec::new();
     let src_path = format!("{}/src", project_path);
 
-    // Regex para capturar describes e its (suporta aspas simples, duplas e crase)
-    let describe_re = Regex::new(r#"describe\s*\(\s*['"\x60](.*?)['"\x60][\s\S]*?\{"#).unwrap();
-    let it_re = Regex::new(r#"it\s*\(\s*['"\x60](.*?)['"\x60][\s\S]*?\{"#).unwrap();
+    let describe_re = Regex::new(r#"describe\s*\(\s*['"\x60](.*?)['"\x60]"#).unwrap();
+    let it_re = Regex::new(r#"it\s*\(\s*['"\x60](.*?)['"\x60]"#).unwrap();
 
     for entry in WalkDir::new(src_path)
         .into_iter()
@@ -177,18 +176,66 @@ pub async fn get_angular_test_files(project_path: String) -> Result<Vec<TestFile
         if path.is_file() && path.to_string_lossy().contains(".spec.ts") {
             let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
             let mut found_tests = Vec::new();
-            
-            // Lógica simplificada: Pegamos o primeiro describe como Suite principal
-            // e todos os its abaixo dele.
-            let suite_name = describe_re.captures(&content)
-                .map(|cap| cap[1].to_string())
-                .unwrap_or_else(|| "Unknown Suite".to_string());
 
+            // Guardará todas as estruturas descobertas: (posição_inicio, posição_fim, nome_do_describe)
+            let mut describe_scopes = Vec::new();
+
+            // 1. Mapeia a abertura e fechamento real de cada bloco 'describe'
+            for cap in describe_re.captures_iter(&content) {
+                if let Some(mat) = cap.get(0) {
+                    let start_pos = mat.start();
+                    let name = cap[1].to_string();
+
+                    // A partir da abertura do describe, vamos caçar onde o bloco dele fecha contando as chaves `{ }`
+                    if let Some(open_curly) = content[start_pos..].find('{') {
+                        let absolute_open = start_pos + open_curly;
+                        let mut brace_count = 1;
+                        let mut end_pos = content.len();
+
+                        // Percorre os caracteres seguintes para achar o fechamento correto do escopo
+                        for (idx, ch) in content[absolute_open + 1..].char_indices() {
+                            if ch == '{' { brace_count += 1; }
+                            else if ch == '}' { brace_count -= 1; }
+
+                            if brace_count == 0 {
+                                end_pos = absolute_open + 1 + idx;
+                                break;
+                            }
+                        }
+                        describe_scopes.push((start_pos, end_pos, name));
+                    }
+                }
+            }
+
+            // 2. Mapeia cada 'it' e descobre a cadeia completa de describes pai onde ele está contido
             for cap in it_re.captures_iter(&content) {
-                found_tests.push(TestCase {
-                    name: cap[1].to_string(),
-                    suite: suite_name.clone(),
-                });
+                if let Some(mat) = cap.get(0) {
+                    let it_pos = mat.start();
+                    let test_name = cap[1].to_string();
+
+                    // Coleta todos os describes ativos na posição desse teste
+                    let mut active_hierarchy = Vec::new();
+                    for (start, end, name) in &describe_scopes {
+                        if it_pos >= *start && it_pos <= *end {
+                            active_hierarchy.push((start, name.clone()));
+                        }
+                    }
+
+                    // Ordena pelo start para garantir a ordem hierárquica (Pai > Filho > Neto)
+                    active_hierarchy.sort_by_key(|h| h.0);
+                    let hierarchy_names: Vec<String> = active_hierarchy.into_iter().map(|h| h.1).collect();
+
+                    // Se seu front espera apenas o describe principal ("DashboardChatComponent"), use a linha abaixo:
+                    let active_suite = hierarchy_names.first().cloned().unwrap_or_else(|| "Unknown Suite".to_string());
+
+                    // Caso seu front precise da árvore montada (ex: "DashboardChatComponent > sendMessage"), troque pela linha abaixo:
+                    // let active_suite = if !hierarchy_names.is_empty() { hierarchy_names.join(" > ") } else { "Unknown Suite".to_string() };
+
+                    found_tests.push(TestCase {
+                        name: test_name,
+                        suite: active_suite,
+                    });
+                }
             }
 
             let full_path = path.to_str().unwrap().replace("\\", "/");
