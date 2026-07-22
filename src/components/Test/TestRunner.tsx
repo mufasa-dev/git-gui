@@ -41,13 +41,13 @@ export const TestRunner = (props: { repo: any }) => {
   const [lastLoadedPath, setLastLoadedPath] = createSignal<string | null>(null);
   const [mappedFiles, setMappedFiles] = createSignal<MappedTestFile[]>([]); 
   const [filterStatus, setFilterStatus] = createSignal<'all' | 'pass' | 'fail'>('all');
-  
+
   // SINAL DE ERRO DE COMPILAÇÃO: Armazena o log completo se o build quebrar
   const [compilationError, setCompilationError] = createSignal<string[] | null>(null);
-  
+
   const [executionScope, setExecutionScope] = createSignal<'all' | 'suite' | 'single' | null>(null);
   const [runningSingleTest, setRunningSingleTest] = createSignal<string | null>(null);
-  
+
   const { t } = useApp();
 
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
@@ -84,6 +84,7 @@ export const TestRunner = (props: { repo: any }) => {
     if (props.repo?.path && projectInfo()?.testRunner) {
       try {
         const files = await getTestsFiles(props.repo.path, projectInfo()!.testRunner);
+        console.log('files', files);
         setMappedFiles(files);
       } catch (e) {
         console.error("Erro ao remapear arquivos de testes:", e);
@@ -111,12 +112,14 @@ export const TestRunner = (props: { repo: any }) => {
   const groupedSpecs = createMemo(() => {
     const groups: Record<string, { tests: TestSpec[], hasError: boolean }> = {};
     specs().forEach(spec => {
-      const [suiteName] = spec.name.split(' > ');
-      if (!groups[suiteName]) {
-        groups[suiteName] = { tests: [], hasError: false };
+      // Extrai sempre a suíte pai (primeira parte antes de qualquer ' > ')
+      const [rootSuite] = spec.name.split(' > ');
+      const key = rootSuite.trim();
+      if (!groups[key]) {
+        groups[key] = { tests: [], hasError: false };
       }
-      groups[suiteName].tests.push(spec);
-      if (spec.status === 'fail') groups[suiteName].hasError = true;
+      groups[key].tests.push(spec);
+      if (spec.status === 'fail') groups[key].hasError = true;
     });
     return groups;
   });
@@ -136,51 +139,56 @@ export const TestRunner = (props: { repo: any }) => {
     return allSuites.filter(suite => suite.toLowerCase().includes(query));
   });
 
+  // HELPER: Verifica se a suíte informada casa com a suíte mapeada estaticamente (suporta sub-describes)
+  const isSuiteMatch = (rawSuite: string, mappedSuite: string): boolean => {
+    const s1 = rawSuite.trim().toLowerCase();
+    const s2 = mappedSuite.trim().toLowerCase();
+    return s1 === s2 || s1.startsWith(s2 + ' >') || s2.startsWith(s1 + ' >');
+  };
+
   const findFilePathForTest = (suite: string, testName: string): string | undefined => {
     const foundFile = mappedFiles().find(file => 
-      file.tests.some(t => t.suite.trim() === suite.trim() && t.name.trim() === testName.trim())
+      file.tests.some(t => isSuiteMatch(suite, t.suite) && t.name.trim() === testName.trim())
+    );
+    return foundFile?.path;
+  };
+
+  const findFilePathBySuite = (suiteName: string): string | undefined => {
+    if (!suiteName) return undefined;
+    const foundFile = mappedFiles().find(file => 
+      file.tests.some(t => isSuiteMatch(suiteName, t.suite))
     );
     return foundFile?.path;
   };
 
   const syncSpecsWithPhysicalCode = () => {
-  const scope = executionScope();
-  const currentSuite = selectedSuite();
-  const singleTest = runningSingleTest();
-  const framework = projectInfo()?.framework;
+    const scope = executionScope();
+    const currentSuite = selectedSuite();
+    const singleTest = runningSingleTest();
+    const framework = projectInfo()?.framework;
 
-  setSpecs(prev => {
+    setSpecs(prev => {
       // SE FOR GO OU DOTNET
       if (framework === 'Go' || framework === 'Dotnet') {
         return prev
           .map(spec => {
-            // Se rodou um teste individual, bota os outros que estavam rodando em skip
             if (scope === 'single' && spec.name !== singleTest && spec.status === 'running') {
               return { ...spec, status: 'skip' as const };
             }
             return spec;
           })
           .filter(spec => {
-            // Se uma suíte inteira rodou, remove do estado qualquer teste 
-            // dessa suíte que tenha ficado travado em 'running' (sinal de que foi renomeado/removido)
             const [specSuite] = spec.name.split(' > ');
             if ((scope === 'suite' && specSuite.trim() === currentSuite?.trim()) || scope === 'all') {
               if (spec.status === 'running') {
-                return false; // Remove fantasmas/renomeados
+                return false; 
               }
             }
             return true;
           });
       }
 
-      // REGRA PADRÃO PARA ANGULAR / JEST (Mantém idêntico ao que já funciona)
-      const validTestsInCode = new Set<string>();
-      mappedFiles().forEach(file => {
-        file.tests.forEach(t => {
-          validTestsInCode.add(`${t.suite.trim()} > ${t.name.trim()}`);
-        });
-      });
-
+      // REGRA PADRÃO PARA ANGULAR / JEST
       return prev
         .map(spec => {
           if (scope === 'single' && spec.name !== singleTest && spec.status === 'running') {
@@ -189,10 +197,21 @@ export const TestRunner = (props: { repo: any }) => {
           return spec;
         })
         .filter(spec => {
-          const [specSuite] = spec.name.split(' > ');
-          if (!validTestsInCode.has(spec.name.trim())) {
-            if (scope === 'all' || (scope === 'suite' && specSuite.trim() === currentSuite?.trim())) {
-              return false; 
+          const parts = spec.name.split(' > ');
+          const testName = parts.pop()?.trim();
+          const specSuite = parts.join(' > ').trim();
+
+          // Verifica se o teste existe nos arquivos mapeados considerando sub-suítes
+          const existsInCode = mappedFiles().some(file =>
+            file.tests.some(t => 
+              t.name.trim() === testName && isSuiteMatch(specSuite, t.suite)
+            )
+          );
+
+          if (!existsInCode) {
+            const [rootSuite] = spec.name.split(' > ');
+            if (scope === 'all' || (scope === 'suite' && rootSuite.trim() === currentSuite?.trim())) {
+              return false; // Remove fantasmas de fato
             }
           }
           return true;
@@ -204,7 +223,6 @@ export const TestRunner = (props: { repo: any }) => {
   };
 
   onMount(async () => {
-    // Vamos usar um buffer temporário focado em acumular as linhas de erro de compilação
     let compileLogBuffer: string[] = [];
 
     const updateSpecState = (parsed: ParsedEvent) => {
@@ -215,13 +233,33 @@ export const TestRunner = (props: { repo: any }) => {
         }
 
         let resolvedFilePath = specData.filePath;
-        const [suite, testName] = specData.name!.split(' > ');
-        if (!resolvedFilePath && suite && testName) {
-          resolvedFilePath = findFilePathForTest(suite, testName);
+
+        const parts = specData.name!.split(' > ');
+        if (parts.length >= 2) {
+          const testName = parts.pop()!;
+          const suite = parts.join(' > ');
+
+          if (!resolvedFilePath) {
+            resolvedFilePath = findFilePathForTest(suite, testName);
+          }
         }
 
         setSpecs(prev => {
-          const existingIndex = prev.findIndex(s => s.name === specData.name);
+          // Busca teste correspondente considerando a suíte raiz ou nome do teste e sub-suíte
+          const existingIndex = prev.findIndex(s => {
+            if (s.name === specData.name) return true;
+
+            const prevParts = s.name.split(' > ');
+            const prevTestName = prevParts.pop()?.trim();
+            const prevSuite = prevParts.join(' > ').trim();
+
+            const currParts = specData.name!.split(' > ');
+            const currTestName = currParts.pop()?.trim();
+            const currSuite = currParts.join(' > ').trim();
+
+            return prevTestName === currTestName && isSuiteMatch(currSuite, prevSuite);
+          });
+
           const newSpec: TestSpec = {
             id: existingIndex !== -1 ? prev[existingIndex].id : crypto.randomUUID(),
             name: specData.name!,
@@ -243,7 +281,7 @@ export const TestRunner = (props: { repo: any }) => {
 
     await listen('test-event', async (event: any) => {
       if (
-        event.payload?.status === "finished" || 
+        event.payload?.status === "finished" ||
         event.payload?.name === "PROCESS_FINISHED" ||
         event.payload === "PROCESS_FINISHED"
       ) {
@@ -259,7 +297,6 @@ export const TestRunner = (props: { repo: any }) => {
       const line = stripAnsi(rawLine).trim();
       if (!line) return;
 
-      // Alimentamos o buffer do log bruto para caso precise exibir o crash dump
       compileLogBuffer.push(line);
       if (compileLogBuffer.length > 50) compileLogBuffer.shift();
 
@@ -270,11 +307,9 @@ export const TestRunner = (props: { repo: any }) => {
 
       if (isAngularError || isGoError || isDotnetError) {
         setIsRunning(false);
-        
-        // Clona e salva o rastro do erro de compilação para renderizar na tela
+
         setCompilationError([...compileLogBuffer]);
-        
-        // Desmarca os testes que ficaram travados em loading de volta para o estado de falha
+
         setSpecs(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'fail' as const, log: ["Falha crítica devido a erro de compilação do projeto."] } : s));
         return;
       }
@@ -302,7 +337,6 @@ export const TestRunner = (props: { repo: any }) => {
         syncSpecsWithPhysicalCode();
       } else {
         updateSpecState(parsed);
-        // Se começarem a chegar resultados válidos, significa que passou da fase de compilação com sucesso
         if (parsed.type === 'RESULT') {
           compileLogBuffer = [];
         }
@@ -313,7 +347,7 @@ export const TestRunner = (props: { repo: any }) => {
   const runAllTests = async () => {
     if (!props.repo?.path || isRunning()) return;
     setIsRunning(true);
-    setCompilationError(null); // Reseta erro anterior
+    setCompilationError(null); 
     setExecutionScope('all');
     
     setSpecs(prev => prev.map(s => ({ ...s, status: 'running', log: [] })));
@@ -330,7 +364,7 @@ export const TestRunner = (props: { repo: any }) => {
     const currentSuite = selectedSuite();
     if (!currentSuite || isRunning() || !specName || !props.repo?.path) return;
 
-    const pureItName = specName.split(' > ')[1] || specName;
+    const pureItName = specName.split(' > ').pop() || specName;
     const filePath = findFilePathBySuite(currentSuite);
 
     if (!filePath) {
@@ -339,7 +373,7 @@ export const TestRunner = (props: { repo: any }) => {
     }
 
     setIsRunning(true);
-    setCompilationError(null); // Reseta erro anterior
+    setCompilationError(null); 
     setExecutionScope('single'); 
     setRunningSingleTest(specName);
 
@@ -371,7 +405,7 @@ export const TestRunner = (props: { repo: any }) => {
     }
 
     setIsRunning(true);
-    setCompilationError(null); // Reseta erro anterior
+    setCompilationError(null); 
     setExecutionScope('suite');
 
     setSpecs(prev => prev.map(spec => {
@@ -390,22 +424,14 @@ export const TestRunner = (props: { repo: any }) => {
     }
   };
 
-  const findFilePathBySuite = (suiteName: string): string | undefined => {
-    if (!suiteName) return undefined;
-    const foundFile = mappedFiles().find(file => 
-      file.tests.some(t => t.suite.trim().toLowerCase() === suiteName.trim().toLowerCase())
-    );
-    return foundFile?.path;
-  };
-
   return (
-    <div 
+    <div
       class="flex h-full w-full select-none bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-gray-200"
       onMouseMove={(e) => isResizing() && setSidebarWidth(Math.min(600, Math.max(200, e.clientX)))}
       onMouseUp={() => setIsResizing(false)}
     >
       {/* Sidebar */}
-      <div class="flex flex-col border-r overflow-auto border-gray-300 pt-2 pb-2 pl-2 dark:border-gray-900 height-container" style={{ width: `${sidebarWidth()}px` }}>
+      <div class="flex flex-col overflow-auto pt-2 pb-2 pl-2 height-container" style={{ width: `${sidebarWidth()}px` }}>
         <div class="container-branch-list p-0 overflow-hidden flex flex-col h-full">
           <div class="p-3 border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50">
             <div class="flex justify-between items-center mb-3">
@@ -420,7 +446,7 @@ export const TestRunner = (props: { repo: any }) => {
                     {isRunning() ? t('test').running : t('test').run}
                 </button>
             </div>
-            
+
             <div class="grid grid-cols-3 gap-1 text-center">
               <button 
                 onClick={() => setFilterStatus('all')}
@@ -565,7 +591,7 @@ export const TestRunner = (props: { repo: any }) => {
               </div>
             }>
               <div class="p-4 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800/30">
-                <h2 class="text-sm font-bold font-mono uppercase tracking-wider truncate mr-4">
+                <h2 class="text-sm font-bold font-mono uppercase tracking-wider truncate mr-4 select-text">
                   <i class="fa-solid fa-flask text-purple-500 dark:text-purple-400 mr-2"></i>
                   {selectedSuite()}
                 </h2>
