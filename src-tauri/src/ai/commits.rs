@@ -1,53 +1,106 @@
 use std::env;
-use crate::utils::{git_command_async}; 
+
+use crate::utils::git_command_async;
+
+const MAX_STAGED_FILES: usize = 100;
+const MAX_FILE_SUMMARY_BYTES: usize = 8 * 1024;
+
+struct StagedFile {
+    status: String,
+    path: String,
+}
+
+fn parse_staged_files(output: &[u8]) -> Vec<StagedFile> {
+    let mut fields = output.split(|byte| *byte == 0).filter(|field| !field.is_empty());
+    let mut files = Vec::new();
+
+    while let Some(status_bytes) = fields.next() {
+        let Some(first_path_bytes) = fields.next() else {
+            break;
+        };
+
+        let status = String::from_utf8_lossy(status_bytes).into_owned();
+        let is_rename_or_copy = matches!(status.as_bytes().first(), Some(b'R' | b'C'));
+        let path_bytes = if is_rename_or_copy {
+            fields.next().unwrap_or(first_path_bytes)
+        } else {
+            first_path_bytes
+        };
+
+        files.push(StagedFile {
+            status,
+            path: String::from_utf8_lossy(path_bytes).into_owned(),
+        });
+    }
+
+    files
+}
+
+fn status_label(status: &str) -> &'static str {
+    match status.as_bytes().first() {
+        Some(b'A') => "added",
+        Some(b'M') => "modified",
+        Some(b'D') => "deleted",
+        Some(b'R') => "renamed",
+        Some(b'C') => "copied",
+        Some(b'T') => "type changed",
+        Some(b'U') => "unmerged",
+        _ => "changed",
+    }
+}
+
+fn build_file_summary(files: &[StagedFile]) -> (String, usize) {
+    let mut summary = String::new();
+    let mut included_files = 0;
+
+    for file in files.iter().take(MAX_STAGED_FILES) {
+        let entry = format!("- {}: {}\n", status_label(&file.status), file.path);
+        if summary.len() + entry.len() > MAX_FILE_SUMMARY_BYTES {
+            break;
+        }
+
+        summary.push_str(&entry);
+        included_files += 1;
+    }
+
+    (summary, files.len().saturating_sub(included_files))
+}
 
 #[tauri::command]
 pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<String>) -> Result<Vec<String>, String> {
     // 1. Validação prévia: Conta quantos arquivos estão no Stage (staged)
     let files_output = git_command_async(&repo_path)
-        .args(&["diff", "--cached", "--name-only"])
+        .args(["diff", "--cached", "--name-status", "-z"])
         .output()
         .await
         .map_err(|e| e.to_string())?;
 
-    let files_content = String::from_utf8_lossy(&files_output.stdout);
-    let staged_files_count = files_content.lines().filter(|l| !l.trim().is_empty()).count();
+    if !files_output.status.success() {
+        return Err(String::from_utf8_lossy(&files_output.stderr).trim().to_string());
+    }
+
+    let staged_files = parse_staged_files(&files_output.stdout);
+    let staged_files_count = staged_files.len();
 
     if staged_files_count == 0 {
         return Err("Nenhuma alteração preparada (staged) encontrada para analisar.".into());
     }
 
-    // Se houverem muitos arquivos, interrompe antes de gastar tokens à toa
-    if staged_files_count > 20 {
-        return Err(format!(
-            "Há muitos arquivos preparados ({}) para sugerir uma mensagem via IA. \
-            Por favor, faça commits menores ou mais específicos por contexto.", 
-            staged_files_count
-        ));
-    }
-
-    // 2. Coleta o diff completo dos arquivos no Stage
-    let diff_output = git_command_async(&repo_path)
-        .args(&["diff", "--cached"])
-        .output()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let diff_content = String::from_utf8_lossy(&diff_output.stdout);
-    
-    let truncated_diff = if diff_content.len() > 12000 {
-        format!("{}... [Diff-truncated due to size constraints]", &diff_content[..12000])
+    let (file_summary, omitted_files) = build_file_summary(&staged_files);
+    let omitted_notice = if omitted_files > 0 {
+        format!("\n[{} staged files omitted from the summary due to size limits]", omitted_files)
     } else {
-        diff_content.into_owned()
+        String::new()
     };
 
+    // 2. Envia apenas os nomes e os status dos arquivos no Stage; nenhum conteúdo é lido.
     // 3. Busca o título dos últimos 5 commits para dar contexto de estilo/idioma à IA
     let log_output = git_command_async(&repo_path)
-        .args(&["log", "-n", "5", "--format=%s"])
+        .args(["log", "-n", "5", "--format=%s"])
         .output()
         .await
         .map_err(|e| e.to_string())?;
-        
+
     let recent_commits = String::from_utf8_lossy(&log_output.stdout);
 
     let prompt = format!(
@@ -58,14 +111,16 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
         1. LANGUAGE: Analyze the repository context above. If previous commits are in English, you MUST write both the \"title\" and \"description\" STRICTLY IN ENGLISH.\n\
         2. FORMAT: The \"title\" must strictly follow the Conventional Commits specification.\n\
         3. TITLE STYLE: Keep it concise, imperative, and brief (e.g., 'ui: update profile layout').\n\
-        4. DESCRIPTION STYLE: Keep it SHORT and CONCISE. Avoid listing every single function or detailed UI behaviors. Use brief bullet points highlighting ONLY the high-level key features or changes made. Do not exceed 3 or 4 short bullets.\n\n\
+        4. DESCRIPTION STYLE: Keep it SHORT and CONCISE. Avoid listing every single file. Use brief bullet points highlighting ONLY the high-level key changes. Do not exceed 3 or 4 short bullets.\n\
+        5. The file list contains only paths and Git statuses. Do not assume or invent file contents. Binary, image, IFC, BIM, generated, and other unsupported files are represented only by their names and statuses.\n\n\
         OUTPUT FORMAT:\n\
         You must return strictly a JSON object with \"title\" and \"description\" keys. Do not include markdown blocks like ```json or any conversational text.\n\n\
         EXAMPLE OF EXPECTED CONCISE OUTPUT:\n\
         {{\n  \"title\": \"feat: implement local change tracking\",\n  \"description\": \"- Add git integration to monitor project unstaged files\\n- Create a flexible custom folder tree view component\"\n}}\n\n\
-        GIT DIFF TO ANALYZE:\n{}", 
+        STAGED FILES (path and status only):\n{}{}",
         recent_commits,
-        truncated_diff
+        file_summary,
+        omitted_notice
     );
 
     let key = match api_key {
@@ -73,7 +128,7 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
         _ => {
             let env_key = env::var("GEMINI_API_KEY")
                 .map_err(|_| "Chave de API do Gemini não encontrada. Configure a variável GEMINI_API_KEY no seu .env ou passe via parâmetro.".to_string())?;
-            
+
             if env_key.trim().is_empty() {
                 return Err("A variável GEMINI_API_KEY no seu .env está vazia.".into());
             }
@@ -82,7 +137,7 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
     };
 
     let url_string = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}", 
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}",
         key
     );
 
@@ -103,8 +158,8 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
 
     if let Some(error) = res_body.get("error") {
         return Err(format!(
-            "Erro na API do Gemini (Código {}): {}", 
-            error["code"], 
+            "Erro na API do Gemini (Código {}): {}",
+            error["code"],
             error["message"].as_str().unwrap_or("Erro desconhecido")
         ));
     }
@@ -112,7 +167,7 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
     let ai_text = res_body["candidates"][0]["content"]["parts"][0]["text"]
         .as_str()
         .ok_or_else(|| {
-            format!("Estrutura inesperada na resposta da IA: {}", res_body.to_string())
+            format!("Estrutura inesperada na resposta da IA: {}", res_body)
         })?;
 
     let parsed_json: serde_json::Value = serde_json::from_str(ai_text)
@@ -124,4 +179,44 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
     let description = parsed_json["description"].as_str().unwrap_or("").to_string();
 
     Ok(vec![title, description])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_added_and_modified_files_without_content() {
+        let output = b"A\0src/new.rs\0M\0src/changed.rs\0";
+        let files = parse_staged_files(output);
+
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].status, "A");
+        assert_eq!(files[0].path, "src/new.rs");
+        assert_eq!(files[1].status, "M");
+        assert_eq!(files[1].path, "src/changed.rs");
+    }
+
+    #[test]
+    fn uses_the_new_path_for_renamed_files() {
+        let output = b"R100\0src/old.rs\0src/new.rs\0";
+        let files = parse_staged_files(output);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].status, "R100");
+        assert_eq!(files[0].path, "src/new.rs");
+    }
+
+    #[test]
+    fn summarizes_status_and_path_only_with_limits() {
+        let files = vec![
+            StagedFile { status: "A".into(), path: "assets/model.ifc".into() },
+            StagedFile { status: "M".into(), path: "src/main.rs".into() },
+        ];
+        let (summary, omitted) = build_file_summary(&files);
+
+        assert_eq!(summary, "- added: assets/model.ifc\n- modified: src/main.rs\n");
+        assert_eq!(omitted, 0);
+        assert!(!summary.contains("fn main"));
+    }
 }
