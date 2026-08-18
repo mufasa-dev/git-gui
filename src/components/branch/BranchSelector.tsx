@@ -68,10 +68,12 @@ export default function BranchSelector(props: BranchSelectorProps) {
       await checkoutBranch(props.activeRepo.path, targetBranch()!);
       await stashPop(props.activeRepo.path);
       await props.refreshBranches(props.activeRepo.path);
-    } catch (err) {
-      notify.error('Erro', t('branch').error_changing_branch);
-    } finally {
       setModalSwtBranchOpen(false);
+      notify.success(t('common').success, t('branch').changed_to_branch.replace('{{branch}}', targetBranch()!));
+    } catch (error) {
+      await props.refreshBranches(props.activeRepo.path).catch(() => undefined);
+      notify.error(t('common').error, String(error));
+    } finally {
       hideLoading();
     }
   }
@@ -79,14 +81,14 @@ export default function BranchSelector(props: BranchSelectorProps) {
   async function doDiscard() {
     if (!props.activeRepo || !targetBranch()) return;
     try {
-      showLoading(t('branch').discart_changes);
+      showLoading(t('branch').discarting_local);
       await resetHard(props.activeRepo.path);
       await checkoutBranch(props.activeRepo.path, targetBranch()!);
       await props.refreshBranches(props.activeRepo.path);
-    } catch (err) {
-      notify.error('Erro', t('branch').error_changing_branch);
-    } finally {
       setModalSwtBranchOpen(false);
+    } catch (error) {
+      notify.error(t('common').error, String(error));
+    } finally {
       hideLoading();
     }
   }

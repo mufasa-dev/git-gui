@@ -14,7 +14,7 @@ pub fn open_repo(path: String) -> Result<String, String> {
     }
 }
 
-fn configure_git_auth(
+pub fn configure_git_auth(
     mut cmd: Command,
     token: Option<String>,
     provider: Option<String>,

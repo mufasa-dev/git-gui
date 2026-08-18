@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 
 type Option = {
   label: string;
@@ -49,7 +49,7 @@ export default function DropdownButton(props: Props) {
       </button>
 
       {open() && (
-        <div class="w-[230px] absolute right-0 mt-2 rounded-md shadow-lg bg-white dark:bg-gray-700 border dark:border-gray-600 z-50">
+        <div class="w-[230px] absolute top-full right-0 mt-2 rounded-md shadow-lg bg-white dark:bg-gray-700 border dark:border-gray-600 z-50">
           <ul class="py-1">
             {props.options.filter(x => !x.hide).map(opt => (
               <li>
@@ -60,7 +60,9 @@ export default function DropdownButton(props: Props) {
                     setOpen(false);
                   }}
                 >
-                    <img src={opt.img} class="inline h-6 mr-2" />
+                    <Show when={opt.img}>
+                      <img src={opt.img} class="inline h-6 mr-2" />
+                    </Show>
                     <label>{opt.label}</label>
                 </button>
               </li>

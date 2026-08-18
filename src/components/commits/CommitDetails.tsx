@@ -19,6 +19,7 @@ type CommitDetailsProps = {
   openParent: boolean;
   openProfile: boolean;
   selectCommit: (hash: string) => void;
+  onCreateTag?: (commit: { hash: string; subject: string }) => void;
 }
 
 export function CommitDetails(props: CommitDetailsProps) {
@@ -135,7 +136,18 @@ export function CommitDetails(props: CommitDetailsProps) {
                   <div class="container-branch-list flex-1 mr-2">
                     <div class="flex mt-0 select-text">
                       <div>
-                        <b class="text-2x1"><CommitMessage message={props.commit.subject} /></b> <br />
+                        <div class="flex items-start gap-2">
+                          <b class="text-2x1"><CommitMessage message={props.commit.subject} /></b>
+                          <Show when={props.onCreateTag}>
+                            <button
+                              class="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-500"
+                              title={t("tag").create}
+                              onClick={() => props.onCreateTag?.({ hash: props.commit.hash, subject: props.commit.subject })}
+                            >
+                              <i class="fa-solid fa-tag"></i>
+                            </button>
+                          </Show>
+                        </div>
                         <p class="whitespace-pre-wrap mt-2 text-sm text-gray-500 dark:text-gray-400">{props.commit.body}</p>
                       </div>
                     </div>

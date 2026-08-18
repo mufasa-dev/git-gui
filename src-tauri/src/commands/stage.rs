@@ -266,16 +266,6 @@ fn run_git(repo_path: &str, args: &[&str]) -> Result<String, String> {
     }
 }
 #[command]
-pub fn stash_changes(repo_path: String) -> Result<String, String> {
-    run_git(&repo_path, &["stash", "push", "-u"])
-}
-
-#[command]
-pub fn stash_pop(repo_path: String) -> Result<String, String> {
-    run_git(&repo_path, &["stash", "pop"])
-}
-
-#[command]
 pub fn reset_hard(repo_path: String) -> Result<String, String> {
     run_git(&repo_path, &["reset", "--hard"])
 }

@@ -4,6 +4,8 @@ import { Diff } from "../models/Diff.model";
 import { GitPullResult } from "../models/Pull.model";
 import { Commit, FileEntry } from "../models/Commit.model";
 import { CoverageStats } from "../models/Dashboard.model";
+import { Stash } from "../models/Stash.model";
+import { Tag, TagKind } from "../models/Tag.model";
 
 export async function validateRepo(path: string): Promise<string> {
   return await invoke("open_repo", { path });
@@ -179,16 +181,133 @@ export async function createBranch(branchName: string, branchType: string, check
   });
 }
 
+export async function listStashes(repoPath: string): Promise<Stash[]> {
+  return await invoke<Stash[]>("list_stashes", { repoPath });
+}
+
+export async function createStash(
+  repoPath: string,
+  message: string,
+  includeUntracked: boolean,
+  keepIndex: boolean,
+  stagedOnly: boolean,
+): Promise<string> {
+  return await invoke<string>("create_stash", {
+    repoPath,
+    message: message.trim() || null,
+    includeUntracked,
+    keepIndex,
+    stagedOnly,
+  });
+}
+
+export async function getStashDiff(repoPath: string, reference: string): Promise<Diff> {
+  return await invoke<Diff>("get_stash_diff", { repoPath, reference });
+}
+
+export async function applyStash(repoPath: string, reference: string, restoreIndex = false): Promise<string> {
+  return await invoke<string>("apply_stash", { repoPath, reference, restoreIndex });
+}
+
+export async function popStash(repoPath: string, reference: string, restoreIndex = false): Promise<string> {
+  return await invoke<string>("pop_stash", { repoPath, reference, restoreIndex });
+}
+
+export async function dropStash(repoPath: string, reference: string): Promise<string> {
+  return await invoke<string>("drop_stash", { repoPath, reference });
+}
+
+export async function clearStashes(repoPath: string): Promise<string> {
+  return await invoke<string>("clear_stashes", { repoPath });
+}
+
+export async function applyStashToBranch(
+  repoPath: string,
+  reference: string,
+  targetBranch: string,
+  restoreIndex = false,
+): Promise<string> {
+  return await invoke<string>("apply_stash_to_branch", {
+    repoPath,
+    reference,
+    targetBranch,
+    restoreIndex,
+  });
+}
+
 export async function stashChanges(repoPath: string) {
-  return await invoke("stash_changes", { repoPath });
+  return createStash(repoPath, "", true, false, false);
 }
 
 export async function stashPop(repoPath: string) {
-  return await invoke("stash_pop", { repoPath });
+  const stashes = await listStashes(repoPath);
+  if (!stashes.length) throw new Error("Nenhum stash disponível");
+  return popStash(repoPath, stashes[0].reference);
 }
 
 export async function resetHard(repoPath: string) {
   return await invoke("reset_hard", { repoPath });
+}
+
+export async function listTags(repoPath: string): Promise<Tag[]> {
+  return await invoke<Tag[]>("list_tags", { repoPath });
+}
+
+export async function createTag(
+  repoPath: string,
+  name: string,
+  targetCommit: string,
+  kind: TagKind,
+  message: string,
+): Promise<string> {
+  return await invoke<string>("create_tag", {
+    repoPath,
+    name: name.trim(),
+    targetCommit,
+    kind,
+    message: message.trim() || null,
+  });
+}
+
+export async function editTagMessage(repoPath: string, name: string, message: string): Promise<string> {
+  return await invoke<string>("edit_tag_message", { repoPath, name, message: message.trim() });
+}
+
+export async function renameTag(repoPath: string, oldName: string, newName: string): Promise<string> {
+  return await invoke<string>("rename_tag", { repoPath, oldName, newName: newName.trim() });
+}
+
+export async function deleteTag(repoPath: string, name: string): Promise<string> {
+  return await invoke<string>("delete_tag", { repoPath, name });
+}
+
+export async function checkoutTag(repoPath: string, name: string): Promise<string> {
+  return await invoke<string>("checkout_tag", { repoPath, name });
+}
+
+export async function getTagDiff(repoPath: string, name: string): Promise<Diff> {
+  return await invoke<Diff>("get_tag_diff", { repoPath, name });
+}
+
+export async function pushTag(
+  repoPath: string,
+  remote: string,
+  name: string | null,
+  all: boolean,
+  token?: string,
+  provider?: string,
+): Promise<string> {
+  return await invoke<string>("push_tag", { repoPath, remote, name, all, token, provider });
+}
+
+export async function deleteRemoteTag(
+  repoPath: string,
+  remote: string,
+  name: string,
+  token?: string,
+  provider?: string,
+): Promise<string> {
+  return await invoke<string>("delete_remote_tag", { repoPath, remote, name, token, provider });
 }
 
 export async function openPullRequestUrl(path: string, branch: string) {

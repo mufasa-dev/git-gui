@@ -181,36 +181,53 @@ export default function BranchList(props: Props) {
   onCleanup(() => document.removeEventListener("click", hideContextMenu));
 
   return (
-    <div class="h-[100px]">
-      <b onClick={() => setOpenBranch(!openBranch())} class="collapse-btn">
-        <b>
-          <i class="fa fa-laptop"></i> {t("git").local}
-        </b>
-        <i class="fa-solid ml-auto" classList={{"fa-angle-down" : openBranch(), "fa-angle-right" : !openBranch()}}></i>
-      </b>
-      <div class="pr-2">
-        {openBranch() && <TreeView tree={props.localTree} 
-          activeBranch={props.activeBranch}
-          selectedBranch={props.selectedBranch}
-          onSelectBranch={props.onSelectBranch}
-          onActivateBranch={props.onActivateBranch}
-          openContextMenu={openContextMenu}
-        />}
+    <div class="space-y-3">
+      <div class="border-t border-gray-300 dark:border-gray-700 pt-2">
+        <button
+          class="flex items-center w-full px-2 py-1 cursor-pointer text-left bg-transparent border-b border-gray-300 dark:border-gray-700 shadow-none"
+          onClick={() => setOpenBranch(!openBranch())}
+        >
+          <i class="fa fa-laptop text-blue-500 mr-2"></i>
+          <b class="text-sm">{t("git").local}</b>
+          <i class={`fa-solid ml-auto text-xs ${openBranch() ? "fa-angle-down" : "fa-angle-right"}`}></i>
+        </button>
+        <Show when={openBranch()}>
+          <div class="pr-2 mt-1">
+            <TreeView
+              tree={props.localTree}
+              activeBranch={props.activeBranch}
+              selectedBranch={props.selectedBranch}
+              onSelectBranch={props.onSelectBranch}
+              onActivateBranch={props.onActivateBranch}
+              openContextMenu={openContextMenu}
+            />
+          </div>
+        </Show>
       </div>
 
-      <b onClick={() => setOpenRemote(!openRemote())} class="collapse-btn mt-2">
-        <b>
-          <i class="fa fa-earth-americas"></i> {t("git").remote}
-        </b>
-        <i class="fa-solid ml-auto" classList={{"fa-angle-down" : openRemote(), "fa-angle-right" : !openRemote()}}></i>
-      </b>
-      {openRemote() && <TreeView tree={props.remoteTree}
-        activeBranch={props.activeBranch}
-        onActivateBranch={checkoutRemote}
-        selectedBranch={props.selectedBranch}
-        onSelectBranch={props.onSelectBranch} 
-        openContextMenu={openRemoteContextMenu}
-      />}
+      <div class="border-t border-gray-300 dark:border-gray-700 pt-2">
+        <button
+          class="flex items-center w-full px-2 py-1 cursor-pointer text-left bg-transparent border-b border-gray-300 dark:border-gray-700 shadow-none"
+          onClick={() => setOpenRemote(!openRemote())}
+        >
+          <i class="fa fa-earth-americas text-purple-500 mr-2"></i>
+          <b class="text-sm">{t("git").remote}</b>
+          <i class={`fa-solid ml-auto text-xs ${openRemote() ? "fa-angle-down" : "fa-angle-right"}`}></i>
+        </button>
+        <Show when={openRemote()}>
+          <div class="mt-1">
+            <TreeView
+              tree={props.remoteTree}
+              activeBranch={props.activeBranch}
+              onActivateBranch={checkoutRemote}
+              selectedBranch={props.selectedBranch}
+              onSelectBranch={props.onSelectBranch}
+              openContextMenu={openRemoteContextMenu}
+            />
+          </div>
+        </Show>
+      </div>
+
       <Show when={menuVisible()}>
         <ContextMenu
           name={itemName()}

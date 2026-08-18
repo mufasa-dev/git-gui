@@ -54,6 +54,28 @@ export function buildTree(branches: Branch[]): TreeNodeMap {
   return tree;
 }
 
+function getFolderVisual(name: string, isOpen: boolean) {
+  const normalized = name.toLowerCase();
+
+  if (["hotfix", "bug", "bugs"].includes(normalized)) {
+    return { icon: "fa-bug", color: "text-red-500" };
+  }
+  if (["feature", "features"].includes(normalized)) {
+    return { icon: "fa-lightbulb", color: "text-yellow-400" };
+  }
+  if (["release", "releases"].includes(normalized)) {
+    return { icon: "fa-rocket", color: "text-purple-400" };
+  }
+  if (normalized === "origin") {
+    return { icon: "fa-cloud-arrow-up", color: "text-blue-400" };
+  }
+
+  return {
+    icon: isOpen ? "fa-folder-open" : "fa-folder",
+    color: "text-yellow-600",
+  };
+}
+
 export default function TreeView(props: TreeViewProps) {
   const [open, setOpen] = createSignal<{ [key: string]: boolean }>(buildOpenMap(props.tree));
 
@@ -76,6 +98,7 @@ export default function TreeView(props: TreeViewProps) {
         const isLeaf = !node.children;
         const isActive = node.original === props.activeBranch;
         const isSelected = node.original === props.selectedBranch;
+        const folderVisual = getFolderVisual(node.name, !!open()[node.name]);
         return (
             <li>
                 <div
@@ -94,7 +117,7 @@ export default function TreeView(props: TreeViewProps) {
                   }}
                 >
                   {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[node.name], "fa-caret-right" : !open()[node.name]}}></i>} 
-                  {!isLeaf && <i class="fa-solid mr-1 text-yellow-600" classList={{"fa-folder-open" : open()[node.name], "fa-folder" : !open()[node.name]}}></i>} 
+                  {!isLeaf && <i class={`fa-solid mr-1 ${folderVisual.icon} ${folderVisual.color}`}></i>}
                   {isLeaf && <i class="fa-solid" classList={{"fa-code-branch" : !isActive, "fa-check" : isActive}}></i>}
                   <div class="truncate ml-1">{ node.name }</div>
                   <div class="ml-auto">

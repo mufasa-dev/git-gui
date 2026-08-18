@@ -1,6 +1,7 @@
 import { createSignal, createMemo, createEffect, on } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { Branch } from "../../models/Banch.model";
+import { Tag } from "../../models/Tag.model";
 import BranchList from "../branch/Branchlist";
 import { buildTree } from "../ui/TreeView";
 import CommitsList from "../commits/CommitsList";
@@ -11,6 +12,9 @@ import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import UserConfigModal from "../Config/UserConfig";
 import { useApp } from "../../context/AppContext";
+import StashList from "./StashList";
+import TagList from "./TagList";
+import CreateTagModal from "./CreateTagModal";
 
 export default function RepoView(props: { repo: Repo , refreshBranches: (path: string) => Promise<void> }) {
   const minWidth = 200;
@@ -20,11 +24,12 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   const [viewMode, setViewMode] = createSignal<"commits" | "changes">("commits");
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
-  const [selectedBranch, setSelectedBranch] = createSignal(props.repo.activeBranch);
+  const [selectedRef, setSelectedRef] = createSignal(props.repo.activeBranch);
   const [modalSwtBranchOpen, setModalSwtBranchOpen] = createSignal(false);
   const [targetBranch, setTargetBranch] = createSignal<string | null>(null);
   const { showLoading, hideLoading } = useLoading();
   const [isUserConfigOpen, setIsUserConfigOpen] = createSignal(false);
+  const [tagTargetCommit, setTagTargetCommit] = createSignal<string | null>(null);
   const { t } = useApp();
 
   const startResize = () => setIsResizing(true);
@@ -39,7 +44,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   };
 
   const selectBranch = (branch: string) => {
-    setSelectedBranch(branch);
+    setSelectedRef(branch);
     setViewMode("commits");
   }
 
@@ -82,16 +87,36 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   };
 
   async function doStashAndApply() {
-    await stashChanges(props.repo.path);
-    await checkoutBranch(props.repo.path, targetBranch()!);
-    await stashPop(props.repo.path);
-    setModalSwtBranchOpen(false);
+    if (!targetBranch()) return;
+    try {
+      showLoading(t("branch").saving_on_stash);
+      await stashChanges(props.repo.path);
+      await checkoutBranch(props.repo.path, targetBranch()!);
+      await stashPop(props.repo.path);
+      await props.refreshBranches(props.repo.path);
+      setModalSwtBranchOpen(false);
+      notify.success(t("common").success, t("branch").changed_to_branch.replace("{{branch}}", targetBranch()!));
+    } catch (error) {
+      await props.refreshBranches(props.repo.path).catch(() => undefined);
+      notify.error(t("common").error, String(error));
+    } finally {
+      hideLoading();
+    }
   }
 
   async function doDiscard() {
-    await resetHard(props.repo.path);
-    await checkoutBranch(props.repo.path, targetBranch()!);
-    setModalSwtBranchOpen(false);
+    if (!targetBranch()) return;
+    try {
+      showLoading(t("branch").discarting_local);
+      await resetHard(props.repo.path);
+      await checkoutBranch(props.repo.path, targetBranch()!);
+      await props.refreshBranches(props.repo.path);
+      setModalSwtBranchOpen(false);
+    } catch (error) {
+      notify.error(t("common").error, String(error));
+    } finally {
+      hideLoading();
+    }
   }
 
   // Constrói árvores reativas sempre que os arrays filtrados mudam
@@ -100,11 +125,13 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
     filteredRemoteBranches() ? buildTree(filteredRemoteBranches()!) : {}
   );
 
-  createEffect(on(() => props.repo.path, (newPath) => {
-    if (!newPath) return;
-
-    setSelectedBranch(props.repo.activeBranch);
-  }));
+  createEffect(on(
+    () => [props.repo.path, props.repo.activeBranch],
+    ([newPath, newBranch]) => {
+      if (!newPath) return;
+      setSelectedRef(newBranch);
+    },
+  ));
 
   return (
     <div class="flex h-full w-full select-none bg-gray-200 dark:bg-gray-900"
@@ -164,11 +191,20 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
             remoteTree={remoteTree()} 
             activeBranch={props.repo.activeBranch}
             repoPath={props.repo.path}
-            selectedBranch={selectedBranch()}
+            selectedBranch={selectedRef()}
             onSelectBranch={selectBranch}
             refreshBranches={props.refreshBranches}
-            onActivateBranch={(branch: string) => handleActiveBranch(props.repo.path, branch)}  
-            />
+            onActivateBranch={(branch: string) => handleActiveBranch(props.repo.path, branch)}
+          />
+          <StashList repo={props.repo} refresh={() => props.refreshBranches(props.repo.path)} />
+          <TagList
+            repo={props.repo}
+            refresh={() => props.refreshBranches(props.repo.path)}
+            onSelectTag={(tag: Tag) => {
+              setSelectedRef(tag.name);
+              setViewMode("commits");
+            }}
+          />
         </div>
       </div>
 
@@ -182,9 +218,8 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
       {viewMode() === "commits" && (
         <CommitsList 
           repo={props.repo} 
-          branch={selectedBranch() && props.repo.branches.some(b => b.name === selectedBranch()) 
-            ? selectedBranch() 
-            : props.repo.activeBranch} 
+          branch={selectedRef() || props.repo.activeBranch}
+          onCreateTag={(commit) => setTagTargetCommit(commit.hash)}
         />
       )}
       {viewMode() === "changes" && <LocalChanges repo={props.repo}/>}
@@ -201,6 +236,14 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
         repoPath={props.repo.path} 
         isOpen={isUserConfigOpen()} 
         onClose={() => setIsUserConfigOpen(false)} 
+      />
+
+      <CreateTagModal
+        open={!!tagTargetCommit()}
+        repoPath={props.repo.path}
+        targetCommit={tagTargetCommit() ?? ""}
+        onClose={() => setTagTargetCommit(null)}
+        onCreated={() => props.refreshBranches(props.repo.path)}
       />
     </div>
   );

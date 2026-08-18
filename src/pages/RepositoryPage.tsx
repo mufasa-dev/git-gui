@@ -1,5 +1,5 @@
 import { createMemo, createResource, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
-import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteUrl } from "../services/gitService";
+import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteUrl, listStashes, listTags } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
 import { Repo } from "../models/Repo.model";
@@ -120,9 +120,13 @@ export default function RepoTabsPage() {
         const remoteBranches = await getRemoteBranches(repoPath);
         const name = await path.basename(repoPath);
         const activeBranch = await getCurrentBranch(repoPath);
-        const localChanges = await getLocalChanges(repoPath);
+        const [localChanges, stashes, tags] = await Promise.all([
+          getLocalChanges(repoPath),
+          listStashes(repoPath),
+          listTags(repoPath),
+        ]);
 
-        const repo: Repo = { path: repoPath, name, branches, remoteBranches, activeBranch, localChanges };
+        const repo: Repo = { path: repoPath, name, branches, remoteBranches, activeBranch, localChanges, stashes, tags };
         setRepos(prev => [...prev, repo]);
       } catch (err) {
         console.warn(`Não foi possível reabrir repo ${repoPath}`, err);
@@ -170,15 +174,17 @@ export default function RepoTabsPage() {
     isRefreshing = true;
 
     try {
-      const [branches, activeBranch, localChanges] = await Promise.all([
+      const [branches, activeBranch, localChanges, stashes, tags] = await Promise.all([
         getBranchStatus(repoPath),
         getCurrentBranch(repoPath),
-        getLocalChanges(repoPath)
+        getLocalChanges(repoPath),
+        listStashes(repoPath),
+        listTags(repoPath),
       ]);
 
       setRepos(prev =>
         prev.map(r =>
-          r.path === repoPath ? { ...r, branches, activeBranch, localChanges } : r
+          r.path === repoPath ? { ...r, branches, activeBranch, localChanges, stashes, tags } : r
         )
       );
 
@@ -273,7 +279,7 @@ export default function RepoTabsPage() {
                       branch={activeRepo()?.activeBranch}
                       provider={provider()}
                       remoteUrl={remoteUrl()!}
-                      onMergeSuccess={(prNumber) => refreshBranches(currentRepo().path)}
+                      onMergeSuccess={() => refreshBranches(currentRepo().path)}
                     />
                   )}
                 </Show>

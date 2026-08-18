@@ -1,5 +1,7 @@
 import { Branch } from "./Banch.model";
 import { LocalChange } from "./LocalChanges.model";
+import { Stash } from "./Stash.model";
+import { Tag } from "./Tag.model";
 
 export type Repo = {
   path: string;
@@ -8,4 +10,6 @@ export type Repo = {
   activeBranch?: string;
   remoteBranches?: string[];
   localChanges?: LocalChange[];
+  stashes?: Stash[];
+  tags?: Tag[];
 };

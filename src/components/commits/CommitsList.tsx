@@ -18,10 +18,17 @@ declare module "solid-js" {
     }
   }
 }
-let isFetchingCommits = false;
+
+void datepicker;
+
 let currentFetchId = 0;
 
-export default function CommitsList(props: { repo: Repo; branch?: string, class?: string }) {
+export default function CommitsList(props: {
+  repo: Repo;
+  branch?: string;
+  class?: string;
+  onCreateTag?: (commit: { hash: string; subject: string }) => void;
+}) {
   const [commits, setCommits] = createSignal<any[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
@@ -225,14 +232,19 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
               <For each={paginatedCommits()}>
                 {(c) => (
                   <div
-                    class={`cm-commit-item min-w-full max-w-[200px] ${
+                    class={`cm-commit-item w-full ${
                       selectedCommit()?.hash === c.hash ? "selected" : ""
                     }`}
                     onClick={() => selectCommit(c.hash)}
                   >
-                    <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
-                    <div class="font-semibold px-2 flex-1 truncate">
+                    <div class="text-sm font-mono opacity-80 flex items-center h-full">{c.hash.slice(0, 7)}</div>
+                    <div class="font-semibold px-2 flex flex-1 min-w-0 h-full items-center truncate">
                       <CommitMessage message={c.message} />
+                      <div class="inline-flex items-center gap-1 ml-2">
+                        <For each={(c.ref_names || "").split(",").map((ref: string) => ref.trim()).filter((ref: string) => ref.startsWith("tag: "))}>
+                          {(ref) => <span class="text-[9px] font-mono px-1 rounded bg-green-500/20 text-green-600 dark:text-green-300">{ref.replace("tag: ", "")}</span>}
+                        </For>
+                      </div>
                     </div>
                     <div class="text-xs ml-auto whitespace-nowrap flex items-center gap-2 w-[200px]">
                       <img
@@ -242,7 +254,7 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
                       /> 
                       <span class="opacity-50 truncate">{formatContributorName(c.author)}</span>
                     </div>
-                    <div class="px-2 text-xs w-[182px] text-right truncate">{formatRelativeDate(c.date, t, locale())}</div>
+                    <div class="px-2 text-xs w-[182px] text-right truncate flex items-center justify-end h-full">{formatRelativeDate(c.date, t, locale())}</div>
                   </div>
                 )}
               </For>
@@ -256,7 +268,15 @@ export default function CommitsList(props: { repo: Repo; branch?: string, class?
       
       {/* Detalhes */}
       <div style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px" }} class="overflow-auto container-branch-list p-0 mt-1">
-        <CommitDetails commit={selectedCommit()} repo={props.repo} branch={props.branch || ""} selectCommit={selectCommit} openParent={true} openProfile={true} />
+        <CommitDetails
+          commit={selectedCommit()}
+          repo={props.repo}
+          branch={props.branch || ""}
+          selectCommit={selectCommit}
+          openParent={true}
+          openProfile={true}
+          onCreateTag={props.onCreateTag}
+        />
       </div>
     </div>
   );

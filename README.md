@@ -18,6 +18,8 @@ It provides a **modern and intuitive interface** to work with **branches, commit
 * 🗑️ **Discard changes** easily
 * ✅ **Create commits** with message, description, and *amend* option
 * 🌍 **Remote operations**: fetch, pull, push and merge
+* 📦 **Stash management**: create named stashes, inspect diffs, apply, pop, drop and use them across branches
+* 🏷️ **Tag management**: create lightweight or annotated tags, navigate commits, checkout and sync with remotes
 * 🎨 **Beautiful responsive UI** with custom animations and icons ✨
 
 ---
@@ -81,7 +83,7 @@ npm run tauri build
 * [ ] Support multiple remotes 🌎
 * [ ] Visual merge & rebase 🧩
 * [X] Git user settings ⚙️
-* [ ] Git stash and tags 📝
+* [X] Git stash and tags 📝
 
 ---
 

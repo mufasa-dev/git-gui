@@ -5,12 +5,13 @@ import Button from "../ui/Button";
 import DropdownButton from "../ui/DropdownButton";
 import NewBranchModal from "../branch/NewBranchModal";
 import BranchSelector from "../branch/BranchSelector"; // 🌟 Import do novo seletor customizado
-import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch, configPullMode, getRemoteUrl } from "../../services/gitService";
+import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch, configPullMode, getRemoteUrl, listStashes, listTags, applyStash, popStash, clearStashes } from "../../services/gitService";
 import { saveRepos } from "../../services/storeService";
 import folderIcon from "../../assets/folder_silver.png";
 import fetchIcon from "../../assets/reload_silver.png";
 import pullIcon from "../../assets/pull_silver.png";
 import pushIcon from "../../assets/push_silver.png";
+import packageIcon from "../../assets/package.png";
 import newWindowIcon from "../../assets/terminal_silver.png";
 import branchIcon from "../../assets/branch.png";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -19,7 +20,6 @@ import Dialog from "../ui/Dialog";
 import { notify } from "../../utils/notifications";
 import vsCodeIcon from "../../assets/vscode.png";
 import bashIcon from "../../assets/bash.png";
-import commandIcon from "../../assets/command.png";
 import openIcon from "../../assets/open_icon.png";
 import internetIcon from "../../assets/worldwide.png";
 import { useLoading } from "../ui/LoadingContext";
@@ -27,6 +27,7 @@ import { useApp } from "../../context/AppContext";
 import { githubService } from "../../services/github";
 import { azureService } from "../../services/azure";
 import { getProviderFromUrl } from "../../utils/gitProvider";
+import CreateStashModal from "../repo/CreateStashModal";
 
 type Props = {
     repos: Repo[];
@@ -47,6 +48,7 @@ export default function Header(props: Props) {
     
     const [platform, setPlatform] = createSignal("");
     const [showModalPullOpts, setShowModalPullOpts] = createSignal(false);
+    const [showCreateStash, setShowCreateStash] = createSignal(false);
     const [modalInfo, setModalInfo] = createSignal<{
       repoPath: string;
       branch: string;
@@ -76,8 +78,12 @@ export default function Header(props: Props) {
               const remoteBranches = await getRemoteBranches(selected);
               const name = await path.basename(selected);
               const activeBranch = await getCurrentBranch(selected!);
-              const localChanges = await getLocalChanges(selected);
-              const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges };
+              const [localChanges, stashes, tags] = await Promise.all([
+                getLocalChanges(selected),
+                listStashes(selected),
+                listTags(selected),
+              ]);
+              const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges, stashes, tags };
 
               // Evita duplicar se já estiver aberto
               if (!props.repos.some(r => r.path === selected)) {
@@ -229,6 +235,45 @@ export default function Header(props: Props) {
       return pushing() || pulling() || fetching();
     }
 
+    const currentStashes = () => currentActiveRepo()?.stashes ?? [];
+
+    const refreshActiveRepo = async () => {
+      if (props.active) await props.refreshBranches(props.active);
+    };
+
+    const applyLatestStash = async (pop: boolean) => {
+      if (!props.active || !currentStashes().length) return;
+      try {
+        showLoading(t("common").loading);
+        const reference = currentStashes()[0].reference;
+        if (pop) {
+          await popStash(props.active, reference);
+        } else {
+          await applyStash(props.active, reference);
+        }
+        notify.success(t("common").success, pop ? t("stash").pop : t("stash").apply);
+        await refreshActiveRepo();
+      } catch (error) {
+        notify.error(t("common").error, String(error));
+      } finally {
+        hideLoading();
+      }
+    };
+
+    const clearAllStashes = async () => {
+      if (!props.active || !currentStashes().length || !confirm(t("stash").confirm_clear)) return;
+      try {
+        showLoading(t("common").loading);
+        await clearStashes(props.active);
+        notify.success(t("common").success, t("stash").clear);
+        await refreshActiveRepo();
+      } catch (error) {
+        notify.error(t("common").error, String(error));
+      } finally {
+        hideLoading();
+      }
+    };
+
     onMount(async () => {
       const plat = platform();
       setPlatform(plat); // "windows", "macos", "linux", etc.
@@ -272,6 +317,17 @@ export default function Header(props: Props) {
                     : null;
                 })()}
               </Button>
+              <DropdownButton
+                label={t("git").stash}
+                img={packageIcon}
+                class="ml-1"
+                options={[
+                  { label: t("stash").create, action: () => setShowCreateStash(true) },
+                  { label: t("stash").apply, hide: currentStashes().length === 0, action: () => void applyLatestStash(false) },
+                  { label: t("stash").pop, hide: currentStashes().length === 0, action: () => void applyLatestStash(true) },
+                  { label: t("stash").clear, hide: currentStashes().length === 0, action: () => void clearAllStashes() },
+                ]}
+              />
               <Button class="top-btn" onClick={() => setOpenModalNewBranch(true)} disabled={disabledButton()}>
                 <img src={branchIcon} class="inline h-6" />
                 <small>{t('git').new_branch}</small>
@@ -328,6 +384,13 @@ export default function Header(props: Props) {
               ]}
             />
           </Show>
+
+          <CreateStashModal
+            open={showCreateStash()}
+            repoPath={props.active || ""}
+            onClose={() => setShowCreateStash(false)}
+            onCreated={refreshActiveRepo}
+          />
 
           <NewBranchModal open={openModalNewBranch()} 
             onCancel={() => setOpenModalNewBranch(false)} 
