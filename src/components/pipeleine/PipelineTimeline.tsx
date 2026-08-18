@@ -162,6 +162,8 @@ export function PipelineTimeline(props: PipelineTimelineProps) {
         open={expandedTaskId() !== null} 
         onClose={() => setExpandedTaskId(null)}
         title={props.t('pipeline').pipe_execution_log}
+        icon="fa-solid fa-terminal"
+        iconColor="text-slate-600 dark:text-slate-300"
         bodyClass="p-4" width="calc(100% - 30px)"
       >
         <div class="flex gap-4 h-[75vh]">

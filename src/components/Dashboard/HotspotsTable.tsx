@@ -181,6 +181,8 @@ export default function HotspotsTable(props: Props) {
             open={true}
             onClose={() => setShowFileModal(false)}
             title={selectedFile()?.name.split('/').pop()}
+            icon="fa-solid fa-file-code"
+            iconColor="text-cyan-600 dark:text-cyan-300"
             width="calc(100% - 30px)" bodyClass="p-2"
         >
           <FileViewerContainer

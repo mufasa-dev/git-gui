@@ -56,7 +56,13 @@ export default function CreateTagModal(props: CreateTagModalProps) {
   };
 
   return (
-    <Dialog open={props.open} title={t("tag").create_title} onClose={props.onClose}>
+    <Dialog
+      open={props.open}
+      title={t("tag").create_title}
+      icon="fa-solid fa-tag"
+      iconColor="text-amber-600 dark:text-amber-300"
+      onClose={props.onClose}
+    >
       <div class="space-y-4 text-gray-700 dark:text-gray-200">
         <div class="text-xs text-gray-500 dark:text-gray-400">
           {t("tag").target_commit}: <span class="font-mono">{props.targetCommit.slice(0, 12)}</span>

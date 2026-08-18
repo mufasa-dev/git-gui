@@ -235,7 +235,14 @@ export function CommitDetails(props: CommitDetailsProps) {
         </div>
       </Show>
       <Show when={modalUserProfileOpen()}>
-        <Dialog open={modalUserProfileOpen()} onClose={() => setModalUserProfileOpen(false)} title={t('auth').user_profile} width={"90vw"}>
+        <Dialog
+          open={modalUserProfileOpen()}
+          onClose={() => setModalUserProfileOpen(false)}
+          title={t('auth').user_profile}
+          icon="fa-solid fa-user"
+          iconColor="text-indigo-600 dark:text-indigo-300"
+          width={"90vw"}
+        >
           <UserProfileDialog 
             repo={props.repo} 
             branch={props.branch || ""}

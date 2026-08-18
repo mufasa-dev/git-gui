@@ -210,6 +210,8 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
       <Dialog 
         open={isModalOpen()} 
         title={t('dashboard').config_Dash}
+        icon="fa-solid fa-chart-line"
+        iconColor="text-emerald-600 dark:text-emerald-300"
         onClose={() => setIsModalOpen(false)}
         width="350px"
       >

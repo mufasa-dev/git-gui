@@ -271,7 +271,14 @@ export default function PRConflictResolver(props: PRConflictResolverProps) {
         </div>
       </Show>
 
-      <Dialog open={confirming()} title={t("merge").review_and_push} onClose={() => setConfirming(false)} width="min(520px, 92vw)">
+      <Dialog
+        open={confirming()}
+        title={t("merge").review_and_push}
+        icon="fa-solid fa-cloud-arrow-up"
+        iconColor="text-blue-600 dark:text-blue-300"
+        onClose={() => setConfirming(false)}
+        width="min(520px, 92vw)"
+      >
         <div class="space-y-4 text-sm">
           <p>{t("merge").confirm_resolution_push}</p>
           <div class="rounded-lg bg-gray-100 dark:bg-gray-800 p-3 text-xs space-y-1">

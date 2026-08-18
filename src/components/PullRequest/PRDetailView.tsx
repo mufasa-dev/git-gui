@@ -471,6 +471,8 @@ export default function PRDetailView(props: PRDetailViewProps) {
       <Dialog
         open={showMergeConfirmation()}
         title={t('pr').merge_pull_request}
+        icon="fa-solid fa-code-merge"
+        iconColor="text-purple-600 dark:text-purple-300"
         onClose={() => setShowMergeConfirmation(false)}
         width="min(460px, 92vw)"
       >
@@ -485,6 +487,8 @@ export default function PRDetailView(props: PRDetailViewProps) {
       <Dialog
         open={showConflictResolver()}
         title={t('merge').resolve_conflicts}
+        icon="fa-solid fa-code-branch"
+        iconColor="text-amber-600 dark:text-amber-300"
         onClose={() => setShowConflictResolver(false)}
         bodyClass="p-0"
         width="min(1400px, 96vw)"
@@ -507,6 +511,8 @@ export default function PRDetailView(props: PRDetailViewProps) {
       </Dialog>
       <Dialog open={showModalCommitDetails()}
               title={t('commits').details}
+              icon="fa-solid fa-code-commit"
+              iconColor="text-purple-600 dark:text-purple-300"
               onClose={() => setModalCommitDetails(false)}
               bodyClass="p-0 h-full"
               width={'calc(100vw - 40px)'}
@@ -514,11 +520,17 @@ export default function PRDetailView(props: PRDetailViewProps) {
         <CommitDetails commit={selectedCommit()} repo={props.repo} branch={""} openParent={false} openProfile={true} selectCommit={selectCommit} />
       </Dialog>
       <Show when={modalUserProfileOpen()}>
-        <Dialog open={modalUserProfileOpen()} 
+        <Dialog
+            open={modalUserProfileOpen()}
             onClose={() => {
               setModalUserProfileOpen(false);
               setSelectedUser({ name: "", email: "" });
-            }} title={t('auth').user_profile} width={"90vw"}>
+            }}
+            title={t('auth').user_profile}
+            icon="fa-solid fa-user"
+            iconColor="text-indigo-600 dark:text-indigo-300"
+            width={"90vw"}
+        >
           <UserProfileDialog 
             repo={props.repo} 
             branch={props.branch || ""}

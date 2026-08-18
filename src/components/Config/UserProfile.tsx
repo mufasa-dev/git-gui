@@ -208,6 +208,8 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
             open={showCommits()} 
             onClose={() => setShowCommits(false)} 
             title={t('file').changes_history}
+            icon="fa-solid fa-clock-rotate-left"
+            iconColor="text-blue-600 dark:text-blue-300"
             width="550px" bodyClass="p-0"
           >
             <CommitsModalList commits={selectedCommits()} />
@@ -217,6 +219,8 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
         <Show when={showModalCommitDetails()}>
           <Dialog open={showModalCommitDetails()}
                   title={t('commits').details}
+                  icon="fa-solid fa-code-commit"
+                  iconColor="text-purple-600 dark:text-purple-300"
                   onClose={() => setModalCommitDetails(false)}
                   bodyClass="p-0"
                   width={'calc(100vw - 40px)'}

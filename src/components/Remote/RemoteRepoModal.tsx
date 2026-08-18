@@ -78,6 +78,8 @@ export default function RemoteRepoModal(props: {
           : `Azure DevOps ${selectedProject() ? `> ${selectedProject()}` : '> ' + t('provider').projects}`
       } 
       onClose={props.onClose}
+      icon="fa-solid fa-code-branch"
+      iconColor="text-blue-600 dark:text-blue-300"
       width="650px"
       height="70vh"
       bodyClass="p-0 flex flex-col h-full !overflow-hidden bg-white dark:bg-gray-800"

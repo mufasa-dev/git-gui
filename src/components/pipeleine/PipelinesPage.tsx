@@ -554,6 +554,8 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
       <Show when={showModalCommitDetails()}>
         <Dialog open={true}
                 title={t('commits').details}
+                icon="fa-solid fa-code-commit"
+                iconColor="text-purple-600 dark:text-purple-300"
                 onClose={() => setModalCommitDetails(false)}
                 bodyClass="p-0"
                 width={'calc(100vw - 40px)'}
@@ -570,6 +572,8 @@ export default function PipelinesPage(props: { repo: Repo; provider: GitProvider
       <Show when={showRunModal()}>
         <Dialog open={true}
                 title={t('pipeline').run_pipeline}
+                icon="fa-solid fa-play"
+                iconColor="text-emerald-600 dark:text-emerald-300"
                 onClose={() => setShowRunModal(false)}
                 width={'480px'}
                 height={'auto'}>

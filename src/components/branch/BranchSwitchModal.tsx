@@ -14,7 +14,14 @@ export default function BranchSwitchModal(props: Props) {
   const { t } = useApp();
 
   return (
-    <Dialog open={props.open} title={t('branch').change_branch} bodyClass="px-4 pt-2 pb-4" onClose={props.onCancel}>
+    <Dialog
+      open={props.open}
+      title={t('branch').change_branch}
+      icon="fa-solid fa-code-branch"
+      iconColor="text-blue-600 dark:text-blue-300"
+      bodyClass="px-4 pt-2 pb-4"
+      onClose={props.onCancel}
+    >
         <h2 class="text-lg font-semibold">
           {t('branch').change_to_branch} <span class="text-blue-600">{props.branch}</span>?
         </h2>

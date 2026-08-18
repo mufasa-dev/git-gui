@@ -289,11 +289,17 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         </div>
       </Show>
       <Show when={modalUserProfileOpen()}>
-        <Dialog open={modalUserProfileOpen()} 
+        <Dialog
+            open={modalUserProfileOpen()}
             onClose={() => {
               setModalUserProfileOpen(false)
               setSelectedUser({ name: "", email: "" });
-            }} title={t('auth').user_profile} width={"90vw"}>
+            }}
+            title={t('auth').user_profile}
+            icon="fa-solid fa-user"
+            iconColor="text-indigo-600 dark:text-indigo-300"
+            width={"90vw"}
+        >
           <UserProfileDialog 
             repo={props.repo} 
             branch={props.branch || ""}
@@ -313,6 +319,8 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
           open={showCommits()} 
           onClose={() => setShowCommits(false)} 
           title={t('file').changes_history}
+          icon="fa-solid fa-clock-rotate-left"
+          iconColor="text-blue-600 dark:text-blue-300"
           width="550px" bodyClass="p-0"
         >
           <CommitsModalList commits={selectedCommits()} />

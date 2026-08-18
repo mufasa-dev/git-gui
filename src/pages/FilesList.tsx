@@ -249,7 +249,13 @@ export default function FileList(props: { repo: Repo }) {
         locale={locale()}
       />
 
-      <Dialog open={showModalCommitDetails()} title={t('commits').details} onClose={() => setModalCommitDetails(false)} bodyClass="p-0 h-full" width={'calc(100vw - 40px)'} height={'calc(100vh - 100px)'}>
+      <Dialog
+        open={showModalCommitDetails()}
+        title={t('commits').details}
+        icon="fa-solid fa-code-commit"
+        iconColor="text-purple-600 dark:text-purple-300"
+        onClose={() => setModalCommitDetails(false)}
+        bodyClass="p-0 h-full" width={'calc(100vw - 40px)'} height={'calc(100vh - 100px)'}>
         <CommitDetails commit={selectedCommit()} repo={props.repo} branch={selectedBranch() || ""} openParent={false} openProfile={true} selectCommit={selectCommit} />
       </Dialog>
     </div>

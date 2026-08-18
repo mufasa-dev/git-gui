@@ -184,7 +184,13 @@ export default function StashList(props: StashListProps) {
         isDanger
       />
 
-      <Dialog open={branchDialogOpen()} title={t("stash").apply_to_branch} onClose={() => setBranchDialogOpen(false)}>
+      <Dialog
+        open={branchDialogOpen()}
+        title={t("stash").apply_to_branch}
+        icon="fa-solid fa-code-branch"
+        iconColor="text-blue-600 dark:text-blue-300"
+        onClose={() => setBranchDialogOpen(false)}
+      >
         <div class="space-y-4">
           <select class="w-full input-text" value={targetBranch()} onChange={(event) => setTargetBranch(event.currentTarget.value)}>
             <For each={branches()}>{(branch) => <option value={branch.name}>{branch.name}</option>}</For>
@@ -197,7 +203,16 @@ export default function StashList(props: StashListProps) {
         </div>
       </Dialog>
 
-      <Dialog open={diffOpen()} title={`${t("stash").show_diff}: ${selectedStash()?.reference ?? ""}`} width="80vw" height="80vh" onClose={() => setDiffOpen(false)} bodyClass="p-0 h-[calc(80vh-64px)]">
+      <Dialog
+        open={diffOpen()}
+        title={`${t("stash").show_diff}: ${selectedStash()?.reference ?? ""}`}
+        icon="fa-solid fa-code-compare"
+        iconColor="text-cyan-600 dark:text-cyan-300"
+        width="80vw"
+        height="80vh"
+        onClose={() => setDiffOpen(false)}
+        bodyClass="p-0 h-[calc(80vh-64px)]"
+      >
         <DiffViewer path={props.repo.path} file={selectedStash()?.reference ?? ""} diff={diff()} class="h-full" isStaged={false} />
       </Dialog>
     </div>

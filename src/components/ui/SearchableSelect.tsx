@@ -1,4 +1,4 @@
-import { createSignal, For, Show, createMemo, onMount, onCleanup } from "solid-js";
+import { createSignal, For, Show, createMemo, createEffect, onMount, onCleanup } from "solid-js";
 import { useApp } from "../../context/AppContext";
 
 export interface SearchableSelectOption {
@@ -20,6 +20,11 @@ export const SearchableSelect = (props: SelectProps) => {
   const [search, setSearch] = createSignal("");
   const [selected, setSelected] = createSignal(props.initialValue || "");
   const { t } = useApp();
+
+  createEffect(() => {
+    const initialValue = props.initialValue;
+    if (initialValue !== undefined) setSelected(initialValue);
+  });
   let selectRef: HTMLDivElement | undefined;
 
   const filteredOptions = createMemo(() => 

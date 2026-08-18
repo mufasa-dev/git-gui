@@ -186,6 +186,8 @@ const CommitTypeDistribution = (props: Props) => {
       <Dialog 
         open={isModalOpen()} 
         title={t('dashboard').filter_commit_type}
+        icon="fa-solid fa-filter"
+        iconColor="text-orange-600 dark:text-orange-300"
         onClose={() => setIsModalOpen(false)}
         width="380px"
       >

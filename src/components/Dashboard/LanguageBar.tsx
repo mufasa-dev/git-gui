@@ -186,6 +186,8 @@ export default function LanguageBar(props: { files: { path: string, size: number
       <Dialog 
         open={isModalOpen()} 
         title={t('dashboard').hide_languages}
+        icon="fa-solid fa-eye-slash"
+        iconColor="text-blue-600 dark:text-blue-300"
         onClose={() => setIsModalOpen(false)}
         width="400px"
       >
@@ -221,6 +223,8 @@ export default function LanguageBar(props: { files: { path: string, size: number
       <Dialog
         open={isOtherModalOpen()}
         title={t('dashboard').others_languages}
+        icon="fa-solid fa-file-circle-question"
+        iconColor="text-amber-600 dark:text-amber-300"
         onClose={() => setIsOtherModalOpen(false)}
         width="400px"
       >

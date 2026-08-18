@@ -52,7 +52,13 @@ export default function CreateStashModal(props: CreateStashModalProps) {
   };
 
   return (
-    <Dialog open={props.open} title={t("stash").create_title} onClose={props.onClose}>
+    <Dialog
+      open={props.open}
+      title={t("stash").create_title}
+      icon="fa-solid fa-box-archive"
+      iconColor="text-purple-600 dark:text-purple-300"
+      onClose={props.onClose}
+    >
       <div class="space-y-4 text-gray-700 dark:text-gray-200">
         <input
           class="w-full input-text"
