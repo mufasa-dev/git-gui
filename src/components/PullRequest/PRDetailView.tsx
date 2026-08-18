@@ -41,6 +41,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
   const [isMerging, setIsMerging] = createSignal(false);
   const [showConflictResolver, setShowConflictResolver] = createSignal(false);
   const [showMergeConfirmation, setShowMergeConfirmation] = createSignal(false);
+  const [isPrUrlCopied, setIsPrUrlCopied] = createSignal(false);
   const { t, locale } = useApp();
   
   const [details, { refetch }] = createResource(
@@ -164,17 +165,49 @@ export default function PRDetailView(props: PRDetailViewProps) {
     }
   };
 
+  const getProviderPageUrl = async () => {
+    const context = parseRemoteRepository(props.remoteUrl);
+    return props.provider === 'github'
+      ? await githubService.getPullRequestWebUrl(props.owner, props.repo.name, props.pr.number)
+      : context?.organization && context.project
+        ? await azureService.getPullRequestWebUrl(context.organization, context.project, props.repo.name, props.pr.number)
+        : details()?.url || props.pr.url || props.remoteUrl;
+  };
+
   const openProviderPage = async () => {
     try {
-      const context = parseRemoteRepository(props.remoteUrl);
-      const url = props.provider === 'github'
-        ? await githubService.getPullRequestWebUrl(props.owner, props.repo.name, props.pr.number)
-        : context?.organization && context.project
-          ? await azureService.getPullRequestWebUrl(context.organization, context.project, props.repo.name, props.pr.number)
-          : props.remoteUrl;
+      const url = await getProviderPageUrl();
       if (url) await open(url);
     } catch (error) {
       notify.error("Falha ao abrir o PR", String(error));
+    }
+  };
+
+  const copyPullRequestUrl = async () => {
+    try {
+      const url = await getProviderPageUrl();
+      if (!url) throw new Error("URL do Pull Request não encontrada.");
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = url;
+        input.setAttribute("readonly", "true");
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+        input.select();
+        const copied = document.execCommand("copy");
+        input.remove();
+        if (!copied) throw new Error("Não foi possível acessar a área de transferência.");
+      }
+
+      setIsPrUrlCopied(true);
+      window.setTimeout(() => setIsPrUrlCopied(false), 2200);
+      notify.success(t('pr').copy_link, t('pr').pr_url_copied);
+    } catch (error) {
+      notify.error(t('error').error, String(error));
     }
   };
 
@@ -195,6 +228,20 @@ export default function PRDetailView(props: PRDetailViewProps) {
             <span class="text-gray-500/50 dark:text-gray-400 ml-2">#{props.pr.number}</span>
           </h1>
           <div class="flex items-center gap-2">
+            <button
+              onClick={copyPullRequestUrl}
+              title={isPrUrlCopied() ? t('pr').pr_url_copied : t('pr').copy_link}
+              aria-label={t('pr').copy_link}
+              class="group inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/30 dark:hover:text-blue-300 active:scale-95"
+              classList={{
+                "border-emerald-400 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-300": isPrUrlCopied(),
+              }}
+            >
+              <Show when={isPrUrlCopied()} fallback={<i class="fa-regular fa-copy text-[11px]" />}>
+                <i class="fa-solid fa-check text-[11px]" />
+              </Show>
+              <span class="hidden xl:inline">{isPrUrlCopied() ? t('pr').pr_url_copied : t('pr').copy_link}</span>
+            </button>
             <Switch>
               <Match when={details()?.mergeable === 'CONFLICTING'}>
                 <div class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-md">
