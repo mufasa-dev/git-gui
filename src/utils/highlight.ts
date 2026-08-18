@@ -301,7 +301,7 @@ import { getExtension } from "./file";
             // Hunk Header (Prioridade Máxima)
             hunkHeaderPattern,
             // Comentários
-            { name: "comment", regex: /(\/\/.*|\/\*[\s\S]*?\*\/)/g, class: "text-green-600 dark:text-green-500 italic" },
+            { name: "comment", regex: /(\/\/.*|\/\*[\s\S]*?\*\/|&lt;!--.*?(?:--&gt;|$)|^.*?--&gt;)/g, class: "text-green-600 dark:text-green-500 italic" },
             // Strings
             { name: "string", regex: /(["'`][^"'`]*["'`])/g, class: "text-amber-600 dark:text-orange-400" },
             // Keywords Dinâmicas (da linguagem)

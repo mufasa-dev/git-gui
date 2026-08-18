@@ -5,10 +5,11 @@ use crate::{
 use base64::{engine::general_purpose, Engine as _};
 use serde_json::json;
 use std::process::Stdio;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 
 const PREVIEW_MAX_BYTES: usize = 2 * 1024 * 1024;
 const PREVIEW_MAX_LINES: usize = 1000;
+const MINIFIED_LINE_LENGTH: usize = 10_000;
 
 fn is_unsupported_extension(file_path: &str) -> bool {
     let extension = file_path
@@ -83,6 +84,26 @@ fn is_binary_bytes(bytes: &[u8]) -> bool {
     bytes.contains(&0) || std::str::from_utf8(bytes).is_err()
 }
 
+fn is_minified_text(bytes: &[u8]) -> bool {
+    let text = match std::str::from_utf8(bytes) {
+        Ok(text) => text,
+        Err(_) => return false,
+    };
+
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.is_empty() {
+        return false;
+    }
+
+    let max_line_length = lines.iter().map(|line| line.len()).max().unwrap_or(0);
+    if max_line_length < MINIFIED_LINE_LENGTH {
+        return false;
+    }
+
+    let non_empty_lines = lines.iter().filter(|line| !line.trim().is_empty()).count();
+    non_empty_lines <= 3 || (max_line_length as f64 / text.len().max(1) as f64) >= 0.8
+}
+
 fn preview_text(bytes: &[u8]) -> (String, usize, bool) {
     let byte_limit = bytes.len() > PREVIEW_MAX_BYTES;
     let text = String::from_utf8_lossy(&bytes[..bytes.len().min(PREVIEW_MAX_BYTES)]);
@@ -145,6 +166,72 @@ async fn bounded_git_show(repo_path: &str, target: &str) -> Result<(Vec<u8>, boo
     }
 
     Ok((bytes, truncated))
+}
+
+async fn git_text_page(
+    repo_path: &str,
+    target: &str,
+    start_line: usize,
+) -> Result<(String, usize, bool), String> {
+    let mut child = git_command_async(repo_path)
+        .args(["show", target])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| error.to_string())?;
+
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Não foi possível ler o arquivo".to_string())?;
+    let mut reader = BufReader::new(stdout);
+    let mut raw_line = Vec::new();
+    let mut current_line = 0usize;
+    let mut page_line_count = 0usize;
+    let mut content = Vec::new();
+    let mut has_more = false;
+
+    loop {
+        raw_line.clear();
+        let bytes_read = reader
+            .read_until(b'\n', &mut raw_line)
+            .await
+            .map_err(|error| error.to_string())?;
+        if bytes_read == 0 {
+            break;
+        }
+
+        if current_line < start_line {
+            current_line += 1;
+            continue;
+        }
+
+        if page_line_count >= PREVIEW_MAX_LINES
+            || content.len().saturating_add(raw_line.len()) > PREVIEW_MAX_BYTES
+        {
+            has_more = true;
+            break;
+        }
+
+        content.extend_from_slice(&raw_line);
+        page_line_count += 1;
+        current_line += 1;
+    }
+
+    if has_more {
+        let _ = child.kill().await;
+    }
+
+    let status = child.wait().await.map_err(|error| error.to_string())?;
+    if !status.success() && !has_more {
+        return Err("Não foi possível ler o arquivo na branch".to_string());
+    }
+
+    Ok((
+        String::from_utf8_lossy(&content).into_owned(),
+        page_line_count,
+        has_more,
+    ))
 }
 
 async fn branch_file_size(repo_path: &str, target: &str) -> Result<usize, String> {
@@ -465,7 +552,7 @@ pub async fn get_branch_file_content(
         "png" | "jpg" | "jpeg" | "ico" | "gif" | "webp"
     );
 
-    if is_unsupported_extension(&file_path) || size > PREVIEW_MAX_BYTES {
+    if is_unsupported_extension(&file_path) || (is_image && size > PREVIEW_MAX_BYTES) {
         return Ok(FileContentResponse {
             is_image: false,
             is_binary: true,
@@ -474,6 +561,7 @@ pub async fn get_branch_file_content(
             size,
             line_count: None,
             truncated: size > PREVIEW_MAX_BYTES,
+            next_line: None,
         });
     }
 
@@ -490,6 +578,7 @@ pub async fn get_branch_file_content(
             size,
             line_count: None,
             truncated: byte_truncated,
+            next_line: None,
         });
     }
 
@@ -502,18 +591,84 @@ pub async fn get_branch_file_content(
             size,
             line_count: None,
             truncated: byte_truncated,
+            next_line: None,
         });
     }
 
-    let (content, line_count, truncated) = preview_text(&raw_bytes);
+    if is_minified_text(&raw_bytes) {
+        return Ok(FileContentResponse {
+            is_image: false,
+            is_binary: false,
+            is_previewable: false,
+            content: String::new(),
+            size,
+            line_count: None,
+            truncated: byte_truncated,
+            next_line: None,
+        });
+    }
+
+    let (content, line_count, has_more) = git_text_page(&path, &target, 0).await?;
     Ok(FileContentResponse {
         is_image: false,
         is_binary: false,
-        is_previewable: !truncated,
+        is_previewable: true,
         content,
         size,
         line_count: Some(line_count),
-        truncated: byte_truncated || truncated,
+        truncated: has_more,
+        next_line: has_more.then_some(line_count),
+    })
+}
+
+#[tauri::command]
+pub async fn get_branch_file_page(
+    path: String,
+    branch: String,
+    file_path: String,
+    start_line: usize,
+) -> Result<FileContentResponse, String> {
+    let target = format!("{}:{}", branch, file_path);
+    let size = branch_file_size(&path, &target).await?;
+
+    if is_unsupported_extension(&file_path) {
+        return Ok(FileContentResponse {
+            is_image: false,
+            is_binary: true,
+            is_previewable: false,
+            content: String::new(),
+            size,
+            line_count: None,
+            truncated: false,
+            next_line: None,
+        });
+    }
+
+    let (sample, _) = bounded_git_show(&path, &target).await?;
+    if is_binary_bytes(&sample) || is_minified_text(&sample) {
+        return Ok(FileContentResponse {
+            is_image: false,
+            is_binary: is_binary_bytes(&sample),
+            is_previewable: false,
+            content: String::new(),
+            size,
+            line_count: None,
+            truncated: false,
+            next_line: None,
+        });
+    }
+
+    let (content, line_count, has_more) = git_text_page(&path, &target, start_line).await?;
+    let next_line = has_more.then_some(start_line.saturating_add(line_count));
+    Ok(FileContentResponse {
+        is_image: false,
+        is_binary: false,
+        is_previewable: true,
+        content,
+        size,
+        line_count: Some(line_count),
+        truncated: has_more,
+        next_line,
     })
 }
 
@@ -526,7 +681,7 @@ pub async fn get_file_metadata(
     let target = format!("{}:{}", branch, file_path);
     let size = branch_file_size(&path, &target).await?;
 
-    if is_unsupported_extension(&file_path) || size > PREVIEW_MAX_BYTES {
+    if is_unsupported_extension(&file_path) {
         return Ok(FileMetadataResponse {
             size,
             is_binary: true,
@@ -536,11 +691,12 @@ pub async fn get_file_metadata(
 
     let (sample, _) = bounded_git_show(&path, &target).await?;
     let is_binary = is_binary_bytes(&sample);
+    let is_minified = !is_binary && is_minified_text(&sample);
 
     Ok(FileMetadataResponse {
         size,
         is_binary,
-        is_previewable: !is_binary,
+        is_previewable: !is_binary && !is_minified,
     })
 }
 
@@ -565,5 +721,16 @@ mod tests {
         assert!(is_unsupported_extension("manual.pdf"));
         assert!(!is_unsupported_extension("src/main.rs"));
         assert!(is_binary_bytes(&[0x00, 0x01, 0x02]));
+    }
+
+    #[test]
+    fn identifies_minified_text_without_blocking_normal_code() {
+        let minified = format!("{};", "const value = 1;".repeat(1_000));
+        let normal = (0..200)
+            .map(|line| format!("const value_{line} = {line};\n"))
+            .collect::<String>();
+
+        assert!(is_minified_text(minified.as_bytes()));
+        assert!(!is_minified_text(normal.as_bytes()));
     }
 }

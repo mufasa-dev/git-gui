@@ -1,5 +1,5 @@
 import { createResource, createSignal, For, Show } from "solid-js";
-import { getBranchFileContent, getBranchFileMetadata, getMostModifiedFiles, getUserMostModifiedFiles } from "../../services/gitService";
+import { getBranchFileContent, getBranchFileMetadata, getBranchFilePage, getMostModifiedFiles, getUserMostModifiedFiles } from "../../services/gitService";
 import FileIcon from "../ui/FileIcon";
 import { useApp } from "../../context/AppContext";
 import Dialog from "../ui/Dialog";
@@ -23,6 +23,8 @@ export default function HotspotsTable(props: Props) {
   const [isImage, setIsImage] = createSignal(false);
   const [isBinary, setIsBinary] = createSignal(false);
   const [isPreviewLimited, setIsPreviewLimited] = createSignal(false);
+  const [nextLine, setNextLine] = createSignal<number | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = createSignal(false);
   const [selectedFilePath, setSelectedFilePath] = createSignal<string[]>([]);
   const [fileMeta, setFileMeta] = createSignal<{size: number, lines: number | null} | null>(null);
   const { t, locale } = useApp();
@@ -47,6 +49,8 @@ export default function HotspotsTable(props: Props) {
     if (unsupported) {
       setFileContent("");
       setIsImage(false);
+      setNextLine(null);
+      setIsLoadingMore(false);
       setSelectedFilePath([path]);
       const data = await getBranchFileMetadata(props.repo.path, props.repo.activeBranch!, path);
       setIsBinary(data.isBinary);
@@ -60,7 +64,9 @@ export default function HotspotsTable(props: Props) {
       const data = await getBranchFileContent(props.repo.path, props.repo.activeBranch!, path);
       setIsImage(data.isImage);
       setIsBinary(data.isBinary);
-      setIsPreviewLimited(!data.isPreviewable || data.truncated);
+      setIsPreviewLimited(!data.isPreviewable);
+      setNextLine(data.nextLine ?? (data.truncated ? data.lineCount : null));
+      setIsLoadingMore(false);
       setFileContent(data.content);
       setFileMeta({size: data.size, lines: data.lineCount});
       setSelectedFilePath([path]);
@@ -73,6 +79,31 @@ export default function HotspotsTable(props: Props) {
     }
   }
 
+  const loadMoreFileContent = async () => {
+    const path = selectedFilePath()[0];
+    const branch = props.repo.activeBranch!;
+    const startLine = nextLine();
+    if (!path || !branch || startLine === null || isLoadingMore() || isPreviewLimited()) return;
+
+    setIsLoadingMore(true);
+    try {
+      const data = await getBranchFilePage(props.repo.path, branch, path, startLine);
+      if (selectedFilePath()[0] !== path) return;
+
+      setFileContent((previous) => `${previous || ""}${data.content}`);
+      setNextLine(data.nextLine ?? (data.truncated
+        ? startLine + (data.lineCount || 0)
+        : null));
+      setFileMeta((previous) => previous
+        ? { ...previous, lines: (previous.lines || 0) + (data.lineCount || 0) }
+        : previous);
+    } catch (error) {
+      console.error("Erro ao carregar a próxima página do arquivo:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
   return (
     <div class="p-2 h-full flex flex-col overflow-hidden">
       <div class="flex items-center justify-between mb-4">
@@ -80,65 +111,70 @@ export default function HotspotsTable(props: Props) {
           <i class="fa-solid fa-fire text-orange-500"></i>
           {t('dashboard').hotspots}
         </h3>
-        <Show when={hotspots.loading}>
-          <div class="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-        </Show>
       </div>
 
-      <div class="flex-1 overflow-auto custom-scrollbar rounded-lg border border-gray-300 dark:border-gray-700">
-        <table class="table-striped">
-          <thead>
-            <tr>
-              <th class="text-[10px]">{t('file').file}</th>
-              <th class="text-right text-[10px]">{t('file').updates}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <For each={hotspots()} fallback={
+      <Show when={!hotspots.loading} fallback={
+        <div class="flex-1 flex items-center justify-center">
+          <i class="fa-solid fa-spinner animate-spin text-orange-500 text-xl"></i>
+        </div>
+      }>
+        <div class="flex-1 overflow-auto custom-scrollbar rounded-lg border border-gray-300 dark:border-gray-700">
+          <table class="table-striped">
+            <thead>
               <tr>
-                <td colspan="2" class="text-center py-10 text-xs text-gray-500 italic">
-                  {t('common').no_data}
-                </td>
+                <th class="text-[10px]">{t('file').file}</th>
+                <th class="text-right text-[10px]">{t('file').updates}</th>
               </tr>
-            }>
-              {(file) => (
-                <tr class="group" onClick={() => handleFileClick(file.name)}>
-                  <td class="max-w-[200px]">
-                    <div class="flex flex-col">
-                      <span class="truncate text-xs text-gray-900 dark:text-gray-200 font-mono group-hover:text-blue-400 transition-colors flex items-center gap-1">
-                        <FileIcon fileName={file.name.split('/').pop()} /> {file.name.split('/').pop()}
-                      </span>
-                      <span class="text-[9px] text-gray-800 dark:text-gray-400 truncate">
-                        {file.name.split('/').slice(0, -1).join('/') || './'}
-                      </span>
-                    </div>
-                  </td>
-                  <td class="text-right">
-                    <div class="flex items-center justify-end gap-2">
-                      <span class="text-xs font-bold text-orange-400 font-mono">
-                        {file.count}
-                      </span>
-                      {/* Pequena barra visual de intensidade */}
-                      <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-900 rounded-full overflow-hidden hidden sm:block">
-                        <div 
-                          class="h-full bg-orange-500/50" 
-                          style={{ 
-                            width: `${Math.min((file.count / (hotspots()?.[0]?.count || 1)) * 100, 100)}%` 
-                          }}
-                        />
-                      </div>
-                    </div>
+            </thead>
+            <tbody>
+              <For each={hotspots()} fallback={
+                <tr>
+                  <td colspan="2" class="text-center py-10 text-xs text-gray-500 italic">
+                    {t('common').no_data}
                   </td>
                 </tr>
-              )}
-            </For>
-          </tbody>
-        </table>
-      </div>
+              }>
+                {(file) => (
+                  <tr class="group" onClick={() => handleFileClick(file.name)}>
+                    <td class="max-w-[200px]">
+                      <div class="flex flex-col">
+                        <span class="truncate text-xs text-gray-900 dark:text-gray-200 font-mono group-hover:text-blue-400 transition-colors flex items-center gap-1">
+                          <FileIcon fileName={file.name.split('/').pop()} /> {file.name.split('/').pop()}
+                        </span>
+                        <span class="text-[9px] text-gray-800 dark:text-gray-400 truncate">
+                          {file.name.split('/').slice(0, -1).join('/') || './'}
+                        </span>
+                      </div>
+                    </td>
+                    <td class="text-right">
+                      <div class="flex items-center justify-end gap-2">
+                        <span class="text-xs font-bold text-orange-400 font-mono">
+                          {file.count}
+                        </span>
+                        {/* Pequena barra visual de intensidade */}
+                        <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-900 rounded-full overflow-hidden hidden sm:block">
+                          <div
+                            class="h-full bg-orange-500/50"
+                            style={{
+                              width: `${Math.min((file.count / (hotspots()?.[0]?.count || 1)) * 100, 100)}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </For>
+            </tbody>
+          </table>
+        </div>
+      </Show>
 
-      <div class="mt-3 text-[9px] text-gray-600 dark:text-gray-200 italic">
-        * {t('dashboard').basead_activit_branch}
-      </div>
+      <Show when={!hotspots.loading}>
+        <div class="mt-3 text-[9px] text-gray-600 dark:text-gray-200 italic">
+          * {t('dashboard').basead_activit_branch}
+        </div>
+      </Show>
 
       <Show when={showFileModal()}>
         <Dialog
@@ -149,6 +185,7 @@ export default function HotspotsTable(props: Props) {
         >
           <FileViewerContainer
             repoName={props.repo.name}
+            repoPath={props.repo.path}
             selectedBranch={props.repo.activeBranch!}
             selectedFilePath={selectedFilePath()}
             fileContent={fileContent()}
@@ -159,6 +196,9 @@ export default function HotspotsTable(props: Props) {
             isImage={isImage()}
             isBinary={isBinary()}
             previewLimited={isPreviewLimited()}
+            hasMoreContent={nextLine() !== null}
+            isLoadingMore={isLoadingMore()}
+            onLoadMore={loadMoreFileContent}
             showHistory={false}
             setShowHistory={() => {}}
             onFileClick={() => {}}

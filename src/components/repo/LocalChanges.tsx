@@ -1,7 +1,9 @@
 import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { commit, discard_changes, getDiff, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
+import { commit, discard_changes, getDiff, getLocalChanges, ignoreFile, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
+import { ChangeListView } from "../ui/ChangeListView";
+import LocalChangesSettingsModal from "./LocalChangesSettingsModal";
 import { useRepoContext } from "../../context/RepoContext";
 import DiffViewer from "../ui/DiffViewer";
 import { LocalChange } from "../../models/LocalChanges.model";
@@ -40,6 +42,10 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [isVisualizingStaged, setIsVisualizingStaged] = createSignal(false);
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
   const [isGeneratingAI, setIsGeneratingAI] = createSignal(false);
+  const [settingsOpen, setSettingsOpen] = createSignal(false);
+  const [viewMode, setViewMode] = createSignal<"tree" | "list">(
+    localStorage.getItem("local-changes-view-mode") === "list" ? "list" : "tree"
+  );
   const { t } = useApp();
 
   const summaryDiff = (change: LocalChange): Diff => ({
@@ -190,6 +196,27 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   };
 
+  const updateViewMode = (mode: "tree" | "list") => {
+    setViewMode(mode);
+    localStorage.setItem("local-changes-view-mode", mode);
+  };
+
+  const ignoreSelectedFile = async (filePath: string) => {
+    try {
+      await ignoreFile(props.repo.path, filePath);
+      notify.success(t('git').ignore_file, t('git').file_ignored);
+      setSelected((prev) => prev.filter((path) => path !== filePath));
+      setStagedPreparedSelected((prev) => prev.filter((path) => path !== filePath));
+      if (fileSelected() === filePath) {
+        setFileSelected("");
+        clearDiff();
+      }
+      await loadChanges();
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    }
+  };
+
   const showContextMenu = (e: MouseEvent, item: any = null) => {
     e.preventDefault();
 
@@ -206,6 +233,10 @@ export function LocalChanges(props: { repo: Repo; }) {
         label: t('branch').open_diff_vscode,
         hr: true,
         action: () => openSelectedInVsCode(item.path),
+      });
+      items.push({
+        label: t('git').ignore_file,
+        action: () => ignoreSelectedFile(item.path),
       });
     }
     items.push({ label: t('git').prepare_all, action: () => prepareAll() });
@@ -338,18 +369,37 @@ export function LocalChanges(props: { repo: Repo; }) {
         <div style={{"height": "40px"}} class="flex flex-col">
           <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 mb-3 flex items-center" onContextMenu={showContextMenu}>
             <b>{t('file').updates}</b>
-            <button class="ml-auto px-3 py-1 text-sm bg-blue-500 text-white rounded-lg disabled:opacity-50" 
+            <button
+              class="ml-auto px-2 py-1 text-gray-500 hover:text-blue-500"
+              title={t('git').settings}
+              aria-label={t('git').settings}
+              onClick={() => setSettingsOpen(true)}
+            >
+              <i class="fa-solid fa-gear"></i>
+            </button>
+            <button class="px-3 py-1 text-sm bg-blue-500 text-white rounded-lg disabled:opacity-50"
               disabled={selected().length === 0}
               onClick={() => prepare(selected())}>
               {t('git').prepare}
             </button>
           </div>
           {unstaged().length === 0 && <div class="px-4 text-center text-gray-400">{t('git').no_changes}</div>}
-          <FolderTreeView items={unstaged()} selectMode="multi"
-            selected={selected()} staged={false} showStatus={true}
-            onToggle={toggleItem} onContextMenu={showContextMenu}
-            onDbClick={(items: string[]) => prepare(items)}
-          />
+          <Show when={viewMode() === "tree"} fallback={
+            <ChangeListView
+              items={unstaged()}
+              selected={selected()}
+              staged={false}
+              onToggle={toggleItem}
+              onContextMenu={showContextMenu}
+              onDbClick={(items: string[]) => prepare(items)}
+            />
+          }>
+            <FolderTreeView items={unstaged()} selectMode="multi"
+              selected={selected()} staged={false} showStatus={true}
+              onToggle={toggleItem} onContextMenu={showContextMenu}
+              onDbClick={(items: string[]) => prepare(items)}
+            />
+          </Show>
 
           <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 flex items-center mt-2 mb-3">
             <b class="mr-1">{t('git').prepared}</b>
@@ -359,11 +409,22 @@ export function LocalChanges(props: { repo: Repo; }) {
             </button>
           </div>
           
-          <FolderTreeView items={staged()} showStatus={true}
-            selected={stagedPreparedSelected()} staged={true} selectMode="multi"
-            onToggle={toggleStagedItem} onContextMenu={showContextMenu}
-            onDbClick={(items: string[]) => unstage(items)}
-          />
+          <Show when={viewMode() === "tree"} fallback={
+            <ChangeListView
+              items={staged()}
+              selected={stagedPreparedSelected()}
+              staged={true}
+              onToggle={toggleStagedItem}
+              onContextMenu={showContextMenu}
+              onDbClick={(items: string[]) => unstage(items)}
+            />
+          }>
+            <FolderTreeView items={staged()} showStatus={true}
+              selected={stagedPreparedSelected()} staged={true} selectMode="multi"
+              onToggle={toggleStagedItem} onContextMenu={showContextMenu}
+              onDbClick={(items: string[]) => unstage(items)}
+            />
+          </Show>
         </div>
       </div>
 
@@ -428,6 +489,13 @@ export function LocalChanges(props: { repo: Repo; }) {
           </div>
         </div>
       </div>
+      <LocalChangesSettingsModal
+        open={settingsOpen()}
+        viewMode={viewMode()}
+        onViewModeChange={updateViewMode}
+        onClose={() => setSettingsOpen(false)}
+        t={t}
+      />
       <Show when={menuVisible()}>
         <ContextMenu
           name={''}

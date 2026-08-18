@@ -7,9 +7,12 @@ import { formatRelativeDate } from "../../utils/date";
 import FileIcon from "../ui/FileIcon";
 import { formatSize } from "../../utils/file";
 import CodePreviewer from "../ui/CodePreviewer";
+import { openVsCode } from "../../services/openService";
+import { notify } from "../../utils/notifications";
 
 interface FileViewerContainerProps {
   repoName: string;
+  repoPath: string;
   selectedBranch: string;
   selectedFilePath: string[];
   fileContent: string | null;
@@ -20,6 +23,9 @@ interface FileViewerContainerProps {
   isImage: boolean;
   isBinary: boolean;
   previewLimited: boolean;
+  hasMoreContent: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
   showHistory: boolean;
   setShowHistory: (show: boolean) => void;
   onFileClick: (path: string, isFile: boolean) => void;
@@ -31,6 +37,41 @@ interface FileViewerContainerProps {
 
 export function FileViewerContainer(props: FileViewerContainerProps) {
   const getSelectedFileName = () => props.selectedFilePath.length > 0 ? props.selectedFilePath[0] : "text.png";
+
+  const getLocalFilePath = () => {
+    const filePath = props.selectedFilePath[0] || "";
+    return `${props.repoPath.replace(/[\\/]+$/, "")}/${filePath.replace(/^[\\/]+/, "")}`;
+  };
+
+  const handleOpenInVsCode = async () => {
+    try {
+      await openVsCode(getLocalFilePath());
+    } catch (error) {
+      notify.error(props.t('error').error, String(error));
+    }
+  };
+
+  const handleCopyCode = async () => {
+    const content = props.fileContent || "";
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(content);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = content;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        textarea.remove();
+        if (!copied) throw new Error("Não foi possível copiar o código.");
+      }
+      notify.success(props.t('file').copy_code, props.t('file').code_copied);
+    } catch (error) {
+      notify.error(props.t('error').error, String(error));
+    }
+  };
 
   return (
     <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container">
@@ -47,14 +88,36 @@ export function FileViewerContainer(props: FileViewerContainerProps) {
                 repoName={props.repoName} 
                 onNavigate={(path) => props.onFileClick(path, false)} 
               />
-              <button 
-                class="bg-transparent border-0 ml-auto flex items-center justify-end w-[200px] hover:text-blue-500" 
-                onClick={() => props.setShowHistory(!props.showHistory)}
-              >
-                <Show when={!props.showHistory} fallback={<><i class="fa-solid fa-folder mr-2"></i> {props.t('file').files}</>}>
-                  <i class="fa-solid fa-clock-rotate-left mr-2" /> {props.t('file').history}
+              <div class="ml-auto flex items-center gap-1">
+                <Show when={!props.showHistory && !props.directoryContent}>
+                  <button
+                    class="bg-transparent border-0 px-2 py-1 hover:text-blue-500"
+                    title={props.t('file').open_in_vscode}
+                    aria-label={props.t('file').open_in_vscode}
+                    onClick={handleOpenInVsCode}
+                  >
+                    <i class="fa-solid fa-code"></i>
+                  </button>
+                  <Show when={!props.isImage && !props.isBinary && !props.previewLimited}>
+                    <button
+                      class="bg-transparent border-0 px-2 py-1 hover:text-blue-500"
+                      title={props.t('file').copy_code}
+                      aria-label={props.t('file').copy_code}
+                      onClick={handleCopyCode}
+                    >
+                      <i class="fa-regular fa-copy"></i>
+                    </button>
+                  </Show>
                 </Show>
-              </button>
+                <button
+                  class="bg-transparent border-0 px-2 py-1 hover:text-blue-500 flex items-center"
+                  onClick={() => props.setShowHistory(!props.showHistory)}
+                >
+                  <Show when={!props.showHistory} fallback={<><i class="fa-solid fa-folder mr-2"></i> {props.t('file').files}</>}>
+                    <i class="fa-solid fa-clock-rotate-left mr-2" /> {props.t('file').history}
+                  </Show>
+                </button>
+              </div>
             </Show>
           </div>
 
@@ -144,7 +207,13 @@ export function FileViewerContainer(props: FileViewerContainerProps) {
                   </div>
                 </Match>
                 <Match when={!props.isImage && !props.isBinary && !props.previewLimited}>
-                  <CodePreviewer fileName={getSelectedFileName()} content={props.fileContent || ''} />
+                  <CodePreviewer
+                    fileName={getSelectedFileName()}
+                    content={props.fileContent || ''}
+                    hasMore={props.hasMoreContent}
+                    isLoadingMore={props.isLoadingMore}
+                    onLoadMore={props.onLoadMore}
+                  />
                 </Match>
               </Switch>
             </div>

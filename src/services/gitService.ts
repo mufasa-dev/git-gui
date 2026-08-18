@@ -85,6 +85,10 @@ export async function getLocalChanges(path: string): Promise<LocalChange[]> {
   return await invoke<LocalChange[]>("list_local_changes", { path });
 }
 
+export async function ignoreFile(repoPath: string, filePath: string): Promise<string> {
+  return await invoke<string>("ignore_file", { path: repoPath, filePath });
+}
+
 export async function stageFiles(repoPath: string, paths: string[]) {
   return await invoke("stage_files", { path: repoPath, files: paths });
 }
@@ -408,6 +412,15 @@ export async function listBranchFilesWithSize(repoPath: string, branch: string):
 
 export async function getBranchFileContent(repoPath: string, branch: string, filePath: string): Promise<BranchFileContentResponse> {
   return await invoke("get_branch_file_content", { path: repoPath, branch, filePath });
+}
+
+export async function getBranchFilePage(
+  repoPath: string,
+  branch: string,
+  filePath: string,
+  startLine: number,
+): Promise<BranchFileContentResponse> {
+  return await invoke("get_branch_file_page", { path: repoPath, branch, filePath, startLine });
 }
 
 export async function getBranchFileMetadata(repoPath: string, branch: string, filePath: string): Promise<BranchFileMetadataResponse> {

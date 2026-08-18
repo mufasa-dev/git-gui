@@ -10,6 +10,7 @@ pub struct FileContentResponse {
     pub size: usize,
     pub line_count: Option<usize>,
     pub truncated: bool,
+    pub next_line: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize)]

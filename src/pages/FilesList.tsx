@@ -6,7 +6,7 @@ import { useApp } from "../context/AppContext";
 import Dialog from "../components/ui/Dialog";
 import { CommitDetails } from "../components/commits/CommitDetails";
 import { 
-  listBranchFiles, getBranchFileContent, getLastCommitForPath, 
+  listBranchFiles, getBranchFileContent, getBranchFilePage, getLastCommitForPath,
   listDirectory, getPathHistory, getCommitDetails, getBranchFileMetadata 
 } from "../services/gitService";
 import { FileSidebar } from "../components/files/FileSidebar";
@@ -31,6 +31,8 @@ export default function FileList(props: { repo: Repo }) {
   const [searchTerm, setSearchTerm] = createSignal("");
   const [isBinary, setIsBinary] = createSignal(false);
   const [isPreviewLimited, setIsPreviewLimited] = createSignal(false);
+  const [nextLine, setNextLine] = createSignal<number | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = createSignal(false);
 
   const { t, locale } = useApp();
   const { showLoading, hideLoading } = useLoading();
@@ -42,6 +44,8 @@ export default function FileList(props: { repo: Repo }) {
     setFileContent(null);
     setIsBinary(false);
     setIsPreviewLimited(false);
+    setNextLine(null);
+    setIsLoadingMore(false);
     setBranchFiles([]);
   });
 
@@ -86,6 +90,8 @@ export default function FileList(props: { repo: Repo }) {
       if (unsupported) {
         setFileContent("");
         setIsImage(false);
+        setNextLine(null);
+        setIsLoadingMore(false);
         setSelectedFilePath([path]);
         setDirectoryContent(null);
         const data = await getBranchFileMetadata(props.repo.path, selectedBranch(), path);
@@ -100,7 +106,9 @@ export default function FileList(props: { repo: Repo }) {
         const data = await getBranchFileContent(props.repo.path, selectedBranch(), path);
         setIsImage(data.isImage);
         setIsBinary(data.isBinary);
-        setIsPreviewLimited(!data.isPreviewable || data.truncated);
+        setIsPreviewLimited(!data.isPreviewable);
+        setNextLine(data.nextLine ?? (data.truncated ? data.lineCount : null));
+        setIsLoadingMore(false);
         setFileContent(data.content);
         setFileMeta({size: data.size, lines: data.lineCount});
         setSelectedFilePath([path]);
@@ -114,6 +122,8 @@ export default function FileList(props: { repo: Repo }) {
       setFileContent("");
       setIsBinary(false);
       setIsPreviewLimited(false);
+      setNextLine(null);
+      setIsLoadingMore(false);
       setSelectedFilePath([path]);
       getDirectoryContent(path);
     }
@@ -121,6 +131,31 @@ export default function FileList(props: { repo: Repo }) {
     if (path === "") setShowHistory(false);
 
     getLastCommit(path);
+  };
+
+  const loadMoreFileContent = async () => {
+    const path = selectedFilePath()[0];
+    const branch = selectedBranch();
+    const startLine = nextLine();
+    if (!path || !branch || startLine === null || isLoadingMore() || isPreviewLimited()) return;
+
+    setIsLoadingMore(true);
+    try {
+      const data = await getBranchFilePage(props.repo.path, branch, path, startLine);
+      if (selectedFilePath()[0] !== path || selectedBranch() !== branch) return;
+
+      setFileContent((previous) => `${previous || ""}${data.content}`);
+      setNextLine(data.nextLine ?? (data.truncated
+        ? startLine + (data.lineCount || 0)
+        : null));
+      setFileMeta((previous) => previous
+        ? { ...previous, lines: (previous.lines || 0) + (data.lineCount || 0) }
+        : previous);
+    } catch (error) {
+      console.error("Erro ao carregar a próxima página do arquivo:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   const handleGoBack = (currentPath: string) => {
@@ -181,7 +216,7 @@ export default function FileList(props: { repo: Repo }) {
         setSearchTerm={setSearchTerm}
         filteredFiles={filteredFiles()}
         selectedFilePath={selectedFilePath()}
-        onBranchChange={(b) => { setSelectedBranch(b); setFileContent(null); setIsBinary(false); setIsPreviewLimited(false); setDirectoryContent(null); }}
+        onBranchChange={(b) => { setSelectedBranch(b); setFileContent(null); setIsBinary(false); setIsPreviewLimited(false); setNextLine(null); setIsLoadingMore(false); setDirectoryContent(null); }}
         onFileClick={handleFileClick}
         sidebarWidth={sidebarWidth()}
         isResizing={isResizing()}
@@ -191,6 +226,7 @@ export default function FileList(props: { repo: Repo }) {
 
       <FileViewerContainer 
         repoName={props.repo.name}
+        repoPath={props.repo.path}
         selectedBranch={selectedBranch()}
         selectedFilePath={selectedFilePath()}
         fileContent={fileContent()}
@@ -201,6 +237,9 @@ export default function FileList(props: { repo: Repo }) {
         isImage={isImage()}
         isBinary={isBinary()}
         previewLimited={isPreviewLimited()}
+        hasMoreContent={nextLine() !== null}
+        isLoadingMore={isLoadingMore()}
+        onLoadMore={loadMoreFileContent}
         showHistory={showHistory()}
         setShowHistory={setShowHistory}
         onFileClick={handleFileClick}

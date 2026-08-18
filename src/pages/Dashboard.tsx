@@ -81,7 +81,6 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     if (!props.repo.path || !props.branch || isFetchingCommits) return;
 
     isFetchingCommits = true;
-    if (isNewBranch) setLoading(true);
 
     try {
       const branchName = props.branch.replace("* ", "");
@@ -101,7 +100,6 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
       const errorMessage = typeof e === 'string' ? e : String(e);
       notify.error(t('error').load_commits, errorMessage);
     } finally {
-      setLoading(false);
       isFetchingCommits = false;
     }
   };
@@ -117,10 +115,12 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     if (isNewRepoOrBranch) {
        setCurrentPage(1);
        setSelectedCommit(null);
-       loadCommits(true);
-       getFiles();
+       setCommits([]);
+       setBranchFiles([]);
+       setLoading(true);
+       void Promise.all([loadCommits(true), getFiles()]).finally(() => setLoading(false));
     } else {
-       loadCommits(false);
+       void loadCommits(false);
     }
   }));
 
@@ -182,9 +182,14 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   return (
     <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container"
          onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
-      <div class="grid grid-cols-4 grid-rows-3 gap-4 w-full h-full pl-4 bg-gray-200 dark:bg-gray-900">
-  
-        <div class="grid grid-cols-2 grid-rows-2 gap-2">
+      <Show when={!loading()} fallback={
+        <div class="flex-1 flex items-center justify-center">
+          <i class="fa-solid fa-spinner animate-spin text-blue-500 text-2xl"></i>
+        </div>
+      }>
+        <div class="grid grid-cols-4 grid-rows-3 gap-4 w-full h-full pl-4 bg-gray-200 dark:bg-gray-900">
+
+          <div class="grid grid-cols-2 grid-rows-2 gap-2">
           <div class="container-branch-list items-center justify-center">
             <span class="text-xs uppercase opacity-60">{t('dashboard').total_commits}</span>
             <h3 class="font-bold !text-5xl mb-2">{commits()?.length}</h3>
@@ -281,7 +286,8 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
           <CommitTypeDistribution commits={commits()} /> 
         </div>
 
-      </div>
+        </div>
+      </Show>
       <Show when={modalUserProfileOpen()}>
         <Dialog open={modalUserProfileOpen()} 
             onClose={() => {

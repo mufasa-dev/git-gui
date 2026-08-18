@@ -12,6 +12,7 @@ export type BranchFileContentResponse = {
     size: number;
     lineCount: number | null;
     truncated: boolean;
+    nextLine: number | null;
 }
 
 export type BranchFileMetadataResponse = {

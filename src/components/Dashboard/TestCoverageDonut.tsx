@@ -37,13 +37,16 @@ export default function TestCoverageDonut(props: Props) {
           <i class="fa-solid fa-flask text-purple-500 mr-2 text-base"></i> 
           {t('dashboard').test_coverage}
         </h3>
-        <Show when={data.loading}>
-          <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        </Show>
+
       </div>
 
-      {/* Container Principal: Grid que escala */}
-      <div class="grid grid-cols-12 gap-4 flex-1 items-center">
+      <Show when={!data.loading} fallback={
+        <div class="flex-1 flex items-center justify-center">
+          <i class="fa-solid fa-spinner animate-spin text-purple-500 text-xl"></i>
+        </div>
+      }>
+        {/* Container Principal: Grid que escala */}
+        <div class="grid grid-cols-12 gap-4 flex-1 items-center">
         
         {/* Gráfico (Ocupa 5 de 12 colunas em telas médias+) */}
         <div class="col-span-5 flex justify-center items-center relative">
@@ -109,7 +112,8 @@ export default function TestCoverageDonut(props: Props) {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </Show>
     </div>
   );
 }

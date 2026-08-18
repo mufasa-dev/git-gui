@@ -310,6 +310,53 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
     Ok(changes)
 }
 
+fn normalize_gitignore_entry(file_path: &str) -> Result<String, String> {
+    let normalized = file_path.trim().replace('\\', "/");
+    let relative = normalized.trim_start_matches("./").to_string();
+    let path = Path::new(&relative);
+
+    if relative.is_empty() || path.is_absolute() {
+        return Err("O caminho do arquivo precisa ser relativo ao repositório".to_string());
+    }
+
+    if path.components().any(|component| {
+        matches!(
+            component,
+            std::path::Component::ParentDir | std::path::Component::Prefix(_)
+        )
+    }) {
+        return Err("O caminho do arquivo não pode sair da raiz do repositório".to_string());
+    }
+
+    if relative.starts_with('#') || relative.starts_with('!') {
+        Ok(format!("\\{}", relative))
+    } else {
+        Ok(relative)
+    }
+}
+
+#[command]
+pub fn ignore_file(path: String, file_path: String) -> Result<String, String> {
+    let entry = normalize_gitignore_entry(&file_path)?;
+    let gitignore_path = Path::new(&path).join(".gitignore");
+    let mut content = if gitignore_path.exists() {
+        fs::read_to_string(&gitignore_path).map_err(|error| error.to_string())?
+    } else {
+        String::new()
+    };
+
+    if !content.lines().any(|line| line.trim() == entry) {
+        if !content.is_empty() && !content.ends_with('\n') {
+            content.push('\n');
+        }
+        content.push_str(&entry);
+        content.push('\n');
+        fs::write(&gitignore_path, content).map_err(|error| error.to_string())?;
+    }
+
+    Ok(entry)
+}
+
 /// Stage arquivos (git add)
 #[command]
 pub fn stage_files(path: String, files: Vec<String>) -> Result<(), String> {
@@ -588,5 +635,19 @@ mod tests {
         assert!(status_has_conflict(b"AA src/main.rs"));
         assert!(status_has_conflict(b"DD src/main.rs"));
         assert!(!status_has_conflict(b" M src/main.rs"));
+    }
+
+    #[test]
+    fn normalizes_gitignore_entries() {
+        assert_eq!(
+            normalize_gitignore_entry("src\\generated.js").unwrap(),
+            "src/generated.js"
+        );
+        assert_eq!(
+            normalize_gitignore_entry("./tmp/cache").unwrap(),
+            "tmp/cache"
+        );
+        assert!(normalize_gitignore_entry("../outside.txt").is_err());
+        assert!(normalize_gitignore_entry("C:\\outside.txt").is_err());
     }
 }
