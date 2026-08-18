@@ -291,7 +291,20 @@ export const IGNORED_EXTENSIONS = [
   'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', 'depren'
 ];
 
+export const PREVIEW_MAX_BYTES = 2 * 1024 * 1024;
+export const PREVIEW_MAX_LINES = 1000;
+
 export const UNSUPPORTED_EXTENSIONS = [
-  '.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.bin', '.mp4', '.mkv', 
-  '.mov', '.mp3', '.ogg', '.avi', '.ds_store', '.ifc', '.bim'
+  '.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.bin', '.dll', '.so', '.dylib',
+  '.mp4', '.mkv', '.mov', '.mp3', '.ogg', '.wav', '.avi', '.webm',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.ds_store', '.ifc', '.bim', '.rvt', '.rfa', '.nwd', '.nwc',
+  '.blend', '.fbx', '.obj', '.gltf', '.glb', '.3d', '.3dm', '.3mf', '.x3d', '.3ds', '.max', '.ma', '.mb',
+  '.step', '.stp', '.iges', '.igs', '.dwg', '.dxf', '.e57', '.las', '.laz',
+  '.psd', '.ai', '.skp', '.dae', '.stl'
 ];
+
+export function isUnsupportedPreviewFile(filename: string): boolean {
+  const normalized = filename.toLowerCase();
+  return UNSUPPORTED_EXTENSIONS.some(extension => normalized.endsWith(extension));
+}

@@ -6,6 +6,7 @@ import { Commit, FileEntry } from "../models/Commit.model";
 import { CoverageStats } from "../models/Dashboard.model";
 import { Stash } from "../models/Stash.model";
 import { Tag, TagKind } from "../models/Tag.model";
+import { LocalChange } from "../models/LocalChanges.model";
 
 export async function validateRepo(path: string): Promise<string> {
   return await invoke("open_repo", { path });
@@ -80,10 +81,8 @@ export async function getCommitDetails(path: string, hash: string) {
   }>("get_commit_details", { path, hash });
 }
 
-export async function getLocalChanges(path: string) {
-  return await invoke<
-    { path: string; status: string; staged: boolean }[]
-  >("list_local_changes", { path });
+export async function getLocalChanges(path: string): Promise<LocalChange[]> {
+  return await invoke<LocalChange[]>("list_local_changes", { path });
 }
 
 export async function stageFiles(repoPath: string, paths: string[]) {

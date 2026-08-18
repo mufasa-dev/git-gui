@@ -10,6 +10,7 @@ import forkIcon from "../../assets/fork.png";
 import alertIcon from "../../assets/alert.png";
 import { openVsCodeDiff } from "../../services/openService";
 import { highlightCode } from "../../utils/highlight";
+import { formatSize } from "../../utils/file";
 import { useApp } from "../../context/AppContext";
 
 type Props = {
@@ -85,15 +86,15 @@ export default function DiffViewer(props: Props) {
 
   const isBinary = createMemo(() => {
     const d = props.diff.diff || "";
-    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico'];
-    const isImageExtension = imageExtensions.some(ext => props.file.toLowerCase().endsWith(ext));
-    
-    return (
-      d.includes("Binary files") || 
-      d.includes("GIT binary patch") || 
-      (isImageExtension && d.includes("new file mode"))
-    );
+    return Boolean(props.diff.isBinary) || d.includes("Binary files") || d.includes("GIT binary patch");
   });
+
+  const previewUnavailable = createMemo(() => Boolean(props.file) && (
+    isBinary() || props.diff.isPreviewable === false || Boolean(props.diff.truncated)
+  ));
+
+  const isImageDiff = createMemo(() => Boolean(props.diff.oldFile || props.diff.newFile) &&
+    /\.(png|jpe?g|gif|webp|ico)$/i.test(props.file));
   const [oldImg, setOldImg] = createSignal<string>();
   const [newImg, setNewImg] = createSignal<string>();
 
@@ -126,8 +127,21 @@ export default function DiffViewer(props: Props) {
 
   const hasConflict = createMemo(() => {
     const diff = props.diff.diff || "";
-    return diff.includes("<<<<<<<") && diff.includes("=======") && diff.includes(">>>>>>>");
+    return Boolean(props.diff.hasConflict) || (
+      diff.includes("<<<<<<<") && diff.includes("=======") && diff.includes(">>>>>>>")
+    );
   });
+
+  const canResolveConflict = createMemo(() => hasConflict() && !props.isStaged &&
+    !previewUnavailable() && Boolean(props.diff.newFile));
+
+  const handleOpenVsCode = async () => {
+    try {
+      await openVsCodeDiff(props.path, props.file);
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    }
+  };
 
   const saveFileOnSave = async (resolvedContent: string) => {
     try {
@@ -144,16 +158,16 @@ export default function DiffViewer(props: Props) {
 
   return (
     <>
-      <Show when={isBinary() && !hasConflict()}>
+      <Show when={isBinary() && isImageDiff() && !hasConflict()}>
         <div class="h-[100%] py-2">
           <div class="flex gap-4 p-4 border border-gray-300 dark:border-gray-900 rounded-md h-[100%] items-center">
-            <div class="flex-1 flex flex-col items-center justify-center h-[100%] border-r dark:border-gray-900"> 
+            <div class="flex-1 flex flex-col items-center justify-center h-[100%] border-r dark:border-gray-900">
               <p class="text-sm text-gray-500 mb-auto">{t('merge').old_version}</p>
               <Show when={oldImg()} fallback={<p class="text-gray-400 mb-auto">{t('merge').not_avaliable}</p>}>
                 <img src={oldImg()} alt="Versão antiga" class="max-w-full max-h-96 object-contain mx-auto mb-auto" />
               </Show>
             </div>
-            <div class="flex-1 flex flex-col items-center justify-center h-[100%] border-r-1 dark:border-r-gray-500">
+            <div class="flex-1 flex flex-col items-center justify-center h-[100%]">
               <p class="text-sm text-gray-500 mb-auto">{t('merge').new_version}</p>
               <Show when={newImg()} fallback={<p class="text-gray-400 mb-auto">{t('merge').not_avaliable}</p>}>
                 <img src={newImg()} alt="Versão nova" class="max-w-full max-h-96 object-contain mx-auto mb-auto" />
@@ -162,7 +176,30 @@ export default function DiffViewer(props: Props) {
           </div>
         </div>
       </Show>
-      <Show when={!isBinary() && (!hasConflict() || (hasConflict() && props.isStaged))}>
+
+      <Show when={previewUnavailable() && !isImageDiff()}>
+        <div class="h-full flex items-center justify-center p-8">
+          <div class="max-w-xl w-full rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-8 text-center">
+            <i class="fa-solid fa-file-circle-exclamation text-5xl text-amber-500 mb-4"></i>
+            <h2 class="text-xl font-semibold mb-2">{t('file').preview_unavailable}</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-3">
+              {isBinary() ? t('file').cannot_see_ext.replace('{{ext}}', props.file.split('.').pop()?.toUpperCase() || '') : t('file').preview_limited}
+            </p>
+            <Show when={props.diff.size !== undefined}>
+              <p class="text-xs text-gray-500 mb-5">{t('file').size}: {formatSize(props.diff.size || 0)}</p>
+            </Show>
+            <button
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white"
+              onClick={handleOpenVsCode}
+            >
+              <img src={vsCodeIcon} class="h-5" />
+              {t('repository').vs_code}
+            </button>
+          </div>
+        </div>
+      </Show>
+
+      <Show when={!previewUnavailable() && (!hasConflict() || props.isStaged)}>
         <div class="w-full max-w-[200px] min-w-full h-[100px]">
           <div class="font-mono text-sm rounded-md w-full custom-scrollbar">
             <div class="min-w-max flex flex-col">
@@ -179,19 +216,14 @@ export default function DiffViewer(props: Props) {
                         : "hover:bg-gray-50 dark:hover:bg-white/5"
                     }`}
                   >
-                    {/* Número da Linha Antiga */}
                     <div class="w-12 min-w-[48px] text-right px-2 text-gray-400 select-none border-r border-gray-300 dark:border-gray-700 text-[11px] flex items-center justify-end bg-gray-50/50 dark:bg-slate-900/20">
                       <Show when={line.oldLine !== undefined}>{line.oldLine}</Show>
                     </div>
-                    
-                    {/* Número da Linha Nova */}
                     <div class="w-12 min-w-[48px] text-right px-2 text-gray-400 select-none border-r border-gray-300 dark:border-gray-700 text-[11px] flex items-center justify-end bg-gray-50/50 dark:bg-slate-900/20">
                       <Show when={line.newLine !== undefined}>{line.newLine}</Show>
                     </div>
-                    
-                    {/* Conteúdo do Código */}
-                    <div 
-                      class="flex-1 px-4 whitespace-pre select-text font-mono leading-6 alignment-baseline" 
+                    <div
+                      class="flex-1 px-4 whitespace-pre select-text font-mono leading-6 alignment-baseline"
                       innerHTML={highlightCode(line.content, props.file)}
                     />
                   </div>
@@ -201,37 +233,28 @@ export default function DiffViewer(props: Props) {
           </div>
         </div>
       </Show>
-     <Show when={hasConflict() && !props.isStaged}>
-        <div class="flex flex-col items-center justify-center h-full w-full h-100 p-8 text-center rounded-lg">
-          {/* Ícone Hero Centralizado */}
+
+      <Show when={hasConflict() && !props.isStaged && !previewUnavailable()}>
+        <div class="flex flex-col items-center justify-center h-full w-full p-8 text-center rounded-lg">
           <div class="relative flex items-center justify-center w-32 h-32 mb-8">
             <img src={forkIcon} class="inline h-100 w-100" />
-            {/* Ponto de exclamação de alerta */}
             <div class="absolute -bottom-2 -right-2 p-2">
               <img src={alertIcon} class="h-12 w-12" />
             </div>
           </div>
-
-          {/* Título e Descrição */}
           <h2 class="text-3xl font-bold text-black dark:text-white mb-3">{t('merge').conflict_on.replace('{{file}}', props.file)}</h2>
-          <p class="text-slate-400 text-lg max-w-xl mb-10">
-            {t('merge').select_merge_strategy}
-          </p>
-
-          {/* Grupo de Botões de Ação */}
+          <p class="text-slate-400 text-lg max-w-xl mb-10">{t('merge').select_merge_strategy}</p>
           <div class="flex items-center gap-6 mb-8">
             <button
+              disabled={!canResolveConflict()}
               onClick={() => setShowMergeResolver(true)}
-              class="flex items-center gap-3 px-4 py-2 rounded-lg text-lg font-semibold bg-blue-500 hover:bg-blue-400 text-white transition-colors duration-200 shadow-md group"
+              class="flex items-center gap-3 px-4 py-2 rounded-lg text-lg font-semibold bg-blue-500 hover:bg-blue-400 disabled:opacity-40 text-white transition-colors duration-200 shadow-md"
             >
               {t('merge').resolve_conflict}
             </button>
-
             <button
-              class="flex items-center gap-3 px-4 py-2 rounded-lg text-lg font-medium bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 transition-colors duration-200 shadow group"
-              onClick={() => {
-                openVsCodeDiff(props.path, props.file);
-              }}
+              class="flex items-center gap-3 px-4 py-2 rounded-lg text-lg font-medium bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 transition-colors duration-200 shadow"
+              onClick={handleOpenVsCode}
             >
               <img src={vsCodeIcon} class="inline h-6" />
               {t('merge').show_on_vs_code}
@@ -239,10 +262,12 @@ export default function DiffViewer(props: Props) {
           </div>
         </div>
       </Show>
-      <Dialog open={showMergeResolver()} title="Resolver Conflitos" onClose={() => setShowMergeResolver(false)} width="1200px">
-        <MergeResolver diffContent={props.diff.diff} 
-          onClose={() => setShowMergeResolver(false)} 
-          onSave={(resolvedContent) => saveFileOnSave(resolvedContent)} 
+      <Dialog open={showMergeResolver()} title={t('merge').resolve_conflicts} onClose={() => setShowMergeResolver(false)} bodyClass="p-0" width="min(1200px, 95vw)" height="min(850px, 92vh)">
+        <MergeResolver
+          diffContent={props.diff.diff}
+          fileName={props.file}
+          onClose={() => setShowMergeResolver(false)}
+          onSave={(resolvedContent) => saveFileOnSave(resolvedContent)}
         />
       </Dialog>
     </>

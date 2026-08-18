@@ -1,6 +1,6 @@
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { For, Show, createMemo } from "solid-js";
 import { highlightCode } from "../../utils/highlight";
-import { getExtension } from "../../utils/file";
+import { PREVIEW_MAX_LINES } from "../../utils/file";
 import { useApp } from "../../context/AppContext";
 
 type Props = {
@@ -9,10 +9,6 @@ type Props = {
 };
 
 export default function CodePreviewer(props: Props) {
-    const MAX_INITIAL_LINES = 1500;
-
-    const extension = createMemo(() => getExtension(props.fileName));
-    const [showFullFile, setShowFullFile] = createSignal(false);
     const { t } = useApp();
 
     const allLines = createMemo(() => {
@@ -21,12 +17,10 @@ export default function CodePreviewer(props: Props) {
     });
 
     const visibleLines = createMemo(() => {
-        if (showFullFile()) return allLines();
-        
-        return allLines().slice(0, MAX_INITIAL_LINES);
+        return allLines().slice(0, PREVIEW_MAX_LINES);
     });
 
-    const isLargeFile = createMemo(() => allLines().length > MAX_INITIAL_LINES);
+    const isLargeFile = createMemo(() => allLines().length > PREVIEW_MAX_LINES);
 
     return (
         <div class="h-full flex flex-col min-w-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md overflow-hidden">
@@ -50,24 +44,10 @@ export default function CodePreviewer(props: Props) {
                     </tbody>
                 </table>
 
-                {/* Mostra o aviso apenas se for um arquivo grande e ainda não foi expandido */}
-                <Show when={isLargeFile() && !showFullFile()}>
+                <Show when={isLargeFile()}>
                     <div class="p-4 bg-yellow-100 dark:bg-yellow-900/10 text-yellow-700 dark:text-yellow-500 text-xs text-center border-t dark:border-gray-800">
                         <i class="fa-solid fa-triangle-exclamation mr-2"></i>
-                        {t('file').big_file} ({allLines().length} {t('file').lines}). {t('file').showing_first} {MAX_INITIAL_LINES} {t('file').lines}.
-                        <button 
-                            class="ml-2 underline font-bold hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors" 
-                            onClick={() => setShowFullFile(true)}
-                        >
-                            {t('file').load_complete_file}
-                        </button>
-                    </div>
-                </Show>
-
-                {/* Feedback visual de que o arquivo está completo (opcional) */}
-                <Show when={showFullFile() && isLargeFile()}>
-                    <div class="p-2 text-center text-[10px] text-gray-400 italic opacity-50">
-                        {t('file').end_file}
+                        {t('file').big_file} ({allLines().length} {t('file').lines}). {t('file').showing_first} {PREVIEW_MAX_LINES} {t('file').lines}.
                     </div>
                 </Show>
             </div>

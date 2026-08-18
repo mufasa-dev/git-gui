@@ -12,11 +12,11 @@ export async function openBrowser(url: string): Promise<string[]> {
   return await invoke("open_browser", { url });
 }
 
-export async function openVsCode(path: string): Promise<string[]> {
-  return await invoke("open_vscode", { path });
+export async function openVsCode(path: string): Promise<void> {
+  await invoke("open_vscode", { path });
 }
 
-export async function openVsCodeDiff(repoPath: string, filePath: string) {
+export async function openVsCodeDiff(repoPath: string, filePath: string): Promise<void> {
   await invoke("open_vscode_git_diff", { repoPath, filePath });
 }
 

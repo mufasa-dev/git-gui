@@ -343,6 +343,7 @@
     "end_file": "Fine del file",
     "select_file_branch": "Seleziona un file nel branch",
     "preview_unavailable": "Anteprima non disponibile",
+    "preview_limited": "Questo file è troppo grande per un'anteprima sicura. Aprilo in VS Code per visualizzarne il contenuto completo.",
     "cannot_see_ext": "I file di tipo {{ext}} non possono essere visualizzati."
   },
   "test": {
@@ -425,7 +426,22 @@
     "merged_version": "Versione unita",
     "conflicts_resolved": "Conflitti risolti e salvati!",
     "pull_strategy_changed": "Strategia di pull aggiornata!",
-    "changing_to": "Cambiando alla strategia di pull {{strategy}}..."
+    "changing_to": "Cambiando alla strategia di pull {{strategy}}...",
+    "merge_incomplete": "Merge incompleto",
+    "unresolved_conflicts": "conflitti irrisolti",
+    "conflicts_found": "conflitti trovati",
+    "reset_auto": "Ripristina automatico",
+    "reset_all": "Ripristina tutto",
+    "complete_merge": "Completa merge",
+    "resolved": "Risolto",
+    "unresolved": "Irrisolto",
+    "line": "Riga",
+    "lines": "righe",
+    "current": "Attuale",
+    "incoming": "Incoming",
+    "both": "Entrambi",
+    "reset": "Ripristina",
+    "manual_edit": "Modifica manuale"
   },
   "dashboard": {
     "dashboard": "Dashboard",

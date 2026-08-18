@@ -343,6 +343,7 @@
     "end_file": "ファイルの終端",
     "select_file_branch": "ブランチ内のファイルを選択してください",
     "preview_unavailable": "プレビューは利用できません",
+    "preview_limited": "このファイルは安全にプレビューできないほど大きいため、完全な内容は VS Code で開いてください。",
     "cannot_see_ext": "{{ext}} 形式のファイルは表示できません。"
   },
   "test": {
@@ -425,7 +426,22 @@
     "merged_version": "マージされたバージョン",
     "conflicts_resolved": "競合が解決し保存されました！",
     "pull_strategy_changed": "プル戦略が更新されました！",
-    "changing_to": "{{strategy}} プル戦略に変更しています..."
+    "changing_to": "{{strategy}} プル戦略に変更しています...",
+    "merge_incomplete": "マージが未完了です",
+    "unresolved_conflicts": "未解決の競合",
+    "conflicts_found": "競合が見つかりました",
+    "reset_auto": "自動に戻す",
+    "reset_all": "すべてリセット",
+    "complete_merge": "マージを完了",
+    "resolved": "解決済み",
+    "unresolved": "未解決",
+    "line": "行",
+    "lines": "行",
+    "current": "現在",
+    "incoming": "Incoming",
+    "both": "両方",
+    "reset": "リセット",
+    "manual_edit": "手動編集"
   },
   "dashboard": {
     "dashboard": "ダッシュボード",

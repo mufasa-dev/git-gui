@@ -1,7 +1,100 @@
-use serde_json::{json};
-use std::process::Stdio;
-use crate::{models::branch::{FileContentResponse, FileMetadataResponse}, utils::git_command_async};
 use base64::{Engine as _, engine::general_purpose};
+use serde_json::json;
+use std::process::Stdio;
+use tokio::io::AsyncReadExt;
+use crate::{models::branch::{FileContentResponse, FileMetadataResponse}, utils::git_command_async};
+
+const PREVIEW_MAX_BYTES: usize = 2 * 1024 * 1024;
+const PREVIEW_MAX_LINES: usize = 1000;
+
+fn is_unsupported_extension(file_path: &str) -> bool {
+    let extension = file_path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+    matches!(extension.as_str(),
+        "zip" | "rar" | "7z" | "tar" | "gz" | "exe" | "bin" | "dll" | "so" | "dylib" |
+        "mp4" | "mkv" | "mov" | "mp3" | "ogg" | "wav" | "avi" | "webm" |
+        "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" |
+        "ifc" | "bim" | "rvt" | "rfa" | "nwd" | "nwc" | "blend" | "fbx" | "obj" |
+        "gltf" | "glb" | "3d" | "3dm" | "3mf" | "x3d" | "3ds" | "max" | "ma" | "mb" | "step" | "stp" | "iges" |
+        "igs" | "dwg" | "dxf" | "e57" | "las" | "laz" | "psd" | "ai" | "skp" |
+        "dae" | "stl")
+}
+
+fn is_binary_bytes(bytes: &[u8]) -> bool {
+    bytes.contains(&0) || std::str::from_utf8(bytes).is_err()
+}
+
+fn preview_text(bytes: &[u8]) -> (String, usize, bool) {
+    let byte_limit = bytes.len() > PREVIEW_MAX_BYTES;
+    let text = String::from_utf8_lossy(&bytes[..bytes.len().min(PREVIEW_MAX_BYTES)]);
+    let mut content = String::new();
+    let mut line_count = 0;
+    let mut truncated = byte_limit;
+
+    for line in text.split_inclusive('\n') {
+        if line_count >= PREVIEW_MAX_LINES {
+            truncated = true;
+            break;
+        }
+        content.push_str(line);
+        line_count += 1;
+    }
+
+    if !text.is_empty() && !text.ends_with('\n') && line_count < PREVIEW_MAX_LINES && content.len() < text.len() {
+        content.push_str(&text[content.len()..]);
+        line_count += 1;
+    }
+
+    if content.len() < text.len() {
+        truncated = true;
+    }
+
+    (content, line_count, truncated)
+}
+
+async fn bounded_git_show(repo_path: &str, target: &str) -> Result<(Vec<u8>, bool), String> {
+    let mut child = git_command_async(repo_path)
+        .args(["show", target])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| error.to_string())?;
+
+    let stdout = child.stdout.take().ok_or_else(|| "Não foi possível ler o arquivo".to_string())?;
+    let mut bytes = Vec::with_capacity(PREVIEW_MAX_BYTES + 1);
+    stdout.take((PREVIEW_MAX_BYTES + 1) as u64)
+        .read_to_end(&mut bytes)
+        .await
+        .map_err(|error| error.to_string())?;
+    let truncated = bytes.len() > PREVIEW_MAX_BYTES;
+
+    if truncated {
+        let _ = child.kill().await;
+    }
+
+    let status = child.wait().await.map_err(|error| error.to_string())?;
+    if !status.success() && !truncated {
+        return Err("Não foi possível ler o arquivo na branch".to_string());
+    }
+
+    Ok((bytes, truncated))
+}
+
+async fn branch_file_size(repo_path: &str, target: &str) -> Result<usize, String> {
+    let output = git_command_async(repo_path)
+        .args(["cat-file", "-s", target])
+        .output()
+        .await
+        .map_err(|error| error.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .parse::<usize>()
+        .map_err(|error| error.to_string())
+}
 
 #[tauri::command]
 pub async fn list_branches(path: String) -> Result<Vec<String>, String> {
@@ -262,46 +355,65 @@ pub async fn list_branch_files_with_size(path: String, branch: String) -> Result
 
 #[tauri::command]
 pub async fn get_branch_file_content(
-    path: String, 
-    branch: String, 
+    path: String,
+    branch: String,
     file_path: String
 ) -> Result<FileContentResponse, String> {
     let target = format!("{}:{}", branch, file_path);
+    let size = branch_file_size(&path, &target).await?;
+    let ext = file_path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+    let is_image = matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "ico" | "gif" | "webp");
 
-    let output = git_command_async(&path)
-        .args(["show", &target])
-        .output()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !output.status.success() {
-        return Err(format!("Erro ao ler arquivo: {}", String::from_utf8_lossy(&output.stderr)));
+    if is_unsupported_extension(&file_path) || size > PREVIEW_MAX_BYTES {
+        return Ok(FileContentResponse {
+            is_image: false,
+            is_binary: true,
+            is_previewable: false,
+            content: String::new(),
+            size,
+            line_count: None,
+            truncated: size > PREVIEW_MAX_BYTES,
+        });
     }
 
-    let raw_bytes = &output.stdout;
-    let size = raw_bytes.len();
-    let ext = file_path.split('.').last().unwrap_or("").to_lowercase();
-    let is_image = matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "ico" | "gif" | "webp");
+    let (raw_bytes, byte_truncated) = bounded_git_show(&path, &target).await?;
+    let is_binary = is_binary_bytes(&raw_bytes);
 
     if is_image {
         let b64 = general_purpose::STANDARD.encode(raw_bytes);
-        Ok(FileContentResponse {
+        return Ok(FileContentResponse {
             is_image: true,
+            is_binary: false,
+            is_previewable: true,
             content: format!("data:image/{};base64,{}", ext, b64),
             size,
             line_count: None,
-        })
-    } else {
-        let content = String::from_utf8_lossy(raw_bytes).to_string();
-        let line_count = Some(content.lines().count());
-
-        Ok(FileContentResponse {
-            is_image: false,
-            content,
-            size,
-            line_count,
-        })
+            truncated: byte_truncated,
+        });
     }
+
+    if is_binary {
+        return Ok(FileContentResponse {
+            is_image: false,
+            is_binary: true,
+            is_previewable: false,
+            content: String::new(),
+            size,
+            line_count: None,
+            truncated: byte_truncated,
+        });
+    }
+
+    let (content, line_count, truncated) = preview_text(&raw_bytes);
+    Ok(FileContentResponse {
+        is_image: false,
+        is_binary: false,
+        is_previewable: !truncated,
+        content,
+        size,
+        line_count: Some(line_count),
+        truncated: byte_truncated || truncated,
+    })
 }
 
 #[tauri::command]
@@ -310,39 +422,45 @@ pub async fn get_file_metadata(
     branch: String,
     file_path: String
 ) -> Result<FileMetadataResponse, String> {
-    let output = git_command_async(&path)
-        .args(["ls-tree", "-l", &branch, &file_path])
-        .output()
-        .await
-        .map_err(|e| e.to_string())?;
+    let target = format!("{}:{}", branch, file_path);
+    let size = branch_file_size(&path, &target).await?;
 
-    if !output.status.success() {
-        return Err("Arquivo não encontrado ou erro no git".into());
+    if is_unsupported_extension(&file_path) || size > PREVIEW_MAX_BYTES {
+        return Ok(FileMetadataResponse {
+            size,
+            is_binary: true,
+            is_previewable: false,
+        });
     }
 
-    let output = git_command_async(&path)
-        .args(["ls-tree", "-l", &branch, &file_path])
-        .output()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !output.status.success() {
-        return Err("Arquivo não encontrado ou erro no git".into());
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let line = stdout.lines().next().ok_or("Arquivo não encontrado")?;
-    
-    let parts: Vec<&str> = line.split_whitespace().collect();
-    
-    if parts.len() < 4 {
-        return Err("Formato de saída do Git inválido".into());
-    }
-
-    let size = parts[3].parse::<usize>().unwrap_or(0);
+    let (sample, _) = bounded_git_show(&path, &target).await?;
+    let is_binary = is_binary_bytes(&sample);
 
     Ok(FileMetadataResponse {
         size,
-        is_binary: true,
+        is_binary,
+        is_previewable: !is_binary,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preview_limits_branch_content() {
+        let content = (0..1200).map(|line| format!("line-{line}\n")).collect::<String>();
+        let (_, line_count, truncated) = preview_text(content.as_bytes());
+
+        assert_eq!(line_count, PREVIEW_MAX_LINES);
+        assert!(truncated);
+    }
+
+    #[test]
+    fn identifies_non_text_branch_files() {
+        assert!(is_unsupported_extension("building.ifc"));
+        assert!(is_unsupported_extension("manual.pdf"));
+        assert!(!is_unsupported_extension("src/main.rs"));
+        assert!(is_binary_bytes(&[0x00, 0x01, 0x02]));
+    }
 }

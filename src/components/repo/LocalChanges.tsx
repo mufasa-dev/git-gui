@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { commit, discard_changes, getDiff, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
@@ -12,6 +12,7 @@ import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
 import { generateCommitSuggestion } from "../../services/aiService";
+import { PREVIEW_MAX_BYTES } from "../../utils/file";
 
 let isRefreshing = false;
 
@@ -41,14 +42,26 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [isGeneratingAI, setIsGeneratingAI] = createSignal(false);
   const { t } = useApp();
 
+  const summaryDiff = (change: LocalChange): Diff => ({
+    diff: "",
+    size: change.size,
+    lineCount: change.lineCount,
+    isBinary: change.isBinary,
+    isPreviewable: false,
+    truncated: change.size !== undefined && change.size > PREVIEW_MAX_BYTES,
+    hasConflict: change.status === "conflicted",
+    reason: change.isBinary ? "binary" : "unsupported_or_large",
+    newFile: change.path,
+  });
+
   const loadChanges = async () => {
     if (!props.repo.path || isMerging() || isRefreshing) return;
-    
+
     isRefreshing = true;
-    
+
     try {
       const res = await getLocalChanges(props.repo.path);
-      
+
       if (JSON.stringify(res) !== JSON.stringify(changes())) {
         setChanges(res);
       }
@@ -57,11 +70,14 @@ export function LocalChanges(props: { repo: Repo; }) {
       setSelected(prev => prev.filter(p => currentPaths.includes(p)));
       setStagedPreparedSelected(prev => prev.filter(p => currentPaths.includes(p)));
 
-      if (fileSelected()) {
-        const fileExists = res.find(c => c.path === fileSelected());
+      const selectedPath = fileSelected();
+      if (selectedPath) {
+        const fileExists = res.find(c => c.path === selectedPath);
         if (fileExists) {
-          const newDiff = await getDiff(props.repo.path, fileSelected(), fileExists.staged);
-          if (newDiff.diff !== diff().diff) {
+          const newDiff = fileExists.isPreviewable === false
+            ? summaryDiff(fileExists)
+            : await getDiff(props.repo.path, selectedPath, fileExists.staged);
+          if (newDiff.diff !== diff().diff || newDiff.reason !== diff().reason || newDiff.truncated !== diff().truncated) {
             setDiff(newDiff);
           }
         } else {
@@ -96,10 +112,6 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   };
 
-  const currentFileChange = createMemo(() => {
-    return changes().find(c => c.path === fileSelected() && c.staged === isVisualizingStaged());
-  });
-  
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
   const handleFocus = () => {
@@ -132,7 +144,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const staged = () => changes().filter((c) => c.staged && c.status !== "untracked");
   const unstaged = () => changes().filter((c) => !c.staged || c.status == "untracked");
 
-  const toggleItem = (path: string, select: boolean, isFile: boolean) => {
+  const toggleItem = (path: string, select: boolean, _isFile: boolean) => {
     if (path === fileSelected()) {
       clearDiff();
       setFileSelected("");
@@ -170,6 +182,14 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   };
 
+  const openSelectedInVsCode = async (filePath: string) => {
+    try {
+      await openVsCodeDiff(props.repo.path, filePath);
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    }
+  };
+
   const showContextMenu = (e: MouseEvent, item: any = null) => {
     e.preventDefault();
 
@@ -185,7 +205,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       items.push({
         label: t('branch').open_diff_vscode,
         hr: true,
-        action: () => openVsCodeDiff(props.repo.path, item.path),
+        action: () => openSelectedInVsCode(item.path),
       });
     }
     items.push({ label: t('git').prepare_all, action: () => prepareAll() });
@@ -205,10 +225,29 @@ export function LocalChanges(props: { repo: Repo; }) {
   onCleanup(() => document.removeEventListener("click", hideContextMenu));
 
   const loadDiff = async (staged: boolean) => {
-    console.log("Loading diff for", fileSelected(), "staged:", staged, props.repo.path);
-    const result = await getDiff(props.repo.path, fileSelected(), staged);
-    console.log("Diff loaded:", result);
-    setDiff(result);
+    const selectedPath = fileSelected();
+    const change = changes().find(item => item.path === selectedPath && item.staged === staged)
+      ?? changes().find(item => item.path === selectedPath);
+
+    if (!change) {
+      clearDiff();
+      return;
+    }
+
+    if (change.isPreviewable === false) {
+      setDiff(summaryDiff(change));
+      return;
+    }
+
+    try {
+      const result = await getDiff(props.repo.path, selectedPath, staged);
+      if (fileSelected() === selectedPath) {
+        setDiff(result);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar diff:", error);
+      notify.error(t('error').load_file, String(error));
+    }
   }
 
   const prepare = async (paths: string[]) => {
@@ -273,7 +312,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
     try {
       showLoading("Realizando commit...");
-      const res = await commit(props.repo.path, commitMessage(), commitDescription(), commitAmend());
+      await commit(props.repo.path, commitMessage(), commitDescription(), commitAmend());
       setCommitMessage("");
       setCommitDescription("");
       setCommitAmend(false);

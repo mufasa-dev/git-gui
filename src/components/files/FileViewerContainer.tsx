@@ -19,6 +19,7 @@ interface FileViewerContainerProps {
   fileMeta: { size: number; lines: number | null } | null;
   isImage: boolean;
   isBinary: boolean;
+  previewLimited: boolean;
   showHistory: boolean;
   setShowHistory: (show: boolean) => void;
   onFileClick: (path: string, isFile: boolean) => void;
@@ -112,22 +113,26 @@ export function FileViewerContainer(props: FileViewerContainerProps) {
 
           {/* Visualizador de Arquivo */}
           <Show when={props.fileContent !== null && !props.showHistory && !props.directoryContent}>
-            <div class={`border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 flex flex-col min-h-[300px] ${(props.isImage || props.isBinary) ? "items-center justify-center overflow-auto" : ""}`}>
-              <div class={`bg-gray-300 dark:bg-gray-700 p-2 w-full rounded-t-xl flex items-center gap-2 ${(props.isImage || props.isBinary) && 'mb-auto'}`}>
+            <div class={`border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 flex flex-col min-h-[300px] ${(props.isImage || props.isBinary || props.previewLimited) ? "items-center justify-center overflow-auto" : ""}`}>
+              <div class={`bg-gray-300 dark:bg-gray-700 p-2 w-full rounded-t-xl flex items-center gap-2 ${(props.isImage || props.isBinary || props.previewLimited) && 'mb-auto'}`}>
                 <FileIcon fileName={getSelectedFileName()} />
-                <Show when={!props.isImage && !props.isBinary}>
+                <Show when={!props.isImage && !props.isBinary && !props.previewLimited}>
                   <b>{(props.fileMeta?.lines || 0)} {props.t('file').lines}</b><span>-</span>
                 </Show>
                 <span>{formatSize(props.fileMeta?.size || 0)}</span>
               </div>
 
               <Switch>
-                <Match when={props.isBinary}>
+                <Match when={props.isBinary || props.previewLimited}>
                   <div class="p-20 flex flex-col items-center justify-center text-center gap-4 mb-auto">
-                    <i class="fa-solid fa-file-zipper text-6xl opacity-20"></i>
+                    <i class="fa-solid fa-file-circle-exclamation text-6xl opacity-20"></i>
                     <div>
                       <p class="text-lg font-semibold">{props.t('file').preview_unavailable}</p>
-                      <p class="text-sm opacity-60">{props.t('file').cannot_see_ext.replace('{{ext}}', props.selectedFilePath[0]?.split('.').pop()?.toUpperCase())}</p>
+                      <p class="text-sm opacity-60">
+                        {props.previewLimited && !props.isBinary
+                          ? props.t('file').preview_limited
+                          : props.t('file').cannot_see_ext.replace('{{ext}}', props.selectedFilePath[0]?.split('.').pop()?.toUpperCase() || '')}
+                      </p>
                     </div>
                   </div>
                 </Match>
@@ -138,7 +143,7 @@ export function FileViewerContainer(props: FileViewerContainerProps) {
                     </div>
                   </div>
                 </Match>
-                <Match when={!props.isImage && !props.isBinary}>
+                <Match when={!props.isImage && !props.isBinary && !props.previewLimited}>
                   <CodePreviewer fileName={getSelectedFileName()} content={props.fileContent || ''} />
                 </Match>
               </Switch>

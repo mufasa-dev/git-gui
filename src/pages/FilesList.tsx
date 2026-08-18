@@ -30,7 +30,8 @@ export default function FileList(props: { repo: Repo }) {
   const [showHistory, setShowHistory] = createSignal(false);
   const [searchTerm, setSearchTerm] = createSignal("");
   const [isBinary, setIsBinary] = createSignal(false);
-  
+  const [isPreviewLimited, setIsPreviewLimited] = createSignal(false);
+
   const { t, locale } = useApp();
   const { showLoading, hideLoading } = useLoading();
 
@@ -39,6 +40,8 @@ export default function FileList(props: { repo: Repo }) {
     props.repo.path;
     setSelectedBranch(props.repo.activeBranch || "");
     setFileContent(null);
+    setIsBinary(false);
+    setIsPreviewLimited(false);
     setBranchFiles([]);
   });
 
@@ -86,14 +89,18 @@ export default function FileList(props: { repo: Repo }) {
         setSelectedFilePath([path]);
         setDirectoryContent(null);
         const data = await getBranchFileMetadata(props.repo.path, selectedBranch(), path);
-        setFileMeta({size: data.size, lines: 0});
-        return; 
+        setIsBinary(data.isBinary);
+        setIsPreviewLimited(!data.isPreviewable);
+        setFileMeta({size: data.size, lines: null});
+        return;
       }
       
       showLoading(t('loading').loading_file);
       try {
         const data = await getBranchFileContent(props.repo.path, selectedBranch(), path);
         setIsImage(data.isImage);
+        setIsBinary(data.isBinary);
+        setIsPreviewLimited(!data.isPreviewable || data.truncated);
         setFileContent(data.content);
         setFileMeta({size: data.size, lines: data.lineCount});
         setSelectedFilePath([path]);
@@ -105,6 +112,8 @@ export default function FileList(props: { repo: Repo }) {
       }
     } else {
       setFileContent("");
+      setIsBinary(false);
+      setIsPreviewLimited(false);
       setSelectedFilePath([path]);
       getDirectoryContent(path);
     }
@@ -172,7 +181,7 @@ export default function FileList(props: { repo: Repo }) {
         setSearchTerm={setSearchTerm}
         filteredFiles={filteredFiles()}
         selectedFilePath={selectedFilePath()}
-        onBranchChange={(b) => { setSelectedBranch(b); setFileContent(null); setDirectoryContent(null); }}
+        onBranchChange={(b) => { setSelectedBranch(b); setFileContent(null); setIsBinary(false); setIsPreviewLimited(false); setDirectoryContent(null); }}
         onFileClick={handleFileClick}
         sidebarWidth={sidebarWidth()}
         isResizing={isResizing()}
@@ -191,6 +200,7 @@ export default function FileList(props: { repo: Repo }) {
         fileMeta={fileMeta()}
         isImage={isImage()}
         isBinary={isBinary()}
+        previewLimited={isPreviewLimited()}
         showHistory={showHistory()}
         setShowHistory={setShowHistory}
         onFileClick={handleFileClick}

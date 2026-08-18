@@ -343,6 +343,7 @@
     "end_file": "End of file",
     "select_file_branch": "Select a file in branch",
     "preview_unavailable": "Preview unavailable",
+    "preview_limited": "This file is too large for a safe preview. Open it in VS Code to view the complete content.",
     "cannot_see_ext": "Files of type {{ext}} cannot be displayed."
   },
   "test": {
@@ -425,7 +426,22 @@
     "merged_version": "Merged version",
     "conflicts_resolved": "Conflicts resolved and saved!",
     "pull_strategy_changed": "Pull strategy updated!",
-    "changing_to": "Changing to the {{strategy}} pull strategy..."
+    "changing_to": "Changing to the {{strategy}} pull strategy...",
+    "merge_incomplete": "Incomplete merge",
+    "unresolved_conflicts": "unresolved conflicts",
+    "conflicts_found": "conflicts found",
+    "reset_auto": "Reset to automatic",
+    "reset_all": "Reset all",
+    "complete_merge": "Complete merge",
+    "resolved": "Resolved",
+    "unresolved": "Unresolved",
+    "line": "Line",
+    "lines": "lines",
+    "current": "Current",
+    "incoming": "Incoming",
+    "both": "Both",
+    "reset": "Reset",
+    "manual_edit": "Manual edit"
   },
   "dashboard": {
     "dashboard": "Dashboard",

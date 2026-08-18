@@ -22,6 +22,7 @@ export default function HotspotsTable(props: Props) {
   const [fileContent, setFileContent] = createSignal<string | null>(null);
   const [isImage, setIsImage] = createSignal(false);
   const [isBinary, setIsBinary] = createSignal(false);
+  const [isPreviewLimited, setIsPreviewLimited] = createSignal(false);
   const [selectedFilePath, setSelectedFilePath] = createSignal<string[]>([]);
   const [fileMeta, setFileMeta] = createSignal<{size: number, lines: number | null} | null>(null);
   const { t, locale } = useApp();
@@ -48,7 +49,9 @@ export default function HotspotsTable(props: Props) {
       setIsImage(false);
       setSelectedFilePath([path]);
       const data = await getBranchFileMetadata(props.repo.path, props.repo.activeBranch!, path);
-      setFileMeta({size: data.size, lines: 0});
+      setIsBinary(data.isBinary);
+      setIsPreviewLimited(!data.isPreviewable);
+      setFileMeta({size: data.size, lines: null});
       return; 
     }
     
@@ -56,6 +59,8 @@ export default function HotspotsTable(props: Props) {
     try {
       const data = await getBranchFileContent(props.repo.path, props.repo.activeBranch!, path);
       setIsImage(data.isImage);
+      setIsBinary(data.isBinary);
+      setIsPreviewLimited(!data.isPreviewable || data.truncated);
       setFileContent(data.content);
       setFileMeta({size: data.size, lines: data.lineCount});
       setSelectedFilePath([path]);
@@ -153,6 +158,7 @@ export default function HotspotsTable(props: Props) {
             fileMeta={fileMeta()}
             isImage={isImage()}
             isBinary={isBinary()}
+            previewLimited={isPreviewLimited()}
             showHistory={false}
             setShowHistory={() => {}}
             onFileClick={() => {}}
