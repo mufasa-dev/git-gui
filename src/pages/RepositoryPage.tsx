@@ -224,7 +224,7 @@ export default function RepoTabsPage() {
 
           <Header repos={repos()} active={active()} activePage={activePage()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
 
-          <div class="flex flex-1 overflow-auto bg-gray-200 dark:bg-gray-900">
+          <div class="flex flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-gray-200 dark:bg-gray-900">
             <Show when={repos().length > 0 && active()}>
               <LateralBar repos={repos()} 
                 active={activePage()} 

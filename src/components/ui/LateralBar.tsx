@@ -6,9 +6,7 @@ import dashboardIcon from "../../assets/dashboard_silver.png";
 import testIcon from "../../assets/test_silver.png";
 import prIcon from "../../assets/pr_silver.png";
 import rocketIcon from "../../assets/rocket_silver.png";
-import tableIcon from "../../assets/table_silver.png";
 import profileIcon from "../../assets/profile_silver.png";
-import configIcon from "../../assets/config_silver.png";
 import Tooltip from "./Tooltip";
 import { createEffect, Show } from "solid-js";
 import { useApp } from "../../context/AppContext";
@@ -28,7 +26,7 @@ export default function LateralBar(props: {
   });
 
   return (
-    <div class="flex flex-col mt-2 mb-2" style={{"width": "56px"}}>
+    <div class="flex flex-col shrink-0 mt-2 mb-2" style={{"width": "56px", "min-width": "56px"}}>
       <Tooltip text={t('commits').commits} class="mb-2">
         <Button class={`left-btn w-full ${props.active === "commits" ? "selected" : ""}`} onClick={() => props.onChangeActive("commits")}>
           <img src={branchIcon} class="h-10" />

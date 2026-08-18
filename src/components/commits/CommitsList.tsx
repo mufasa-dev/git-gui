@@ -161,9 +161,9 @@ export default function CommitsList(props: {
   }
 
   return (
-    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container"
+    <div class="flex-1 min-w-0 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container"
          onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
-      <div class="container-branch-list flex-1 overflow-auto mb-1" style={{"height": "100px"}}>
+      <div class="container-branch-list flex-1 min-w-0 overflow-auto mb-1" style={{"height": "100px"}}>
         {/* Header com Busca e Paginação */}
         <div class="p-1 flex flex-col gap-2">
           <div class="flex gap-2 items-center">
@@ -223,7 +223,7 @@ export default function CommitsList(props: {
 
 
         {/* Lista de Commits */}
-        <div class="flex flex-1 overflow-auto">
+        <div class="flex flex-1 min-w-0 overflow-auto">
           <div class="sticky left-0 z-10 flex-shrink-0">
             <CommitGraph commits={paginatedCommits()} rowHeight={35} />
           </div>
@@ -232,21 +232,23 @@ export default function CommitsList(props: {
               <For each={paginatedCommits()}>
                 {(c) => (
                   <div
-                    class={`cm-commit-item w-full ${
+                    class={`cm-commit-item w-full min-w-0 ${
                       selectedCommit()?.hash === c.hash ? "selected" : ""
                     }`}
                     onClick={() => selectCommit(c.hash)}
                   >
                     <div class="text-sm font-mono opacity-80 flex items-center h-full">{c.hash.slice(0, 7)}</div>
-                    <div class="font-semibold px-2 flex flex-1 min-w-0 h-full items-center truncate">
-                      <CommitMessage message={c.message} />
-                      <div class="inline-flex items-center gap-1 ml-2">
+                    <div class="font-semibold px-2 flex flex-1 min-w-0 h-full items-center overflow-hidden">
+                      <div class="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                        <CommitMessage message={c.message} class="text-sm font-mono whitespace-nowrap" />
+                      </div>
+                      <div class="inline-flex shrink-0 items-center gap-1 ml-2">
                         <For each={(c.ref_names || "").split(",").map((ref: string) => ref.trim()).filter((ref: string) => ref.startsWith("tag: "))}>
                           {(ref) => <span class="text-[9px] font-mono px-1 rounded bg-green-500/20 text-green-600 dark:text-green-300">{ref.replace("tag: ", "")}</span>}
                         </For>
                       </div>
                     </div>
-                    <div class="text-xs ml-auto whitespace-nowrap flex items-center gap-2 w-[200px]">
+                    <div class="text-xs ml-auto shrink-0 whitespace-nowrap flex items-center gap-2 w-[200px] min-w-0">
                       <img
                         src={getGravatarUrl(c.email, 80)}
                         alt={c.author}
@@ -254,7 +256,7 @@ export default function CommitsList(props: {
                       /> 
                       <span class="opacity-50 truncate">{formatContributorName(c.author)}</span>
                     </div>
-                    <div class="px-2 text-xs w-[182px] text-right truncate flex items-center justify-end h-full">{formatRelativeDate(c.date, t, locale())}</div>
+                    <div class="px-2 text-xs w-[182px] shrink-0 text-right truncate flex items-center justify-end h-full">{formatRelativeDate(c.date, t, locale())}</div>
                   </div>
                 )}
               </For>

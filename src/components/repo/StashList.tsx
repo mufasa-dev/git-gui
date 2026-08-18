@@ -26,7 +26,7 @@ export type StashListProps = {
 type Confirmation = "pop" | "drop" | "clear" | null;
 
 export default function StashList(props: StashListProps) {
-  const [open, setOpen] = createSignal(true);
+  const [open, setOpen] = createSignal(false);
   const [createOpen, setCreateOpen] = createSignal(false);
   const [diffOpen, setDiffOpen] = createSignal(false);
   const [diff, setDiff] = createSignal<{ diff: string }>({ diff: "" });

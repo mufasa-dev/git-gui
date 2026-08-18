@@ -29,7 +29,7 @@ export type TagListProps = {
 type Confirmation = "delete" | "remoteDelete" | "checkout" | null;
 
 export default function TagList(props: TagListProps) {
-  const [open, setOpen] = createSignal(true);
+  const [open, setOpen] = createSignal(false);
   const [selectedTag, setSelectedTag] = createSignal<Tag | null>(null);
   const [confirmation, setConfirmation] = createSignal<Confirmation>(null);
   const [editOpen, setEditOpen] = createSignal(false);

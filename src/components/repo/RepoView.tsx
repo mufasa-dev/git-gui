@@ -134,7 +134,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   ));
 
   return (
-    <div class="flex h-full w-full select-none bg-gray-200 dark:bg-gray-900"
+    <div class="flex flex-1 min-w-0 h-full w-full select-none overflow-hidden bg-gray-200 dark:bg-gray-900"
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}
