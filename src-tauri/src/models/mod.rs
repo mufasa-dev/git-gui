@@ -1,7 +1,7 @@
-pub mod pull;
-pub mod license;
-pub mod dashboard;
 pub mod branch;
-pub mod test;
+pub mod dashboard;
+pub mod license;
+pub mod pull;
 pub mod stash;
 pub mod tag;
+pub mod test;

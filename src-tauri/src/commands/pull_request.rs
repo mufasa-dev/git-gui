@@ -1,5 +1,5 @@
-use tauri::command;
 use crate::utils::git_command;
+use tauri::command;
 
 #[command]
 pub async fn open_pull_request(path: String, branch: String) -> Result<(), String> {
@@ -37,7 +37,12 @@ pub async fn open_pull_request(path: String, branch: String) -> Result<(), Strin
     let target_branch = if let Ok(output) = head_output {
         if output.status.success() {
             let ref_str = String::from_utf8_lossy(&output.stdout);
-            ref_str.trim().split('/').last().unwrap_or("main").to_string()
+            ref_str
+                .trim()
+                .split('/')
+                .last()
+                .unwrap_or("main")
+                .to_string()
         } else {
             "main".to_string()
         }
@@ -47,17 +52,17 @@ pub async fn open_pull_request(path: String, branch: String) -> Result<(), Strin
 
     // 4️⃣ Monta a URL do PR conforme o serviço
     let pr_url = if web_url.contains("github.com") {
-        format!("{}/compare/{}...{}?expand=1", web_url, target_branch, branch)
+        format!(
+            "{}/compare/{}...{}?expand=1",
+            web_url, target_branch, branch
+        )
     } else if web_url.contains("gitlab.com") {
         format!(
             "{}/-/merge_requests/new?merge_request[source_branch]={}&merge_request[target_branch]={}",
             web_url, branch, target_branch
         )
     } else if web_url.contains("dev.azure.com") || web_url.contains("visualstudio.com") {
-        format!(
-            "{}/pullrequestcreate?sourceRef={}",
-            web_url, branch
-        )
+        format!("{}/pullrequestcreate?sourceRef={}", web_url, branch)
     } else {
         return Err(format!("Serviço Git desconhecido: {}", web_url));
     };

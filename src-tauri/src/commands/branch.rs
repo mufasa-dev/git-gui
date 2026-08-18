@@ -1,22 +1,82 @@
-use base64::{Engine as _, engine::general_purpose};
+use crate::{
+    models::branch::{FileContentResponse, FileMetadataResponse},
+    utils::git_command_async,
+};
+use base64::{engine::general_purpose, Engine as _};
 use serde_json::json;
 use std::process::Stdio;
 use tokio::io::AsyncReadExt;
-use crate::{models::branch::{FileContentResponse, FileMetadataResponse}, utils::git_command_async};
 
 const PREVIEW_MAX_BYTES: usize = 2 * 1024 * 1024;
 const PREVIEW_MAX_LINES: usize = 1000;
 
 fn is_unsupported_extension(file_path: &str) -> bool {
-    let extension = file_path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
-    matches!(extension.as_str(),
-        "zip" | "rar" | "7z" | "tar" | "gz" | "exe" | "bin" | "dll" | "so" | "dylib" |
-        "mp4" | "mkv" | "mov" | "mp3" | "ogg" | "wav" | "avi" | "webm" |
-        "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" |
-        "ifc" | "bim" | "rvt" | "rfa" | "nwd" | "nwc" | "blend" | "fbx" | "obj" |
-        "gltf" | "glb" | "3d" | "3dm" | "3mf" | "x3d" | "3ds" | "max" | "ma" | "mb" | "step" | "stp" | "iges" |
-        "igs" | "dwg" | "dxf" | "e57" | "las" | "laz" | "psd" | "ai" | "skp" |
-        "dae" | "stl")
+    let extension = file_path
+        .rsplit('.')
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    matches!(
+        extension.as_str(),
+        "zip"
+            | "rar"
+            | "7z"
+            | "tar"
+            | "gz"
+            | "exe"
+            | "bin"
+            | "dll"
+            | "so"
+            | "dylib"
+            | "mp4"
+            | "mkv"
+            | "mov"
+            | "mp3"
+            | "ogg"
+            | "wav"
+            | "avi"
+            | "webm"
+            | "pdf"
+            | "doc"
+            | "docx"
+            | "xls"
+            | "xlsx"
+            | "ppt"
+            | "pptx"
+            | "ifc"
+            | "bim"
+            | "rvt"
+            | "rfa"
+            | "nwd"
+            | "nwc"
+            | "blend"
+            | "fbx"
+            | "obj"
+            | "gltf"
+            | "glb"
+            | "3d"
+            | "3dm"
+            | "3mf"
+            | "x3d"
+            | "3ds"
+            | "max"
+            | "ma"
+            | "mb"
+            | "step"
+            | "stp"
+            | "iges"
+            | "igs"
+            | "dwg"
+            | "dxf"
+            | "e57"
+            | "las"
+            | "laz"
+            | "psd"
+            | "ai"
+            | "skp"
+            | "dae"
+            | "stl"
+    )
 }
 
 fn is_binary_bytes(bytes: &[u8]) -> bool {
@@ -39,7 +99,11 @@ fn preview_text(bytes: &[u8]) -> (String, usize, bool) {
         line_count += 1;
     }
 
-    if !text.is_empty() && !text.ends_with('\n') && line_count < PREVIEW_MAX_LINES && content.len() < text.len() {
+    if !text.is_empty()
+        && !text.ends_with('\n')
+        && line_count < PREVIEW_MAX_LINES
+        && content.len() < text.len()
+    {
         content.push_str(&text[content.len()..]);
         line_count += 1;
     }
@@ -59,9 +123,13 @@ async fn bounded_git_show(repo_path: &str, target: &str) -> Result<(Vec<u8>, boo
         .spawn()
         .map_err(|error| error.to_string())?;
 
-    let stdout = child.stdout.take().ok_or_else(|| "Não foi possível ler o arquivo".to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Não foi possível ler o arquivo".to_string())?;
     let mut bytes = Vec::with_capacity(PREVIEW_MAX_BYTES + 1);
-    stdout.take((PREVIEW_MAX_BYTES + 1) as u64)
+    stdout
+        .take((PREVIEW_MAX_BYTES + 1) as u64)
         .read_to_end(&mut bytes)
         .await
         .map_err(|error| error.to_string())?;
@@ -121,7 +189,7 @@ pub async fn list_remote_branches(path: String) -> Result<Vec<String>, String> {
         .arg("-r")
         .stdout(Stdio::piped())
         .output()
-        .await 
+        .await
         .map_err(|e| e.to_string())?;
 
     if output.status.success() {
@@ -155,7 +223,9 @@ pub async fn get_branch_status(repo_path: String) -> Result<Vec<serde_json::Valu
 
     for line in stdout.lines() {
         let parts: Vec<&str> = line.split('|').collect();
-        if parts.len() < 2 { continue; }
+        if parts.len() < 2 {
+            continue;
+        }
 
         let name = parts[0];
         let track = parts[1]; // Ex: "[ahead 1, behind 2]"
@@ -219,11 +289,11 @@ pub async fn checkout_branch(repo_path: String, branch: String) -> Result<String
 
 #[tauri::command]
 pub async fn create_branch(
-    repo_path: String, 
-    branch_name: String, 
-    branch_type: String, 
-    base_branch: String, 
-    checkout: bool
+    repo_path: String,
+    branch_name: String,
+    branch_type: String,
+    base_branch: String,
+    checkout: bool,
 ) -> Result<String, String> {
     let full_branch_name = match branch_type.as_str() {
         "feature" => format!("feature/{}", branch_name),
@@ -249,10 +319,19 @@ pub async fn create_branch(
 }
 
 #[tauri::command]
-pub async fn checkout_remote_branch(repo_path: String, branch_name: String) -> Result<String, String> {
+pub async fn checkout_remote_branch(
+    repo_path: String,
+    branch_name: String,
+) -> Result<String, String> {
     let local_name = branch_name.replace("origin/", "");
     let output = git_command_async(&repo_path)
-        .args(["checkout", "-b", &local_name, "--track", &format!("origin/{}", local_name)])
+        .args([
+            "checkout",
+            "-b",
+            &local_name,
+            "--track",
+            &format!("origin/{}", local_name),
+        ])
         .output()
         .await
         .map_err(|e| e.to_string())?;
@@ -264,7 +343,9 @@ pub async fn checkout_remote_branch(repo_path: String, branch_name: String) -> R
         if err.contains("already exists") {
             let retry = git_command_async(&repo_path)
                 .args(["checkout", &local_name])
-                .output().await.map_err(|e| e.to_string())?;
+                .output()
+                .await
+                .map_err(|e| e.to_string())?;
             if retry.status.success() {
                 return Ok(format!("Alternado para branch local: {}", local_name));
             }
@@ -278,7 +359,9 @@ pub async fn delete_branch(path: String, branch: String, force: bool) -> Result<
     let flag = if force { "-D" } else { "-d" };
     let output = git_command_async(&path)
         .args(["branch", flag, &branch])
-        .output().await.map_err(|e| e.to_string())?;
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
 
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
@@ -287,11 +370,17 @@ pub async fn delete_branch(path: String, branch: String, force: bool) -> Result<
 }
 
 #[tauri::command]
-pub async fn delete_remote_branch(path: String, branch: String, remote: Option<String>) -> Result<(), String> {
+pub async fn delete_remote_branch(
+    path: String,
+    branch: String,
+    remote: Option<String>,
+) -> Result<(), String> {
     let remote_name = remote.unwrap_or_else(|| "origin".to_string());
     let output = git_command_async(&path)
         .args(["push", &remote_name, "--delete", &branch])
-        .output().await.map_err(|e| e.to_string())?;
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
 
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
@@ -322,7 +411,10 @@ pub async fn list_branch_files(path: String, branch: String) -> Result<Vec<Strin
 }
 
 #[tauri::command]
-pub async fn list_branch_files_with_size(path: String, branch: String) -> Result<Vec<(String, u64)>, String> {
+pub async fn list_branch_files_with_size(
+    path: String,
+    branch: String,
+) -> Result<Vec<(String, u64)>, String> {
     let output = git_command_async(&path)
         .args(["ls-tree", "-r", "-l", "-z", &branch])
         .output()
@@ -337,10 +429,12 @@ pub async fn list_branch_files_with_size(path: String, branch: String) -> Result
     let mut files = Vec::new();
 
     for entry in stdout.split(|&b| b == 0) {
-        if entry.is_empty() { continue; }
-        
+        if entry.is_empty() {
+            continue;
+        }
+
         let line = String::from_utf8_lossy(entry);
-        
+
         if let Some((info, name)) = line.split_once('\t') {
             let parts: Vec<&str> = info.split_whitespace().collect();
             if parts.len() >= 4 {
@@ -357,12 +451,19 @@ pub async fn list_branch_files_with_size(path: String, branch: String) -> Result
 pub async fn get_branch_file_content(
     path: String,
     branch: String,
-    file_path: String
+    file_path: String,
 ) -> Result<FileContentResponse, String> {
     let target = format!("{}:{}", branch, file_path);
     let size = branch_file_size(&path, &target).await?;
-    let ext = file_path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
-    let is_image = matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "ico" | "gif" | "webp");
+    let ext = file_path
+        .rsplit('.')
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let is_image = matches!(
+        ext.as_str(),
+        "png" | "jpg" | "jpeg" | "ico" | "gif" | "webp"
+    );
 
     if is_unsupported_extension(&file_path) || size > PREVIEW_MAX_BYTES {
         return Ok(FileContentResponse {
@@ -420,7 +521,7 @@ pub async fn get_branch_file_content(
 pub async fn get_file_metadata(
     path: String,
     branch: String,
-    file_path: String
+    file_path: String,
 ) -> Result<FileMetadataResponse, String> {
     let target = format!("{}:{}", branch, file_path);
     let size = branch_file_size(&path, &target).await?;
@@ -449,7 +550,9 @@ mod tests {
 
     #[test]
     fn preview_limits_branch_content() {
-        let content = (0..1200).map(|line| format!("line-{line}\n")).collect::<String>();
+        let content = (0..1200)
+            .map(|line| format!("line-{line}\n"))
+            .collect::<String>();
         let (_, line_count, truncated) = preview_text(content.as_bytes());
 
         assert_eq!(line_count, PREVIEW_MAX_LINES);

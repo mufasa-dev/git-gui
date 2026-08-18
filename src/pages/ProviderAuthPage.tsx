@@ -111,22 +111,20 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
     try {
       if (props.provider === 'github') {
         await githubService.login();
-        refetchUser(); 
-      } 
-      
-      else if (props.provider === 'azure') {
+        refetchUser();
+      } else if (props.provider === 'azure') {
         const response = await azureService.loginWithPAT(patToken().trim(), orgName().trim());
-        
+
         if (response.success) {
-          refetchUser(); 
+          refetchUser();
         } else {
           setAuthError(t('provider').error_token);
-          setIsLogging(false);
         }
       }
     } catch (e) {
       console.error(`Falha no login do ${props.provider}`, e);
       setAuthError(t('provider').error_authentication);
+    } finally {
       setIsLogging(false);
     }
   };

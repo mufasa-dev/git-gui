@@ -1,9 +1,9 @@
-use serde::Serialize;
-use tauri::command;
-use serde_json::{json, Value};
 use crate::utils::git_command;
 use rayon::prelude::*;
+use serde::Serialize;
+use serde_json::{json, Value};
 use std::collections::HashMap;
+use tauri::command;
 
 #[derive(Serialize)]
 pub struct Commit {
@@ -17,8 +17,7 @@ pub struct Commit {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FileEntry
- {
+pub struct FileEntry {
     name: String,
     path: String,
     is_dir: bool,
@@ -46,7 +45,7 @@ pub fn list_commits(path: String, branch: String) -> Result<Vec<GraphLine>, Stri
             "--graph",
             "--pretty=format:SEP%H|%an|%ae|%ad|%s|%P|%D",
             &branch,
-            "--"
+            "--",
         ])
         .output()
         .map_err(|e| e.to_string())?;
@@ -85,16 +84,20 @@ pub fn list_commits(path: String, branch: String) -> Result<Vec<GraphLine>, Stri
 }
 
 #[tauri::command]
-pub fn list_user_commits(path: String, branch: String, email: String) -> Result<Vec<Commit>, String> {
+pub fn list_user_commits(
+    path: String,
+    branch: String,
+    email: String,
+) -> Result<Vec<Commit>, String> {
     let author_filter = format!("--author={}", email);
 
     let output = git_command(&path)
         .args(&[
-            "log", 
-            "--pretty=format:%H|%an|%ae|%ad|%s", 
-            &branch, 
+            "log",
+            "--pretty=format:%H|%an|%ae|%ad|%s",
+            &branch,
             &author_filter,
-            "--"
+            "--",
         ])
         .output()
         .map_err(|e| e.to_string())?;
@@ -108,8 +111,10 @@ pub fn list_user_commits(path: String, branch: String, email: String) -> Result<
         .lines()
         .filter_map(|line| {
             let parts: Vec<&str> = line.splitn(5, '|').collect();
-            if parts.len() < 5 { return None; }
-            
+            if parts.len() < 5 {
+                return None;
+            }
+
             Some(Commit {
                 hash: parts[0].to_string(),
                 graph_symbol: None,
@@ -128,7 +133,7 @@ pub fn list_user_commits(path: String, branch: String, email: String) -> Result<
 pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
     let output = git_command(&path)
         .arg("show")
-        .arg("--name-status") 
+        .arg("--name-status")
         .arg("--pretty=format:%H%n%an%n%ae%n%ad%n%s%n%b%n%P")
         .arg(&hash)
         .output()
@@ -151,8 +156,10 @@ pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
     let mut idx = 5;
     while idx < lines.len() {
         let line = lines[idx];
-        if line.len() == 40 || (line.contains(' ') && line.split_whitespace().all(|h| h.len() == 40)) {
-            break; 
+        if line.len() == 40
+            || (line.contains(' ') && line.split_whitespace().all(|h| h.len() == 40))
+        {
+            break;
         }
         body_lines.push(line);
         idx += 1;
@@ -168,15 +175,17 @@ pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
     let mut files: Vec<Value> = Vec::new();
     for line in lines.iter().skip(idx + 1) {
         let trimmed = line.trim();
-        if trimmed.is_empty() { continue; }
+        if trimmed.is_empty() {
+            continue;
+        }
 
         let parts: Vec<&str> = trimmed.split('\t').collect();
-        
+
         if parts.len() >= 2 {
             let clean_path = parts[1].trim_matches('"').trim();
 
             files.push(json!({
-                "file": clean_path,   
+                "file": clean_path,
                 "status": parts[0].trim(),
                 "changes": ""
             }));
@@ -196,7 +205,10 @@ pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn get_multiple_commits_subjects(path: String, hashes: Vec<String>) -> Result<HashMap<String, String>, String> {
+pub fn get_multiple_commits_subjects(
+    path: String,
+    hashes: Vec<String>,
+) -> Result<HashMap<String, String>, String> {
     let mut result = HashMap::new();
     if hashes.is_empty() {
         return Ok(result);
@@ -204,9 +216,9 @@ pub fn get_multiple_commits_subjects(path: String, hashes: Vec<String>) -> Resul
 
     let mut cmd = std::process::Command::new("git");
     cmd.current_dir(&path)
-       .arg("log")
-       .arg("--no-walk")
-       .arg("--pretty=format:%H||%s");
+        .arg("log")
+        .arg("--no-walk")
+        .arg("--pretty=format:%H||%s");
 
     for hash in &hashes {
         if !hash.trim().is_empty() {
@@ -261,10 +273,14 @@ pub fn git_commit(
 }
 
 #[tauri::command]
-pub async fn get_commit_file_diff(repo_path: String, commit_sha: String, file_path: String) -> Result<serde_json::Value, String> {
+pub async fn get_commit_file_diff(
+    repo_path: String,
+    commit_sha: String,
+    file_path: String,
+) -> Result<serde_json::Value, String> {
     let diff_output = git_command(&repo_path)
         .arg("diff")
-        .arg(format!("{}^!", commit_sha)) 
+        .arg(format!("{}^!", commit_sha))
         .arg("--")
         .arg(&file_path)
         .output()
@@ -280,12 +296,17 @@ pub async fn get_commit_file_diff(repo_path: String, commit_sha: String, file_pa
 }
 
 #[tauri::command]
-pub fn get_last_commit_for_path(path: String, branch: String, file_path: String) -> Result<Option<Commit>, String> {
+pub fn get_last_commit_for_path(
+    path: String,
+    branch: String,
+    file_path: String,
+) -> Result<Option<Commit>, String> {
     let mut args = vec![
-        "log", 
-        "-n", "1", 
-        "--pretty=format:%H|%an|%ae|%ad|%s", 
-        &branch
+        "log",
+        "-n",
+        "1",
+        "--pretty=format:%H|%an|%ae|%ad|%s",
+        &branch,
     ];
 
     if !file_path.trim().is_empty() {
@@ -299,15 +320,15 @@ pub fn get_last_commit_for_path(path: String, branch: String, file_path: String)
         .map_err(|e| e.to_string())?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    if stdout.trim().is_empty() { 
-        return Ok(None); 
+    if stdout.trim().is_empty() {
+        return Ok(None);
     }
 
     let line = stdout.lines().next().unwrap_or("");
     let parts: Vec<&str> = line.splitn(5, '|').collect();
-    
-    if parts.len() < 5 { 
-        return Ok(None); 
+
+    if parts.len() < 5 {
+        return Ok(None);
     }
 
     Ok(Some(Commit {
@@ -321,15 +342,19 @@ pub fn get_last_commit_for_path(path: String, branch: String, file_path: String)
 }
 
 #[tauri::command]
-pub fn get_path_history(path: String, branch: String, file_path: String) -> Result<Vec<Commit>, String> {
+pub fn get_path_history(
+    path: String,
+    branch: String,
+    file_path: String,
+) -> Result<Vec<Commit>, String> {
     let output = git_command(&path)
         .args(&[
-            "log", 
-            "--pretty=format:%H|%an|%ae|%ad|%s", 
+            "log",
+            "--pretty=format:%H|%an|%ae|%ad|%s",
             "--follow",
             &branch,
-            "--", 
-            &file_path
+            "--",
+            &file_path,
         ])
         .output()
         .map_err(|e| e.to_string())?;
@@ -339,7 +364,9 @@ pub fn get_path_history(path: String, branch: String, file_path: String) -> Resu
         .lines()
         .filter_map(|line| {
             let parts: Vec<&str> = line.splitn(5, '|').collect();
-            if parts.len() < 5 { return None; }
+            if parts.len() < 5 {
+                return None;
+            }
             Some(Commit {
                 hash: parts[0].to_string(),
                 author: parts[1].to_string(),
@@ -356,14 +383,18 @@ pub fn get_path_history(path: String, branch: String, file_path: String) -> Resu
 
 #[tauri::command]
 pub fn list_directory_with_commits(
-    repo_path: String, 
-    branch: String, 
-    folder_path: String
+    repo_path: String,
+    branch: String,
+    folder_path: String,
 ) -> Result<Vec<FileEntry>, String> {
     let target_path = if folder_path.is_empty() || folder_path == "." {
         format!("{}:", branch)
     } else {
-        let path_with_slash = if folder_path.ends_with('/') { folder_path.clone() } else { format!("{}/", folder_path) };
+        let path_with_slash = if folder_path.ends_with('/') {
+            folder_path.clone()
+        } else {
+            format!("{}/", folder_path)
+        };
         format!("{}:{}", branch, path_with_slash)
     };
 
@@ -378,46 +409,48 @@ pub fn list_directory_with_commits(
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // 2. Coleta as linhas em um Vec para podermos paralelizar
     let lines: Vec<&str> = stdout.lines().collect();
 
     // 3. PROCESSAMENTO PARALELO (O segredo da velocidade)
-    let entries: Vec<FileEntry> = lines.into_par_iter().map(|line| {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() < 5 { return None; }
+    let entries: Vec<FileEntry> = lines
+        .into_par_iter()
+        .map(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 5 {
+                return None;
+            }
 
-        let is_dir = parts[1] == "tree";
-        let name = parts[4..].join(" ");
+            let is_dir = parts[1] == "tree";
+            let name = parts[4..].join(" ");
 
-        let full_item_path = if folder_path.is_empty() || folder_path == "." {
-            name.clone()
-        } else {
-            format!("{}/{}", folder_path.trim_end_matches('/'), name)
-        };
+            let full_item_path = if folder_path.is_empty() || folder_path == "." {
+                name.clone()
+            } else {
+                format!("{}/{}", folder_path.trim_end_matches('/'), name)
+            };
 
-        // Agora cada thread busca o seu commit de forma independente
-        let last_commit = get_last_commit_for_path(
-            repo_path.clone(), 
-            branch.clone(), 
-            full_item_path.clone()
-        ).unwrap_or(None);
+            // Agora cada thread busca o seu commit de forma independente
+            let last_commit =
+                get_last_commit_for_path(repo_path.clone(), branch.clone(), full_item_path.clone())
+                    .unwrap_or(None);
 
-        Some(FileEntry {
-            name,
-            path: full_item_path,
-            is_dir,
-            last_commit,
+            Some(FileEntry {
+                name,
+                path: full_item_path,
+                is_dir,
+                last_commit,
+            })
         })
-    })
-    .filter_map(|x| x) // Remove os Nones
-    .collect();
+        .filter_map(|x| x) // Remove os Nones
+        .collect();
 
     // 4. Ordenação final
     let mut final_entries = entries;
     final_entries.sort_by(|a, b| {
         if a.is_dir != b.is_dir {
-            return b.is_dir.cmp(&a.is_dir); 
+            return b.is_dir.cmp(&a.is_dir);
         }
         a.name.to_lowercase().cmp(&b.name.to_lowercase())
     });

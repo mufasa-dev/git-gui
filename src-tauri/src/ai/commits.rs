@@ -17,7 +17,9 @@ struct StagedFile {
 }
 
 fn parse_staged_files(output: &[u8]) -> Vec<StagedFile> {
-    let mut fields = output.split(|byte| *byte == 0).filter(|field| !field.is_empty());
+    let mut fields = output
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty());
     let mut files = Vec::new();
 
     while let Some(status_bytes) = fields.next() {
@@ -77,7 +79,18 @@ fn is_diff_excluded(path: &str) -> bool {
     let path_components = normalized_path.split('/');
 
     if path_components.clone().any(|component| {
-        matches!(component, "node_modules" | "target" | "dist" | "build" | "coverage" | ".next" | "out" | "bin" | "obj")
+        matches!(
+            component,
+            "node_modules"
+                | "target"
+                | "dist"
+                | "build"
+                | "coverage"
+                | ".next"
+                | "out"
+                | "bin"
+                | "obj"
+        )
     }) {
         return true;
     }
@@ -86,15 +99,79 @@ fn is_diff_excluded(path: &str) -> bool {
         .rsplit_once('.')
         .map(|(_, extension)| extension);
 
-    matches!(extension,
-        Some("zip" | "rar" | "7z" | "tar" | "gz" | "exe" | "bin" | "dll" | "so" | "dylib" |
-            "png" | "jpg" | "jpeg" | "gif" | "bmp" | "tif" | "tiff" | "ico" | "webp" | "svg" |
-            "mp4" | "mkv" | "mov" | "mp3" | "ogg" | "wav" | "avi" | "webm" |
-            "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" |
-            "ifc" | "bim" | "rvt" | "rfa" | "nwd" | "nwc" | "blend" | "fbx" | "obj" |
-            "gltf" | "glb" | "3d" | "3dm" | "3mf" | "x3d" | "3ds" | "max" | "ma" | "mb" | "step" | "stp" | "iges" |
-            "igs" | "dwg" | "dxf" | "e57" | "las" | "laz" | "psd" | "ai" | "skp" |
-            "dae" | "stl"))
+    matches!(
+        extension,
+        Some(
+            "zip"
+                | "rar"
+                | "7z"
+                | "tar"
+                | "gz"
+                | "exe"
+                | "bin"
+                | "dll"
+                | "so"
+                | "dylib"
+                | "png"
+                | "jpg"
+                | "jpeg"
+                | "gif"
+                | "bmp"
+                | "tif"
+                | "tiff"
+                | "ico"
+                | "webp"
+                | "svg"
+                | "mp4"
+                | "mkv"
+                | "mov"
+                | "mp3"
+                | "ogg"
+                | "wav"
+                | "avi"
+                | "webm"
+                | "pdf"
+                | "doc"
+                | "docx"
+                | "xls"
+                | "xlsx"
+                | "ppt"
+                | "pptx"
+                | "ifc"
+                | "bim"
+                | "rvt"
+                | "rfa"
+                | "nwd"
+                | "nwc"
+                | "blend"
+                | "fbx"
+                | "obj"
+                | "gltf"
+                | "glb"
+                | "3d"
+                | "3dm"
+                | "3mf"
+                | "x3d"
+                | "3ds"
+                | "max"
+                | "ma"
+                | "mb"
+                | "step"
+                | "stp"
+                | "iges"
+                | "igs"
+                | "dwg"
+                | "dxf"
+                | "e57"
+                | "las"
+                | "laz"
+                | "psd"
+                | "ai"
+                | "skp"
+                | "dae"
+                | "stl"
+        )
+    )
 }
 
 fn parse_numstat(output: &[u8]) -> Option<(usize, usize, bool)> {
@@ -116,9 +193,20 @@ fn parse_numstat(output: &[u8]) -> Option<(usize, usize, bool)> {
     ))
 }
 
-async fn get_staged_numstat(repo_path: &str, path: &str) -> Result<Option<(usize, usize, bool)>, String> {
+async fn get_staged_numstat(
+    repo_path: &str,
+    path: &str,
+) -> Result<Option<(usize, usize, bool)>, String> {
     let output = git_command_async(repo_path)
-        .args(["diff", "--cached", "--no-ext-diff", "--numstat", "-z", "--", path])
+        .args([
+            "diff",
+            "--cached",
+            "--no-ext-diff",
+            "--numstat",
+            "-z",
+            "--",
+            path,
+        ])
         .output()
         .await
         .map_err(|e| e.to_string())?;
@@ -166,7 +254,10 @@ async fn run_git_output_limited(
     Ok(bytes)
 }
 
-async fn collect_staged_diff(repo_path: &str, files: &[StagedFile]) -> Result<(String, usize), String> {
+async fn collect_staged_diff(
+    repo_path: &str,
+    files: &[StagedFile],
+) -> Result<(String, usize), String> {
     let mut diff = String::new();
     let mut diff_files = 0;
     let mut skipped_files = 0;
@@ -177,7 +268,9 @@ async fn collect_staged_diff(repo_path: &str, files: &[StagedFile]) -> Result<(S
             continue;
         }
 
-        let Some((added_lines, deleted_lines, is_binary)) = get_staged_numstat(repo_path, &file.path).await? else {
+        let Some((added_lines, deleted_lines, is_binary)) =
+            get_staged_numstat(repo_path, &file.path).await?
+        else {
             skipped_files += 1;
             continue;
         };
@@ -197,7 +290,15 @@ async fn collect_staged_diff(repo_path: &str, files: &[StagedFile]) -> Result<(S
 
         let output = run_git_output_limited(
             repo_path,
-            &["diff", "--cached", "--no-ext-diff", "--no-color", "--unified=3", "--", file.path.as_str()],
+            &[
+                "diff",
+                "--cached",
+                "--no-ext-diff",
+                "--no-color",
+                "--unified=3",
+                "--",
+                file.path.as_str(),
+            ],
             max_diff_bytes,
         )
         .await?;
@@ -220,7 +321,10 @@ async fn collect_staged_diff(repo_path: &str, files: &[StagedFile]) -> Result<(S
 }
 
 #[tauri::command]
-pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<String>) -> Result<Vec<String>, String> {
+pub async fn generate_commit_suggestion(
+    repo_path: String,
+    api_key: Option<String>,
+) -> Result<Vec<String>, String> {
     // 1. Validação prévia: Conta quantos arquivos estão no Stage (staged)
     let files_output = git_command_async(&repo_path)
         .args(["diff", "--cached", "--name-status", "-z"])
@@ -229,7 +333,9 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
         .map_err(|e| e.to_string())?;
 
     if !files_output.status.success() {
-        return Err(String::from_utf8_lossy(&files_output.stderr).trim().to_string());
+        return Err(String::from_utf8_lossy(&files_output.stderr)
+            .trim()
+            .to_string());
     }
 
     let staged_files = parse_staged_files(&files_output.stdout);
@@ -242,7 +348,10 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
     let (file_summary, omitted_files) = build_file_summary(&staged_files);
     let (staged_diff, skipped_diff_files) = collect_staged_diff(&repo_path, &staged_files).await?;
     let omitted_notice = if omitted_files > 0 {
-        format!("\n[{} staged files omitted from the file summary due to size limits]", omitted_files)
+        format!(
+            "\n[{} staged files omitted from the file summary due to size limits]",
+            omitted_files
+        )
     } else {
         String::new()
     };
@@ -308,11 +417,16 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
         key
     );
 
-    let valid_url = reqwest::Url::parse(&url_string)
-        .map_err(|e| format!("Falha ao construir URL válida para a IA: {} (URL gerada: {})", e, url_string))?;
+    let valid_url = reqwest::Url::parse(&url_string).map_err(|e| {
+        format!(
+            "Falha ao construir URL válida para a IA: {} (URL gerada: {})",
+            e, url_string
+        )
+    })?;
 
     let client = reqwest::Client::new();
-    let response = client.post(valid_url)
+    let response = client
+        .post(valid_url)
         .json(&serde_json::json!({
             "contents": [{ "parts": [{ "text": prompt }] }],
             "generationConfig": { "responseMimeType": "application/json" }
@@ -333,17 +447,20 @@ pub async fn generate_commit_suggestion(repo_path: String, api_key: Option<Strin
 
     let ai_text = res_body["candidates"][0]["content"]["parts"][0]["text"]
         .as_str()
-        .ok_or_else(|| {
-            format!("Estrutura inesperada na resposta da IA: {}", res_body)
-        })?;
+        .ok_or_else(|| format!("Estrutura inesperada na resposta da IA: {}", res_body))?;
 
-    let parsed_json: serde_json::Value = serde_json::from_str(ai_text)
-        .map_err(|e| {
-            format!("A IA respondeu, mas não conseguimos converter para JSON válido ({}) Texto da IA:\n{}", e, ai_text)
-        })?;
+    let parsed_json: serde_json::Value = serde_json::from_str(ai_text).map_err(|e| {
+        format!(
+            "A IA respondeu, mas não conseguimos converter para JSON válido ({}) Texto da IA:\n{}",
+            e, ai_text
+        )
+    })?;
 
     let title = parsed_json["title"].as_str().unwrap_or("").to_string();
-    let description = parsed_json["description"].as_str().unwrap_or("").to_string();
+    let description = parsed_json["description"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
 
     Ok(vec![title, description])
 }
@@ -377,7 +494,10 @@ mod tests {
     #[test]
     fn identifies_binary_and_text_numstat_records() {
         assert_eq!(parse_numstat(b"12\t4\tsrc/main.rs\0"), Some((12, 4, false)));
-        assert_eq!(parse_numstat(b"-\t-\tassets/image.png\0"), Some((0, 0, true)));
+        assert_eq!(
+            parse_numstat(b"-\t-\tassets/image.png\0"),
+            Some((0, 0, true))
+        );
     }
 
     #[test]
@@ -391,12 +511,21 @@ mod tests {
     #[test]
     fn summarizes_status_and_path_only_with_limits() {
         let files = vec![
-            StagedFile { status: "A".into(), path: "assets/model.ifc".into() },
-            StagedFile { status: "M".into(), path: "src/main.rs".into() },
+            StagedFile {
+                status: "A".into(),
+                path: "assets/model.ifc".into(),
+            },
+            StagedFile {
+                status: "M".into(),
+                path: "src/main.rs".into(),
+            },
         ];
         let (summary, omitted) = build_file_summary(&files);
 
-        assert_eq!(summary, "- added: assets/model.ifc\n- modified: src/main.rs\n");
+        assert_eq!(
+            summary,
+            "- added: assets/model.ifc\n- modified: src/main.rs\n"
+        );
         assert_eq!(omitted, 0);
         assert!(!summary.contains("fn main"));
     }

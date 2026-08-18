@@ -1,20 +1,65 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use dotenvy::dotenv;
-mod commands;
-mod git_hub;
-mod azure;
-mod models;
-mod utils;
-mod tests;
 mod ai;
 mod authentication;
+mod azure;
+mod commands;
+mod git_hub;
+mod models;
+mod tests;
+mod utils;
 
-use tauri::{Emitter, Listener};
+use tauri::Emitter;
+use tauri_plugin_deep_link::DeepLinkExt;
+
+fn is_github_oauth_callback(value: &str) -> bool {
+    value
+        .strip_prefix("dev-brook://auth")
+        .is_some_and(|suffix| {
+            suffix.is_empty() || suffix.starts_with('?') || suffix.starts_with('#')
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_github_oauth_callback;
+
+    #[test]
+    fn accepts_github_oauth_callback_urls() {
+        assert!(is_github_oauth_callback("dev-brook://auth?code=test"));
+        assert!(is_github_oauth_callback("dev-brook://auth#error"));
+    }
+
+    #[test]
+    fn rejects_other_urls_and_similar_prefixes() {
+        assert!(!is_github_oauth_callback("https://github.com/login/oauth"));
+        assert!(!is_github_oauth_callback(
+            "dev-brook://auth-malformed?code=test"
+        ));
+        assert!(!is_github_oauth_callback("dev-brook://auth/path?code=test"));
+    }
+}
 
 fn main() {
     dotenv().ok();
-    tauri::Builder::default()
+
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if let Some(url) = args
+                .iter()
+                .skip(1)
+                .find(|arg| is_github_oauth_callback(arg))
+            {
+                let _ = app.emit("oauth-callback", url.clone());
+            }
+        }));
+    }
+
+    builder
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
@@ -22,22 +67,12 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
-            #[cfg(desktop)]
+            #[cfg(any(windows, target_os = "linux"))]
             {
-                let handle = app.handle().clone();
-                
-                app.listen("deep-link://fallback", move |event| {
-                    let url = event.payload().to_string();
-                    println!("URL recebida pelo Deep Link: {}", url); // Verifique seu terminal!
-                    handle.emit("oauth-callback", url).unwrap();
-                });
+                app.deep_link().register_all()?;
             }
             Ok(())
         })
-        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            let url = args[1].clone(); 
-            app.emit("oauth-callback", url).unwrap();
-        }))
         .invoke_handler(tauri::generate_handler![
             commands::repo::open_repo,
             commands::branch::list_branches,

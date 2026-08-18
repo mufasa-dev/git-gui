@@ -1,9 +1,9 @@
+use crate::utils::git_command;
+use serde_json::json;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::Path;
-use serde_json::json;
 use tauri::command;
-use crate::utils::git_command;
 
 const PREVIEW_MAX_BYTES: usize = 2 * 1024 * 1024;
 const PREVIEW_MAX_LINES: usize = 1000;
@@ -15,18 +15,74 @@ struct TextPreview {
 }
 
 fn is_unsupported_extension(path: &Path) -> bool {
-    let extension = path.extension()
+    let extension = path
+        .extension()
         .and_then(|value| value.to_str())
         .map(|value| value.to_ascii_lowercase());
 
-    matches!(extension.as_deref(),
-        Some("zip" | "rar" | "7z" | "tar" | "gz" | "exe" | "bin" | "dll" | "so" | "dylib" |
-            "mp4" | "mkv" | "mov" | "mp3" | "ogg" | "wav" | "avi" | "webm" |
-            "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" |
-            "ifc" | "bim" | "rvt" | "rfa" | "nwd" | "nwc" | "blend" | "fbx" | "obj" |
-            "gltf" | "glb" | "3d" | "3dm" | "3mf" | "x3d" | "3ds" | "max" | "ma" | "mb" | "step" | "stp" | "iges" |
-            "igs" | "dwg" | "dxf" | "e57" | "las" | "laz" | "psd" | "ai" | "skp" |
-            "dae" | "stl"))
+    matches!(
+        extension.as_deref(),
+        Some(
+            "zip"
+                | "rar"
+                | "7z"
+                | "tar"
+                | "gz"
+                | "exe"
+                | "bin"
+                | "dll"
+                | "so"
+                | "dylib"
+                | "mp4"
+                | "mkv"
+                | "mov"
+                | "mp3"
+                | "ogg"
+                | "wav"
+                | "avi"
+                | "webm"
+                | "pdf"
+                | "doc"
+                | "docx"
+                | "xls"
+                | "xlsx"
+                | "ppt"
+                | "pptx"
+                | "ifc"
+                | "bim"
+                | "rvt"
+                | "rfa"
+                | "nwd"
+                | "nwc"
+                | "blend"
+                | "fbx"
+                | "obj"
+                | "gltf"
+                | "glb"
+                | "3d"
+                | "3dm"
+                | "3mf"
+                | "x3d"
+                | "3ds"
+                | "max"
+                | "ma"
+                | "mb"
+                | "step"
+                | "stp"
+                | "iges"
+                | "igs"
+                | "dwg"
+                | "dxf"
+                | "e57"
+                | "las"
+                | "laz"
+                | "psd"
+                | "ai"
+                | "skp"
+                | "dae"
+                | "stl"
+        )
+    )
 }
 
 fn read_file_sample_with_limit(path: &Path, limit: usize) -> Option<Vec<u8>> {
@@ -45,7 +101,9 @@ fn is_binary_bytes(bytes: &[u8]) -> bool {
 }
 
 fn file_metadata(path: &Path) -> (u64, bool, bool) {
-    let size = fs::metadata(path).map(|metadata| metadata.len()).unwrap_or(0);
+    let size = fs::metadata(path)
+        .map(|metadata| metadata.len())
+        .unwrap_or(0);
     if !path.is_file() {
         return (size, false, false);
     }
@@ -75,7 +133,11 @@ fn text_preview(bytes: &[u8]) -> TextPreview {
         line_count += 1;
     }
 
-    if !text.is_empty() && !text.ends_with('\n') && line_count < PREVIEW_MAX_LINES && content.len() < text.len() {
+    if !text.is_empty()
+        && !text.ends_with('\n')
+        && line_count < PREVIEW_MAX_LINES
+        && content.len() < text.len()
+    {
         content.push_str(&text[content.len()..]);
         line_count += 1;
     }
@@ -84,7 +146,11 @@ fn text_preview(bytes: &[u8]) -> TextPreview {
         truncated = true;
     }
 
-    TextPreview { content, line_count, truncated }
+    TextPreview {
+        content,
+        line_count,
+        truncated,
+    }
 }
 
 fn bounded_git_output(repo_path: &str, args: &[&str]) -> Result<(Vec<u8>, bool), String> {
@@ -95,9 +161,13 @@ fn bounded_git_output(repo_path: &str, args: &[&str]) -> Result<(Vec<u8>, bool),
         .spawn()
         .map_err(|error| error.to_string())?;
 
-    let stdout = child.stdout.take().ok_or_else(|| "Não foi possível ler a saída do Git".to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Não foi possível ler a saída do Git".to_string())?;
     let mut bytes = Vec::with_capacity(PREVIEW_MAX_BYTES + 1);
-    stdout.take((PREVIEW_MAX_BYTES + 1) as u64)
+    stdout
+        .take((PREVIEW_MAX_BYTES + 1) as u64)
         .read_to_end(&mut bytes)
         .map_err(|error| error.to_string())?;
     let truncated = bytes.len() > PREVIEW_MAX_BYTES;
@@ -112,7 +182,11 @@ fn bounded_git_output(repo_path: &str, args: &[&str]) -> Result<(Vec<u8>, bool),
         if let Some(mut stream) = child.stderr.take() {
             let _ = stream.read_to_string(&mut stderr);
         }
-        return Err(if stderr.is_empty() { "Falha ao executar Git".to_string() } else { stderr });
+        return Err(if stderr.is_empty() {
+            "Falha ao executar Git".to_string()
+        } else {
+            stderr
+        });
     }
 
     Ok((bytes, truncated))
@@ -125,7 +199,10 @@ fn status_has_conflict(status: &[u8]) -> bool {
 
     let first = status[0];
     let second = status[1];
-    first == b'U' || second == b'U' || (first == b'A' && second == b'A') || (first == b'D' && second == b'D')
+    first == b'U'
+        || second == b'U'
+        || (first == b'A' && second == b'A')
+        || (first == b'D' && second == b'D')
 }
 
 #[tauri::command]
@@ -171,7 +248,11 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
         }
 
         let code = if line.len() >= 2 { &line[0..2] } else { "  " };
-        let file_path = if line.len() > 3 { line[3..].trim_matches('"').to_string() } else { String::new() };
+        let file_path = if line.len() > 3 {
+            line[3..].trim_matches('"').to_string()
+        } else {
+            String::new()
+        };
         let index_status = code.chars().next().unwrap_or(' ');
         let worktree_status = code.chars().nth(1).unwrap_or(' ');
         let conflicted = status_has_conflict(code.as_bytes());
@@ -276,7 +357,11 @@ pub fn discard_changes(path: String, files: Vec<String>) -> Result<String, Strin
 }
 
 #[tauri::command]
-pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_json::Value, String> {
+pub fn get_diff(
+    repo_path: String,
+    file: String,
+    staged: bool,
+) -> Result<serde_json::Value, String> {
     let file_path = Path::new(&repo_path).join(&file);
     let (size, metadata_binary, metadata_previewable) = file_metadata(&file_path);
     let metadata_previewable = metadata_previewable || !file_path.exists();
@@ -297,12 +382,19 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_j
         .map(|output| status_has_conflict(&output.stdout))
         .unwrap_or(false);
 
-    let sample = if file_path.is_file() { read_file_sample(&file_path) } else { None };
-    let marker_conflict = sample.as_ref()
+    let sample = if file_path.is_file() {
+        read_file_sample(&file_path)
+    } else {
+        None
+    };
+    let marker_conflict = sample
+        .as_ref()
         .filter(|bytes| !is_binary_bytes(bytes))
         .map(|bytes| {
             let content = String::from_utf8_lossy(bytes);
-            content.contains("<<<<<<<") && content.contains("=======") && content.contains(">>>>>>>")
+            content.contains("<<<<<<<")
+                && content.contains("=======")
+                && content.contains(">>>>>>>")
         })
         .unwrap_or(false);
     let has_conflict = conflict_status || marker_conflict;
@@ -324,7 +416,8 @@ pub fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_j
         }
 
         let preview = text_preview(sample.as_deref().unwrap_or_default());
-        let content = preview.content
+        let content = preview
+            .content
             .split_inclusive('\n')
             .map(|line| format!("+{}", line))
             .collect::<String>();
@@ -457,7 +550,9 @@ mod tests {
 
     #[test]
     fn preview_limits_line_count() {
-        let content = (0..1200).map(|line| format!("line-{line}\n")).collect::<String>();
+        let content = (0..1200)
+            .map(|line| format!("line-{line}\n"))
+            .collect::<String>();
         let preview = text_preview(content.as_bytes());
 
         assert_eq!(preview.line_count, PREVIEW_MAX_LINES);

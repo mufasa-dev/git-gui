@@ -1,19 +1,18 @@
-use tauri::{Manager, AppHandle, Emitter};
-use std::process::{Command, Stdio};
-use std::io::{BufRead, BufReader};
-use std::thread;
-use serde::Serialize;
-use std::fs;
-use std::path::Path;
-use serde_json::Value;
-use tauri::path::BaseDirectory;
-use regex::Regex;
-use walkdir::WalkDir;
 use crate::models::test::{TestCase, TestFile};
+use regex::Regex;
+use serde::Serialize;
+use serde_json::Value;
+use std::fs;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
+use std::process::{Command, Stdio};
+use std::thread;
+use tauri::path::BaseDirectory;
+use tauri::{AppHandle, Emitter, Manager};
+use walkdir::WalkDir;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
-
 
 #[derive(Clone, Serialize)]
 pub struct Payload {
@@ -25,16 +24,17 @@ pub struct Payload {
 
 #[tauri::command]
 pub async fn run_angular_tests(
-    app: AppHandle, 
-    project_path: String, 
+    app: AppHandle,
+    project_path: String,
     test_file: Option<String>,
-    test_name: Option<String>
+    test_name: Option<String>,
 ) -> Result<String, String> {
-    let window = app.get_webview_window("main")
+    let window = app
+        .get_webview_window("main")
         .ok_or_else(|| "Janela principal não encontrada".to_string())?;
-    
+
     let window_clone = window.clone();
-    let app_handle = app.clone(); 
+    let app_handle = app.clone();
     let is_legacy = is_angular_legacy(&project_path);
 
     thread::spawn(move || {
@@ -44,7 +44,8 @@ pub async fn run_angular_tests(
             "karma-bridge.conf.cjs"
         };
 
-        let source_bridge = app_handle.path()
+        let source_bridge = app_handle
+            .path()
             .resolve(format!("assets/{}", config_name), BaseDirectory::Resource)
             .expect("Falha ao resolver assets");
 
@@ -62,9 +63,8 @@ pub async fn run_angular_tests(
 
         // O comando fica apenas com o include (que o Angular aceita perfeitamente)
         let cmd_string = format!(
-            "npx ng test --watch=false --progress=false --karma-config=\"{}\" {}", 
-            temp_bridge_name, 
-            include_arg
+            "npx ng test --watch=false --progress=false --karma-config=\"{}\" {}",
+            temp_bridge_name, include_arg
         );
 
         let (shell, arg) = if cfg!(target_os = "windows") {
@@ -74,15 +74,16 @@ pub async fn run_angular_tests(
         };
 
         let mut command = Command::new(shell);
-        command.args([arg, &cmd_string])
-            .current_dir(&project_path) 
+        command
+            .args([arg, &cmd_string])
+            .current_dir(&project_path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
         // 👇 AQUI ESTÁ O SEGREDO: Injeta o teste no ambiente do processo se ele existir
         if let Some(name) = test_name {
             let safe_name = name.replace("\"", "");
-            command.env("GIT_RIVER_TEST_GREP", safe_name); 
+            command.env("GIT_RIVER_TEST_GREP", safe_name);
         }
 
         #[cfg(target_os = "windows")]
@@ -102,9 +103,15 @@ pub async fn run_angular_tests(
             for line in reader.lines() {
                 if let Ok(l) = line {
                     println!("[Rust STDOUT]: {}", l);
-                    let _ = win_out.emit("test-event", Payload { 
-                        file: "STDOUT".into(), status: "running".into(), name: l, error: None 
-                    });
+                    let _ = win_out.emit(
+                        "test-event",
+                        Payload {
+                            file: "STDOUT".into(),
+                            status: "running".into(),
+                            name: l,
+                            error: None,
+                        },
+                    );
                 }
             }
         });
@@ -114,9 +121,15 @@ pub async fn run_angular_tests(
             for line in reader.lines() {
                 if let Ok(l) = line {
                     println!("[Rust STDOUT]: {}", l);
-                    let _ = win_err.emit("test-event", Payload { 
-                        file: "STDERR".into(), status: "running".into(), name: l, error: None 
-                    });
+                    let _ = win_err.emit(
+                        "test-event",
+                        Payload {
+                            file: "STDERR".into(),
+                            status: "running".into(),
+                            name: l,
+                            error: None,
+                        },
+                    );
                 }
             }
         });
@@ -127,12 +140,15 @@ pub async fn run_angular_tests(
             eprintln!("Erro ao remover bridge temporária: {}", e);
         }
 
-        let _ = window_clone.emit("test-event", Payload { 
-            file: "SYSTEM".into(), 
-            status: "finished".into(), 
-            name: "PROCESS_FINISHED".into(), 
-            error: None 
-        });
+        let _ = window_clone.emit(
+            "test-event",
+            Payload {
+                file: "SYSTEM".into(),
+                status: "finished".into(),
+                name: "PROCESS_FINISHED".into(),
+                error: None,
+            },
+        );
     });
 
     Ok("Execução iniciada".into())
@@ -168,10 +184,7 @@ pub async fn get_angular_test_files(project_path: String) -> Result<Vec<TestFile
     let describe_re = Regex::new(r#"describe\s*\(\s*['"\x60](.*?)['"\x60]"#).unwrap();
     let it_re = Regex::new(r#"it\s*\(\s*['"\x60](.*?)['"\x60]"#).unwrap();
 
-    for entry in WalkDir::new(src_path)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(src_path).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if path.is_file() && path.to_string_lossy().contains(".spec.ts") {
             let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
@@ -194,8 +207,11 @@ pub async fn get_angular_test_files(project_path: String) -> Result<Vec<TestFile
 
                         // Percorre os caracteres seguintes para achar o fechamento correto do escopo
                         for (idx, ch) in content[absolute_open + 1..].char_indices() {
-                            if ch == '{' { brace_count += 1; }
-                            else if ch == '}' { brace_count -= 1; }
+                            if ch == '{' {
+                                brace_count += 1;
+                            } else if ch == '}' {
+                                brace_count -= 1;
+                            }
 
                             if brace_count == 0 {
                                 end_pos = absolute_open + 1 + idx;
@@ -223,10 +239,14 @@ pub async fn get_angular_test_files(project_path: String) -> Result<Vec<TestFile
 
                     // Ordena pelo start para garantir a ordem hierárquica (Pai > Filho > Neto)
                     active_hierarchy.sort_by_key(|h| h.0);
-                    let hierarchy_names: Vec<String> = active_hierarchy.into_iter().map(|h| h.1).collect();
+                    let hierarchy_names: Vec<String> =
+                        active_hierarchy.into_iter().map(|h| h.1).collect();
 
                     // Se seu front espera apenas o describe principal ("DashboardChatComponent"), use a linha abaixo:
-                    let active_suite = hierarchy_names.first().cloned().unwrap_or_else(|| "Unknown Suite".to_string());
+                    let active_suite = hierarchy_names
+                        .first()
+                        .cloned()
+                        .unwrap_or_else(|| "Unknown Suite".to_string());
 
                     // Caso seu front precise da árvore montada (ex: "DashboardChatComponent > sendMessage"), troque pela linha abaixo:
                     // let active_suite = if !hierarchy_names.is_empty() { hierarchy_names.join(" > ") } else { "Unknown Suite".to_string() };
@@ -245,7 +265,11 @@ pub async fn get_angular_test_files(project_path: String) -> Result<Vec<TestFile
             test_files.push(TestFile {
                 name: path.file_name().unwrap().to_string_lossy().into(),
                 path: relative_clean,
-                label: path.file_stem().unwrap().to_string_lossy().replace(".spec", ""),
+                label: path
+                    .file_stem()
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace(".spec", ""),
                 tests: found_tests,
             });
         }

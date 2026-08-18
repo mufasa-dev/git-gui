@@ -1,9 +1,9 @@
-use std::path::Path;
 use crate::models::pull::GitPullResult;
-use tauri::command;
 use crate::utils::git_command;
-use std::process::Command;
 use base64::{engine::general_purpose, Engine as _};
+use std::path::Path;
+use std::process::Command;
+use tauri::command;
 
 #[tauri::command]
 pub fn open_repo(path: String) -> Result<String, String> {
@@ -52,12 +52,11 @@ pub fn push_repo(
     token: Option<String>,
     provider: Option<String>,
 ) -> Result<String, String> {
-
     let remote_name = remote.unwrap_or_else(|| "origin".to_string());
     let branch_name = branch.unwrap_or_else(|| "HEAD".to_string());
 
     let mut cmd = git_command(&path);
-    
+
     cmd = configure_git_auth(cmd, token, provider);
 
     let output = cmd
@@ -69,25 +68,28 @@ pub fn push_repo(
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
         let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
-        
-        if err_msg.contains("fatal: could not read Password") || 
-           err_msg.contains("Authentication failed") ||
-           err_msg.contains("terminal prompts disabled") {
-            return Err("Erro de Autenticação: Seu token expirou ou é inválido para este repositório.".to_string());
+
+        if err_msg.contains("fatal: could not read Password")
+            || err_msg.contains("Authentication failed")
+            || err_msg.contains("terminal prompts disabled")
+        {
+            return Err(
+                "Erro de Autenticação: Seu token expirou ou é inválido para este repositório."
+                    .to_string(),
+            );
         }
-        
+
         Err(err_msg)
     }
 }
 
 #[tauri::command]
 pub fn git_pull(
-    repo_path: String, 
+    repo_path: String,
     branch: String,
     token: Option<String>,
     provider: Option<String>,
 ) -> Result<GitPullResult, String> {
-
     let mut cmd = git_command(&repo_path);
     cmd = configure_git_auth(cmd, token, provider);
 
@@ -107,13 +109,19 @@ pub fn git_pull(
         });
     }
 
-    if stderr.contains("fatal: could not read Password") || 
-       stderr.contains("Authentication failed") ||
-       stderr.contains("terminal prompts disabled") {
-        return Err("Erro de Autenticação: Seu token expirou ou é inválido para este repositório.".to_string());
+    if stderr.contains("fatal: could not read Password")
+        || stderr.contains("Authentication failed")
+        || stderr.contains("terminal prompts disabled")
+    {
+        return Err(
+            "Erro de Autenticação: Seu token expirou ou é inválido para este repositório."
+                .to_string(),
+        );
     }
 
-    if stderr.contains("divergent branches") || stderr.contains("Need to specify how to reconcile divergent branches") {
+    if stderr.contains("divergent branches")
+        || stderr.contains("Need to specify how to reconcile divergent branches")
+    {
         return Ok(GitPullResult {
             success: false,
             message: stderr.to_string(),
@@ -126,12 +134,11 @@ pub fn git_pull(
 
 #[tauri::command]
 pub fn fetch_repo(
-    repo_path: String, 
+    repo_path: String,
     remote: String,
     token: Option<String>,
     provider: Option<String>,
 ) -> Result<String, String> {
-
     let mut cmd = git_command(&repo_path);
     cmd = configure_git_auth(cmd, token, provider);
 
@@ -146,10 +153,14 @@ pub fn fetch_repo(
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
-        if stderr.contains("fatal: could not read Password") || 
-           stderr.contains("Authentication failed") ||
-           stderr.contains("terminal prompts disabled") {
-            return Err("Erro de Autenticação: Seu token expirou ou é inválido para este repositório.".to_string());
+        if stderr.contains("fatal: could not read Password")
+            || stderr.contains("Authentication failed")
+            || stderr.contains("terminal prompts disabled")
+        {
+            return Err(
+                "Erro de Autenticação: Seu token expirou ou é inválido para este repositório."
+                    .to_string(),
+            );
         }
         Err(stderr.to_string())
     }
@@ -195,17 +206,25 @@ pub async fn get_remote_url(path: String) -> Result<String, String> {
 #[tauri::command]
 pub async fn clone_repo(url: String, target_path: String) -> Result<String, String> {
     let path = std::path::Path::new(&target_path);
-    
-    if path.exists() && path.is_dir() && path.read_dir().map_err(|e| e.to_string())?.next().is_some() {
-        return Err("A pasta de destino já existe e não está vazia. Escolha um novo nome ou pasta.".to_string());
+
+    if path.exists()
+        && path.is_dir()
+        && path.read_dir().map_err(|e| e.to_string())?.next().is_some()
+    {
+        return Err(
+            "A pasta de destino já existe e não está vazia. Escolha um novo nome ou pasta."
+                .to_string(),
+        );
     }
 
-    let parent_dir = path.parent()
+    let parent_dir = path
+        .parent()
         .ok_or("Caminho pai inválido")?
         .to_str()
         .ok_or("Erro de conversão")?;
 
-    let repo_name = path.file_name()
+    let repo_name = path
+        .file_name()
         .and_then(|n| n.to_str())
         .ok_or("Nome do repo inválido")?;
 

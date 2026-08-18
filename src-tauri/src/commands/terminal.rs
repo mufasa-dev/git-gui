@@ -1,6 +1,6 @@
+use crate::utils::git_command;
 use open;
 use std::process::Command;
-use crate::utils::git_command;
 
 #[tauri::command]
 pub fn open_console(path: String) -> Result<(), String> {
@@ -99,8 +99,7 @@ pub async fn open_repo_in_browser(path: String) -> Result<(), String> {
     // converte URLs SSH → HTTPS
     let mut web_url = if url.starts_with("git@") {
         // exemplo: git@github.com:user/repo.git → https://github.com/user/repo
-        url.replace("git@", "https://")
-            .replace(":", "/")
+        url.replace("git@", "https://").replace(":", "/")
     } else {
         url.clone()
     };

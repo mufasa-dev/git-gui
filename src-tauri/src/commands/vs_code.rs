@@ -1,10 +1,10 @@
+use crate::utils::git_command;
 use std::env::temp_dir;
 use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::utils::git_command;
 
 fn spawn_vscode(args: &[String]) -> Result<(), String> {
     #[cfg(target_os = "windows")]
@@ -59,7 +59,10 @@ pub fn open_vscode_git_diff(repo_path: String, file_path: String) -> Result<(), 
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| format!("Falha ao executar git show: {}", error))?;
-    let mut stdout = child.stdout.take().ok_or_else(|| "Falha ao ler a versão anterior do arquivo".to_string())?;
+    let mut stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Falha ao ler a versão anterior do arquivo".to_string())?;
 
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)

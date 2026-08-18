@@ -29,41 +29,78 @@ export const githubService = {
   },
 
   async login() {
-    const rootUrl = `https://github.com/login/oauth/authorize`;
+    const rootUrl = "https://github.com/login/oauth/authorize";
     const options = {
       client_id: GITHUB_CLIENT_ID,
       redirect_uri: "dev-brook://auth",
       scope: "repo user",
     };
+    const authorizationUrl = `${rootUrl}?${new URLSearchParams(options).toString()}`;
 
-    const qs = new URLSearchParams(options);
-    await open(`${rootUrl}?${qs.toString()}`);
+    return new Promise<{ token: string; provider: string }>((resolve, reject) => {
+      let unlisten: (() => void) | undefined;
+      let handled = false;
 
-    return new Promise((resolve, reject) => {
-      const unlisten = listen("oauth-callback", async (event: any) => {
-        const url = event.payload as string;
-        const code = new URL(url).searchParams.get("code");
+      const handleCallback = async (event: { payload: unknown }) => {
+        if (handled || typeof event.payload !== "string") return;
 
-        if (code) {
-          try {
-            const result: any = await invoke("exchange_code_for_token", {
-              code,
-              clientId: GITHUB_CLIENT_ID,
-              clientSecret: GITHUB_CLIENT_SECRET
-            });
-            
-            // USO CORRETO DO STORE NA V2:
-            const store = await getAuthStore();
-            await store.set("github_token", result.token);
-            await store.save(); // Importante salvar no disco!
-            
-            resolve(result);
-          } catch (err) {
-            reject(err);
-          }
+        let callbackUrl: URL;
+        try {
+          callbackUrl = new URL(event.payload);
+        } catch {
+          return;
         }
-        unlisten.then(f => f());
-      });
+
+        if (callbackUrl.protocol !== "dev-brook:" || callbackUrl.hostname !== "auth") {
+          return;
+        }
+
+        handled = true;
+
+        try {
+          const error = callbackUrl.searchParams.get("error");
+          if (error) {
+            const description = callbackUrl.searchParams.get("error_description");
+            throw new Error(description || `Autenticação cancelada pelo GitHub: ${error}`);
+          }
+
+          const code = callbackUrl.searchParams.get("code");
+          if (!code) {
+            throw new Error("O GitHub não retornou o código de autenticação.");
+          }
+
+          const result = await invoke<{ token: string; provider: string }>("exchange_code_for_token", {
+            code,
+            clientId: GITHUB_CLIENT_ID,
+            clientSecret: GITHUB_CLIENT_SECRET,
+          });
+
+          const token = result.token?.trim();
+          if (!token) {
+            throw new Error("O GitHub não retornou um token de acesso.");
+          }
+
+          const store = await getAuthStore();
+          await store.set("github_token", token);
+          await store.save();
+
+          resolve({ ...result, token });
+        } catch (error) {
+          reject(error);
+        } finally {
+          unlisten?.();
+        }
+      };
+
+      (async () => {
+        try {
+          unlisten = await listen("oauth-callback", handleCallback);
+          await open(authorizationUrl);
+        } catch (error) {
+          unlisten?.();
+          reject(error);
+        }
+      })();
     });
   },
 
@@ -403,7 +440,3 @@ export const githubService = {
     await store.save();
   }
 };
-
-listen("oauth-callback", (event) => {
-  console.log("EVENTO OAUTH RECEBIDO NO FRONT:", event.payload);
-});
