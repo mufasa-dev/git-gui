@@ -22,7 +22,7 @@ fn is_github_oauth_callback(value: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+mod oauth_callback_tests {
     use super::is_github_oauth_callback;
 
     #[test]
