@@ -6,7 +6,7 @@ import { Repo } from "../../models/Repo.model";
 import CommitMessage from "../ui/CommitMessage";
 import PRStatusBadge from "./PRStatusBadge";
 import { useApp } from "../../context/AppContext";
-import { GitProvider } from "../../utils/gitProvider";
+import { GitProvider, parseRemoteRepository } from "../../utils/gitProvider";
 import { azureService } from "../../services/azure";
 
 export default function PullRequestsPage(props: { repo: Repo,  branch?: string, provider: GitProvider, remoteUrl: string, onMergeSuccess: (prNumber: number) => void; }) {
@@ -19,51 +19,30 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
   const [sidebarWidth, setSidebarWidth] = createSignal(350);
   const [isResizing, setIsResizing] = createSignal(false);
 
-  // 3. Memoizador para extrair cirurgicamente o Owner/Organização direto da URL remota
-  const repoOwner = createMemo(() => {
-    const url = props.remoteUrl;
-    if (!url) return "";
+  const remoteContext = createMemo(() => parseRemoteRepository(props.remoteUrl));
+  const repoOwner = createMemo(() => remoteContext()?.owner || remoteContext()?.organization || "");
+  const repoProject = createMemo(() => remoteContext()?.project || props.repo?.name || "");
+  const repoName = createMemo(() => remoteContext()?.repository || props.repo?.name || "");
 
-    try {
-      // Caso Azure DevOps (dev.azure.com/organizacao/...)
-      if (url.includes("dev.azure.com/")) {
-        return url.split("dev.azure.com/")[1]?.split("/")[0] || "";
-      }
-      
-      // Caso Azure DevOps Antigo (...visualstudio.com)
-      if (url.includes(".visualstudio.com/")) {
-        return url.split(".visualstudio.com/")[0].replace("https://", "").split("@").pop() || "";
-      }
-
-      // Caso GitHub (github.com/owner/repo)
-      if (url.includes("github.com/")) {
-        return url.split("github.com/")[1]?.split("/")[0] || "";
-      }
-    } catch (e) {
-      console.error("Erro ao fazer o parse da URL remota:", e);
-    }
-    return "";
-  });
-
-  // 4. O Resource unificado agora monitora o owner dinâmico e o provider!
   const [prs, { refetch }] = createResource(
-    () => ({ 
-      owner: repoOwner(), 
-      name: props.repo?.name, 
-      state: filter(), 
-      currentProvider: props.provider 
+    () => ({
+      owner: repoOwner(),
+      project: repoProject(),
+      name: repoName(),
+      state: filter(),
+      currentProvider: props.provider,
     }),
     async (params) => {
       if (!params.name || !params.owner) return [];
 
       if (params.currentProvider === 'azure') {
-        return await azureService.getRepoPullRequests(params.owner, params.name, params.state);
+        return await azureService.getRepoPullRequests(params.owner, params.name, params.state, params.project);
       }
-      
+
       if (params.currentProvider === 'github') {
         return await githubService.getRepoPullRequests(params.owner, params.name, params.state);
       }
-      
+
       return [];
     }
   );
@@ -104,26 +83,45 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
             {/* Barra de Busca */}
             <div class="relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[10px]"></i>
-              <input 
+              <input
                 type="text"
                 placeholder={t('pr').search_pull_requests + '...'}
                 onInput={(e) => setSearchTerm(e.currentTarget.value)}
                 class="w-full bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 pl-8 pr-3 text-xs outline-none focus:border-blue-500 transition-colors dark:text-gray-200"
               />
             </div>
+            <div class="flex items-center justify-between text-[10px] uppercase tracking-widest text-gray-400">
+              <span>{props.provider === 'azure' ? 'Azure DevOps' : 'GitHub'}</span>
+              <button class="rounded-md px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-blue-500" onClick={() => refetch()} title="Refresh">
+                <i class={`fa-solid fa-rotate-right ${prs.loading ? 'animate-spin' : ''}`}></i>
+              </button>
+            </div>
           </header>
 
           <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
-            <Show 
-              when={!prs.loading} 
+            <Show
+              when={!prs.loading}
               fallback={
-                <div class="w-100 text-center">
+                <div class="w-100 text-center py-10">
                   <i class="fa-solid fa-spinner fa-spin text-blue-500"></i>
                 </div>
               }
             >
-              <For each={filteredPRList()}>
-                {(pr) => (
+              <Show when={!prs.error} fallback={
+                <div class="rounded-xl border border-red-300/40 bg-red-500/5 p-4 text-center text-xs text-red-500">
+                  <i class="fa-solid fa-triangle-exclamation mb-2" />
+                  <p>{String(prs.error)}</p>
+                  <button class="mt-3 rounded-md bg-red-500 px-3 py-1.5 text-white" onClick={() => refetch()}>Retry</button>
+                </div>
+              }>
+                <Show when={filteredPRList().length > 0} fallback={
+                  <div class="flex flex-col items-center justify-center py-16 text-center text-gray-500">
+                    <i class="fa-solid fa-inbox text-3xl opacity-40 mb-3" />
+                    <span class="text-xs">{t('pr').no_pr || 'No pull requests found'}</span>
+                  </div>
+                }>
+                  <For each={filteredPRList()}>
+                    {(pr) => (
                   <div class={`flex items-center border rounded-xl p-2 mb-2 transition-colors cursor-pointer
                               ${selectedPR()?.number === pr.number ? 'bg-blue-500/10 border-blue-500/30' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
                       onClick={() => setSelectedPR(pr)}>
@@ -156,7 +154,9 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
                     </div>
                   </div>
                 )}
-              </For>
+                  </For>
+                </Show>
+              </Show>
             </Show>
           </div>
         </div>
@@ -174,10 +174,12 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
               {/* Aqui entra o componente de detalhes */}
               <PRDetailView 
                 pr={selectedPR()} 
-                owner={repoOwner()} 
-                repo={props.repo} 
+                owner={repoOwner()}
+                project={repoProject()}
+                repo={props.repo}
                 branch={props.branch}
                 provider={props.provider}
+                remoteUrl={props.remoteUrl}
                 onMergeSuccess={(updatedPrNumber) => {
                   refetch(); 
                   

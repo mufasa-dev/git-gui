@@ -100,10 +100,15 @@ export const REPO_PULL_REQUESTS_QUERY = `
           number
           title
           state
+          url
           headRefName
           baseRefName
+          headRefOid
+          baseRefOid
           createdAt
-          author { login avatarUrl }
+          updatedAt
+          author { login avatarUrl name }
+          comments { totalCount }
         }
       }
     }
@@ -114,24 +119,30 @@ export const PR_DESCRIPTION_QUERY = `
   query ($owner: String!, $name: String!, $number: Int!) {
     repository(owner: $owner, name: $name) {
       pullRequest(number: $number) {
+        id
+        url
         body
-        author { login }
+        author { login name avatarUrl }
         changedFiles
         additions
         deletions
         mergeable
+        mergeStateStatus
+        headRefName
+        baseRefName
+        headRefOid
+        baseRefOid
         viewerCanMergeAsAdmin
+        viewerCanUpdate
+        headRepository {
+          name
+          url
+          owner { login }
+        }
         reviews(first: 10) {
           nodes {
             state
             author { login avatarUrl }
-          }
-        }
-        reviewRequests(first: 10) {
-          nodes {
-            requestedReviewer {
-              ... on User { login avatarUrl }
-            }
           }
         }
         participants(first: 10) {

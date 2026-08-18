@@ -3,19 +3,25 @@ import { githubService } from "../../services/github";
 import CommitMessage from "../ui/CommitMessage";
 import { useApp } from "../../context/AppContext";
 import { formatRelativeDate } from "../../utils/date";
+import { azureService } from "../../services/azure";
+import { GitProvider } from "../../utils/gitProvider";
 
 interface PRCommitsViewProps {
   owner: string;
+  project: string;
   repoName: string;
   prNumber: number;
+  provider: GitProvider;
   selectCommit: (hash: string) => void;
 }
 
 export default function PRCommitsView(props: PRCommitsViewProps) {
   const { t, locale } = useApp();
   const [commits] = createResource(
-    () => ({ owner: props.owner, name: props.repoName, number: props.prNumber }),
-    async (params) => await githubService.getPRCommits(params.owner, params.name, params.number)
+    () => ({ owner: props.owner, project: props.project, name: props.repoName, number: props.prNumber, provider: props.provider }),
+    async (params) => params.provider === 'azure'
+      ? await azureService.getPRCommits(params.owner, params.name, params.number, params.project)
+      : await githubService.getPRCommits(params.owner, params.name, params.number)
   );
 
   return (

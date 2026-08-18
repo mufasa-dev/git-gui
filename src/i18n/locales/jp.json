@@ -441,7 +441,20 @@
     "incoming": "Incoming",
     "both": "両方",
     "reset": "リセット",
-    "manual_edit": "手動編集"
+    "manual_edit": "手動編集",
+    "preparing_workspace": "分離されたワークスペースを準備中...",
+    "all_conflicts_resolved": "すべての競合が解決されました",
+    "conflicted_files": "競合ファイル",
+    "select_conflicted_file": "競合ファイルを選択してください",
+    "resolution_commit_message": "コミットメッセージ",
+    "review_and_push": "確認してプッシュ",
+    "confirm_resolution_push": "解決内容をコミットしてPRブランチへプッシュします。",
+    "confirm_push": "コミットとプッシュを確認",
+    "conflict_push_success": "解決内容をPRブランチへプッシュしました。",
+    "local_resolution_unavailable": "このPRではローカル解決を利用できません",
+    "open_provider_conflicts": "プロバイダーで開く",
+    "source_branch": "ソースブランチ",
+    "target_branch": "ターゲットブランチ"
   },
   "dashboard": {
     "dashboard": "ダッシュボード",

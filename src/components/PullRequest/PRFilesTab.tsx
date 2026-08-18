@@ -3,22 +3,28 @@ import { githubService } from "../../services/github";
 import FileIcon from "../ui/FileIcon";
 import DiffViewer from "../ui/DiffViewer";
 import { useApp } from "../../context/AppContext";
+import { azureService } from "../../services/azure";
+import { GitProvider } from "../../utils/gitProvider";
 
-export default function PRFilesTab(props: { owner: string, repoName: string, prNumber: number }) {
+export default function PRFilesTab(props: { owner: string, project: string, repoName: string, prNumber: number, provider: GitProvider }) {
   const [selectedFilePath, setSelectedFilePath] = createSignal<string | null>(null);
   const [searchTerm, setSearchTerm] = createSignal("");
   const { t } = useApp();
 
   // 1. Busca a lista estruturada de arquivos (para a sidebar)
   const [files] = createResource(
-    () => ({ owner: props.owner, name: props.repoName, number: props.prNumber }),
-    async (p) => await githubService.getPRFiles(p.owner, p.name, p.number)
+    () => ({ owner: props.owner, project: props.project, name: props.repoName, number: props.prNumber, provider: props.provider }),
+    async (p) => p.provider === 'azure'
+      ? await azureService.getPRFiles(p.owner, p.name, p.number, p.project)
+      : await githubService.getPRFiles(p.owner, p.name, p.number)
   );
 
   // 2. Busca o Diff bruto do PR (para o DiffViewer)
   const [rawDiff] = createResource(
-    () => ({ owner: props.owner, name: props.repoName, number: props.prNumber }),
-    async (p) => await githubService.getPRFileDiff(p.owner, p.name, p.number)
+    () => ({ owner: props.owner, name: props.repoName, number: props.prNumber, provider: props.provider }),
+    async (p) => p.provider === 'github'
+      ? await githubService.getPRFileDiff(p.owner, p.name, p.number)
+      : ""
   );
 
   const getFileName = (path: string) => path.split('/').pop() || "";
@@ -106,7 +112,13 @@ export default function PRFilesTab(props: { owner: string, repoName: string, prN
           </div>
 
           <div class="p-0">
-             <Show when={!rawDiff.loading} fallback={<div class="p-8 animate-pulse space-y-2"><div class="h-4 bg-gray-700 rounded w-full"></div><div class="h-4 bg-gray-700 rounded w-3/4"></div></div>}>
+             <Show when={props.provider === 'azure'}>
+               <div class="p-8 text-center text-xs text-gray-500 dark:text-gray-400">
+                 <i class="fa-solid fa-code-compare text-2xl mb-3 opacity-50"></i>
+                 <p>O Azure DevOps disponibiliza esta alteração no navegador.</p>
+               </div>
+             </Show>
+             <Show when={props.provider !== 'azure' && !rawDiff.loading} fallback={<Show when={props.provider !== 'azure'}><div class="p-8 animate-pulse space-y-2"><div class="h-4 bg-gray-700 rounded w-full"></div><div class="h-4 bg-gray-700 rounded w-3/4"></div></div></Show>}>
                 <DiffViewer 
                   key={selectedFilePath()}
                   path="" 

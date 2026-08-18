@@ -5,6 +5,7 @@ pub mod git_config;
 pub mod image;
 pub mod merge;
 pub mod pull_request;
+pub mod pr_conflict;
 pub mod repo;
 pub mod stage;
 pub mod stash;

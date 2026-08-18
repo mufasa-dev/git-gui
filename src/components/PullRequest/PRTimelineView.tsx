@@ -8,10 +8,15 @@ import { useLoading } from "../ui/LoadingContext";
 import { getEmojiChar } from "../../utils/emoji";
 import ConfirmModal from "../ui/ConfirmModal";
 import { useApp } from "../../context/AppContext";
+import { azureService } from "../../services/azure";
+import { GitProvider } from "../../utils/gitProvider";
+import { notify } from "../../utils/notifications";
 
 type PRTimelineViewProps = {
     owner: string;
+    project: string;
     repo: string;
+    provider: GitProvider;
     pr: any;
     details: any;
     currentUserAvatar: string;
@@ -26,8 +31,10 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     const { t, locale } = useApp();
     
     const [timeline, { refetch }] = createResource(
-        () => ({ owner: props.owner, name: props.repo, number: props.pr.number }),
-        async (params) => await githubService.getPRTimeline(params.owner, params.name, params.number)
+        () => ({ owner: props.owner, project: props.project, name: props.repo, number: props.pr.number, provider: props.provider }),
+        async (params) => params.provider === 'azure'
+            ? await azureService.getPRTimeline(params.owner, params.name, params.number, params.project)
+            : await githubService.getPRTimeline(params.owner, params.name, params.number)
     );
 
     const additionsWidth = createMemo(() => {
@@ -38,6 +45,10 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     });
 
     const handleSaveComment = async () => {
+        if (props.provider !== 'github') {
+            notify.error(t('pr').comment, 'Comentários do Azure DevOps são exibidos nesta versão, mas a edição será feita no provedor.');
+            return;
+        }
         if (!commentText()) return;
 
         try {
@@ -53,6 +64,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     };
 
     const onReact = async (subjectId: string, content: string, hasReacted: boolean) => {
+        if (props.provider !== 'github') return;
         try {
             showLoading(hasReacted ? "Removendo..." : "Reagindo...");
             
@@ -75,6 +87,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     };
 
     const handleHide = async (id: string) => {
+        if (props.provider !== 'github') return;
         try {
             showLoading("Escondendo comentário...");
             // Usando 'OUTDATED' como padrão, similar ao comportamento de 'Hide' rápido
@@ -97,6 +110,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         if (!data) return;
 
         try {
+            if (props.provider !== 'github') return;
             setConfirmData(null); // Fecha a modal
             showLoading("Deletando comentário...");
             await githubService.deleteComment(data.id);
@@ -289,7 +303,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                                         </div>
                                                     </div>
                                                     <div class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                                                        <MarkdownViewer content={item.bodyHTML} />
+                                                        <MarkdownViewer content={item.bodyHTML || item.body || ""} />
                                                     </div>
 
                                                     {/* BOTÕES DE AÇÃO */}
@@ -376,7 +390,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                             placeholder={t('pr').leave_a_comment + '...'}
                         >
                             <button 
-                                disabled={!commentText()}
+                                disabled={props.provider !== 'github' || !commentText()}
                                 onClick={handleSaveComment}
                                 class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
                             >

@@ -36,8 +36,6 @@ pub fn merge_branch(
 pub async fn save_file(path: String, content: String) -> Result<(), String> {
     let mut file = std::fs::File::create(&path).map_err(|e| e.to_string())?;
 
-    file.write_all(&[0xEF, 0xBB, 0xBF])
-        .map_err(|e| e.to_string())?;
     file.write_all(content.as_bytes())
         .map_err(|e| e.to_string())?;
 

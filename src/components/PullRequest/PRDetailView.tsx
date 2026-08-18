@@ -1,6 +1,5 @@
 import { createResource, Show, For, createSignal, Switch, Match, createMemo } from "solid-js";
 import { githubService } from "../../services/github";
-import MarkdownViewer from "../ui/MarkdownViewer";
 import PRFilesTab from "./PRFilesTab";
 import PRCommitsView from "./PRCommitsView";
 import PRChecksView from "./PRChecksView";
@@ -17,41 +16,42 @@ import PRStatusBadge from "./PRStatusBadge";
 import { notify } from "../../utils/notifications";
 import { useApp } from "../../context/AppContext";
 import { azureService } from "../../services/azure";
-import { GitProvider } from "../../utils/gitProvider";
+import { GitProvider, parseRemoteRepository } from "../../utils/gitProvider";
+import { open } from "@tauri-apps/plugin-shell";
+import PRConflictResolver from "./PRConflictResolver";
 
 interface PRDetailViewProps {
   pr: any;
   owner: string;
+  project: string;
   repo: Repo;
   branch?: string;
   provider: GitProvider;
+  remoteUrl: string;
   onMergeSuccess: (prNumber: number) => void;
 }
 
 export default function PRDetailView(props: PRDetailViewProps) {
-  const [activeTab, setActiveTab] = createSignal("Visão Geral");
+  const [activeTab, setActiveTab] = createSignal("overview");
   const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
   const [isApproving, setIsApproving] = createSignal(false);
   const [isMerging, setIsMerging] = createSignal(false);
+  const [showConflictResolver, setShowConflictResolver] = createSignal(false);
+  const [showMergeConfirmation, setShowMergeConfirmation] = createSignal(false);
   const { t, locale } = useApp();
   
   const [details, { refetch }] = createResource(
-    () => ({ owner: props.owner, name: props.repo.name, number: props.pr.number, provider: props.provider }),
+    () => ({ owner: props.owner, project: props.project, name: props.repo.name, number: props.pr.number, provider: props.provider }),
     async (p) => {
       if (p.provider === 'azure') {
-        return await azureService.getPullRequestDescription(p.owner, p.name, p.number);
+        return await azureService.getPullRequestDescription(p.owner, p.name, p.number, props.project);
       }
       return await githubService.getPullRequestDescription(p.owner, p.name, p.number);
     }
   );
-
-  const additionsWidth = () => {
-    const total = (details()?.additions || 0) + (details()?.deletions || 0);
-    return total === 0 ? 50 : (details()?.additions / total) * 100;
-  };
 
   const reviewersList = createMemo(() => {
     const data = details();
@@ -121,7 +121,11 @@ export default function PRDetailView(props: PRDetailViewProps) {
 
     setIsApproving(true);
     try {
-      await githubService.approvePullRequest(prId);
+      if (props.provider === 'github') {
+        await githubService.approvePullRequest(prId);
+      } else if (props.provider === 'azure') {
+        await azureService.approvePullRequest(props.owner, props.repo.name, props.pr.number, props.project);
+      }
       notify.success("Sucesso", "Pull Request aprovado com sucesso!");
       
       refetch(); 
@@ -146,11 +150,11 @@ export default function PRDetailView(props: PRDetailViewProps) {
         await githubService.mergePullRequest(prId);
       } else if (props.provider === 'azure') {
         // Se for Azure, chama o merge correspondente
-        await azureService.mergePullRequest(props.owner, props.repo.name, props.pr.number);
+        await azureService.mergePullRequest(props.owner, props.repo.name, props.pr.number, props.project);
       }
 
       notify.success("Sucesso", "Pull Request mesclado com sucesso!");
-      
+      setShowMergeConfirmation(false);
       props.onMergeSuccess(props.pr.number);
 
     } catch (err) {
@@ -160,11 +164,25 @@ export default function PRDetailView(props: PRDetailViewProps) {
     }
   };
 
+  const openProviderPage = async () => {
+    try {
+      const context = parseRemoteRepository(props.remoteUrl);
+      const url = props.provider === 'github'
+        ? await githubService.getPullRequestWebUrl(props.owner, props.repo.name, props.pr.number)
+        : context?.organization && context.project
+          ? await azureService.getPullRequestWebUrl(context.organization, context.project, props.repo.name, props.pr.number)
+          : props.remoteUrl;
+      if (url) await open(url);
+    } catch (error) {
+      notify.error("Falha ao abrir o PR", String(error));
+    }
+  };
+
   const tabs = createMemo(() => [
-    { id: 'Visão Geral', label: t('pr').conversation, icon: 'fa-regular fa-comments' },
-    { id: 'Files', label: t('file').files, icon: 'fa-regular fa-file-code' },
-    { id: 'Commits', label: t('commits').commits, icon: 'fa-solid fa-code-commit' },
-    { id: 'Checks', label: t('pr').checked, icon: 'fa-solid fa-list-check' }
+    { id: 'overview', label: t('pr').conversation, icon: 'fa-regular fa-comments' },
+    { id: 'files', label: t('file').files, icon: 'fa-regular fa-file-code' },
+    { id: 'commits', label: t('commits').commits, icon: 'fa-solid fa-code-commit' },
+    { id: 'checks', label: t('pr').checked, icon: 'fa-solid fa-list-check' }
   ]);
 
   return (
@@ -184,16 +202,22 @@ export default function PRDetailView(props: PRDetailViewProps) {
                   <span class="text-[10px] font-bold text-red-500 uppercase tracking-tight">
                     Existem conflitos que devem ser resolvidos
                   </span>
-                  <button 
-                    onClick={() => setActiveTab('Files')} 
+                  <button
+                    onClick={() => setShowConflictResolver(true)}
                     class="bg-red-500 text-white px-3 py-1 rounded text-[9px] font-black uppercase hover:bg-red-600 transition-all"
                   >
                     {t('merge').resolve_conflicts}
                   </button>
+                  <button
+                    onClick={openProviderPage}
+                    class="border border-red-500/40 text-red-500 px-3 py-1 rounded text-[9px] font-black uppercase hover:bg-red-500/10 transition-all"
+                  >
+                    {t('merge').open_provider_conflicts}
+                  </button>
                 </div>
               </Match>
               
-              <Match when={details()?.mergeable === 'MERGEABLE'}>
+              <Match when={details()?.mergeable === 'MERGEABLE' && props.pr.state === 'OPEN'}>
                 <div class="flex items-center gap-2">
                   {/* Botão de Aprovar existente */}
                   <button 
@@ -212,7 +236,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
 
                   {/* NOVO: Botão de Merge */}
                   <button 
-                    onClick={handleMerge}
+                    onClick={() => setShowMergeConfirmation(true)}
                     disabled={isMerging() || isApproving()}
                     class={`px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all shadow-lg
                       ${isMerging() 
@@ -272,11 +296,13 @@ export default function PRDetailView(props: PRDetailViewProps) {
             {/* RENDERIZAÇÃO CONDICIONAL DO CONTEÚDO */}
             <Switch>
               {/* ABA: VISÃO GERAL */}
-              <Match when={activeTab() === 'Visão Geral'}>
+              <Match when={activeTab() === 'overview'}>
                   <PRTimelineView 
-                    owner={props.owner} 
-                    repo={props.repo.name} 
-                    pr={props.pr} 
+                    owner={props.owner}
+                    project={props.project}
+                    repo={props.repo.name}
+                    pr={props.pr}
+                    provider={props.provider}
                     details={details()}
                     currentUserAvatar={props.pr.author?.avatarUrl}
                     selectCommit={selectCommit}
@@ -285,26 +311,32 @@ export default function PRDetailView(props: PRDetailViewProps) {
               </Match>
 
               {/* OUTRAS ABAS */}
-              <Match when={activeTab() === 'Files'}>
+              <Match when={activeTab() === 'files'}>
                 <PRFilesTab 
-                    owner={props.owner} 
-                    repoName={props.repo.name} 
-                    prNumber={props.pr.number} 
+                    owner={props.owner}
+                    project={props.project}
+                    repoName={props.repo.name}
+                    prNumber={props.pr.number}
+                    provider={props.provider}
                 />
               </Match>
-              <Match when={activeTab() === 'Commits'}>
+              <Match when={activeTab() === 'commits'}>
                 <PRCommitsView 
-                    owner={props.owner} 
-                    repoName={props.repo.name} 
-                    prNumber={props.pr.number} 
+                    owner={props.owner}
+                    project={props.project}
+                    repoName={props.repo.name}
+                    prNumber={props.pr.number}
+                    provider={props.provider}
                     selectCommit={selectCommit}
                 />
               </Match>
-              <Match when={activeTab() === 'Checks'}>
+              <Match when={activeTab() === 'checks'}>
                 <PRChecksView
-                    owner={props.owner} 
-                    repoName={props.repo.name} 
-                    prNumber={props.pr.number} 
+                    owner={props.owner}
+                    project={props.project}
+                    repoName={props.repo.name}
+                    prNumber={props.pr.number}
+                    provider={props.provider}
                 />
               </Match>
             </Switch>
@@ -389,6 +421,43 @@ export default function PRDetailView(props: PRDetailViewProps) {
           </div>
         </aside>
       </div>
+      <Dialog
+        open={showMergeConfirmation()}
+        title={t('pr').merge_pull_request}
+        onClose={() => setShowMergeConfirmation(false)}
+        width="min(460px, 92vw)"
+      >
+        <div class="space-y-4 text-sm">
+          <p>Confirma o merge deste Pull Request em <strong>{props.pr.baseRefName}</strong>?</p>
+          <div class="flex justify-end gap-2">
+            <button class="px-3 py-2 rounded-md text-xs bg-gray-200 dark:bg-gray-700" onClick={() => setShowMergeConfirmation(false)}>{t('common').cancel}</button>
+            <button class="px-3 py-2 rounded-md text-xs bg-purple-600 text-white" onClick={handleMerge}>{t('pr').merge_pull_request}</button>
+          </div>
+        </div>
+      </Dialog>
+      <Dialog
+        open={showConflictResolver()}
+        title={t('merge').resolve_conflicts}
+        onClose={() => setShowConflictResolver(false)}
+        bodyClass="p-0"
+        width="min(1400px, 96vw)"
+        height="min(900px, 94vh)"
+      >
+        <PRConflictResolver
+          repoPath={props.repo.path}
+          sourceBranch={details()?.headRefName || props.pr.headRefName}
+          targetBranch={details()?.baseRefName || props.pr.baseRefName}
+          expectedHeadSha={details()?.headRefOid || props.pr.headRefOid}
+          provider={props.provider}
+          webUrl={details()?.url || props.pr.url || props.remoteUrl}
+          onClose={() => setShowConflictResolver(false)}
+          onComplete={() => {
+            setShowConflictResolver(false);
+            refetch();
+            props.onMergeSuccess(props.pr.number);
+          }}
+        />
+      </Dialog>
       <Dialog open={showModalCommitDetails()}
               title={t('commits').details}
               onClose={() => setModalCommitDetails(false)}

@@ -12,6 +12,26 @@ async function getAuthStore() {
   return await load("auth.bin");
 }
 
+async function githubRequest(path: string, init: RequestInit = {}) {
+  const token = await githubService.getToken();
+  if (!token) throw new Error("Faça login no GitHub para continuar.");
+
+  const response = await fetch(`https://api.github.com${path}`, {
+    ...init,
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
+    },
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.message || `GitHub retornou HTTP ${response.status}.`);
+  }
+  return payload;
+}
+
 export const githubService = {
 
   async getToken(): Promise<string | null> {
@@ -145,9 +165,15 @@ export const githubService = {
       body: JSON.stringify({ query, variables }),
     });
 
-    if (!res.ok) throw new Error("Erro na requisição GraphQL");
-    const json = await res.json();
-    return json.data;
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message = json?.message || json?.errors?.map((item: any) => item.message).join('; ');
+      throw new Error(message || `GitHub retornou HTTP ${res.status}.`);
+    }
+    if (Array.isArray(json?.errors) && json.errors.length > 0) {
+      throw new Error(json.errors.map((item: any) => item.message).join('; '));
+    }
+    return json?.data;
   },
 
   async getFullUserData(username: string) {
@@ -264,6 +290,17 @@ export const githubService = {
       console.error("Erro ao fazer merge do PR:", error);
       throw error;
     }
+  },
+
+  async updatePullRequestBranch(owner: string, name: string, number: number, expectedHeadSha?: string) {
+    return await githubRequest(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/pulls/${number}/update-branch`, {
+      method: "PUT",
+      body: JSON.stringify(expectedHeadSha ? { expected_head_sha: expectedHeadSha } : {}),
+    });
+  },
+
+  async getPullRequestWebUrl(owner: string, name: string, number: number) {
+    return `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/pull/${number}`;
   },
 
   async getPRFiles(owner: string, name: string, number: number) {

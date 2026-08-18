@@ -441,7 +441,20 @@
     "incoming": "Incoming",
     "both": "Both",
     "reset": "Reset",
-    "manual_edit": "Manual edit"
+    "manual_edit": "Manual edit",
+    "preparing_workspace": "Preparing isolated workspace...",
+    "all_conflicts_resolved": "All conflicts have been resolved",
+    "conflicted_files": "Conflicted files",
+    "select_conflicted_file": "Select a conflicted file",
+    "resolution_commit_message": "Commit message",
+    "review_and_push": "Review and push",
+    "confirm_resolution_push": "The resolution will be committed and pushed to the PR branch.",
+    "confirm_push": "Confirm commit and push",
+    "conflict_push_success": "The resolution was pushed to the PR branch.",
+    "local_resolution_unavailable": "Local resolution is unavailable for this PR",
+    "open_provider_conflicts": "Open in provider",
+    "source_branch": "Source branch",
+    "target_branch": "Target branch"
   },
   "dashboard": {
     "dashboard": "Dashboard",

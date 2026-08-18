@@ -441,7 +441,20 @@
     "incoming": "Incoming",
     "both": "Ambos",
     "reset": "Resetar",
-    "manual_edit": "Edição manual"
+    "manual_edit": "Edição manual",
+    "preparing_workspace": "Preparando workspace isolado...",
+    "all_conflicts_resolved": "Todos os conflitos foram resolvidos",
+    "conflicted_files": "Arquivos conflitantes",
+    "select_conflicted_file": "Selecione um arquivo conflitante",
+    "resolution_commit_message": "Mensagem do commit",
+    "review_and_push": "Revisar e enviar",
+    "confirm_resolution_push": "A resolução será criada como commit e enviada para a branch do PR.",
+    "confirm_push": "Confirmar commit e push",
+    "conflict_push_success": "A resolução foi enviada para a branch do PR.",
+    "local_resolution_unavailable": "A resolução local não está disponível para este PR",
+    "open_provider_conflicts": "Abrir no provedor",
+    "source_branch": "Branch de origem",
+    "target_branch": "Branch de destino"
   },
   "dashboard": {
     "dashboard": "Dashboard",

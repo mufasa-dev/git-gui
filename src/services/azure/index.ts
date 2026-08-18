@@ -1,11 +1,33 @@
 import { load } from "@tauri-apps/plugin-store";
-import { fetch } from "@tauri-apps/plugin-http";
 import { UnifiedPR } from "../../models/PR.model";
 import { UnifiedPipelineRun } from "../../models/Pipeline.model";
 import { invoke } from "@tauri-apps/api/core";
 
 async function getAuthStore() {
   return await load("auth.bin");
+}
+
+async function azureRequest(organization: string, project: string, repository: string, path: string, init: RequestInit = {}) {
+  const token = await azureService.getToken();
+  if (!token) throw new Error("Faça login no Azure DevOps para continuar.");
+
+  const credentials = btoa(`:${token.trim()}`);
+  const response = await window.fetch(
+    `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repository)}${path}`,
+    {
+      ...init,
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        Accept: "application/json",
+        ...(init.headers || {}),
+      },
+    },
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.typeKey || `Azure DevOps retornou HTTP ${response.status}.`);
+  }
+  return payload;
 }
 
 export const azureService = {
@@ -168,7 +190,7 @@ export const azureService = {
   },
 
   // Pull requests
-  async getRepoPullRequests(organization: string, repoName: string, state: string): Promise<UnifiedPR[]> {
+  async getRepoPullRequests(organization: string, repoName: string, state: string, project = repoName): Promise<UnifiedPR[]> {
     try {
       const token = await this.getToken();
       if (!token) return [];
@@ -178,8 +200,7 @@ export const azureService = {
       if (state === "MERGED") statusParam = "completed";
       if (state === "CLOSED") statusParam = "abandoned";
 
-      // 🛠️ Injetamos o escopo do projeto {repoName} antes de /_apis/
-      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests?searchCriteria.status=${statusParam}&api-version=7.0`;
+      const url = `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests?searchCriteria.status=${statusParam}&api-version=7.0`;
 
       const response = await window.fetch(url, {
         headers: { 
@@ -201,6 +222,8 @@ export const azureService = {
         title: pr.title,
         state: pr.status === 'active' ? 'OPEN' : (pr.status === 'completed' ? 'MERGED' : 'CLOSED'),
         createdAt: pr.creationDate,
+        updatedAt: pr.closedDate || pr.creationDate,
+        url: pr.url || `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_git/${encodeURIComponent(repoName)}/pullrequest/${pr.pullRequestId}`,
         author: {
           login: pr.createdBy.uniqueName,
           name: pr.createdBy.displayName,
@@ -208,7 +231,10 @@ export const azureService = {
         },
         headRefName: pr.sourceRefName.replace("refs/heads/", ""),
         baseRefName: pr.targetRefName.replace("refs/heads/", ""),
-        comments: { totalCount: 0 } // Azure trata comentários em threads separadas, mapeado como 0 inicialmente
+        headRefOid: pr.lastMergeSourceCommit?.commitId,
+        baseRefOid: pr.lastMergeTargetCommit?.commitId,
+        comments: { totalCount: pr.commentCount || 0 },
+        mergeable: pr.mergeStatus === 'conflicts' ? 'CONFLICTING' : 'UNKNOWN'
       }));
     } catch (e) {
       console.error(e);
@@ -216,13 +242,13 @@ export const azureService = {
     }
   },
 
-  async getPullRequestDescription(organization: string, repoName: string, prNumber: number): Promise<Partial<UnifiedPR & { mergeable: string, reviewers: any[] }>> {
+  async getPullRequestDescription(organization: string, repoName: string, prNumber: number, project = repoName): Promise<Partial<UnifiedPR & { mergeable: string, reviewers: any[] }>> {
     try {
       const token = await this.getToken();
       if (!token) return {};
       const credentials = btoa(`:${token.trim()}`);
       
-      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
+      const url = `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
       
       const response = await window.fetch(url, {
         headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
@@ -252,8 +278,20 @@ export const azureService = {
       });
 
       return {
-        mergeable: pr.mergeStatus === 'conflicts' ? 'CONFLICTING' : 'MERGEABLE',
-        reviewers: reviewers
+        id: pr.pullRequestId?.toString(),
+        title: pr.title,
+        body: pr.description || "",
+        createdAt: pr.creationDate,
+        updatedAt: pr.closedDate || pr.creationDate,
+        url: pr.url || `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_git/${encodeURIComponent(repoName)}/pullrequest/${prNumber}`,
+        headRefName: pr.sourceRefName?.replace("refs/heads/", ""),
+        baseRefName: pr.targetRefName?.replace("refs/heads/", ""),
+        headRefOid: pr.lastMergeSourceCommit?.commitId,
+        baseRefOid: pr.lastMergeTargetCommit?.commitId,
+        mergeable: pr.mergeStatus === 'conflicts' ? 'CONFLICTING' : pr.mergeStatus === 'queued' ? 'BLOCKED' : 'MERGEABLE',
+        mergeableReason: pr.mergeStatus,
+        reviewers,
+        comments: { totalCount: pr.commentCount || 0 },
       } as any;
     } catch (e) {
       console.error(e);
@@ -261,27 +299,31 @@ export const azureService = {
     }
   },
 
-  async approvePullRequest(organization: string, repoName: string, prNumber: number): Promise<boolean> {
+  async approvePullRequest(organization: string, repoName: string, prNumber: number, project = repoName): Promise<boolean> {
     const token = await this.getToken();
     if (!token) return false;
     const credentials = btoa(`:${token.trim()}`);
     
     // No Azure, você se aprova dando um "voto" positivo (10 = Approved)
-    const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests/${prNumber}/reviewers/me?api-version=7.0`;
+    const url = `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}/reviewers/me?api-version=7.0`;
     const response = await window.fetch(url, {
       method: 'PUT',
       headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ vote: 10 })
     });
-    return response.ok;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `Azure DevOps retornou HTTP ${response.status}.`);
+    }
+    return true;
   },
 
-  async mergePullRequest(organization: string, repoName: string, prNumber: number): Promise<boolean> {
+  async mergePullRequest(organization: string, repoName: string, prNumber: number, project = repoName): Promise<boolean> {
     const token = await this.getToken();
     if (!token) return false;
     const credentials = btoa(`:${token.trim()}`);
     
-    const url = `https://dev.azure.com/${organization}/_apis/git/repositories/${repoName}/pullrequests/${prNumber}?api-version=7.0`;
+    const url = `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests/${prNumber}?api-version=7.0`;
     
     // Precisamos pegar o status atual para mandar o lastMergeSourceCommitId protetor
     const prRes = await window.fetch(url, { headers: { 'Authorization': `Basic ${credentials}` } });
@@ -295,12 +337,79 @@ export const azureService = {
         completionOptions: {
           deleteSourceBranch: false,
           mergeCommitMessage: "Merged via Dev Brook",
-          squashMerge: false
+          mergeStrategy: "noFastForward",
         },
-        lastMergeSourceCommitId: prData.lastMergeSourceCommitId
+        lastMergeSourceCommit: prData.lastMergeSourceCommit,
+        lastMergeSourceCommitId: prData.lastMergeSourceCommit?.commitId || prData.lastMergeSourceCommitId,
       })
     });
-    return response.ok;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `Azure DevOps retornou HTTP ${response.status}.`);
+    }
+    return true;
+  },
+
+  async getPullRequestWebUrl(organization: string, project: string, repoName: string, prNumber: number) {
+    return `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_git/${encodeURIComponent(repoName)}/pullrequest/${prNumber}`;
+  },
+
+  async getPRFiles(organization: string, repoName: string, prNumber: number, project = repoName) {
+    const iterations = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/iterations?api-version=7.1`);
+    const iteration = iterations?.value?.[iterations.value.length - 1];
+    if (!iteration) return [];
+    const changes = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/iterations/${iteration.id}/changes?top=2000&api-version=7.1`);
+    return (changes?.changeEntries || changes?.value || []).map((change: any) => ({
+      path: change.item?.path || change.path || "",
+      changeType: change.changeType || "edit",
+      additions: 0,
+      deletions: 0,
+    }));
+  },
+
+  async getPRCommits(organization: string, repoName: string, prNumber: number, project = repoName) {
+    const data = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/commits?api-version=7.1`);
+    return (data?.value || []).map((commit: any) => ({
+      oid: commit.commitId,
+      abbreviatedOid: commit.commitId?.slice(0, 7),
+      message: commit.comment || "",
+      committedDate: commit.author?.date || commit.committer?.date,
+      author: {
+        name: commit.author?.name || commit.committer?.name || "",
+        avatarUrl: commit.author?._links?.avatar?.href || "",
+        user: { login: commit.author?.email || commit.committer?.email || "" },
+      },
+    }));
+  },
+
+  async getPRChecks(organization: string, repoName: string, prNumber: number, project = repoName) {
+    const data = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/statuses?api-version=7.1-preview.1`);
+    const contexts = (data?.value || []).map((item: any) => ({
+      name: item.context?.name || item.description || "Policy",
+      state: item.state?.toUpperCase() || "UNKNOWN",
+      description: item.description || item.targetUrl || "",
+      targetUrl: item.targetUrl,
+    }));
+    const state = contexts.some((item: any) => ["FAILED", "ERROR"].includes(item.state))
+      ? "FAILURE"
+      : contexts.some((item: any) => ["PENDING", "NOTKNOWN"].includes(item.state)) ? "PENDING" : "SUCCESS";
+    return { state, contexts };
+  },
+
+  async getPRTimeline(organization: string, repoName: string, prNumber: number, project = repoName) {
+    const data = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/threads?api-version=7.1`);
+    return (data?.value || []).map((thread: any) => ({
+      __typename: "IssueComment",
+      id: thread.id?.toString(),
+      createdAt: thread.publishedDate || thread.lastUpdatedDate,
+      body: thread.comments?.map((comment: any) => comment.content).filter(Boolean).join("\\n") || "",
+      author: {
+        login: thread.comments?.[0]?.author?.uniqueName || thread.comments?.[0]?.author?.displayName || "Azure DevOps",
+        name: thread.comments?.[0]?.author?.displayName,
+        avatarUrl: thread.comments?.[0]?.author?._links?.avatar?.href || "",
+      },
+      isMinimized: false,
+    }));
   },
 
   async getPipelineRuns(organization: string, project: string, repoPath: string): Promise<UnifiedPipelineRun[]> {
@@ -617,7 +726,7 @@ export const azureService = {
       // No Azure DevOps, reexecutar falhas em pipelines modernos mapeia uma alteração de estado no build (Retry)
       const url = `https://dev.azure.com/${owner}/${encodeURIComponent(project)}/_apis/build/builds/${targetRunId}?api-version=7.0`;
 
-      const response = await window.fetch(url, {
+      await window.fetch(url, {
         method: "PATCH", // Atualiza o estado da execução existente
         headers: { 
           'Authorization': `Basic ${credentials}`, 

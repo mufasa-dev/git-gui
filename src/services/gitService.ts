@@ -317,6 +317,62 @@ export async function mergeBranch(repoPath: string, fromBranch: string, toBranch
   return await invoke("merge_branch", { repoPath, fromBranch, toBranch });
 }
 
+export type ConflictWorkspace = {
+  workspace_path: string;
+  source_branch: string;
+  target_branch: string;
+  expected_head_sha: string;
+  conflicts: string[];
+};
+
+export type ConflictWorkspaceStatus = {
+  conflicts: string[];
+  changed_files: string[];
+  clean: boolean;
+};
+
+export async function preparePRConflict(
+  repoPath: string,
+  sourceBranch: string,
+  targetBranch: string,
+  token?: string,
+  provider?: string,
+): Promise<ConflictWorkspace> {
+  return await invoke("prepare_pr_conflict", {
+    repoPath,
+    sourceBranch,
+    targetBranch,
+    token,
+    provider,
+  });
+}
+
+export async function getPRConflictStatus(workspacePath: string): Promise<ConflictWorkspaceStatus> {
+  return await invoke("get_pr_conflict_status", { workspacePath });
+}
+
+export async function commitPRConflict(
+  workspacePath: string,
+  sourceBranch: string,
+  expectedHeadSha: string,
+  message: string,
+  token?: string,
+  provider?: string,
+): Promise<{ commit_sha: string; pushed: boolean }> {
+  return await invoke("commit_pr_conflict", {
+    workspacePath,
+    sourceBranch,
+    expectedHeadSha,
+    message,
+    token,
+    provider,
+  });
+}
+
+export async function cleanupPRConflict(repoPath: string, workspacePath: string): Promise<void> {
+  await invoke("cleanup_pr_conflict", { repoPath, workspacePath });
+}
+
 export async function saveFile(path: string = '', content: string) {
   return await invoke("save_file", { path, content });
 }
