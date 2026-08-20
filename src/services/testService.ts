@@ -25,7 +25,8 @@ export async function runTestTerminal(
   projectType: string, 
   path: string, 
   filePath: string = "", 
-  testName: string = "" // <- Novo argumento opcional
+  testName: string = "",
+  randomize: boolean = false
 ): Promise<void> {
   projectType = projectType.toLowerCase();
 
@@ -35,6 +36,7 @@ export async function runTestTerminal(
   if (testName?.length > 0) args.testName = testName;
 
   if (projectType === "karma/jasmine" || projectType === "angular") {
+    args.randomize = randomize;
     return await invoke('run_angular_tests', args);
   }
   if (projectType === "dotnet test") {

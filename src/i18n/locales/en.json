@@ -380,7 +380,15 @@
     "failed": "Failed",
     "skipped": "Skipped",
     "rating_score": "Pass rate",
-    "test_details": "Test details"
+    "test_details": "Test details",
+    "settings": "Execution settings",
+    "settings_description": "Choose how the tests should be executed.",
+    "random_order": "Run in random order",
+    "random_order_description": "Helps find tests that incorrectly depend on execution order.",
+    "rerun": "Run again",
+    "open_vscode": "Open test in VS Code",
+    "error_details": "Error details",
+    "file_not_found": "The test's physical file could not be located."
   },
   "repository": {
     "repository": "Repository",

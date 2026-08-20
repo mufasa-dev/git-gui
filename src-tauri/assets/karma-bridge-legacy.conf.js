@@ -63,7 +63,7 @@ module.exports = function (config) {
     restartOnFileChange: false,
     logLevel: config.LOG_INFO,
     client: {
-      jasmine: { random: false },
+      jasmine: { random: process.env.GIT_RIVER_TEST_RANDOM === 'true' },
       clearContext: false,
       captureConsole: true
     }

@@ -72,7 +72,7 @@ module.exports = function (config) {
     
     client: {
       jasmine: {
-        random: false
+        random: process.env.GIT_RIVER_TEST_RANDOM === 'true'
       },
       clearContext: false,
       // Garante que o log do console do browser seja repassado para o terminal

@@ -28,6 +28,7 @@ pub async fn run_angular_tests(
     project_path: String,
     test_file: Option<String>,
     test_name: Option<String>,
+    randomize: Option<bool>,
 ) -> Result<String, String> {
     let window = app
         .get_webview_window("main")
@@ -84,6 +85,10 @@ pub async fn run_angular_tests(
         if let Some(name) = test_name {
             let safe_name = name.replace("\"", "");
             command.env("GIT_RIVER_TEST_GREP", safe_name);
+        }
+
+        if randomize.unwrap_or(false) {
+            command.env("GIT_RIVER_TEST_RANDOM", "true");
         }
 
         #[cfg(target_os = "windows")]

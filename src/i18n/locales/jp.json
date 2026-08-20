@@ -380,7 +380,15 @@
     "failed": "失敗",
     "skipped": "スキップ",
     "rating_score": "合格率",
-    "test_details": "テスト詳細"
+    "test_details": "テスト詳細",
+    "settings": "実行設定",
+    "settings_description": "テストの実行方法を設定します。",
+    "random_order": "ランダムな順序で実行",
+    "random_order_description": "実行順序に依存しているテストを見つけるのに役立ちます。",
+    "rerun": "再実行",
+    "open_vscode": "テストをVS Codeで開く",
+    "error_details": "エラーの詳細",
+    "file_not_found": "テストの実ファイルを見つけられませんでした。"
   },
   "repository": {
     "repository": "リポジトリ",

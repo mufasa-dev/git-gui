@@ -380,7 +380,15 @@
     "failed": "Falliti",
     "skipped": "Saltati",
     "rating_score": "Tasso di successo",
-    "test_details": "Dettagli test"
+    "test_details": "Dettagli test",
+    "settings": "Impostazioni di esecuzione",
+    "settings_description": "Definisci come devono essere eseguiti i test.",
+    "random_order": "Esegui in ordine casuale",
+    "random_order_description": "Aiuta a trovare i test che dipendono erroneamente dall'ordine di esecuzione.",
+    "rerun": "Esegui di nuovo",
+    "open_vscode": "Apri test in VS Code",
+    "error_details": "Dettagli dell'errore",
+    "file_not_found": "Non è stato possibile trovare il file fisico del test."
   },
   "repository": {
     "repository": "Repository",

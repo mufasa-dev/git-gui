@@ -1,9 +1,13 @@
-import { createSignal, For, onMount, Show, createMemo, createEffect } from 'solid-js';
+import { createSignal, For, onMount, onCleanup, Show, createMemo, createEffect } from 'solid-js';
 import { listen } from '@tauri-apps/api/event';
 import { ParsedEvent, ProjectType } from '../../models/ProjectType.model';
 import { getProjectType, runTestTerminal, getTestsFiles } from '../../services/testService';
 import { formatDuration } from '../../utils/date';
 import FileIcon from '../ui/FileIcon';
+import ContextMenu, { ContextMenuItem } from '../ui/ContextMenu';
+import Dialog from '../ui/Dialog';
+import { openVsCode } from '../../services/openService';
+import { notify } from '../../utils/notifications';
 import { useApp } from '../../context/AppContext';
 import { angularParser } from '../../lib/TestsPareser/AngularParser';
 import { parseTrxToEvents } from '../../lib/TestsPareser/TrxParser';
@@ -48,6 +52,13 @@ export const TestRunner = (props: { repo: any }) => {
 
   const [executionScope, setExecutionScope] = createSignal<'all' | 'suite' | 'single' | null>(null);
   const [runningSingleTest, setRunningSingleTest] = createSignal<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = createSignal(false);
+  const [randomizeTests, setRandomizeTests] = createSignal(
+    localStorage.getItem('test-runner-randomize') === 'true'
+  );
+  const [testMenuVisible, setTestMenuVisible] = createSignal(false);
+  const [testMenuPosition, setTestMenuPosition] = createSignal({ x: 0, y: 0 });
+  const [contextTest, setContextTest] = createSignal<TestSpec | null>(null);
 
   const { t } = useApp();
 
@@ -166,6 +177,62 @@ export const TestRunner = (props: { repo: any }) => {
     return foundFile?.path;
   };
 
+  const resolveTestFilePath = (spec: TestSpec): string | undefined => {
+    const parts = spec.name.split(' > ');
+    const testName = parts.pop()?.trim() || '';
+    const suite = parts.join(' > ').trim();
+    const mappedPath = spec.filePath && spec.filePath !== 'unknown'
+      ? spec.filePath
+      : findFilePathForTest(suite, testName);
+
+    if (!mappedPath || !props.repo?.path) return undefined;
+    if (/^(?:[A-Za-z]:[\\/]|[\\/]{2})/.test(mappedPath)) return mappedPath;
+    return `${props.repo.path.replace(/[\\/]+$/, '')}/${mappedPath.replace(/^[/\\]+/, '')}`;
+  };
+
+  const openTestInVsCode = async (spec: TestSpec) => {
+    const filePath = resolveTestFilePath(spec);
+    if (!filePath) {
+      notify.error(t('test').test, t('test').file_not_found);
+      return;
+    }
+
+    try {
+      await openVsCode(filePath);
+    } catch (error) {
+      notify.error(t('test').open_vscode, String(error));
+    }
+  };
+
+  const showTestContextMenu = (event: MouseEvent, spec: TestSpec) => {
+    event.preventDefault();
+    setContextTest(spec);
+    setTestMenuPosition({ x: event.clientX, y: event.clientY });
+    setTestMenuVisible(true);
+  };
+
+  const hideTestContextMenu = () => {
+    setTestMenuVisible(false);
+    setContextTest(null);
+  };
+
+  const testContextItems = (): ContextMenuItem[] => {
+    const spec = contextTest();
+    if (!spec) return [];
+
+    return [
+      {
+        label: t('test').rerun,
+        action: () => runIndividualTest(spec.name)
+      },
+      {
+        label: t('test').open_vscode,
+        hr: true,
+        action: () => openTestInVsCode(spec)
+      }
+    ];
+  };
+
   const syncSpecsWithPhysicalCode = () => {
     const scope = executionScope();
     const currentSuite = selectedSuite();
@@ -214,6 +281,9 @@ export const TestRunner = (props: { repo: any }) => {
     setExecutionScope(null);
     setRunningSingleTest(null);
   };
+
+  onMount(() => document.addEventListener('click', hideTestContextMenu));
+  onCleanup(() => document.removeEventListener('click', hideTestContextMenu));
 
   onMount(async () => {
     let compileLogBuffer: string[] = [];
@@ -355,7 +425,13 @@ export const TestRunner = (props: { repo: any }) => {
     setSpecs(prev => prev.map(s => ({ ...s, status: 'running', log: [] })));
     
     try {
-      await runTestTerminal(projectInfo()?.testRunner || 'dockerfile', props.repo.path);
+      await runTestTerminal(
+        projectInfo()?.testRunner || 'dockerfile',
+        props.repo.path,
+        '',
+        '',
+        randomizeTests()
+      );
     } catch (err) {
       setIsRunning(false);
       setSpecs([{ id: 'error', name: 'Erro > Falha', status: 'fail', log: [String(err)] }]);
@@ -387,12 +463,23 @@ export const TestRunner = (props: { repo: any }) => {
     }));
 
     try {
-      await runTestTerminal(projectInfo()?.testRunner || 'angular', props.repo.path, filePath, pureItName);
+      await runTestTerminal(
+        projectInfo()?.testRunner || 'angular',
+        props.repo.path,
+        filePath,
+        pureItName,
+        randomizeTests()
+      );
     } catch (err) {
       setIsRunning(false);
       setExecutionScope(null);
       setRunningSingleTest(null);
     }
+  };
+
+  const setRandomOrder = (enabled: boolean) => {
+    setRandomizeTests(enabled);
+    localStorage.setItem('test-runner-randomize', String(enabled));
   };
 
   const runSuiteTest = async () => {
@@ -419,7 +506,13 @@ export const TestRunner = (props: { repo: any }) => {
     }));
 
     try {
-      await runTestTerminal(projectInfo()?.testRunner || 'angular', props.repo.path, filePath);
+      await runTestTerminal(
+        projectInfo()?.testRunner || 'angular',
+        props.repo.path,
+        filePath,
+        '',
+        randomizeTests()
+      );
     } catch (err) {
       setIsRunning(false);
       setExecutionScope(null);
@@ -441,12 +534,23 @@ export const TestRunner = (props: { repo: any }) => {
                   <FileIcon fileName={projectInfo()?.testRunner || 'dockerfile'} />
                   {projectInfo()?.testRunner || 'Runner'}
                 </span>
-                <button onClick={runAllTests} disabled={isRunning()} class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-2">
-                    <Show when={isRunning()} fallback={<i class="fa-solid fa-play"></i>}>
-                      <i class="fa-solid fa-circle-notch animate-spin"></i>
-                    </Show>
-                    {isRunning() ? t('test').running : t('test').run}
-                </button>
+                <div class="flex items-center gap-1">
+                  <button
+                    onClick={() => setSettingsOpen(true)}
+                    disabled={isRunning()}
+                    title={t('test').settings}
+                    aria-label={t('test').settings}
+                    class="w-7 h-7 rounded-lg text-gray-500 hover:text-blue-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-40"
+                  >
+                    <i class="fa-solid fa-gear text-[11px]"></i>
+                  </button>
+                  <button onClick={runAllTests} disabled={isRunning()} class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-2">
+                      <Show when={isRunning()} fallback={<i class="fa-solid fa-play"></i>}>
+                        <i class="fa-solid fa-circle-notch animate-spin"></i>
+                      </Show>
+                      {isRunning() ? t('test').running : t('test').run}
+                  </button>
+                </div>
             </div>
 
             <div class="grid grid-cols-3 gap-1 text-center">
@@ -614,7 +718,9 @@ export const TestRunner = (props: { repo: any }) => {
                 <div class="grid grid-cols-1 gap-2">
                   <For each={groupedSpecs()[selectedSuite()!]?.tests || []}>
                     {(spec) => (
-                      <div class={`group flex items-center gap-4 px-3 py-1 rounded-lg border transition-all ${
+                      <div
+                        onContextMenu={(event) => showTestContextMenu(event, spec)}
+                        class={`group flex items-center gap-4 px-3 py-1 rounded-lg border transition-all ${
                         spec.status === 'pass' 
                           ? 'bg-green-500/5 border-green-500/20' 
                           : spec.status === 'running'
@@ -643,7 +749,7 @@ export const TestRunner = (props: { repo: any }) => {
 
                           <Show when={spec.status === 'fail' && spec.log.length > 0}>
                             <div class="mt-2 p-3 dark:bg-red-950/30 rounded border border-red-500/30 font-mono text-[11px] text-black dark:text-red-200 overflow-x-auto select-text">
-                              <div class="mb-2 text-[10px] uppercase tracking-wide text-red-600 dark:text-red-300">Detalhes do erro</div>
+                              <div class="mb-2 text-[10px] uppercase tracking-wide text-red-600 dark:text-red-300">{t('test').error_details}</div>
                               <For each={spec.log}>
                                 {(logLine) => (
                                   <div class={`mb-1 whitespace-pre-wrap break-words ${logLine.includes('at ') ? 'opacity-50 text-[10px]' : 'font-bold'}`}>
@@ -685,6 +791,53 @@ export const TestRunner = (props: { repo: any }) => {
           </Show>
         </div>
       </div>
+
+      <Show when={testMenuVisible()}>
+        <ContextMenu
+          name={contextTest()?.name || 'Teste'}
+          items={testContextItems()}
+          position={testMenuPosition()}
+          onClose={hideTestContextMenu}
+        />
+      </Show>
+
+      <Dialog
+        open={settingsOpen()}
+        title={t('test').settings}
+        icon="fa-solid fa-sliders"
+        iconColor="text-blue-600 dark:text-blue-300"
+        width="390px"
+        onClose={() => setSettingsOpen(false)}
+      >
+        <div class="space-y-4">
+          <div>
+            <h3 class="text-sm font-bold text-gray-800 dark:text-white">{t('test').settings}</h3>
+            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{t('test').settings_description}</p>
+          </div>
+
+          <label class="flex items-start gap-3 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
+            <input
+              type="checkbox"
+              checked={randomizeTests()}
+              onChange={(event) => setRandomOrder(event.currentTarget.checked)}
+              class="mt-0.5 h-4 w-4 accent-blue-600"
+            />
+            <span>
+              <span class="block text-xs font-bold text-gray-800 dark:text-gray-100">{t('test').random_order}</span>
+              <span class="block mt-1 text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">{t('test').random_order_description}</span>
+            </span>
+          </label>
+
+          <div class="flex justify-end">
+            <button
+              onClick={() => setSettingsOpen(false)}
+              class="rounded-md bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500 transition-colors"
+            >
+              {t('common').close}
+            </button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };
