@@ -1,7 +1,6 @@
 import { createEffect, createSignal, createMemo, For, Show } from "solid-js";
 import { Repo } from "../models/Repo.model";
 import { getCommitDetails, getCommits, listBranchFilesWithSize } from "../services/gitService";
-import { formatRelativeDate } from "../utils/date";
 import { notify } from "../utils/notifications";
 import { getGravatarUrl } from "../services/gravatarService";
 import LanguageBar from "../components/Dashboard/LanguageBar";
@@ -16,7 +15,6 @@ import { formatContributorName } from "../utils/user";
 import Dialog from "../components/ui/Dialog";
 import CommitsModalList from "../components/commits/CommitsModalList";
 import { useApp } from "../context/AppContext";
-import { FileViewerContainer } from "../components/files/FileViewerContainer";
 
 declare module "solid-js" {
   namespace JSX {
@@ -34,16 +32,14 @@ const commitsSignature = (commits: any[]) => commits.map(commit => [
   commit.graph_symbol,
 ].join("|")).join("\u0000");
 
+const DASHBOARD_COMMIT_LIMIT = 10_000;
+
 export default function Dashboard(props: { repo: Repo; branch?: string, class?: string }) {
   const [commits, setCommits] = createSignal<any[]>([]);
   const [selectedCommits, setSelectedCommits] = createSignal<any[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
-  const [commitDetailsHeight, setCommitDetailsHeight] = createSignal(300);
   const [branchFiles, setBranchFiles] = createSignal<{path: string, size: number}[]>([]);
-  const [resizing, setResizing] = createSignal(false);
-  const [startDate, setStartDate] = createSignal("");
-  const [endDate, setEndDate] = createSignal("");
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
   const [showCommits, setShowCommits] = createSignal(false);
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
@@ -53,41 +49,6 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   let previousRefsRevision: number | undefined;
   const { t } = useApp();
   
-  // Estados para Paginação e Filtro
-  const [searchTerm, setSearchTerm] = createSignal("");
-  const [currentPage, setCurrentPage] = createSignal(1);
-  const itemsPerPage = 40;
-
-  const filteredCommits = createMemo(() => {
-    const term = searchTerm().toLowerCase();
-    const start = startDate() ? new Date(startDate()) : null;
-    const end = endDate() ? new Date(endDate()) : null;
-
-    return commits().filter(c => {
-      // 1. Filtro de Texto
-      const matchesText = !term || 
-        c.message.toLowerCase().includes(term) || 
-        c.hash.toLowerCase().includes(term) ||
-        c.author.toLowerCase().includes(term);
-
-      // 2. Filtro de Data
-      const commitDate = new Date(c.date);
-      let matchesDate = true;
-      
-      if (start) {
-        matchesDate = matchesDate && commitDate >= start;
-      }
-      if (end) {
-        // Adicionamos 23:59:59 para garantir que pegue o dia final inteiro
-        const endWithTime = new Date(end);
-        endWithTime.setHours(23, 59, 59, 999);
-        matchesDate = matchesDate && commitDate <= endWithTime;
-      }
-
-      return matchesText && matchesDate;
-    });
-  });
-
   let pendingCommitsRefresh = false;
 
   const loadCommits = async (isNewBranch: boolean) => {
@@ -101,7 +62,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
 
     try {
       const branchName = props.branch.replace("* ", "");
-      const res = await getCommits(props.repo.path, branchName);
+      const res = await getCommits(props.repo.path, branchName, DASHBOARD_COMMIT_LIMIT);
       
       if (commitsSignature(res) !== commitsSignature(commits())) {
         setCommits(res);
@@ -138,7 +99,6 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     const refsChanged = previousRefsRevision !== undefined && refsRevision !== previousRefsRevision;
 
     if (isNewRepoOrBranch) {
-      setCurrentPage(1);
       setSelectedCommit(null);
       setCommits([]);
       setBranchFiles([]);
@@ -162,13 +122,6 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     } catch (e) {
       console.error("Erro ao carregar arquivos do branch:", e);
       notify.error(t('error').load_file, String(e));
-    }
-  }
-
-  function onMouseMove(e: MouseEvent) {
-    if (resizing()) {
-      const newHeight = window.innerHeight - e.clientY - 20;
-      setCommitDetailsHeight(Math.max(150, newHeight));
     }
   }
 
@@ -200,8 +153,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   const topContributors = createMemo(() => contributorStats().slice(0, 100));
 
   return (
-    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container"
-         onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
+    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container">
       <Show when={!loading()} fallback={
         <div class="flex-1 flex items-center justify-center">
           <i class="fa-solid fa-spinner animate-spin text-blue-500 text-2xl"></i>

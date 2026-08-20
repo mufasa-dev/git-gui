@@ -37,14 +37,13 @@ pub struct GraphLine {
     pub parent_hashes: String, // Hashes dos pais separados por espaço
 }
 
-#[tauri::command]
-pub fn list_commits(
-    path: String,
-    branch: String,
+fn list_commits_from_git(
+    path: &str,
+    branch: &str,
     limit: Option<usize>,
     skip: Option<usize>,
 ) -> Result<Vec<GraphLine>, String> {
-    let mut command = git_command(&path);
+    let mut command = git_command(path);
     command.args([
         "log",
         "--graph",
@@ -94,6 +93,18 @@ pub fn list_commits(
         .collect();
 
     Ok(lines)
+}
+
+#[tauri::command]
+pub async fn list_commits(
+    path: String,
+    branch: String,
+    limit: Option<usize>,
+    skip: Option<usize>,
+) -> Result<Vec<GraphLine>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_commits_from_git(&path, &branch, limit, skip))
+    .await
+    .map_err(|error| format!("Falha ao carregar commits: {}", error))?
 }
 
 #[tauri::command]

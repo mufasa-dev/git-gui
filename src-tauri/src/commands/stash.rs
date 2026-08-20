@@ -73,9 +73,8 @@ fn parse_stash_subject(subject: &str) -> (String, String) {
     (String::new(), subject.to_string())
 }
 
-#[command]
-pub fn list_stashes(repo_path: String) -> Result<Vec<StashEntry>, String> {
-    let output = git_command(&repo_path)
+fn list_stashes_from_git(repo_path: &str) -> Result<Vec<StashEntry>, String> {
+    let output = git_command(repo_path)
         .args(["stash", "list", "--format=%gd%x1f%H%x1f%ci%x1f%gs"])
         .output()
         .map_err(|error| format!("Falha ao listar stashes: {}", error))?;
@@ -104,6 +103,13 @@ pub fn list_stashes(repo_path: String) -> Result<Vec<StashEntry>, String> {
     }
 
     Ok(stashes)
+}
+
+#[command]
+pub async fn list_stashes(repo_path: String) -> Result<Vec<StashEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_stashes_from_git(&repo_path))
+        .await
+        .map_err(|error| format!("Falha ao listar stashes: {}", error))?
 }
 
 #[command]

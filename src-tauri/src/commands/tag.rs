@@ -85,9 +85,8 @@ fn resolve_tag_commit(repo_path: &str, name: &str) -> Result<String, String> {
         .map(|value| value.lines().next().unwrap_or_default().trim().to_string())
 }
 
-#[command]
-pub fn list_tags(repo_path: String) -> Result<Vec<TagEntry>, String> {
-    let output = git_command(&repo_path)
+fn list_tags_from_git(repo_path: &str) -> Result<Vec<TagEntry>, String> {
+    let output = git_command(repo_path)
         .args([
             "for-each-ref",
             "--format=%(refname:short)%x1f%(objecttype)%x1f%(creatordate:iso-strict)%x1f%(creator)%x1f%(subject)%x1f%(objectname)%x1f%(*objectname)",
@@ -136,6 +135,13 @@ pub fn list_tags(repo_path: String) -> Result<Vec<TagEntry>, String> {
     }
 
     Ok(tags)
+}
+
+#[command]
+pub async fn list_tags(repo_path: String) -> Result<Vec<TagEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_tags_from_git(&repo_path))
+        .await
+        .map_err(|error| format!("Falha ao listar tags: {}", error))?
 }
 
 fn short_hash_len() -> usize {

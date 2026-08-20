@@ -49,10 +49,14 @@ export async function checkoutBranch(repoPath: string, branch: string): Promise<
   return await invoke("checkout_branch", { repoPath, branch });
 }
 
-export async function getCommits(path: string, branch: string, limit = 300, skip = 0) {
+export async function getCommits(path: string, branch: string, limit?: number, skip?: number) {
+  const args: { path: string; branch: string; limit?: number; skip?: number } = { path, branch };
+  if (limit !== undefined) args.limit = limit;
+  if (skip !== undefined && skip > 0) args.skip = skip;
+
   return await invoke<{ hash: string; message: string; author: string; date: string }[]>(
     "list_commits",
-    { path, branch, limit, skip }
+    args
   );
 }
 

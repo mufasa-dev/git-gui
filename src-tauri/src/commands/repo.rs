@@ -160,8 +160,10 @@ fn repository_snapshot_from_git(repo_path: &str) -> Result<RepositorySnapshot, S
 }
 
 #[tauri::command]
-pub fn get_repository_snapshot(path: String) -> Result<RepositorySnapshot, String> {
-    repository_snapshot_from_git(&path)
+pub async fn get_repository_snapshot(path: String) -> Result<RepositorySnapshot, String> {
+    tauri::async_runtime::spawn_blocking(move || repository_snapshot_from_git(&path))
+        .await
+        .map_err(|error| format!("Falha ao carregar o snapshot do repositório: {}", error))?
 }
 
 #[tauri::command]

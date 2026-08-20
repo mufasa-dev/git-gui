@@ -55,8 +55,6 @@ export default function CommitsList(props: {
 }) {
   const [commits, setCommits] = createSignal<any[]>([]);
   const [loading, setLoading] = createSignal(false);
-  const [loadingMore, setLoadingMore] = createSignal(false);
-  const [hasMore, setHasMore] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   const [commitDetailsHeight, setCommitDetailsHeight] = createSignal(300);
   const [resizing, setResizing] = createSignal(false);
@@ -75,7 +73,6 @@ export default function CommitsList(props: {
   const [searchTerm, setSearchTerm] = createSignal("");
   const [currentPage, setCurrentPage] = createSignal(1);
   const itemsPerPage = 40;
-  const commitBatchSize = 300;
 
   const commitsOnly = createMemo(() => 
     commits().filter(c => c.is_commit)
@@ -109,30 +106,24 @@ export default function CommitsList(props: {
     repoPath: string | undefined,
     branchName: string | undefined,
     isNewBranch: boolean,
-    append = false,
   ) => {
-    if (!repoPath || !branchName || (append && !hasMore())) return;
+    if (!repoPath || !branchName) return;
 
     const myFetchId = ++fetchId;
-    const offset = append ? commitsOnly().length : 0;
-
     if (isNewBranch) setLoading(true);
-    if (append) setLoadingMore(true);
 
     try {
       const cleanBranch = branchName.replace("* ", "");
-      const res = await getCommits(repoPath, cleanBranch, commitBatchSize, offset);
+      const res = await getCommits(repoPath, cleanBranch);
 
       if (myFetchId !== fetchId) return;
 
-      const nextCommits = append ? [...commits(), ...res] : res;
-      if (commitsSignature(nextCommits) !== commitsSignature(commits())) {
-        setCommits(nextCommits);
+      if (commitsSignature(res) !== commitsSignature(commits())) {
+        setCommits(res);
       }
-      setHasMore(res.length === commitBatchSize);
 
       if (selectedCommit()) {
-        const exists = nextCommits.find(c => c.hash === selectedCommit().hash);
+        const exists = res.find(c => c.hash === selectedCommit().hash);
         if (!exists && isNewBranch) {
           setSelectedCommit(null);
         }
@@ -145,7 +136,6 @@ export default function CommitsList(props: {
     } finally {
       if (myFetchId === fetchId) {
         setLoading(false);
-        setLoadingMore(false);
       }
     }
   };
@@ -187,7 +177,6 @@ export default function CommitsList(props: {
       // Força o descarte imediato de qualquer requisição paralela anterior
       fetchId++;
       setCommits([]);
-      setHasMore(false);
       setCurrentPage(1);
       setSelectedCommit(null);
 
@@ -336,18 +325,6 @@ export default function CommitsList(props: {
             </Show>
           </div>
         </div>
-        <Show when={hasMore()}>
-          <div class="flex justify-center py-2">
-            <button
-              type="button"
-              class="rounded-lg bg-blue-600 px-4 py-1 text-sm text-white disabled:opacity-50"
-              disabled={loadingMore()}
-              onClick={() => void loadCommits(props.repo.path, props.branch, false, true)}
-            >
-              {loadingMore() ? "Carregando..." : "Carregar mais commits"}
-            </button>
-          </div>
-        </Show>
       </div>
 
       {/* Barra de resize */}

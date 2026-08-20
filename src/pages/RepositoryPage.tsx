@@ -27,6 +27,17 @@ export default function RepoTabsPage() {
   const [active, setActive] = createSignal<string | null>(null);
   const [activePage, setActivePage] = createSignal<string>('commits');
   const [commitDrafts, setCommitDrafts] = createSignal<Record<string, CommitDraft>>({});
+  const [isInitializing, setIsInitializing] = createSignal(true);
+  const [initializationTotal, setInitializationTotal] = createSignal(0);
+  const [initializationCompleted, setInitializationCompleted] = createSignal(0);
+  const [initializationCurrent, setInitializationCurrent] = createSignal<string | null>(null);
+  const [initializationFailures, setInitializationFailures] = createSignal(0);
+
+  const initializationProgress = createMemo(() => {
+    const total = initializationTotal();
+    if (!total) return isInitializing() ? 12 : 100;
+    return Math.round((initializationCompleted() / total) * 100);
+  });
 
   type RefreshScope = "worktree" | "refs" | "all";
   type RefreshState = {
@@ -149,38 +160,51 @@ export default function RepoTabsPage() {
   };
 
   onMount(async () => {
-    const savedPaths = await loadRepos();
+    try {
+      const savedPaths = await loadRepos();
+      setInitializationTotal(savedPaths.length);
 
-    await Promise.all(savedPaths.map(async repoPath => {
-      try {
-        const snapshot = await getRepositorySnapshot(repoPath);
-        const [stashes, tags] = await Promise.all([
-          listStashes(repoPath),
-          listTags(repoPath),
-        ]);
-        const name = repoPath.split(/[\\/]/).filter(Boolean).pop() || repoPath;
+      for (const repoPath of savedPaths) {
+        setInitializationCurrent(repoPath);
 
-        const repo: Repo = {
-          path: repoPath,
-          name,
-          branches: snapshot.branches,
-          remoteBranches: snapshot.remoteBranches,
-          activeBranch: snapshot.activeBranch ?? undefined,
-          localChanges: snapshot.localChanges,
-          localChangesCount: snapshot.localChangesCount,
-          gitRevision: snapshot.gitRevision ?? undefined,
-          statusSignature: snapshot.statusSignature,
-          stashes,
-          tags,
-          refsRevision: 0,
-        };
+        try {
+          const snapshot = await getRepositorySnapshot(repoPath);
+          const [stashes, tags] = await Promise.all([
+            listStashes(repoPath),
+            listTags(repoPath),
+          ]);
+          const name = repoPath.split(/[\\/]/).filter(Boolean).pop() || repoPath;
 
-        setRepos(prev => prev.some(item => item.path === repoPath) ? prev : [...prev, repo]);
-        if (!active()) setActive(repoPath);
-      } catch (err) {
-        console.warn(`Não foi possível reabrir repo ${repoPath}`, err);
+          const repo: Repo = {
+            path: repoPath,
+            name,
+            branches: snapshot.branches,
+            remoteBranches: snapshot.remoteBranches,
+            activeBranch: snapshot.activeBranch ?? undefined,
+            localChanges: snapshot.localChanges,
+            localChangesCount: snapshot.localChangesCount,
+            gitRevision: snapshot.gitRevision ?? undefined,
+            statusSignature: snapshot.statusSignature,
+            stashes,
+            tags,
+            refsRevision: 0,
+          };
+
+          setRepos(prev => prev.some(item => item.path === repoPath) ? prev : [...prev, repo]);
+          if (!active()) setActive(repoPath);
+        } catch (err) {
+          setInitializationFailures(value => value + 1);
+          console.warn(`Não foi possível reabrir repo ${repoPath}`, err);
+        } finally {
+          setInitializationCompleted(value => value + 1);
+        }
       }
-    }));
+    } catch (err) {
+      console.warn("Não foi possível carregar os repositórios salvos", err);
+    } finally {
+      setInitializationCurrent(null);
+      setIsInitializing(false);
+    }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === "w") {
@@ -261,7 +285,7 @@ export default function RepoTabsPage() {
   };
 
   const pollRepositoryStatuses = async () => {
-    if (statusPollInFlight || document.visibilityState !== "visible") return;
+    if (isInitializing() || statusPollInFlight || document.visibilityState !== "visible") return;
     const currentRepos = repos();
     if (!currentRepos.length) return;
 
@@ -522,6 +546,45 @@ export default function RepoTabsPage() {
           </div>
         </div>
       </div>
+
+      <Show when={isInitializing()}>
+        <div
+          class="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/65 px-6 backdrop-blur-md"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div class="w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-gray-900/95 p-7 text-white shadow-2xl shadow-blue-950/30">
+            <div class="mb-6 flex items-start gap-4">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/15 text-blue-400">
+                <i class="fa-solid fa-code-branch text-xl" aria-hidden="true" />
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300/80">Dev Brook</p>
+                <h2 class="mt-1 text-xl font-semibold">{t('loading').loading_repositories}</h2>
+              </div>
+            </div>
+
+            <div class="mb-3 flex items-center justify-between gap-4 text-xs text-gray-400">
+              <span class="truncate">{initializationCurrent() || t('common').loading}</span>
+              <span class="shrink-0 font-mono text-blue-300">
+                {initializationCompleted()} {t('common').of} {initializationTotal()}
+              </span>
+            </div>
+            <div class="h-2 overflow-hidden rounded-full bg-gray-700/80">
+              <div
+                class="h-full rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-400 transition-[width] duration-500"
+                style={{ width: `${initializationProgress()}%` }}
+              />
+            </div>
+            <Show when={initializationFailures() > 0}>
+              <p class="mt-4 text-xs text-amber-300">
+                {t('common').warning}: {initializationFailures()}
+              </p>
+            </Show>
+          </div>
+        </div>
+      </Show>
     </RepoContext.Provider>
   );
 }
