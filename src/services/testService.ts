@@ -27,6 +27,12 @@ export async function getTestsFiles(
   if (kind === "go" || kind === "gotest") {
     return await invoke("get_go_test_files", { projectPath: path });
   }
+  if (kind === "java-maven" || kind === "java-gradle" || kind === "java") {
+    return await invoke("get_java_test_files", { projectPath: path, targetPath });
+  }
+  if (kind === "ruby-rspec" || kind === "ruby-minitest") {
+    return await invoke("get_ruby_test_files", { projectPath: path, targetPath, runnerKind: kind });
+  }
   if (kind === "vitest" || kind === "jest") {
     return await invoke("get_vitest_test_files", { projectPath: path });
   }
@@ -61,6 +67,13 @@ export async function runTestTerminal(
   }
   if (kind === "go" || kind === "gotest") {
     return await invoke("run_go_tests", args);
+  }
+  if (kind === "java-maven" || kind === "java-gradle" || kind === "java") {
+    return await invoke("run_java_tests", args);
+  }
+  if (kind === "ruby-rspec" || kind === "ruby-minitest") {
+    args.runnerKind = kind;
+    return await invoke("run_ruby_tests", args);
   }
   if (kind === "vitest" || kind === "jest") {
     args.runnerKind = kind;

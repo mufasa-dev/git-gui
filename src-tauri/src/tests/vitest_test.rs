@@ -166,7 +166,11 @@ pub async fn get_vitest_test_files(project_path: String) -> Result<Vec<TestFile>
         let path = entry.path();
         let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("");
         let is_test_file = path.is_file()
-            && (name.contains(".test.") || name.contains(".spec."));
+            && (name.contains(".test.")
+                || name.contains(".spec.")
+                || path
+                    .components()
+                    .any(|component| component.as_os_str() == "__tests__"));
         if !is_test_file {
             continue;
         }

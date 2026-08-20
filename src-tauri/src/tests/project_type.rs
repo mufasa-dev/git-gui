@@ -80,6 +80,105 @@ fn dotnet_frameworks(content: &str) -> Vec<(&'static str, &'static str)> {
     frameworks
 }
 
+fn java_frameworks(content: &str) -> Vec<(&'static str, &'static str)> {
+    let lower = content.to_lowercase();
+    let mut frameworks = Vec::new();
+
+    if lower.contains("junit") {
+        let label = if lower.contains("junit-jupiter") || lower.contains("junit.jupiter") {
+            "JUnit 5"
+        } else {
+            "JUnit"
+        };
+        frameworks.push(("junit", label));
+    }
+    if lower.contains("testng") {
+        frameworks.push(("testng", "TestNG"));
+    }
+
+    frameworks
+}
+
+fn detect_java_runners(project_path: &Path) -> Vec<TestRunnerOption> {
+    let mut runners = Vec::new();
+    let mut build_files = Vec::new();
+
+    for (file, kind, tool_label) in [
+        ("pom.xml", "java-maven", "Maven"),
+        ("build.gradle", "java-gradle", "Gradle"),
+        ("build.gradle.kts", "java-gradle", "Gradle"),
+    ] {
+        let path = project_path.join(file);
+        if path.exists() {
+            build_files.push((path, kind, tool_label));
+            if kind == "java-gradle" {
+                break;
+            }
+        }
+    }
+
+    for (path, kind, tool_label) in build_files {
+        let content = fs::read_to_string(&path).unwrap_or_default();
+        let target_path = relative_target(project_path, &path);
+        let frameworks = java_frameworks(&content);
+        if frameworks.is_empty() {
+            runners.push(option(
+                &format!("{}:{}", kind, target_path.as_deref().unwrap_or("project")),
+                &format!("{} test", tool_label),
+                kind,
+                "Java",
+                target_path,
+            ));
+        } else {
+            for (id, framework) in frameworks {
+                runners.push(option(
+                    &format!("{}:{}:{}", kind, id, target_path.as_deref().unwrap_or("project")),
+                    &format!("{} — {}", tool_label, framework),
+                    kind,
+                    "Java",
+                    target_path.clone(),
+                ));
+            }
+        }
+    }
+
+    runners
+}
+
+fn ruby_frameworks(project_path: &Path) -> Vec<(&'static str, &'static str)> {
+    let gemfile = fs::read_to_string(project_path.join("Gemfile")).unwrap_or_default();
+    let lower = gemfile.to_lowercase();
+    let mut frameworks = Vec::new();
+
+    if lower.contains("rspec") || project_path.join(".rspec").exists() || project_path.join("spec").exists() {
+        frameworks.push(("rspec", "RSpec"));
+    }
+    if lower.contains("minitest") || project_path.join("test").exists() {
+        frameworks.push(("minitest", "Minitest"));
+    }
+
+    frameworks
+}
+
+fn detect_ruby_runners(project_path: &Path) -> Vec<TestRunnerOption> {
+    let frameworks = ruby_frameworks(project_path);
+    let target_path = project_path.join("Gemfile");
+    let target_path = target_path.exists().then(|| relative_target(project_path, &target_path)).flatten();
+
+    frameworks
+        .into_iter()
+        .map(|(id, label)| {
+            option(
+                &format!("ruby:{}", id),
+                label,
+                &format!("ruby-{}", id),
+                "Ruby",
+                target_path.clone(),
+            )
+        })
+        .collect()
+}
+
 fn detect_dotnet_runners(project_path: &Path) -> Vec<TestRunnerOption> {
     let mut runners = Vec::new();
     let mut found_solution = None;
@@ -179,10 +278,16 @@ fn detect_runners(project_path: &Path) -> Vec<TestRunnerOption> {
         if package_has(package, "vitest") || package_scripts_contain(package, "vitest") || has_vitest_config {
             runners.push(option("vitest", "Vitest", "vitest", "Vitest", None));
         }
-        if package_has(package, "jest") || package_scripts_contain(package, "jest") {
+        let has_jest_config = ["jest.config.js", "jest.config.ts", "jest.config.cjs", "jest.config.mjs"]
+            .iter()
+            .any(|file| project_path.join(file).exists());
+        if package_has(package, "jest") || package_scripts_contain(package, "jest") || has_jest_config {
             runners.push(option("jest", "Jest", "jest", "React/Node", None));
         }
     }
+
+    runners.extend(detect_java_runners(project_path));
+    runners.extend(detect_ruby_runners(project_path));
 
     if project_path.join("go.mod").exists() {
         runners.push(option("go-test", "GoTest", "go", "Go", None));
@@ -231,7 +336,7 @@ pub async fn detect_project_type(project_path: String) -> Result<ProjectType, St
 
 #[cfg(test)]
 mod tests {
-    use super::{detect_runners, dotnet_frameworks};
+    use super::{detect_runners, dotnet_frameworks, java_frameworks, ruby_frameworks};
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -265,5 +370,57 @@ mod tests {
             "<PackageReference Include=\"Microsoft.NET.Test.Sdk\" />\n<PackageReference Include=\"xunit\" />",
         );
         assert_eq!(frameworks, vec![("xunit", "xUnit")]);
+    }
+
+    #[test]
+    fn detects_junit_and_testng() {
+        let frameworks = java_frameworks(
+            "testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'\ntestImplementation 'org.testng:testng:7.9.0'",
+        );
+        assert_eq!(frameworks, vec![("junit", "JUnit 5"), ("testng", "TestNG")]);
+    }
+
+    #[test]
+    fn detects_rspec_and_minitest() {
+        let path = temporary_project();
+        fs::write(path.join("Gemfile"), "gem 'rspec'\ngem 'minitest'").unwrap();
+        fs::create_dir_all(path.join("spec")).unwrap();
+        fs::create_dir_all(path.join("test")).unwrap();
+
+        assert_eq!(ruby_frameworks(&path), vec![("rspec", "RSpec"), ("minitest", "Minitest")]);
+        fs::remove_dir_all(path).unwrap();
+    }
+
+    #[test]
+    fn detects_vitest_and_jest_together() {
+        let path = temporary_project();
+        fs::write(
+            path.join("package.json"),
+            r#"{"devDependencies":{"vitest":"^3.0.0","jest":"^30.0.0"}}"#,
+        )
+        .unwrap();
+
+        let runners = detect_runners(&path);
+        assert_eq!(runners.iter().map(|runner| runner.kind.as_str()).collect::<Vec<_>>(), vec!["vitest", "jest"]);
+
+        fs::remove_dir_all(path).unwrap();
+    }
+
+    #[test]
+    fn detects_maven_and_gradle_runners() {
+        let path = temporary_project();
+        fs::write(
+            path.join("pom.xml"),
+            "<dependency>org.junit.jupiter:junit-jupiter</dependency>",
+        )
+        .unwrap();
+        fs::write(path.join("build.gradle"), "plugins { id 'java' }").unwrap();
+
+        let runners = detect_runners(&path);
+        assert_eq!(runners.len(), 2);
+        assert_eq!(runners[0].kind, "java-maven");
+        assert_eq!(runners[1].kind, "java-gradle");
+
+        fs::remove_dir_all(path).unwrap();
     }
 }

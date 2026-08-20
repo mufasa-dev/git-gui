@@ -14,6 +14,8 @@ import { parseTrxToEvents } from '../../lib/TestsPareser/TrxParser';
 import { goParser } from '../../lib/TestsPareser/goParser';
 import { parseVitestToEvents } from '../../lib/TestsPareser/VitestParser';
 import { rustParser } from '../../lib/TestsPareser/RustParser';
+import { parseJavaXmlToEvents } from '../../lib/TestsPareser/JavaParser';
+import { parseRubyJsonToEvents, rubyParser } from '../../lib/TestsPareser/RubyParser';
 
 interface TestSpec {
   id: string;
@@ -270,7 +272,7 @@ export const TestRunner = (props: { repo: any }) => {
 
     setSpecs(prev => {
       // SE FOR GO, DOTNET, VITEST OU RUST
-      if (framework === 'Go' || framework === 'Dotnet' || framework === 'Vitest' || framework === 'Rust') {
+      if (framework === 'Go' || framework === 'Dotnet' || framework === 'Vitest' || framework === 'Rust' || framework === 'Java' || framework === 'Ruby') {
         return prev
           .map(spec => {
             if (scope === 'single' && spec.name !== singleTest && spec.status === 'running') {
@@ -395,11 +397,25 @@ export const TestRunner = (props: { repo: any }) => {
       if (!rawLine) return;
 
       const type = activeFramework();
-      if (payload?.status === 'result_xml' || (type === 'Dotnet' && rawLine.trim().startsWith('<?xml'))) {
+      if (payload?.status === 'result_xml') {
+        const results = type === 'Java'
+          ? parseJavaXmlToEvents(rawLine)
+          : parseTrxToEvents(rawLine);
+        results.forEach(res => updateSpecState(res));
+        return;
+      }
+      if (type === 'Dotnet' && rawLine.trim().startsWith('<?xml')) {
         parseTrxToEvents(rawLine).forEach(res => updateSpecState(res));
         return;
       }
-      if (payload?.status === 'result_json' || payload?.file === 'VITEST_JSON') {
+      if (payload?.status === 'result_json') {
+        const results = type === 'Ruby'
+          ? parseRubyJsonToEvents(rawLine)
+          : parseVitestToEvents(rawLine);
+        results.forEach(res => updateSpecState(res));
+        return;
+      }
+      if (payload?.file === 'VITEST_JSON') {
         parseVitestToEvents(rawLine).forEach(res => updateSpecState(res));
         return;
       }
@@ -437,6 +453,8 @@ export const TestRunner = (props: { repo: any }) => {
         parsed = goParser(line);
       } else if (type === 'Rust') {
         parsed = rustParser(line);
+      } else if (type === 'Ruby') {
+        parsed = rubyParser(line);
       } else {
         parsed = { type: 'LOG' };
       }

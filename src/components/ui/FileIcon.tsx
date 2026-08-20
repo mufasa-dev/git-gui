@@ -108,6 +108,8 @@ export default function FileIcon(props: FileIconProps) {
     if (name === 'pytest') return pythonIcon;
     if (name === 'dotnet test' || name.includes('xunit') || name.includes('nunit') || name.includes('mstest')) return cSharpIcon;
     if (name === 'cargo test' || name === 'rust') return rustIcon;
+    if (name.includes('maven') || name.includes('gradle') || name.includes('junit') || name.includes('testng')) return javaIcon;
+    if (name === 'rspec' || name === 'minitest') return rubyIcon;
     if (name === 'none') return alertIcon;
 
     // Checagem por arquivos de tradução
