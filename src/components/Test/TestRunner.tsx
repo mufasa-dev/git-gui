@@ -73,11 +73,16 @@ export const TestRunner = (props: { repo: any }) => {
     }
   });
 
+  let storageTimer: ReturnType<typeof setTimeout> | undefined;
+
   createEffect(() => {
     const currentPath = props.repo?.path;
     const loadedPath = lastLoadedPath();
     if (currentPath && loadedPath === currentPath && specs().length > 0) {
-      localStorage.setItem(storageKey(), JSON.stringify(specs()));
+      if (storageTimer) clearTimeout(storageTimer);
+      storageTimer = setTimeout(() => {
+        localStorage.setItem(storageKey(), JSON.stringify(specs()));
+      }, 300);
     }
   });
 
@@ -85,7 +90,6 @@ export const TestRunner = (props: { repo: any }) => {
     if (props.repo?.path && projectInfo()?.testRunner) {
       try {
         const files = await getTestsFiles(props.repo.path, projectInfo()!.testRunner);
-        console.log('files', files);
         setMappedFiles(files);
       } catch (e) {
         console.error("Erro ao remapear arquivos de testes:", e);
@@ -301,9 +305,14 @@ export const TestRunner = (props: { repo: any }) => {
       if (isAngularError || isGoError || isDotnetError) {
         setIsRunning(false);
 
-        setCompilationError([...compileLogBuffer]);
+        const errorLog = compileLogBuffer.length > 0
+          ? [...compileLogBuffer]
+          : ["Falha crítica devido a erro de compilação do projeto."];
+        setCompilationError(errorLog);
 
-        setSpecs(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'fail' as const, log: ["Falha crítica devido a erro de compilação do projeto."] } : s));
+        setSpecs(prev => prev.map(s => s.status === 'running'
+          ? { ...s, status: 'fail' as const, log: errorLog }
+          : s));
         return;
       }
 
@@ -317,7 +326,7 @@ export const TestRunner = (props: { repo: any }) => {
 
       let parsed: ParsedEvent;
       if (type === 'Angular') {
-        parsed = angularParser(line, []);
+        parsed = angularParser(line, compileLogBuffer);
       } else if (type === 'Go') {
         parsed = goParser(line);
       } else {
@@ -633,10 +642,11 @@ export const TestRunner = (props: { repo: any }) => {
                           </div>
 
                           <Show when={spec.status === 'fail' && spec.log.length > 0}>
-                            <div class="mt-2 p-3 dark:bg-red-950/30 rounded border border-red-500/30 font-mono text-[11px] text-black dark:text-red-200 overflow-x-auto">
+                            <div class="mt-2 p-3 dark:bg-red-950/30 rounded border border-red-500/30 font-mono text-[11px] text-black dark:text-red-200 overflow-x-auto select-text">
+                              <div class="mb-2 text-[10px] uppercase tracking-wide text-red-600 dark:text-red-300">Detalhes do erro</div>
                               <For each={spec.log}>
                                 {(logLine) => (
-                                  <div class={`mb-1 whitespace-pre ${logLine.includes('at ') ? 'opacity-50 text-[10px]' : 'font-bold'}`}>
+                                  <div class={`mb-1 whitespace-pre-wrap break-words ${logLine.includes('at ') ? 'opacity-50 text-[10px]' : 'font-bold'}`}>
                                     {logLine}
                                   </div>
                                 )}

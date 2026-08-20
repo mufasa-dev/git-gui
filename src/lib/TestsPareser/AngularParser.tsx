@@ -10,6 +10,13 @@ interface KarmaSpecResult {
   log?: string[];
 }
 
+const getFailureLog = (resultLog: string[] | undefined, buffer: string[]): string[] => {
+  const details = resultLog?.filter((entry): entry is string => Boolean(entry));
+  if (details?.length) return details;
+  if (buffer.length) return [...buffer];
+  return ['O Karma marcou o teste como falho, mas não forneceu detalhes adicionais.'];
+};
+
 export const angularParser = (line: string, buffer: string[]): ParsedEvent => {
   const marker = 'SPEC_RESULT|';
   const markerIndex = line.indexOf(marker);
@@ -31,7 +38,7 @@ export const angularParser = (line: string, buffer: string[]): ParsedEvent => {
           filePath: result.filePath?.trim(), // O arquivo
           duration: result.time !== undefined ? `${result.time}` : undefined, // O tempo (ms)
           resultId: result.id,
-          log: status === 'fail' ? [...(result.log || buffer)] : []
+          log: status === 'fail' ? getFailureLog(result.log, buffer) : []
         }
       };
     } catch {
@@ -47,7 +54,7 @@ export const angularParser = (line: string, buffer: string[]): ParsedEvent => {
           status,
           filePath: parts[3]?.trim(), // O arquivo
           duration: parts[4]?.trim(), // O tempo (ms)
-          log: status === 'fail' ? [...buffer] : []
+          log: status === 'fail' ? getFailureLog(undefined, buffer) : []
         }
       };
     }

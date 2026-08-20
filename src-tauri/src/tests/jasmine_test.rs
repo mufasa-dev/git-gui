@@ -102,7 +102,6 @@ pub async fn run_angular_tests(
             let reader = BufReader::new(stdout);
             for line in reader.lines() {
                 if let Ok(l) = line {
-                    println!("[Rust STDOUT]: {}", l);
                     let _ = win_out.emit(
                         "test-event",
                         Payload {
@@ -120,7 +119,6 @@ pub async fn run_angular_tests(
             let reader = BufReader::new(stderr);
             for line in reader.lines() {
                 if let Ok(l) = line {
-                    println!("[Rust STDOUT]: {}", l);
                     let _ = win_err.emit(
                         "test-event",
                         Payload {
