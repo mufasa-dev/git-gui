@@ -99,6 +99,7 @@ fn main() {
             commands::commit::get_path_history,
             commands::commit::list_directory_with_commits,
             commands::stage::list_local_changes,
+            commands::stage::get_repository_status,
             commands::stage::ignore_file,
             commands::stage::stage_files,
             commands::stage::unstage_files,

@@ -85,6 +85,17 @@ export async function getLocalChanges(path: string): Promise<LocalChange[]> {
   return await invoke<LocalChange[]>("list_local_changes", { path });
 }
 
+export type RepositoryStatus = {
+  hasChanges: boolean;
+  changeCount: number;
+  head: string;
+  branch: string;
+};
+
+export async function getRepositoryStatus(path: string): Promise<RepositoryStatus> {
+  return await invoke<RepositoryStatus>("get_repository_status", { path });
+}
+
 export async function ignoreFile(repoPath: string, filePath: string): Promise<string> {
   return await invoke<string>("ignore_file", { path: repoPath, filePath });
 }

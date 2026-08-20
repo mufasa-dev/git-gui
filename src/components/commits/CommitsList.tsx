@@ -1,4 +1,4 @@
-import { createEffect, createSignal, createMemo, For, Show, on, onCleanup } from "solid-js";
+import { createEffect, createSignal, createMemo, For, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { getCommitDetails, getCommits } from "../../services/gitService";
 import { formatRelativeDate } from "../../utils/date";
@@ -21,7 +21,16 @@ declare module "solid-js" {
 
 void datepicker;
 
-let currentFetchId = 0;
+
+function commitsSignature(commits: any[]) {
+  return commits.map(commit => [
+    commit.hash,
+    commit.date,
+    commit.ref_names,
+    commit.parent_hashes,
+    commit.graph_symbol,
+  ].join("|")).join("\u0000");
+}
 
 function parseDateInput(value: string, endOfDay = false) {
   const [year, month, day] = value.split("-").map(Number);
@@ -51,6 +60,7 @@ export default function CommitsList(props: {
   const [resizing, setResizing] = createSignal(false);
   const [startDate, setStartDate] = createSignal("");
   const [endDate, setEndDate] = createSignal("");
+  let fetchId = 0;
   const { t, locale, isDark } = useApp();
   const datePlaceholder = createMemo(() => ({
     pt: "dd/mm/aaaa",
@@ -95,7 +105,7 @@ export default function CommitsList(props: {
   const loadCommits = async (repoPath: string | undefined, branchName: string | undefined, isNewBranch: boolean) => {
     if (!repoPath || !branchName) return;
     
-    const myFetchId = ++currentFetchId;
+    const myFetchId = ++fetchId;
     
     if (isNewBranch) setLoading(true);
 
@@ -103,9 +113,9 @@ export default function CommitsList(props: {
       const cleanBranch = branchName.replace("* ", "");
       const res = await getCommits(repoPath, cleanBranch);
       
-      if (myFetchId !== currentFetchId) return;
+      if (myFetchId !== fetchId) return;
 
-      if (JSON.stringify(res) !== JSON.stringify(commits())) {
+      if (commitsSignature(res) !== commitsSignature(commits())) {
         setCommits(res);
       }
 
@@ -116,12 +126,12 @@ export default function CommitsList(props: {
         }
       }
     } catch(e) {
-      if (myFetchId === currentFetchId) {
+      if (myFetchId === fetchId) {
         const errorMessage = typeof e === 'string' ? e : String(e);
         notify.error(t('error').load_commits, errorMessage);
       }
     } finally {
-      if (myFetchId === currentFetchId) {
+      if (myFetchId === fetchId) {
         setLoading(false);
       }
     }
@@ -147,37 +157,42 @@ export default function CommitsList(props: {
     setSelectedCommit({ ...details, _ts: Date.now() });
   }
 
-  createEffect(on(() => [props.repo.path, props.branch, props.repo.activeBranch], ([path, branch, activeBranch], prev) => {
-    const isNewRepo = !prev || path !== prev[0];
-    const isNewBranch = !prev || branch !== prev[1];
+  let previousPath: string | undefined;
+  let previousBranch: string | undefined;
+  let previousRefsRevision: number | undefined;
+
+  createEffect(() => {
+    const path = props.repo.path;
+    const branch = props.branch;
+    const activeBranch = props.repo.activeBranch;
+    const refsRevision = props.repo.refsRevision;
+    const isNewRepo = previousPath === undefined || path !== previousPath;
+    const isNewBranch = previousBranch === undefined || branch !== previousBranch;
+    const refsChanged = previousRefsRevision !== undefined && refsRevision !== previousRefsRevision;
 
     if (isNewRepo) {
       // Força o descarte imediato de qualquer requisição paralela anterior
-      currentFetchId++; 
+      fetchId++;
       setCommits([]);
       setCurrentPage(1);
       setSelectedCommit(null);
 
       if (branch !== activeBranch) {
+        previousPath = path;
+        previousBranch = branch;
+        previousRefsRevision = refsRevision;
         return;
       }
     }
 
-    if (isNewRepo || isNewBranch) {
-      loadCommits(path, branch || "", isNewRepo);
-    } else {
-      loadCommits(path, branch || "", false);
+    if (isNewRepo || isNewBranch || refsChanged) {
+      void loadCommits(path, branch || "", isNewRepo);
     }
-  }));
 
-  const handleFocus = () => {
-    if (document.visibilityState === "visible") {
-      loadCommits(props.repo.path, props.branch || "", false);
-    }
-  };
-
-  window.addEventListener("focus", handleFocus);
-  onCleanup(() => window.removeEventListener("focus", handleFocus));
+    previousPath = path;
+    previousBranch = branch;
+    previousRefsRevision = refsRevision;
+  });
 
   function onMouseMove(e: MouseEvent) {
     if (resizing()) {

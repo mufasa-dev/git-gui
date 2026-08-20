@@ -1,4 +1,4 @@
-import { createEffect, createSignal, createMemo, For, Show, on, onCleanup } from "solid-js";
+import { createEffect, createSignal, createMemo, For, Show } from "solid-js";
 import { Repo } from "../models/Repo.model";
 import { getCommitDetails, getCommits, listBranchFilesWithSize } from "../services/gitService";
 import { formatRelativeDate } from "../utils/date";
@@ -25,7 +25,14 @@ declare module "solid-js" {
     }
   }
 }
-let isFetchingCommits = false;
+
+const commitsSignature = (commits: any[]) => commits.map(commit => [
+  commit.hash,
+  commit.date,
+  commit.ref_names,
+  commit.parent_hashes,
+  commit.graph_symbol,
+].join("|")).join("\u0000");
 
 export default function Dashboard(props: { repo: Repo; branch?: string, class?: string }) {
   const [commits, setCommits] = createSignal<any[]>([]);
@@ -40,6 +47,10 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
   const [showCommits, setShowCommits] = createSignal(false);
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
+  let isFetchingCommits = false;
+  let previousPath: string | undefined;
+  let previousBranch: string | undefined;
+  let previousRefsRevision: number | undefined;
   const { t } = useApp();
   
   // Estados para Paginação e Filtro
@@ -77,8 +88,14 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     });
   });
 
+  let pendingCommitsRefresh = false;
+
   const loadCommits = async (isNewBranch: boolean) => {
-    if (!props.repo.path || !props.branch || isFetchingCommits) return;
+    if (!props.repo.path || !props.branch) return;
+    if (isFetchingCommits) {
+      pendingCommitsRefresh = true;
+      return;
+    }
 
     isFetchingCommits = true;
 
@@ -86,7 +103,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
       const branchName = props.branch.replace("* ", "");
       const res = await getCommits(props.repo.path, branchName);
       
-      if (JSON.stringify(res) !== JSON.stringify(commits())) {
+      if (commitsSignature(res) !== commitsSignature(commits())) {
         setCommits(res);
       }
 
@@ -101,6 +118,10 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
       notify.error(t('error').load_commits, errorMessage);
     } finally {
       isFetchingCommits = false;
+      if (pendingCommitsRefresh) {
+        pendingCommitsRefresh = false;
+        void loadCommits(false);
+      }
     }
   };
 
@@ -109,20 +130,28 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     setSelectedCommit({ ...details, _ts: Date.now() });
   }
 
-  createEffect(on(() => [props.repo.path, props.branch], async ([path, branch], prev) => {
-    const isNewRepoOrBranch = !prev || path !== prev[0] || branch !== prev[1];
-    
+  createEffect(() => {
+    const path = props.repo.path;
+    const branch = props.branch;
+    const refsRevision = props.repo.refsRevision;
+    const isNewRepoOrBranch = previousPath === undefined || path !== previousPath || branch !== previousBranch;
+    const refsChanged = previousRefsRevision !== undefined && refsRevision !== previousRefsRevision;
+
     if (isNewRepoOrBranch) {
-       setCurrentPage(1);
-       setSelectedCommit(null);
-       setCommits([]);
-       setBranchFiles([]);
-       setLoading(true);
-       void Promise.all([loadCommits(true), getFiles()]).finally(() => setLoading(false));
-    } else {
-       void loadCommits(false);
+      setCurrentPage(1);
+      setSelectedCommit(null);
+      setCommits([]);
+      setBranchFiles([]);
+      setLoading(true);
+      void Promise.all([loadCommits(true), getFiles()]).finally(() => setLoading(false));
+    } else if (refsChanged) {
+      void Promise.all([loadCommits(false), getFiles()]);
     }
-  }));
+
+    previousPath = path;
+    previousBranch = branch;
+    previousRefsRevision = refsRevision;
+  });
 
   const getFiles = async () => {
     if (!props.repo.path || !props.branch) return;
@@ -135,15 +164,6 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
       notify.error(t('error').load_file, String(e));
     }
   }
-
-  const handleFocus = () => {
-    if (document.visibilityState === "visible") {
-      loadCommits(false);
-    }
-  };
-
-  window.addEventListener("focus", handleFocus);
-  onCleanup(() => window.removeEventListener("focus", handleFocus));
 
   function onMouseMove(e: MouseEvent) {
     if (resizing()) {

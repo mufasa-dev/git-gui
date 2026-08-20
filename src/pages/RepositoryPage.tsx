@@ -1,9 +1,9 @@
-import { createMemo, createResource, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
-import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteUrl, listStashes, listTags } from "../services/gitService";
+import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges, getRepositoryStatus, getRemoteUrl, listStashes, listTags } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
 import { Repo } from "../models/Repo.model";
-import RepoContext from "../context/RepoContext";
+import RepoContext, { CommitDraft } from "../context/RepoContext";
 
 import { path } from "@tauri-apps/api";
 import { loadRepos, saveRepos } from "../services/storeService";
@@ -27,6 +27,39 @@ export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
   const [active, setActive] = createSignal<string | null>(null);
   const [activePage, setActivePage] = createSignal<string>('commits');
+  const [commitDrafts, setCommitDrafts] = createSignal<Record<string, CommitDraft>>({});
+
+  type RefreshScope = "worktree" | "refs" | "all";
+  type RefreshState = {
+    scope: RefreshScope | null;
+    timer?: ReturnType<typeof setTimeout>;
+    inFlight: boolean;
+    waiters: Array<{ resolve: () => void; reject: (error: unknown) => void }>;
+  };
+
+  const refreshStates = new Map<string, RefreshState>();
+  let statusPollTimer: ReturnType<typeof setInterval> | undefined;
+  let statusPollInFlight = false;
+
+  const normalizeRepoPath = (repoPath: string) => repoPath.replace(/\\/g, "/").replace(/\/$/, "").toLowerCase();
+  const refreshScope = (current: RefreshScope | null, next: RefreshScope): RefreshScope => {
+    if (!current || next === "all" || current === "all") return next === "all" ? "all" : current || next;
+    if (current === "refs" || next === "refs") return "refs";
+    return "worktree";
+  };
+
+  const updateCommitDraft = (repoPath: string, draft: CommitDraft) => {
+    setCommitDrafts(prev => ({ ...prev, [repoPath]: draft }));
+  };
+
+  const clearCommitDraft = (repoPath: string) => {
+    setCommitDrafts(prev => {
+      if (!prev[repoPath]) return prev;
+      const next = { ...prev };
+      delete next[repoPath];
+      return next;
+    });
+  };
 
   const [remoteUrl] = createResource(
     () => active(), 
@@ -106,6 +139,7 @@ export default function RepoTabsPage() {
     }
 
     setRepos(nextRepos);
+    clearCommitDraft(id);
     saveRepos(nextRepos);
   };
 
@@ -126,7 +160,7 @@ export default function RepoTabsPage() {
           listTags(repoPath),
         ]);
 
-        const repo: Repo = { path: repoPath, name, branches, remoteBranches, activeBranch, localChanges, stashes, tags };
+        const repo: Repo = { path: repoPath, name, branches, remoteBranches, activeBranch, localChanges, localChangesCount: localChanges.length, stashes, tags, refsRevision: 0 };
         setRepos(prev => [...prev, repo]);
       } catch (err) {
         console.warn(`Não foi possível reabrir repo ${repoPath}`, err);
@@ -149,57 +183,195 @@ export default function RepoTabsPage() {
     onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
   });
 
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === "visible" && active() && ['commits', 'dashboard'].includes(activePage())) {
-      refreshBranches(active()!);
+  const localChangesSignature = (changes: Repo["localChanges"]) =>
+    (changes ?? []).map(change => [
+      change.path,
+      change.status,
+      change.staged,
+      change.size,
+      change.isBinary,
+      change.isPreviewable,
+    ].join("|")).join("\u0000");
+
+  const updateLocalChanges = async (repoPath: string) => {
+    const localChanges = await getLocalChanges(repoPath);
+    setRepos(prev => prev.map(repo => repo.path === repoPath
+      ? { ...repo, localChanges, localChangesCount: localChanges.length }
+      : repo
+    ));
+  };
+
+  const updateRefs = async (repoPath: string, forceRevision = false) => {
+    const [branches, activeBranch, localChanges, stashes, tags, remoteBranches] = await Promise.all([
+      getBranchStatus(repoPath),
+      getCurrentBranch(repoPath),
+      getLocalChanges(repoPath),
+      listStashes(repoPath),
+      listTags(repoPath),
+      getRemoteBranches(repoPath),
+    ]);
+
+    setRepos(prev => prev.map(repo => {
+      if (repo.path !== repoPath) return repo;
+
+      const refsChanged = JSON.stringify(repo.branches) !== JSON.stringify(branches)
+        || repo.activeBranch !== activeBranch
+        || JSON.stringify(repo.stashes) !== JSON.stringify(stashes)
+        || JSON.stringify(repo.tags) !== JSON.stringify(tags)
+        || JSON.stringify(repo.remoteBranches) !== JSON.stringify(remoteBranches);
+      const changesChanged = localChangesSignature(repo.localChanges) !== localChangesSignature(localChanges);
+
+      if (!forceRevision && !refsChanged && !changesChanged) return repo;
+
+      return {
+        ...repo,
+        branches,
+        activeBranch,
+        localChanges,
+        localChangesCount: localChanges.length,
+        stashes,
+        tags,
+        remoteBranches,
+        refsRevision: forceRevision || refsChanged ? (repo.refsRevision ?? 0) + 1 : repo.refsRevision,
+      };
+    }));
+  };
+
+  const pollRepositoryStatuses = async () => {
+    if (statusPollInFlight || document.visibilityState !== "visible") return;
+    const currentRepos = repos();
+    if (!currentRepos.length) return;
+
+    statusPollInFlight = true;
+    try {
+      await Promise.all(currentRepos.map(async repo => {
+        try {
+          const status = await getRepositoryStatus(repo.path);
+          const currentCount = repo.localChangesCount ?? repo.localChanges?.length ?? 0;
+          const countChanged = currentCount !== status.changeCount;
+          const revisionChanged = !!repo.gitRevision && repo.gitRevision !== status.head;
+          const branchChanged = !!status.branch && status.branch !== repo.activeBranch;
+
+          if (countChanged || repo.gitRevision !== status.head) {
+            setRepos(prev => prev.map(item => item.path === repo.path
+              ? { ...item, localChangesCount: status.changeCount, gitRevision: status.head }
+              : item
+            ));
+          }
+          if (revisionChanged || branchChanged) {
+            scheduleRefresh(repo.path, "all", 0);
+          } else if (active() === repo.path) {
+            scheduleRefresh(repo.path, "worktree", 0);
+          }
+        } catch (error) {
+          console.warn(`Não foi possível consultar o status de ${repo.path}:`, error);
+        }
+      }));
+    } finally {
+      statusPollInFlight = false;
     }
   };
 
-  document.addEventListener("visibilitychange", handleVisibilityChange);
-
-  const handleFocus = () => {
-    if (active() && ['commits', 'dashboard'].includes(activePage())) refreshBranches(active()!);
+  const executeRefresh = async (repoPath: string, scope: RefreshScope) => {
+    if (!repos().some(repo => repo.path === repoPath)) return;
+    if (scope === "worktree") {
+      await updateLocalChanges(repoPath);
+    } else {
+      await updateRefs(repoPath, true);
+    }
   };
-  window.addEventListener("focus", handleFocus);
 
-  onCleanup(() => {
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-    window.removeEventListener("focus", handleFocus);
-  });
+  const getRefreshState = (repoPath: string) => {
+    const key = normalizeRepoPath(repoPath);
+    let state = refreshStates.get(key);
+    if (!state) {
+      state = { scope: null, inFlight: false, waiters: [] };
+      refreshStates.set(key, state);
+    }
+    return { key, state };
+  };
 
-  let isRefreshing = false;
+  const flushRefresh = async (repoPath: string) => {
+    const { key, state } = getRefreshState(repoPath);
+    state.timer = undefined;
+    if (state.inFlight || !state.scope) return;
 
-  async function refreshBranches(repoPath: string) {
-    if (isRefreshing) return;
-    isRefreshing = true;
+    const scope = state.scope;
+    state.scope = null;
+    state.inFlight = true;
+    const waiters = state.waiters.splice(0);
 
     try {
-      const [branches, activeBranch, localChanges, stashes, tags] = await Promise.all([
-        getBranchStatus(repoPath),
-        getCurrentBranch(repoPath),
-        getLocalChanges(repoPath),
-        listStashes(repoPath),
-        listTags(repoPath),
-      ]);
-
-      setRepos(prev =>
-        prev.map(r =>
-          r.path === repoPath ? { ...r, branches, activeBranch, localChanges, stashes, tags } : r
-        )
-      );
-
-      getRemoteBranches(repoPath).then(remoteBranches => {
-        setRepos(prev =>
-          prev.map(r =>
-            r.path === repoPath ? { ...r, remoteBranches } : r
-          )
-        );
-      }).catch(console.error);
-
+      await executeRefresh(repoPath, scope);
+      waiters.forEach(waiter => waiter.resolve());
+    } catch (error) {
+      waiters.forEach(waiter => waiter.reject(error));
+      console.error(`Erro ao atualizar o repositório ${repoPath}:`, error);
     } finally {
-      isRefreshing = false;
+      state.inFlight = false;
+      if (state.scope && !state.timer) {
+        state.timer = setTimeout(() => void flushRefresh(repoPath), 0);
+      }
+      if (!state.inFlight && !state.scope && !state.waiters.length && !state.timer) {
+        refreshStates.delete(key);
+      }
     }
+  };
+
+  const scheduleRefresh = (repoPath: string, scope: RefreshScope, delay = 250) => {
+    const { state } = getRefreshState(repoPath);
+    state.scope = refreshScope(state.scope, scope);
+    if (state.timer) clearTimeout(state.timer);
+    state.timer = setTimeout(() => void flushRefresh(repoPath), delay);
+  };
+
+  const requestRefresh = (repoPath: string, scope: RefreshScope, delay = 250) => {
+    const { state } = getRefreshState(repoPath);
+    const promise = new Promise<void>((resolve, reject) => {
+      state.waiters.push({ resolve, reject });
+    });
+    scheduleRefresh(repoPath, scope, delay);
+    return promise;
+  };
+
+  const refreshLocalChanges = async (repoPath: string) => {
+    await requestRefresh(repoPath, "worktree", 0);
+  };
+
+  async function refreshBranches(repoPath: string) {
+    await requestRefresh(repoPath, "all", 0);
   }
+
+  createEffect(() => {
+    const currentActive = active();
+    if (currentActive) {
+      scheduleRefresh(currentActive, "worktree", 0);
+    }
+  });
+
+  onMount(async () => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        repos().forEach(repo => void requestRefresh(repo.path, "all", 0).catch(() => undefined));
+      }
+    };
+    const handleFocus = () => handleVisibilityChange();
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    void pollRepositoryStatuses();
+    statusPollTimer = setInterval(() => void pollRepositoryStatuses(), 1500);
+
+    onCleanup(() => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      if (statusPollTimer) clearInterval(statusPollTimer);
+      refreshStates.forEach(state => {
+        if (state.timer) clearTimeout(state.timer);
+        state.waiters.forEach(waiter => waiter.resolve());
+      });
+    });
+  });
 
   const activeRepo = createMemo(() => {
     const currentActive = active();
@@ -212,6 +384,10 @@ export default function RepoTabsPage() {
       repos, 
       active, 
       refreshBranches,
+      refreshLocalChanges,
+      commitDrafts,
+      updateCommitDraft,
+      clearCommitDraft,
       user,
       mutateUser: mutate,
       refetchUser: refetch

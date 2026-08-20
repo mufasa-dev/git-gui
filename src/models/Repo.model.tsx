@@ -10,6 +10,9 @@ export type Repo = {
   activeBranch?: string;
   remoteBranches?: string[];
   localChanges?: LocalChange[];
+  localChangesCount?: number;
+  gitRevision?: string;
   stashes?: Stash[];
   tags?: Tag[];
+  refsRevision?: number;
 };

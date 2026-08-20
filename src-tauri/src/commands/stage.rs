@@ -310,6 +310,51 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
     Ok(changes)
 }
 
+#[tauri::command]
+pub fn get_repository_status(path: String) -> Result<serde_json::Value, String> {
+    let output = git_command(&path)
+        .args([
+            "status",
+            "--porcelain=v2",
+            "--branch",
+            "--untracked-files=all",
+        ])
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let (head, branch, change_count) =
+        parse_repository_status(&String::from_utf8_lossy(&output.stdout));
+
+    Ok(json!({
+        "hasChanges": change_count > 0,
+        "changeCount": change_count,
+        "head": head,
+        "branch": branch,
+    }))
+}
+
+fn parse_repository_status(output: &str) -> (String, String, usize) {
+    let mut head = String::new();
+    let mut branch = String::new();
+    let mut change_count = 0;
+
+    for line in output.lines() {
+        if let Some(value) = line.strip_prefix("# branch.oid ") {
+            head = value.to_string();
+        } else if let Some(value) = line.strip_prefix("# branch.head ") {
+            branch = value.to_string();
+        } else if !line.starts_with('#') && !line.trim().is_empty() {
+            change_count += 1;
+        }
+    }
+
+    (head, branch, change_count)
+}
+
 fn normalize_gitignore_entry(file_path: &str) -> Result<String, String> {
     let normalized = file_path.trim().replace('\\', "/");
     let relative = normalized.trim_start_matches("./").to_string();
@@ -594,6 +639,16 @@ pub fn reset_hard(repo_path: String) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_porcelain_v2_branch_headers_without_counting_them_as_changes() {
+        let output = "# branch.oid abc123\n# branch.head main\n# branch.upstream origin/main\n# branch.ab +1 -2\n1 .M N... 100644 100644 100644 hash hash file.rs\n? new.txt\n";
+        let (head, branch, change_count) = parse_repository_status(output);
+
+        assert_eq!(head, "abc123");
+        assert_eq!(branch, "main");
+        assert_eq!(change_count, 2);
+    }
 
     #[test]
     fn preview_limits_line_count() {

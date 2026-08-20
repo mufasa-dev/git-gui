@@ -1,6 +1,6 @@
-import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { commit, discard_changes, getDiff, getLocalChanges, ignoreFile, stageFiles, unstageFiles } from "../../services/gitService";
+import { commit, discard_changes, getDiff, ignoreFile, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
 import { ChangeListView } from "../ui/ChangeListView";
 import LocalChangesSettingsModal from "./LocalChangesSettingsModal";
@@ -15,8 +15,6 @@ import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
 import { generateCommitSuggestion } from "../../services/aiService";
 import { PREVIEW_MAX_BYTES } from "../../utils/file";
-
-let isRefreshing = false;
 
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
@@ -33,7 +31,9 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [commitMessage, setCommitMessage] = createSignal("");
   const [commitDescription, setCommitDescription] = createSignal("");
   const [commitAmend, setCommitAmend] = createSignal(false);
-  const { refreshBranches } = useRepoContext();
+  let lastRepoPath: string | undefined;
+  let diffRequestId = 0;
+  const { refreshBranches, refreshLocalChanges, commitDrafts, updateCommitDraft, clearCommitDraft } = useRepoContext();
   const [diff, setDiff] = createSignal<Diff>({diff: ""});
   const [menuVisible, setMenuVisible] = createSignal(false);
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
@@ -43,6 +43,10 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
   const [isGeneratingAI, setIsGeneratingAI] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
+
+  const saveCommitDraft = (message: string, description: string) => {
+    updateCommitDraft(props.repo.path, { message, description });
+  };
   const [viewMode, setViewMode] = createSignal<"tree" | "list">(
     localStorage.getItem("local-changes-view-mode") === "list" ? "list" : "tree"
   );
@@ -60,77 +64,70 @@ export function LocalChanges(props: { repo: Repo; }) {
     newFile: change.path,
   });
 
-  const loadChanges = async () => {
-    if (!props.repo.path || isMerging() || isRefreshing) return;
+  const changeSignature = (items: LocalChange[]) => items.map(item => [
+    item.path,
+    item.status,
+    item.staged,
+    item.size,
+    item.isBinary,
+    item.isPreviewable,
+  ].join("|")).join("\u0000");
 
-    isRefreshing = true;
+  const syncChanges = async (res: LocalChange[]) => {
+    if (isMerging()) return;
 
-    try {
-      const res = await getLocalChanges(props.repo.path);
+    if (changeSignature(res) !== changeSignature(changes())) {
+      setChanges(res);
+    }
 
-      if (JSON.stringify(res) !== JSON.stringify(changes())) {
-        setChanges(res);
-      }
+    const currentPaths = res.map(c => c.path);
+    setSelected(prev => prev.filter(p => currentPaths.includes(p)));
+    setStagedPreparedSelected(prev => prev.filter(p => currentPaths.includes(p)));
 
-      const currentPaths = res.map(c => c.path);
-      setSelected(prev => prev.filter(p => currentPaths.includes(p)));
-      setStagedPreparedSelected(prev => prev.filter(p => currentPaths.includes(p)));
-
-      const selectedPath = fileSelected();
-      if (selectedPath) {
-        const fileExists = res.find(c => c.path === selectedPath);
-        if (fileExists) {
-          const newDiff = fileExists.isPreviewable === false
-            ? summaryDiff(fileExists)
-            : await getDiff(props.repo.path, selectedPath, fileExists.staged);
-          if (newDiff.diff !== diff().diff || newDiff.reason !== diff().reason || newDiff.truncated !== diff().truncated) {
-            setDiff(newDiff);
-          }
-        } else {
-          setFileSelected("");
-          setDiff({diff: ""});
+    const selectedPath = fileSelected();
+    const currentDiffRequestId = ++diffRequestId;
+    if (selectedPath) {
+      const fileExists = res.find(c => c.path === selectedPath);
+      if (fileExists) {
+        const newDiff = fileExists.isPreviewable === false
+          ? summaryDiff(fileExists)
+          : await getDiff(props.repo.path, selectedPath, fileExists.staged);
+        if (currentDiffRequestId === diffRequestId && fileSelected() === selectedPath
+          && (newDiff.diff !== diff().diff || newDiff.reason !== diff().reason || newDiff.truncated !== diff().truncated)) {
+          setDiff(newDiff);
         }
+      } else if (currentDiffRequestId === diffRequestId && fileSelected() === selectedPath) {
+        setFileSelected("");
+        setDiff({diff: ""});
       }
-    } catch (e) {
-      console.error("Erro ao carregar mudanças:", e);
-    } finally {
-      isRefreshing = false;
     }
   };
 
-  createEffect(on(() => props.repo.path, (newPath, oldPath) => {
+  const loadChanges = async () => {
+    await refreshLocalChanges(props.repo.path);
+  };
+
+  createEffect(() => {
+    const newPath = props.repo.path;
+    const localChanges = props.repo.localChanges ?? [];
     if (!newPath) return;
-    
-    if (newPath !== oldPath) {
+
+    if (newPath !== lastRepoPath) {
       setChanges([]);
       setSelected([]);
       setStagedPreparedSelected([]);
       setFileSelected("");
       setDiff({diff: ""});
+
+      const draft = commitDrafts()[newPath] ?? { message: "", description: "" };
+      setCommitMessage(draft.message);
+      setCommitDescription(draft.description);
+      lastRepoPath = newPath;
     }
-    
-    loadChanges();
-  }));
 
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === "visible") {
-      loadChanges();
-    }
-  };
-
-  document.addEventListener("visibilitychange", handleVisibilityChange);
-
-  const handleFocus = () => {
-    if (!isMerging() && !isRefreshing) {
-      loadChanges();
-    }
-  };
-  window.addEventListener("focus", handleFocus);
-
-  onCleanup(() => {
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-    window.removeEventListener("focus", handleFocus);
+    void syncChanges(localChanges);
   });
+
 
   const startResize = (e: MouseEvent) => {
     setIsResizing(true);
@@ -312,6 +309,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       // Alimenta os inputs da sua tela automaticamente
       setCommitMessage(suggestedTitle);
       setCommitDescription(suggestedDescription);
+      saveCommitDraft(suggestedTitle, suggestedDescription);
       notify.success("Sucesso", "Sugestão de commit aplicada!");
     } catch (err) {
       console.error(err);
@@ -346,9 +344,9 @@ export function LocalChanges(props: { repo: Repo; }) {
       await commit(props.repo.path, commitMessage(), commitDescription(), commitAmend());
       setCommitMessage("");
       setCommitDescription("");
+      clearCommitDraft(props.repo.path);
       setCommitAmend(false);
       clearDiff();
-      await loadChanges();
       await refreshBranches(props.repo.path);
     } catch (err) {
       console.error("Erro no commit:", err);
@@ -449,7 +447,11 @@ export function LocalChanges(props: { repo: Repo; }) {
           <div class="flex gap-2 items-center w-full">
             <input type="text" class="flex-1 input-text mt-0" placeholder={t('commits').commit_message}
               value={commitMessage()} disabled={isGeneratingAI()}
-              onInput={(e) => setCommitMessage(e.currentTarget.value)} 
+              onInput={(e) => {
+                const message = e.currentTarget.value;
+                setCommitMessage(message);
+                saveCommitDraft(message, commitDescription());
+              }}
             />
             
             <button 
@@ -470,7 +472,11 @@ export function LocalChanges(props: { repo: Repo; }) {
             class="w-full mt-2 input-text min-h-[20px] max-h-[200px] resize-y py-2 custom-scrollbar" 
             placeholder={t('common').description}
             value={commitDescription()}
-            onInput={(e) => setCommitDescription(e.currentTarget.value)} 
+            onInput={(e) => {
+              const description = e.currentTarget.value;
+              setCommitDescription(description);
+              saveCommitDraft(commitMessage(), description);
+            }}
             rows="2" disabled={isGeneratingAI()}
           />
 

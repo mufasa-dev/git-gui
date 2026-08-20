@@ -51,7 +51,7 @@ export default function TabBar(props: {
             onClick={() => props.onChangeActive(repo.path)}
             title={repo.name}
           >
-            {repo.localChanges && repo.localChanges.length > 0 && (
+            {(repo.localChangesCount ?? repo.localChanges?.length ?? 0) > 0 && (
               <i class="fa-solid fa-circle text-orange-500 text-[8px] mr-2"></i>
             )}
             <span class="truncate max-w-[150px] text-sm font-medium">{getRepoTabLabel(repo.name)}</span>

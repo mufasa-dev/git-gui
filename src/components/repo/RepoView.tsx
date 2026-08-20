@@ -155,9 +155,9 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
             onClick={() => setViewMode("changes")}
           >
             <i class="fa fa-copy"></i> {t('file').updates}
-            {props.repo.localChanges && props.repo.localChanges.length > 0 && (
+            {(props.repo.localChangesCount ?? props.repo.localChanges?.length ?? 0) > 0 && (
               <span class="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                {props.repo.localChanges.length}
+                {props.repo.localChangesCount ?? props.repo.localChanges?.length ?? 0}
               </span>
             )}
           </button>
