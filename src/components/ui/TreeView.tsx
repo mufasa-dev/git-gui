@@ -90,10 +90,9 @@ export default function TreeView(props: TreeViewProps) {
       props.onSelectBranch?.(node.original);
     }
   };
-  
 
   return (
-    <ul class="ml-4 space-y-1">
+    <ul class="ml-4 min-w-0 space-y-1">
       {Object.values(props.tree).map((node) => {
         const isLeaf = !node.children;
         const isActive = node.original === props.activeBranch;
@@ -102,7 +101,7 @@ export default function TreeView(props: TreeViewProps) {
         return (
             <li>
                 <div
-                  class={`cursor-pointer select-none flex items-center ${isSelected ? "font-bold text-green-600" : ""}`}
+                  class={`flex min-w-0 cursor-pointer select-none items-center ${isSelected ? "font-bold text-green-600" : ""}`}
                   onClick={() => handleClick(node)}
                   onDblClick={() => {
                     if (!node.children) {
@@ -119,8 +118,8 @@ export default function TreeView(props: TreeViewProps) {
                   {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[node.name], "fa-caret-right" : !open()[node.name]}}></i>} 
                   {!isLeaf && <i class={`fa-solid mr-1 ${folderVisual.icon} ${folderVisual.color}`}></i>}
                   {isLeaf && <i class="fa-solid" classList={{"fa-code-branch" : !isActive, "fa-check" : isActive}}></i>}
-                  <div class="truncate ml-1">{ node.name }</div>
-                  <div class="ml-auto">
+                  <div class="min-w-0 flex-1 truncate ml-1">{ node.name }</div>
+                  <div class="ml-auto shrink-0 whitespace-nowrap">
                     {node.ahead > 0 && <span class="text-green-600">↑{node.ahead}</span>}
                     {node.behind > 0 && <span class="text-red-600">↓{node.behind}</span>}
                   </div>

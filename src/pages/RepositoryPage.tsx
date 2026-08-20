@@ -216,15 +216,15 @@ export default function RepoTabsPage() {
       mutateUser: mutate,
       refetchUser: refetch
     }}>
-      <div class="flex flex-col h-full dark:bg-gray-800 dark:text-white">
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden dark:bg-gray-800 dark:text-white">
 
         {/* Abas + conteúdo */}
-        <div class="flex flex-col flex-1">
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
 
           <Header repos={repos()} active={active()} activePage={activePage()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
 
-          <div class="flex flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-gray-200 dark:bg-gray-900">
+          <div class="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-gray-200 dark:bg-gray-900">
             <Show when={repos().length > 0 && active()}>
               <LateralBar repos={repos()} 
                 active={activePage()} 

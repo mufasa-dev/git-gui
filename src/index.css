@@ -5,7 +5,13 @@
 @tailwind utilities;
 
 html {
-  @apply text-base;
+  @apply h-full text-base;
+}
+
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
 }
 
 @layer components {

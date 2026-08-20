@@ -134,13 +134,13 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
   ));
 
   return (
-    <div class="flex flex-1 min-w-0 h-full w-full select-none overflow-hidden bg-gray-200 dark:bg-gray-900"
+    <div class="flex min-h-0 min-w-0 flex-1 w-full select-none overflow-hidden bg-gray-200 dark:bg-gray-900"
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}
     >
       {/* Painel esquerdo */}
-      <div class="flex flex-col border-r overflow-auto border-gray-300 pt-2 pb-2 pl-2 dark:border-gray-900 " style={{ width: `${sidebarWidth()}px` }}>
+      <div class="flex min-h-0 min-w-0 flex-col border-r border-gray-300 pt-2 pb-2 pl-2 dark:border-gray-900 overflow-hidden" style={{ width: `${sidebarWidth()}px` }}>
         <div class="container-branch-list mb-2">
           <div class="flex">
             <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>
@@ -171,7 +171,7 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
           </button>
         </div>
 
-        <div class="container-branch-list px-0 overflow-auto h-[100%]">
+        <div class="container-branch-list min-h-0 min-w-0 flex-1 px-0 overflow-x-hidden overflow-y-auto">
           <div class="relative w-full mb-2 px-2">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-white">
               <i class="fas fa-search"></i>
@@ -189,6 +189,8 @@ export default function RepoView(props: { repo: Repo , refreshBranches: (path: s
           <BranchList 
             localTree={localTree()} 
             remoteTree={remoteTree()} 
+            localBranchCount={props.repo.branches.length}
+            remoteBranchCount={props.repo.remoteBranches?.length ?? 0}
             activeBranch={props.repo.activeBranch}
             repoPath={props.repo.path}
             selectedBranch={selectedRef()}

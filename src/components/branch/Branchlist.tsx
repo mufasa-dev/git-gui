@@ -9,6 +9,8 @@ import { useApp } from "../../context/AppContext";
 type Props = {
   localTree: TreeNodeMap;
   remoteTree: TreeNodeMap;
+  localBranchCount: number;
+  remoteBranchCount: number;
   activeBranch?: string;
   selectedBranch?: string;
   repoPath: string;
@@ -176,19 +178,20 @@ export default function BranchList(props: Props) {
   }
 
   const hideContextMenu = () => setMenuVisible(false);
-  
+
   document.addEventListener("click", hideContextMenu);
   onCleanup(() => document.removeEventListener("click", hideContextMenu));
 
   return (
     <div class="space-y-3">
-      <div class="border-t border-gray-300 dark:border-gray-700 pt-2">
+      <div class="border-t border-gray-300 dark:border-gray-700">
         <button
-          class="flex items-center w-full px-2 py-1 cursor-pointer text-left bg-transparent border-b border-gray-300 dark:border-gray-700 shadow-none"
+          class="flex items-center w-full px-2 py-2 cursor-pointer text-left bg-transparent border-b border-gray-300 dark:border-gray-700 shadow-none"
           onClick={() => setOpenBranch(!openBranch())}
         >
           <i class="fa fa-laptop text-blue-500 mr-2"></i>
           <b class="text-sm">{t("git").local}</b>
+          <span class="ml-2 text-[10px] rounded-full px-1.5 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-300">{props.localBranchCount}</span>
           <i class={`fa-solid ml-auto text-xs ${openBranch() ? "fa-angle-down" : "fa-angle-right"}`}></i>
         </button>
         <Show when={openBranch()}>
@@ -205,13 +208,14 @@ export default function BranchList(props: Props) {
         </Show>
       </div>
 
-      <div class="border-t border-gray-300 dark:border-gray-700 pt-2">
+      <div class="border-t border-gray-300 dark:border-gray-700">
         <button
-          class="flex items-center w-full px-2 py-1 cursor-pointer text-left bg-transparent border-b border-gray-300 dark:border-gray-700 shadow-none"
+          class="flex items-center w-full px-2 py-2 cursor-pointer text-left bg-transparent border-b border-gray-300 dark:border-gray-700 shadow-none"
           onClick={() => setOpenRemote(!openRemote())}
         >
           <i class="fa fa-earth-americas text-purple-500 mr-2"></i>
           <b class="text-sm">{t("git").remote}</b>
+            <span class="ml-2 text-[10px] rounded-full px-1.5 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-300">{props.remoteBranchCount}</span>
           <i class={`fa-solid ml-auto text-xs ${openRemote() ? "fa-angle-down" : "fa-angle-right"}`}></i>
         </button>
         <Show when={openRemote()}>

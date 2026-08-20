@@ -19,7 +19,7 @@ export default function App() {
   });
 
   return (
-    <div class="h-screen w-full flex flex-col bg-[#0d1117]">
+    <div class="flex h-screen min-h-0 w-full flex-col overflow-hidden bg-[#0d1117]">
       {/* O Titlebar agora é reativo ao token global */}
       <Titlebar />
       

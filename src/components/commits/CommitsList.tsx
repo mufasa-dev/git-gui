@@ -187,7 +187,7 @@ export default function CommitsList(props: {
   }
 
   return (
-    <div class="flex-1 min-w-0 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container"
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-2 pb-2 pr-2"
          onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
       <div class="container-branch-list flex-1 min-h-0 min-w-0 overflow-hidden mb-1">
         {/* Busca, filtro de data e paginação */}
