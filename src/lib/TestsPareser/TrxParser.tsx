@@ -19,7 +19,11 @@ export const parseTrxToEvents = (xmlString: string): ParsedEvent[] => {
       type: 'RESULT',
       data: {
         name: `${className} > ${testName}`,
-        status: result.getAttribute("outcome") === "Passed" ? 'pass' : 'fail',
+        status: result.getAttribute("outcome") === "Passed"
+          ? 'pass'
+          : ['NotExecuted', 'Skipped', 'Pending'].includes(result.getAttribute("outcome") || '')
+            ? 'skip'
+            : 'fail',
         duration: result.getAttribute("duration") || "0",
         log: [] // Opcional: extrair erros aqui se desejar
       }

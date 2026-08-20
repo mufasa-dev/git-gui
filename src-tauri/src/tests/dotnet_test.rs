@@ -1,5 +1,9 @@
+use crate::models::test::{TestCase, TestFile};
+use regex::Regex;
 use serde::Serialize;
+use std::fs;
 use std::io::{BufRead, BufReader};
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::thread;
 use tauri::{AppHandle, Emitter, Manager};
@@ -17,7 +21,9 @@ pub struct Payload {
 pub async fn run_dotnet_tests(
     app: AppHandle,
     project_path: String,
-    test_filter: Option<String>,
+    target_path: Option<String>,
+    test_file: Option<String>,
+    test_name: Option<String>,
 ) -> Result<String, String> {
     let window = app
         .get_webview_window("main")
@@ -31,23 +37,41 @@ pub async fn run_dotnet_tests(
         .filter_map(|e| e.ok())
         .collect();
 
-    let target_file = entries
-        .iter()
-        .find(|e| {
-            let name = e.file_name().to_string_lossy().to_lowercase();
-            name.contains("test") && name.ends_with(".csproj")
+    let target_file = target_path
+        .filter(|path| !path.is_empty())
+        .map(|path| {
+            let candidate = std::path::Path::new(&path);
+            if candidate.is_absolute() {
+                candidate.to_path_buf()
+            } else {
+                std::path::Path::new(&project_path).join(candidate)
+            }
         })
         .or_else(|| {
             entries
                 .iter()
-                .find(|e| e.file_name().to_string_lossy().ends_with(".sln"))
+                .find(|e| {
+                    let name = e.file_name().to_string_lossy().to_lowercase();
+                    name.contains("test") && name.ends_with(".csproj")
+                })
+                .or_else(|| {
+                    entries.iter().find(|e| {
+                        e.file_name()
+                            .to_string_lossy()
+                            .to_lowercase()
+                            .ends_with(".sln")
+                    })
+                })
+                .or_else(|| {
+                    entries.iter().find(|e| {
+                        e.file_name()
+                            .to_string_lossy()
+                            .to_lowercase()
+                            .ends_with(".csproj")
+                    })
+                })
+                .map(|e| e.path().to_path_buf())
         })
-        .or_else(|| {
-            entries
-                .iter()
-                .find(|e| e.file_name().to_string_lossy().ends_with(".csproj"))
-        })
-        .map(|e| e.path().to_string_lossy().to_string())
         .ok_or_else(|| "Nenhum projeto de teste encontrado".to_string())?;
 
     let test_project_dir = std::path::Path::new(&target_file)
@@ -56,28 +80,24 @@ pub async fn run_dotnet_tests(
         .to_path_buf();
 
     thread::spawn(move || {
-        let filter_arg = match test_filter {
-            Some(f) => format!("--filter {}", f),
-            None => "".to_string(),
-        };
-
-        let cmd_string = format!(
-            "dotnet test \"{}\" {} --logger \"trx;LogFileName=res.trx\"",
-            target_file, filter_arg
-        );
-
-        let (shell, arg) = if cfg!(target_os = "windows") {
-            ("cmd", "/C")
+        let mut command = Command::new(if cfg!(target_os = "windows") {
+            "dotnet.exe"
         } else {
-            ("sh", "-c")
-        };
-
-        let mut command = Command::new(shell);
+            "dotnet"
+        });
         command
-            .args([arg, &cmd_string])
+            .arg("test")
+            .arg(&target_file)
+            .args(["--logger", "trx;LogFileName=res.trx"])
             .current_dir(&project_path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+
+        let _ = test_file;
+        if let Some(name) = test_name.filter(|name| !name.is_empty()) {
+            let method_name = name.split(" > ").last().unwrap_or(&name).to_string();
+            command.arg("--filter").arg(format!("FullyQualifiedName~{}", method_name));
+        }
 
         #[cfg(target_os = "windows")]
         {
@@ -85,27 +105,82 @@ pub async fn run_dotnet_tests(
             command.creation_flags(0x08000000);
         }
 
-        let mut child = command.spawn().expect("Falha ao iniciar dotnet test");
-
-        let stdout = child.stdout.take().unwrap();
-        let reader = BufReader::new(stdout);
-
-        // Envia o log em tempo real apenas para feedback visual
-        for line in reader.lines() {
-            if let Ok(l) = line {
+        let mut child = match command.spawn() {
+            Ok(child) => child,
+            Err(error) => {
                 let _ = window_clone.emit(
                     "test-event",
                     Payload {
                         file: "DOTNET".into(),
                         status: "running".into(),
-                        name: l,
-                        error: None,
+                        name: format!("Falha ao iniciar dotnet test: {}", error),
+                        error: Some(error.to_string()),
                     },
                 );
+                let _ = window_clone.emit(
+                    "test-event",
+                    Payload {
+                        file: "SYSTEM".into(),
+                        status: "finished".into(),
+                        name: "PROCESS_FINISHED".into(),
+                        error: Some(error.to_string()),
+                    },
+                );
+                return;
             }
-        }
+        };
 
-        let _ = child.wait();
+        let stdout_thread = child.stdout.take().map(|stdout| {
+            let window = window_clone.clone();
+            thread::spawn(move || {
+                for line in BufReader::new(stdout).lines().flatten() {
+                    let _ = window.emit(
+                        "test-event",
+                        Payload {
+                            file: "DOTNET".into(),
+                            status: "running".into(),
+                            name: line,
+                            error: None,
+                        },
+                    );
+                }
+            })
+        });
+        let stderr_thread = child.stderr.take().map(|stderr| {
+            let window = window_clone.clone();
+            thread::spawn(move || {
+                for line in BufReader::new(stderr).lines().flatten() {
+                    let _ = window.emit(
+                        "test-event",
+                        Payload {
+                            file: "DOTNET".into(),
+                            status: "running".into(),
+                            name: line,
+                            error: None,
+                        },
+                    );
+                }
+            })
+        });
+
+        let exit_status = child.wait().ok();
+        if let Some(thread) = stdout_thread {
+            let _ = thread.join();
+        }
+        if let Some(thread) = stderr_thread {
+            let _ = thread.join();
+        }
+        if let Some(status) = exit_status.filter(|status| !status.success()) {
+            let _ = window_clone.emit(
+                "test-event",
+                Payload {
+                    file: "DOTNET".into(),
+                    status: "running".into(),
+                    name: format!("dotnet test terminou com código {}", status),
+                    error: None,
+                },
+            );
+        }
 
         // --- AQUI ESTÁ A CHAVE: LER O XML ---
         // O dotnet gera por padrão em: {projeto}/TestResults/res.trx
@@ -136,4 +211,69 @@ pub async fn run_dotnet_tests(
     });
 
     Ok("Execução .NET iniciada".into())
+}
+
+#[tauri::command]
+pub async fn get_dotnet_test_files(
+    project_path: String,
+    target_path: Option<String>,
+) -> Result<Vec<TestFile>, String> {
+    let root = target_path
+        .as_deref()
+        .and_then(|target| Path::new(target).parent())
+        .map(|parent| Path::new(&project_path).join(parent))
+        .unwrap_or_else(|| Path::new(&project_path).to_path_buf());
+    let class_re = Regex::new(r"class\s+([A-Za-z0-9_]+)").map_err(|error| error.to_string())?;
+    let test_re = Regex::new(
+        r#"(?s)\[\s*(?:Fact|Test|TestMethod)\b[^\]]*\]\s*(?:public|private|protected|internal)?\s*(?:async\s+)?[A-Za-z0-9_<>,?\[\]]+\s+([A-Za-z0-9_]+)\s*\("#,
+    )
+    .map_err(|error| error.to_string())?;
+    let mut test_files = Vec::new();
+
+    for entry in WalkDir::new(root)
+        .into_iter()
+        .filter_entry(|entry| {
+            !entry.path().components().any(|component| {
+                matches!(component.as_os_str().to_str(), Some(".git" | "bin" | "obj"))
+            })
+        })
+        .filter_map(Result::ok)
+    {
+        let path = entry.path();
+        if !path.is_file() || path.extension().and_then(|extension| extension.to_str()) != Some("cs") {
+            continue;
+        }
+        let content = fs::read_to_string(path).map_err(|error| error.to_string())?;
+        let suite = class_re
+            .captures(&content)
+            .map(|capture| capture[1].to_string())
+            .unwrap_or_else(|| "Dotnet".into());
+        let tests = test_re
+            .captures_iter(&content)
+            .map(|capture| TestCase {
+                name: capture[1].to_string(),
+                suite: suite.clone(),
+            })
+            .collect::<Vec<_>>();
+        if tests.is_empty() {
+            continue;
+        }
+        let relative_path = path
+            .strip_prefix(&project_path)
+            .map_err(|error| error.to_string())?
+            .to_string_lossy()
+            .replace('\\', "/");
+        test_files.push(TestFile {
+            name: path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("test.cs")
+                .to_string(),
+            path: relative_path,
+            label: suite.clone(),
+            tests,
+        });
+    }
+
+    Ok(test_files)
 }

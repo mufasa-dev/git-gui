@@ -1,6 +1,6 @@
 import { createSignal, For, onMount, onCleanup, Show, createMemo, createEffect } from 'solid-js';
 import { listen } from '@tauri-apps/api/event';
-import { ParsedEvent, ProjectType } from '../../models/ProjectType.model';
+import { ParsedEvent, ProjectType, TestRunnerOption } from '../../models/ProjectType.model';
 import { getProjectType, runTestTerminal, getTestsFiles } from '../../services/testService';
 import { formatDuration } from '../../utils/date';
 import FileIcon from '../ui/FileIcon';
@@ -12,6 +12,8 @@ import { useApp } from '../../context/AppContext';
 import { angularParser } from '../../lib/TestsPareser/AngularParser';
 import { parseTrxToEvents } from '../../lib/TestsPareser/TrxParser';
 import { goParser } from '../../lib/TestsPareser/goParser';
+import { parseVitestToEvents } from '../../lib/TestsPareser/VitestParser';
+import { rustParser } from '../../lib/TestsPareser/RustParser';
 
 interface TestSpec {
   id: string;
@@ -42,6 +44,7 @@ export const TestRunner = (props: { repo: any }) => {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
   const [projectInfo, setProjectInfo] = createSignal<ProjectType | null>(null);
+  const [selectedRunnerId, setSelectedRunnerId] = createSignal<string | null>(null);
   const [searchQuery, setSearchQuery] = createSignal("");
   const [lastLoadedPath, setLastLoadedPath] = createSignal<string | null>(null);
   const [mappedFiles, setMappedFiles] = createSignal<MappedTestFile[]>([]); 
@@ -64,6 +67,20 @@ export const TestRunner = (props: { repo: any }) => {
 
   const stripAnsi = (str: string) => str.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
   const storageKey = () => `brook_test_cache_${props.repo?.path}`;
+  const activeRunner = createMemo<TestRunnerOption | null>(() => {
+    const info = projectInfo();
+    if (!info) return null;
+    return info.runners.find(runner => runner.id === selectedRunnerId())
+      || info.runners[0]
+      || {
+        id: 'legacy',
+        label: info.testRunner,
+        kind: info.testRunner.toLowerCase(),
+        framework: info.framework,
+        targetPath: null,
+      };
+  });
+  const activeFramework = () => activeRunner()?.framework || projectInfo()?.framework;
 
   createEffect(() => {
     const path = props.repo?.path;
@@ -75,6 +92,9 @@ export const TestRunner = (props: { repo: any }) => {
         setSpecs([]);
       }
       setLastLoadedPath(path); 
+      setProjectInfo(null);
+      setSelectedRunnerId(null);
+      setMappedFiles([]);
       setSelectedSuite(null);
       setIsRunning(false);
       setFilterStatus('all');
@@ -97,10 +117,10 @@ export const TestRunner = (props: { repo: any }) => {
     }
   });
 
-  const updateFileMapping = async () => {
-    if (props.repo?.path && projectInfo()?.testRunner) {
+  const updateFileMapping = async (runner: TestRunnerOption | null = activeRunner()) => {
+    if (props.repo?.path && runner) {
       try {
-        const files = await getTestsFiles(props.repo.path, projectInfo()!.testRunner);
+        const files = await getTestsFiles(props.repo.path, runner);
         setMappedFiles(files);
       } catch (e) {
         console.error("Erro ao remapear arquivos de testes:", e);
@@ -108,14 +128,23 @@ export const TestRunner = (props: { repo: any }) => {
     }
   };
 
-  createEffect(async () => {
-    if (props.repo?.path) {
-      const info = await getProjectType(props.repo.path);
+  createEffect(() => {
+    const path = props.repo?.path;
+    if (!path) return;
+    void getProjectType(path).then(info => {
+      if (props.repo?.path !== path) return;
       setProjectInfo(info);
-      if (info?.testRunner) {
-        await updateFileMapping();
-      }
-    }
+      setSelectedRunnerId(info.runners[0]?.id || null);
+    });
+  });
+
+  createEffect(() => {
+    const path = props.repo?.path;
+    const runner = activeRunner();
+    if (!path || !runner) return;
+    setMappedFiles([]);
+    setSelectedSuite(null);
+    void updateFileMapping(runner);
   });
 
   const stats = createMemo(() => {
@@ -237,11 +266,11 @@ export const TestRunner = (props: { repo: any }) => {
     const scope = executionScope();
     const currentSuite = selectedSuite();
     const singleTest = runningSingleTest();
-    const framework = projectInfo()?.framework;
+    const framework = activeFramework();
 
     setSpecs(prev => {
-      // SE FOR GO OU DOTNET
-      if (framework === 'Go' || framework === 'Dotnet') {
+      // SE FOR GO, DOTNET, VITEST OU RUST
+      if (framework === 'Go' || framework === 'Dotnet' || framework === 'Vitest' || framework === 'Rust') {
         return prev
           .map(spec => {
             if (scope === 'single' && spec.name !== singleTest && spec.status === 'running') {
@@ -291,8 +320,10 @@ export const TestRunner = (props: { repo: any }) => {
     const updateSpecState = (parsed: ParsedEvent) => {
       if (parsed.type === 'RESULT' && parsed.data) {
         const specData = parsed.data;
-        if (executionScope() === 'single' && specData.name !== runningSingleTest()) {
-          return;
+        if (executionScope() === 'single') {
+          const expectedName = runningSingleTest()?.split(' > ').pop()?.trim();
+          const receivedName = specData.name?.split(' > ').pop()?.trim();
+          if (expectedName !== receivedName) return;
         }
 
         let resolvedFilePath = specData.filePath;
@@ -323,7 +354,8 @@ export const TestRunner = (props: { repo: any }) => {
             const currTestName = currParts.pop()?.trim();
             const currSuite = currParts.join(' > ').trim();
 
-            return prevTestName === currTestName && isSuiteMatch(currSuite, prevSuite);
+            return prevTestName === currTestName
+              && (isSuiteMatch(currSuite, prevSuite) || activeFramework() === 'Rust');
           });
 
           const newSpec: TestSpec = {
@@ -358,8 +390,19 @@ export const TestRunner = (props: { repo: any }) => {
         return;
       }
 
+      const payload = typeof event.payload === 'string' ? null : event.payload;
       const rawLine = typeof event.payload === 'string' ? event.payload : event.payload.name;
       if (!rawLine) return;
+
+      const type = activeFramework();
+      if (payload?.status === 'result_xml' || (type === 'Dotnet' && rawLine.trim().startsWith('<?xml'))) {
+        parseTrxToEvents(rawLine).forEach(res => updateSpecState(res));
+        return;
+      }
+      if (payload?.status === 'result_json' || payload?.file === 'VITEST_JSON') {
+        parseVitestToEvents(rawLine).forEach(res => updateSpecState(res));
+        return;
+      }
 
       const line = stripAnsi(rawLine).trim();
       if (!line) return;
@@ -371,8 +414,9 @@ export const TestRunner = (props: { repo: any }) => {
       const isAngularError = line.includes('ERROR [karma-server]') || line.includes('error TS23') || line.includes('Found 1 load error');
       const isGoError = line.includes('build failed') || /:\d+:\d+: undefined:/.test(line) || /syntax error:/.test(line);
       const isDotnetError = /: error CS\d+:/.test(line) || line.includes('Build FAILED.');
+      const isRustError = line.includes('error[E') || line.includes('could not compile');
 
-      if (isAngularError || isGoError || isDotnetError) {
+      if (isAngularError || isGoError || isDotnetError || isRustError) {
         setIsRunning(false);
 
         const errorLog = compileLogBuffer.length > 0
@@ -386,19 +430,13 @@ export const TestRunner = (props: { repo: any }) => {
         return;
       }
 
-      const type = projectInfo()?.framework;
-
-      if (type === 'Dotnet' && line.startsWith('<?xml')) {
-        const results = parseTrxToEvents(line);
-        results.forEach(res => updateSpecState(res));
-        return;
-      }
-
       let parsed: ParsedEvent;
       if (type === 'Angular') {
         parsed = angularParser(line, compileLogBuffer);
       } else if (type === 'Go') {
         parsed = goParser(line);
+      } else if (type === 'Rust') {
+        parsed = rustParser(line);
       } else {
         parsed = { type: 'LOG' };
       }
@@ -426,7 +464,7 @@ export const TestRunner = (props: { repo: any }) => {
     
     try {
       await runTestTerminal(
-        projectInfo()?.testRunner || 'dockerfile',
+        activeRunner() || 'dockerfile',
         props.repo.path,
         '',
         '',
@@ -464,7 +502,7 @@ export const TestRunner = (props: { repo: any }) => {
 
     try {
       await runTestTerminal(
-        projectInfo()?.testRunner || 'angular',
+        activeRunner() || 'angular',
         props.repo.path,
         filePath,
         pureItName,
@@ -480,6 +518,15 @@ export const TestRunner = (props: { repo: any }) => {
   const setRandomOrder = (enabled: boolean) => {
     setRandomizeTests(enabled);
     localStorage.setItem('test-runner-randomize', String(enabled));
+  };
+
+  const selectRunner = (runnerId: string) => {
+    if (isRunning() || runnerId === selectedRunnerId()) return;
+    setSelectedRunnerId(runnerId);
+    setMappedFiles([]);
+    setSpecs([]);
+    setSelectedSuite(null);
+    setCompilationError(null);
   };
 
   const runSuiteTest = async () => {
@@ -507,7 +554,7 @@ export const TestRunner = (props: { repo: any }) => {
 
     try {
       await runTestTerminal(
-        projectInfo()?.testRunner || 'angular',
+        activeRunner() || 'angular',
         props.repo.path,
         filePath,
         '',
@@ -530,10 +577,25 @@ export const TestRunner = (props: { repo: any }) => {
         <div class="container-branch-list p-0 overflow-hidden flex flex-col h-full">
           <div class="p-3 border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50">
             <div class="flex justify-between items-center mb-3">
-                <span class="text-[10px] font-bold uppercase text-gray-500 dark:text-white flex items-center gap-2">
-                  <FileIcon fileName={projectInfo()?.testRunner || 'dockerfile'} />
-                  {projectInfo()?.testRunner || 'Runner'}
-                </span>
+                <div class="flex min-w-0 items-center gap-2">
+                  <span class="text-[10px] font-bold uppercase text-gray-500 dark:text-white flex items-center gap-2 truncate">
+                    <FileIcon fileName={activeRunner()?.label || 'dockerfile'} />
+                    {activeRunner()?.label || 'Runner'}
+                  </span>
+                  <Show when={(projectInfo()?.runners.length || 0) > 1}>
+                    <select
+                      value={selectedRunnerId() || ''}
+                      onChange={(event) => selectRunner(event.currentTarget.value)}
+                      disabled={isRunning()}
+                      aria-label={t('test').select_runner}
+                      class="max-w-[150px] rounded border border-gray-300 bg-white px-1.5 py-1 text-[10px] font-semibold text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                    >
+                      <For each={projectInfo()?.runners || []}>
+                        {(runner) => <option value={runner.id}>{runner.label}</option>}
+                      </For>
+                    </select>
+                  </Show>
+                </div>
                 <div class="flex items-center gap-1">
                   <button
                     onClick={() => setSettingsOpen(true)}
@@ -659,10 +721,10 @@ export const TestRunner = (props: { repo: any }) => {
                   </div>
                   <div>
                     <h3 class="text-sm font-bold text-red-500 uppercase tracking-wide">
-                      Erro de Compilação ({projectInfo()?.framework || 'Build Error'})
+                      Erro de Compilação ({activeFramework() || 'Build Error'})
                     </h3>
                     <p class="text-[11px] opacity-70">
-                      O compilador do {projectInfo()?.framework || 'sistema'} barrou a execução antes de conseguir iniciar a suíte de testes.
+                      O compilador do {activeFramework() || 'sistema'} barrou a execução antes de conseguir iniciar a suíte de testes.
                     </p>
                   </div>
                 </div>

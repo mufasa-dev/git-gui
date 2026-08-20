@@ -383,6 +383,7 @@
     "test_details": "Dettagli test",
     "settings": "Impostazioni di esecuzione",
     "settings_description": "Definisci come devono essere eseguiti i test.",
+    "select_runner": "Seleziona il motore di test",
     "random_order": "Esegui in ordine casuale",
     "random_order_description": "Aiuta a trovare i test che dipendono erroneamente dall'ordine di esecuzione.",
     "rerun": "Esegui di nuovo",

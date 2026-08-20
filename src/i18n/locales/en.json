@@ -383,6 +383,7 @@
     "test_details": "Test details",
     "settings": "Execution settings",
     "settings_description": "Choose how the tests should be executed.",
+    "select_runner": "Select test runner",
     "random_order": "Run in random order",
     "random_order_description": "Helps find tests that incorrectly depend on execution order.",
     "rerun": "Run again",
