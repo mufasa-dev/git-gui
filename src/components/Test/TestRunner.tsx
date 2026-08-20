@@ -16,6 +16,7 @@ interface TestSpec {
   log: string[];
   filePath?: string;
   duration?: string;
+  resultId?: string;
 }
 
 interface MappedTestCase {
@@ -192,29 +193,17 @@ export const TestRunner = (props: { repo: any }) => {
       return prev
         .map(spec => {
           if (scope === 'single' && spec.name !== singleTest && spec.status === 'running') {
-            return { ...spec, status: 'skip' as const }; 
+            return { ...spec, status: 'skip' as const };
           }
           return spec;
         })
         .filter(spec => {
-          const parts = spec.name.split(' > ');
-          const testName = parts.pop()?.trim();
-          const specSuite = parts.join(' > ').trim();
+          if (spec.status !== 'running') return true;
 
-          // Verifica se o teste existe nos arquivos mapeados considerando sub-suítes
-          const existsInCode = mappedFiles().some(file =>
-            file.tests.some(t => 
-              t.name.trim() === testName && isSuiteMatch(specSuite, t.suite)
-            )
-          );
+          if (scope === 'all') return false;
 
-          if (!existsInCode) {
-            const [rootSuite] = spec.name.split(' > ');
-            if (scope === 'all' || (scope === 'suite' && rootSuite.trim() === currentSuite?.trim())) {
-              return false; // Remove fantasmas de fato
-            }
-          }
-          return true;
+          const [rootSuite] = spec.name.split(' > ');
+          return scope !== 'suite' || rootSuite.trim() !== currentSuite?.trim();
         });
     });
 
@@ -247,6 +236,9 @@ export const TestRunner = (props: { repo: any }) => {
         setSpecs(prev => {
           // Busca teste correspondente considerando a suíte raiz ou nome do teste e sub-suíte
           const existingIndex = prev.findIndex(s => {
+            if (specData.resultId) {
+              return s.resultId === specData.resultId || (!s.resultId && s.name === specData.name);
+            }
             if (s.name === specData.name) return true;
 
             const prevParts = s.name.split(' > ');
@@ -266,7 +258,8 @@ export const TestRunner = (props: { repo: any }) => {
             status: specData.status!,
             log: specData.log || [],
             filePath: resolvedFilePath,
-            duration: specData.duration
+            duration: specData.duration,
+            resultId: specData.resultId
           };
 
           if (existingIndex !== -1) {

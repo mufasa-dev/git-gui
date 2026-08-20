@@ -10,6 +10,7 @@ export interface ParsedEvent {
     status?: 'pass' | 'fail' | 'skip' ;
     filePath?: string;
     duration?: string;
+    resultId?: string;
     log?: string[];
   };
 }

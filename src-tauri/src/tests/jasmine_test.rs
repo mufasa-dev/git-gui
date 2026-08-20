@@ -98,7 +98,7 @@ pub async fn run_angular_tests(
         let win_out = window_clone.clone();
         let win_err = window_clone.clone();
 
-        thread::spawn(move || {
+        let stdout_thread = thread::spawn(move || {
             let reader = BufReader::new(stdout);
             for line in reader.lines() {
                 if let Ok(l) = line {
@@ -116,7 +116,7 @@ pub async fn run_angular_tests(
             }
         });
 
-        thread::spawn(move || {
+        let stderr_thread = thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines() {
                 if let Ok(l) = line {
@@ -135,6 +135,8 @@ pub async fn run_angular_tests(
         });
 
         let _ = child.wait();
+        let _ = stdout_thread.join();
+        let _ = stderr_thread.join();
 
         if let Err(e) = fs::remove_file(target_bridge) {
             eprintln!("Erro ao remover bridge temporária: {}", e);
