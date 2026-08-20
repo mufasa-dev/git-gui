@@ -23,6 +23,21 @@ void datepicker;
 
 let currentFetchId = 0;
 
+function parseDateInput(value: string, endOfDay = false) {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  return new Date(
+    year,
+    month - 1,
+    day,
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0,
+  );
+}
+
 export default function CommitsList(props: {
   repo: Repo;
   branch?: string;
@@ -36,7 +51,13 @@ export default function CommitsList(props: {
   const [resizing, setResizing] = createSignal(false);
   const [startDate, setStartDate] = createSignal("");
   const [endDate, setEndDate] = createSignal("");
-  const { t, locale } = useApp();
+  const { t, locale, isDark } = useApp();
+  const datePlaceholder = createMemo(() => ({
+    pt: "dd/mm/aaaa",
+    en: "mm/dd/yyyy",
+    it: "gg/mm/aaaa",
+    jp: "yyyy/mm/dd",
+  })[locale()] || "dd/mm/aaaa");
   
   // Estados para Paginação e Filtro
   const [searchTerm, setSearchTerm] = createSignal("");
@@ -48,27 +69,26 @@ export default function CommitsList(props: {
   );
 
   const filteredCommits = createMemo(() => {
-    const term = searchTerm().toLowerCase();
-    const start = startDate() ? new Date(startDate()) : null;
-    const end = endDate() ? new Date(endDate()) : null;
+    const term = searchTerm().trim().toLowerCase();
+    const start = parseDateInput(startDate());
+    const end = parseDateInput(endDate(), true);
 
     return commitsOnly().filter(c => {
-      const matchesText = !term || 
-        c.message.toLowerCase().includes(term) || 
-        c.hash.toLowerCase().includes(term) ||
-        c.author.toLowerCase().includes(term);
+      const message = String(c.message || "").toLowerCase();
+      const hash = String(c.hash || "").toLowerCase();
+      const author = String(c.author || "").toLowerCase();
+      const matchesText = !term ||
+        message.includes(term) ||
+        hash.includes(term) ||
+        author.includes(term);
 
-      const commitDate = new Date(c.date);
-      let matchesDate = true;
-      if (start) {
-        matchesDate = matchesDate && commitDate >= start;
-      }
-      if (end) {
-        const endWithTime = new Date(end);
-        endWithTime.setHours(23, 59, 59, 999);
-        matchesDate = matchesDate && commitDate <= endWithTime;
-      }
-      return matchesText && matchesDate;
+      const commitTime = Date.parse(c.date);
+      const hasValidCommitDate = !Number.isNaN(commitTime);
+      const matchesDate = hasValidCommitDate &&
+        (!start || commitTime >= start.getTime()) &&
+        (!end || commitTime <= end.getTime());
+
+      return matchesText && (!start && !end ? true : matchesDate);
     });
   });
 
@@ -109,11 +129,17 @@ export default function CommitsList(props: {
 
   const paginatedCommits = createMemo(() => {
     const start = (currentPage() - 1) * itemsPerPage;
-    console.log('paginatedCommits', filteredCommits().slice(start, start + itemsPerPage))
     return filteredCommits().slice(start, start + itemsPerPage);
   });
 
   const totalPages = createMemo(() => Math.ceil(filteredCommits().length / itemsPerPage));
+
+  createEffect(() => {
+    searchTerm();
+    startDate();
+    endDate();
+    setCurrentPage(1);
+  });
 
   async function selectCommit(hash: string) {
     if (!props.repo || !props.repo.path) return;
@@ -163,100 +189,118 @@ export default function CommitsList(props: {
   return (
     <div class="flex-1 min-w-0 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container"
          onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
-      <div class="container-branch-list flex-1 min-w-0 overflow-auto mb-1" style={{"height": "100px"}}>
-        {/* Header com Busca e Paginação */}
-        <div class="p-1 flex flex-col gap-2">
-          <div class="flex gap-2 items-center">
-            <input 
-              type="text"
+      <div class="container-branch-list flex-1 min-h-0 min-w-0 overflow-hidden mb-1">
+        {/* Busca, filtro de data e paginação */}
+        <div class="commits-toolbar">
+          <label class="commit-search flex min-w-0 flex-1 items-center gap-2">
+            <i class="fas fa-search text-gray-400" aria-hidden="true" />
+            <input
+              type="search"
               placeholder={t('commits').search_placeholder}
-              class="w-full p-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none focus:ring-1 ring-blue-500"
               value={searchTerm()}
               onInput={(e) => setSearchTerm(e.currentTarget.value)}
             />
+          </label>
 
-            {/* Filtro de Data */}
-            <div class="flex items-center gap-1">
-              <input 
-                use:datepicker={{ value: startDate, onChange: setStartDate }}
-                placeholder={t('common').start_date}
-                class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
+          <div class="commit-date-filter" aria-label={`${t('common').start_date} ${t('common').to_date} ${t('common').end_date}`}>
+            <label class="commit-date-field">
+              <span>{t('common').start_date}</span>
+              <input
+                use:datepicker={{ value: startDate, onChange: setStartDate, locale, isDark, maxDate: endDate }}
+                type="text"
+                placeholder={datePlaceholder()}
+                autocomplete="off"
               />
-              <span class="text-gray-400 whitespace-nowrap">{t('common').to_date}</span>
-              <input 
-                use:datepicker={{ value: endDate, onChange: setEndDate }}
-                placeholder={t('common').end_date}
-                class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
+            </label>
+            <span class="commit-date-separator">{t('common').to_date}</span>
+            <label class="commit-date-field">
+              <span>{t('common').end_date}</span>
+              <input
+                use:datepicker={{ value: endDate, onChange: setEndDate, locale, isDark, minDate: startDate }}
+                type="text"
+                placeholder={datePlaceholder()}
+                autocomplete="off"
               />
-              
-              {/* Botão de Limpar (Opcional mas útil) */}
-              <Show when={startDate() || endDate()}>
-                <button 
-                  onClick={() => { setStartDate(""); setEndDate(""); }}
-                  class="p-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950 rounded"
-                  title="Limpar datas"
-                > ✕ </button>
-              </Show>
-            </div>
-          </div>
-          
-          <div class="flex items-center text-xs">
-            <b class="text-green-600">
-              <i class="fas fa-code-branch" />{props.branch}:
-            </b>
-            <span class="text-gray-500 ml-2">{t('common').showing} {paginatedCommits().length} {t('common').of} {filteredCommits().length}</span>
-            <div class="flex gap-2 items-center ml-auto">
-              <button 
-                disabled={currentPage() === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-                class="px-4 py-1 bg-gray-300 dark:bg-gray-900 rounded-full disabled:opacity-30"
-              > {t('common').previous} </button>
-              <span>{currentPage()} / {totalPages() || 1}</span>
-              <button 
-                disabled={currentPage() >= totalPages()}
-                onClick={() => setCurrentPage(p => p + 1)}
-                class="px-4 py-1 bg-gray-300 dark:bg-gray-900 rounded-full disabled:opacity-30"
-              > {t('common').next} </button>
-            </div>
+            </label>
+            <Show when={startDate() || endDate()}>
+              <button
+                type="button"
+                onClick={() => { setStartDate(""); setEndDate(""); }}
+                class="commit-clear-filter"
+                title="Limpar datas"
+                aria-label="Limpar datas"
+              >
+                <i class="fas fa-xmark" aria-hidden="true" />
+              </button>
+            </Show>
           </div>
         </div>
 
+        <div class="commit-list-meta">
+          <div class="min-w-0 truncate">
+            <b class="text-green-600 dark:text-green-400">
+              <i class="fas fa-code-branch mr-1" />{props.branch}
+            </b>
+            <span class="text-gray-500 ml-2">{t('common').showing} {paginatedCommits().length} {t('common').of} {filteredCommits().length}</span>
+          </div>
+          <div class="commit-pagination">
+            <button
+              type="button"
+              disabled={currentPage() === 1}
+              onClick={() => setCurrentPage(p => p - 1)}
+              class="commit-page-button"
+              aria-label={t('common').previous}
+            >
+              <i class="fas fa-chevron-left" aria-hidden="true" />
+            </button>
+            <span>{currentPage()} / {totalPages() || 1}</span>
+            <button
+              type="button"
+              disabled={currentPage() >= totalPages()}
+              onClick={() => setCurrentPage(p => p + 1)}
+              class="commit-page-button"
+              aria-label={t('common').next}
+            >
+              <i class="fas fa-chevron-right" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
 
-        {/* Lista de Commits */}
-        <div class="flex flex-1 min-w-0 overflow-auto">
-          <div class="sticky left-0 z-10 flex-shrink-0">
+        {/* Lista de commits */}
+        <div class="commit-list-viewport">
+          <div class="commit-graph-column">
             <CommitGraph commits={paginatedCommits()} rowHeight={35} />
           </div>
-          <div class="flex-1">
+          <div class="commit-rows">
             <Show when={!loading()} fallback={<div class="p-4 text-center">{t('common').loading}</div>}>
               <For each={paginatedCommits()}>
                 {(c) => (
                   <div
-                    class={`cm-commit-item w-full min-w-0 ${
+                    class={`cm-commit-item ${
                       selectedCommit()?.hash === c.hash ? "selected" : ""
                     }`}
                     onClick={() => selectCommit(c.hash)}
                   >
-                    <div class="text-sm font-mono opacity-80 flex items-center h-full">{c.hash.slice(0, 7)}</div>
-                    <div class="font-semibold px-2 flex flex-1 min-w-0 h-full items-center overflow-hidden">
-                      <div class="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                    <div class="commit-hash-cell">{c.hash.slice(0, 7)}</div>
+                    <div class="commit-message-cell">
+                      <div class="commit-message-text">
                         <CommitMessage message={c.message} class="text-sm font-mono whitespace-nowrap" />
                       </div>
-                      <div class="inline-flex shrink-0 items-center gap-1 ml-2">
+                      <div class="commit-tags">
                         <For each={(c.ref_names || "").split(",").map((ref: string) => ref.trim()).filter((ref: string) => ref.startsWith("tag: "))}>
-                          {(ref) => <span class="text-[9px] font-mono px-1 rounded bg-green-500/20 text-green-600 dark:text-green-300">{ref.replace("tag: ", "")}</span>}
+                          {(ref) => <span class="commit-tag" title={ref.replace("tag: ", "")}>{ref.replace("tag: ", "")}</span>}
                         </For>
                       </div>
                     </div>
-                    <div class="text-xs ml-auto shrink-0 whitespace-nowrap flex items-center gap-2 w-[200px] min-w-0">
+                    <div class="commit-author-cell">
                       <img
                         src={getGravatarUrl(c.email, 80)}
                         alt={c.author}
                         class="w-[18px] h-[18px] rounded-full shadow-sm"
-                      /> 
-                      <span class="opacity-50 truncate">{formatContributorName(c.author)}</span>
+                      />
+                      <span class="truncate">{formatContributorName(c.author)}</span>
                     </div>
-                    <div class="px-2 text-xs w-[182px] shrink-0 text-right truncate flex items-center justify-end h-full">{formatRelativeDate(c.date, t, locale())}</div>
+                    <div class="commit-date-cell">{formatRelativeDate(c.date, t, locale())}</div>
                   </div>
                 )}
               </For>

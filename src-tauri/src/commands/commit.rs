@@ -43,6 +43,7 @@ pub fn list_commits(path: String, branch: String) -> Result<Vec<GraphLine>, Stri
         .args(&[
             "log",
             "--graph",
+            "--date=iso-strict",
             "--pretty=format:SEP%H|%an|%ae|%ad|%s|%P|%D",
             &branch,
             "--",
