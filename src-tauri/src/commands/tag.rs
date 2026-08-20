@@ -90,7 +90,7 @@ pub fn list_tags(repo_path: String) -> Result<Vec<TagEntry>, String> {
     let output = git_command(&repo_path)
         .args([
             "for-each-ref",
-            "--format=%(refname:short)%x1f%(objecttype)%x1f%(creatordate:iso-strict)%x1f%(creator)%x1f%(subject)",
+            "--format=%(refname:short)%x1f%(objecttype)%x1f%(creatordate:iso-strict)%x1f%(creator)%x1f%(subject)%x1f%(objectname)%x1f%(*objectname)",
             "refs/tags/",
         ])
         .output()
@@ -105,7 +105,7 @@ pub fn list_tags(repo_path: String) -> Result<Vec<TagEntry>, String> {
 
     for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
         let fields: Vec<&str> = line.split(FIELD_SEPARATOR).collect();
-        if fields.len() < 5 {
+        if fields.len() < 7 {
             continue;
         }
 
@@ -115,7 +115,13 @@ pub fn list_tags(repo_path: String) -> Result<Vec<TagEntry>, String> {
         } else {
             "lightweight".to_string()
         };
-        let target_commit = resolve_tag_commit(&repo_path, &name)?;
+        let peeled_commit = fields[6].trim();
+        let target_commit = if peeled_commit.is_empty() {
+            fields[5].trim()
+        } else {
+            peeled_commit
+        }
+        .to_string();
         let short_commit = target_commit.chars().take(short_hash_len()).collect();
 
         tags.push(TagEntry {

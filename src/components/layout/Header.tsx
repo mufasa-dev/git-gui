@@ -1,11 +1,11 @@
-import { createResource, createSignal, onMount, Show } from "solid-js";
+import { createSignal, onMount, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { openBash, openConsole, openFileManager, openRepositoryBrowser, openVsCode } from "../../services/openService";
 import Button from "../ui/Button";
 import DropdownButton from "../ui/DropdownButton";
 import NewBranchModal from "../branch/NewBranchModal";
 import BranchSelector from "../branch/BranchSelector"; // 🌟 Import do novo seletor customizado
-import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch, configPullMode, getRemoteUrl, listStashes, listTags, applyStash, popStash, clearStashes } from "../../services/gitService";
+import { fetchRepo, getRepositorySnapshot, getCurrentBranch, pull, pushRepo, validateRepo, createBranch, configPullMode, listStashes, listTags, applyStash, popStash, clearStashes } from "../../services/gitService";
 import { saveRepos } from "../../services/storeService";
 import folderIcon from "../../assets/folder_silver.png";
 import fetchIcon from "../../assets/reload_silver.png";
@@ -34,6 +34,8 @@ type Props = {
     active: string | null;
     activePage: string | null;
     refreshBranches: (repoPath: string) => Promise<void>;
+    remoteUrl?: string;
+    setRepoBusy?: (path: string, busy: boolean) => void;
     setActive: (path: string | null) => void;
     setRepos: (repos: Repo[]) => void;
 };
@@ -58,14 +60,7 @@ export default function Header(props: Props) {
     // 🌟 Memoizador para obter o repositório ativo completo exigido pelo BranchSelector
     const currentActiveRepo = () => props.repos.find(r => r.path === props.active) || null;
 
-    const [remoteUrl] = createResource(
-      () => props.active || false, 
-      async (path) => {
-        if (!path) return "";
-        return await getRemoteUrl(path);
-      }
-    );
-    const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
+    const provider = () => props.remoteUrl ? getProviderFromUrl(props.remoteUrl) : 'unknown';
 
     async function openRepo() {
         const selected = await open({ directory: true, multiple: false });
@@ -74,16 +69,25 @@ export default function Header(props: Props) {
             try {
               showLoading("Abrindo repositório...");
               await validateRepo(selected);
-              const branches = await getBranchStatus(selected);
-              const remoteBranches = await getRemoteBranches(selected);
+              const snapshot = await getRepositorySnapshot(selected);
               const name = await path.basename(selected);
-              const activeBranch = await getCurrentBranch(selected!);
-              const [localChanges, stashes, tags] = await Promise.all([
-                getLocalChanges(selected),
+              const [stashes, tags] = await Promise.all([
                 listStashes(selected),
                 listTags(selected),
               ]);
-              const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges, stashes, tags };
+              const newRepo: Repo = {
+                path: selected,
+                name,
+                branches: snapshot.branches,
+                remoteBranches: snapshot.remoteBranches,
+                activeBranch: snapshot.activeBranch ?? undefined,
+                localChanges: snapshot.localChanges,
+                localChangesCount: snapshot.localChangesCount,
+                gitRevision: snapshot.gitRevision ?? undefined,
+                statusSignature: snapshot.statusSignature,
+                stashes,
+                tags,
+              };
 
               // Evita duplicar se já estiver aberto
               if (!props.repos.some(r => r.path === selected)) {
@@ -100,11 +104,13 @@ export default function Header(props: Props) {
     }
 
     const doPush = async () => {
-      if (!props.active) return;
+      const repoPath = props.active;
+      if (!repoPath) return;
+      props.setRepoBusy?.(repoPath, true);
       setPushing(true);
       showLoading(t("loading").pushing);
       try {
-        const branch = await getCurrentBranch(props.active!);
+        const branch = await getCurrentBranch(repoPath);
         
         let tokenToSend = "";
         if (provider() === 'azure') {
@@ -113,20 +119,23 @@ export default function Header(props: Props) {
           tokenToSend = await githubService.getToken() || "";
         }
 
-        await pushRepo(props.active!, "origin", branch, tokenToSend, provider());
+        await pushRepo(repoPath, "origin", branch, tokenToSend, provider());
         
         notify.success('Git Push', `Push realizado com sucesso!`);
-        await props.refreshBranches(props.active!);
+        await props.refreshBranches(repoPath);
       } catch (err) {
         notify.error('Erro no Push', `${err}`);
       } finally {
         setPushing(false);
+        props.setRepoBusy?.(repoPath, false);
         hideLoading();
       }
     };
 
     const doPull = async () => {
-      if (!props.active) return;
+      const repoPath = props.active;
+      if (!repoPath) return;
+      props.setRepoBusy?.(repoPath, true);
       setPulling(true);
       showLoading("Realizando pull...");
       try {
@@ -137,13 +146,13 @@ export default function Header(props: Props) {
           tokenToSend = await githubService.getToken() || "";
         }
 
-        const branch = await getCurrentBranch(props.active!);
-        const result = await pull(props.active!, branch, tokenToSend, provider());
+        const branch = await getCurrentBranch(repoPath);
+        const result = await pull(repoPath, branch, tokenToSend, provider());
 
         if (result.needs_resolution) {
           // abre o modal com as informações
           setModalInfo({
-            repoPath: props.active!,
+            repoPath,
             branch,
             message:
               "O Git detectou branches divergentes.\nEscolha como reconciliar as diferenças:",
@@ -158,11 +167,12 @@ export default function Header(props: Props) {
           notify.error('Erro no Pull', `Erro ao realizar o pull: ${result.message}`);
         }
 
-        await props.refreshBranches(props.active!);
+        await props.refreshBranches(repoPath);
       } catch (err: any) {
         notify.error('Erro no Pull', `Erro ao realizar o pull: ${err.message}`);
       } finally {
         setPulling(false);
+        props.setRepoBusy?.(repoPath, false);
         hideLoading();
       }
     };
@@ -171,11 +181,18 @@ export default function Header(props: Props) {
     const handlePullModeChoice = async (mode: "merge" | "rebase" | "ff") => {
       const info = modalInfo();
       if (!info) return;
+      props.setRepoBusy?.(info.repoPath, true);
 
       try {
         await configPullMode(info.repoPath, mode);
 
-        const retryResult = await pull(info.repoPath, info.branch);
+        let tokenToSend = "";
+        if (provider() === 'azure') {
+          tokenToSend = await azureService.getToken() || "";
+        } else if (provider() === 'github') {
+          tokenToSend = await githubService.getToken() || "";
+        }
+        const retryResult = await pull(info.repoPath, info.branch, tokenToSend, provider());
         if (retryResult.success) {
           notify.success('Git Pull', `Pull realizado com sucesso após ajuste!`);
         } else {
@@ -189,11 +206,14 @@ export default function Header(props: Props) {
         setShowModalPullOpts(false);
         setModalInfo(null);
         setPulling(false);
+        props.setRepoBusy?.(info.repoPath, false);
       }
     };
 
     const doFetch = async () => {
-      if (!props.active) return;
+      const repoPath = props.active;
+      if (!repoPath) return;
+      props.setRepoBusy?.(repoPath, true);
       showLoading("Realizando fetch...");
       setFetching(true);
 
@@ -205,14 +225,15 @@ export default function Header(props: Props) {
           tokenToSend = await githubService.getToken() || "";
         }
 
-        await fetchRepo(props.active!, "origin", tokenToSend, provider());
+        await fetchRepo(repoPath, "origin", tokenToSend, provider());
         notify.success('Git Fetch', `Fetch realizado com sucesso!`);
-        await props.refreshBranches(props.active!);
+        await props.refreshBranches(repoPath);
       } catch (err) {
         notify.error('Erro no Fetch', `Erro ao realizar o fetch: ${err}`);
       } finally {
         hideLoading();
         setFetching(false);
+        props.setRepoBusy?.(repoPath, false);
       }
     };
 

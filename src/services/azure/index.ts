@@ -7,6 +7,8 @@ async function getAuthStore() {
   return await load("auth.bin");
 }
 
+let tokenCache: string | null | undefined;
+
 async function azureRequest(organization: string, project: string, repository: string, path: string, init: RequestInit = {}) {
   const token = await azureService.getToken();
   if (!token) throw new Error("Faça login no Azure DevOps para continuar.");
@@ -32,12 +34,18 @@ async function azureRequest(organization: string, project: string, repository: s
 
 export const azureService = {
   async getToken(): Promise<string | null> {
+    if (tokenCache !== undefined) return tokenCache;
+
     try {
       const store = await getAuthStore();
       const tokenData = await store.get<any>("azure_token");
-      if (!tokenData) return null;
-      return typeof tokenData === 'string' ? tokenData : tokenData.value;
+      const token = !tokenData
+        ? null
+        : typeof tokenData === 'string' ? tokenData : tokenData.value;
+      tokenCache = token ? token.trim() : null;
+      return tokenCache ?? null;
     } catch {
+      tokenCache = null;
       return null;
     }
   },
@@ -65,6 +73,7 @@ export const azureService = {
               await store.set("azure_token", token.trim());
               await store.set("azure_org", cleanOrg); 
               await store.save();
+              tokenCache = token.trim();
 
               return {
                   success: true,
@@ -829,5 +838,6 @@ export const azureService = {
     await store.delete("azure_token");
     await store.delete("azure_org");
     await store.save();
+    tokenCache = null;
   }
 };

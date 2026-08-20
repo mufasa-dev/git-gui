@@ -75,6 +75,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::repo::open_repo,
+            commands::repo::get_repository_snapshot,
             commands::branch::list_branches,
             commands::branch::list_remote_branches,
             commands::branch::get_branch_status,

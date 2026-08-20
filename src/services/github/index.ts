@@ -12,6 +12,8 @@ async function getAuthStore() {
   return await load("auth.bin");
 }
 
+let tokenCache: string | null | undefined;
+
 async function githubRequest(path: string, init: RequestInit = {}) {
   const token = await githubService.getToken();
   if (!token) throw new Error("Faça login no GitHub para continuar.");
@@ -35,15 +37,18 @@ async function githubRequest(path: string, init: RequestInit = {}) {
 export const githubService = {
 
   async getToken(): Promise<string | null> {
+    if (tokenCache !== undefined) return tokenCache;
+
     try {
       const store = await getAuthStore();
       const tokenData = await store.get<any>("github_token");
-      
-      if (!tokenData) return null;
-      
-      const token = typeof tokenData === 'string' ? tokenData : tokenData.value;
-      return token ? token.trim() : null;
+      const token = !tokenData
+        ? null
+        : typeof tokenData === 'string' ? tokenData : tokenData.value;
+      tokenCache = token ? token.trim() : null;
+      return tokenCache ?? null;
     } catch (e) {
+      tokenCache = null;
       return null;
     }
   },
@@ -103,6 +108,7 @@ export const githubService = {
           const store = await getAuthStore();
           await store.set("github_token", token);
           await store.save();
+          tokenCache = token;
 
           resolve({ ...result, token });
         } catch (error) {
@@ -475,5 +481,6 @@ export const githubService = {
     const store = await getAuthStore();
     await store.delete("github_token");
     await store.save();
+    tokenCache = null;
   }
 };

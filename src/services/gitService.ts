@@ -27,6 +27,20 @@ export async function getBranchStatus(repoPath: string): Promise<Branch[]> {
   );
 }
 
+export type RepositorySnapshot = {
+  branches: Branch[];
+  remoteBranches: string[];
+  activeBranch: string | null;
+  localChanges: LocalChange[];
+  localChangesCount: number;
+  gitRevision: string | null;
+  statusSignature: string;
+};
+
+export async function getRepositorySnapshot(repoPath: string): Promise<RepositorySnapshot> {
+  return await invoke<RepositorySnapshot>("get_repository_snapshot", { path: repoPath });
+}
+
 export async function getCurrentBranch(repoPath: string): Promise<string> {
   return await invoke("get_current_branch", { path: repoPath });
 }
@@ -35,10 +49,10 @@ export async function checkoutBranch(repoPath: string, branch: string): Promise<
   return await invoke("checkout_branch", { repoPath, branch });
 }
 
-export async function getCommits(path: string, branch: string) {
+export async function getCommits(path: string, branch: string, limit = 300, skip = 0) {
   return await invoke<{ hash: string; message: string; author: string; date: string }[]>(
     "list_commits",
-    { path, branch }
+    { path, branch, limit, skip }
   );
 }
 

@@ -76,7 +76,11 @@ export function LocalChanges(props: { repo: Repo; }) {
   const syncChanges = async (res: LocalChange[]) => {
     if (isMerging()) return;
 
-    if (changeSignature(res) !== changeSignature(changes())) {
+    const previousChanges = changes();
+    const previousSelectedChange = previousChanges.find(change => change.path === fileSelected());
+    const listChanged = changeSignature(res) !== changeSignature(previousChanges);
+
+    if (listChanged) {
       setChanges(res);
     }
 
@@ -89,6 +93,10 @@ export function LocalChanges(props: { repo: Repo; }) {
     if (selectedPath) {
       const fileExists = res.find(c => c.path === selectedPath);
       if (fileExists) {
+        const selectedChangeChanged = !previousSelectedChange
+          || changeSignature([previousSelectedChange]) !== changeSignature([fileExists]);
+        if (!selectedChangeChanged) return;
+
         const newDiff = fileExists.isPreviewable === false
           ? summaryDiff(fileExists)
           : await getDiff(props.repo.path, selectedPath, fileExists.staged);

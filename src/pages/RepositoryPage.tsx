@@ -1,27 +1,26 @@
-import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
-import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges, getRepositoryStatus, getRemoteUrl, listStashes, listTags } from "../services/gitService";
+import { createEffect, createMemo, createResource, createSignal, lazy, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { getRepositorySnapshot, getLocalChanges, getRepositoryStatus, getRemoteUrl, listStashes, listTags } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
 import { Repo } from "../models/Repo.model";
 import RepoContext, { CommitDraft } from "../context/RepoContext";
 
-import { path } from "@tauri-apps/api";
 import { loadRepos, saveRepos } from "../services/storeService";
 import Header from "../components/layout/Header";
 import LateralBar from "../components/ui/LateralBar";
-import FilesList from "./FilesList";
-import Dashboard from "./Dashboard";
-import ProviderAuthPage from "./ProviderAuthPage";
 import WelcomeScreen from "./WelcomeScreen";
 import { githubService } from "../services/github";
-import PullRequestsPage from "../components/PullRequest/PullRequestsPage";
-import { TestRunner } from "../components/Test/TestRunner";
 import { useApp } from "../context/AppContext";
 import { load } from "@tauri-apps/plugin-store";
 import defaultAvatarImg from "../assets/default_avatar.png";
 import { azureService } from "../services/azure";
 import { getProviderFromUrl } from "../utils/gitProvider";
-import PipelinesPage from "../components/pipeleine/PipelinesPage";
+const FilesList = lazy(() => import("./FilesList"));
+const Dashboard = lazy(() => import("./Dashboard"));
+const ProviderAuthPage = lazy(() => import("./ProviderAuthPage"));
+const PullRequestsPage = lazy(() => import("../components/PullRequest/PullRequestsPage"));
+const TestRunner = lazy(() => import("../components/Test/TestRunner").then(module => ({ default: module.TestRunner })));
+const PipelinesPage = lazy(() => import("../components/pipeleine/PipelinesPage"));
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -38,6 +37,7 @@ export default function RepoTabsPage() {
   };
 
   const refreshStates = new Map<string, RefreshState>();
+  const busyRepos = new Set<string>();
   let statusPollTimer: ReturnType<typeof setInterval> | undefined;
   let statusPollInFlight = false;
 
@@ -59,6 +59,11 @@ export default function RepoTabsPage() {
       delete next[repoPath];
       return next;
     });
+  };
+
+  const setRepoBusy = (repoPath: string, busy: boolean) => {
+    if (busy) busyRepos.add(repoPath);
+    else busyRepos.delete(repoPath);
   };
 
   const [remoteUrl] = createResource(
@@ -146,29 +151,36 @@ export default function RepoTabsPage() {
   onMount(async () => {
     const savedPaths = await loadRepos();
 
-    for (const repoPath of savedPaths) {
-      if (repos().some(r => r.path === repoPath)) continue;
+    await Promise.all(savedPaths.map(async repoPath => {
       try {
-        await validateRepo(repoPath);
-        const branches = await getBranchStatus(repoPath);
-        const remoteBranches = await getRemoteBranches(repoPath);
-        const name = await path.basename(repoPath);
-        const activeBranch = await getCurrentBranch(repoPath);
-        const [localChanges, stashes, tags] = await Promise.all([
-          getLocalChanges(repoPath),
+        const snapshot = await getRepositorySnapshot(repoPath);
+        const [stashes, tags] = await Promise.all([
           listStashes(repoPath),
           listTags(repoPath),
         ]);
+        const name = repoPath.split(/[\\/]/).filter(Boolean).pop() || repoPath;
 
-        const repo: Repo = { path: repoPath, name, branches, remoteBranches, activeBranch, localChanges, localChangesCount: localChanges.length, stashes, tags, refsRevision: 0 };
-        setRepos(prev => [...prev, repo]);
+        const repo: Repo = {
+          path: repoPath,
+          name,
+          branches: snapshot.branches,
+          remoteBranches: snapshot.remoteBranches,
+          activeBranch: snapshot.activeBranch ?? undefined,
+          localChanges: snapshot.localChanges,
+          localChangesCount: snapshot.localChangesCount,
+          gitRevision: snapshot.gitRevision ?? undefined,
+          statusSignature: snapshot.statusSignature,
+          stashes,
+          tags,
+          refsRevision: 0,
+        };
+
+        setRepos(prev => prev.some(item => item.path === repoPath) ? prev : [...prev, repo]);
+        if (!active()) setActive(repoPath);
       } catch (err) {
         console.warn(`Não foi possível reabrir repo ${repoPath}`, err);
       }
-    }
-    if (repos().length > 0) {
-      setActive(repos()[0].path);
-    }
+    }));
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === "w") {
@@ -195,44 +207,55 @@ export default function RepoTabsPage() {
 
   const updateLocalChanges = async (repoPath: string) => {
     const localChanges = await getLocalChanges(repoPath);
-    setRepos(prev => prev.map(repo => repo.path === repoPath
-      ? { ...repo, localChanges, localChangesCount: localChanges.length }
-      : repo
-    ));
+    setRepos(prev => prev.map(repo => {
+      if (repo.path !== repoPath) return repo;
+
+      const changesChanged = localChangesSignature(repo.localChanges) !== localChangesSignature(localChanges);
+      if (!changesChanged && repo.localChangesCount === localChanges.length) return repo;
+
+      return {
+        ...repo,
+        localChanges,
+        localChangesCount: localChanges.length,
+        statusSignature: String(localChanges.length),
+      };
+    }));
   };
 
-  const updateRefs = async (repoPath: string, forceRevision = false) => {
-    const [branches, activeBranch, localChanges, stashes, tags, remoteBranches] = await Promise.all([
-      getBranchStatus(repoPath),
-      getCurrentBranch(repoPath),
-      getLocalChanges(repoPath),
+  const updateRefs = async (repoPath: string) => {
+    const [snapshot, stashes, tags] = await Promise.all([
+      getRepositorySnapshot(repoPath),
       listStashes(repoPath),
       listTags(repoPath),
-      getRemoteBranches(repoPath),
     ]);
 
     setRepos(prev => prev.map(repo => {
       if (repo.path !== repoPath) return repo;
 
-      const refsChanged = JSON.stringify(repo.branches) !== JSON.stringify(branches)
-        || repo.activeBranch !== activeBranch
+      const refsChanged = JSON.stringify(repo.branches) !== JSON.stringify(snapshot.branches)
+        || repo.activeBranch !== (snapshot.activeBranch ?? undefined)
         || JSON.stringify(repo.stashes) !== JSON.stringify(stashes)
         || JSON.stringify(repo.tags) !== JSON.stringify(tags)
-        || JSON.stringify(repo.remoteBranches) !== JSON.stringify(remoteBranches);
-      const changesChanged = localChangesSignature(repo.localChanges) !== localChangesSignature(localChanges);
+        || JSON.stringify(repo.remoteBranches) !== JSON.stringify(snapshot.remoteBranches);
+      const changesChanged = localChangesSignature(repo.localChanges) !== localChangesSignature(snapshot.localChanges);
 
-      if (!forceRevision && !refsChanged && !changesChanged) return repo;
+      if (!refsChanged && !changesChanged) {
+        if (repo.gitRevision === (snapshot.gitRevision ?? undefined)
+          && repo.statusSignature === snapshot.statusSignature) return repo;
+      }
 
       return {
         ...repo,
-        branches,
-        activeBranch,
-        localChanges,
-        localChangesCount: localChanges.length,
+        branches: snapshot.branches,
+        activeBranch: snapshot.activeBranch ?? undefined,
+        localChanges: snapshot.localChanges,
+        localChangesCount: snapshot.localChangesCount,
+        gitRevision: snapshot.gitRevision ?? undefined,
+        statusSignature: snapshot.statusSignature,
         stashes,
         tags,
-        remoteBranches,
-        refsRevision: forceRevision || refsChanged ? (repo.refsRevision ?? 0) + 1 : repo.refsRevision,
+        remoteBranches: snapshot.remoteBranches,
+        refsRevision: refsChanged ? (repo.refsRevision ?? 0) + 1 : repo.refsRevision,
       };
     }));
   };
@@ -245,22 +268,31 @@ export default function RepoTabsPage() {
     statusPollInFlight = true;
     try {
       await Promise.all(currentRepos.map(async repo => {
+        if (busyRepos.has(repo.path)) return;
+
         try {
           const status = await getRepositoryStatus(repo.path);
-          const currentCount = repo.localChangesCount ?? repo.localChanges?.length ?? 0;
-          const countChanged = currentCount !== status.changeCount;
-          const revisionChanged = !!repo.gitRevision && repo.gitRevision !== status.head;
-          const branchChanged = !!status.branch && status.branch !== repo.activeBranch;
+          const statusSignature = String(status.changeCount);
+          const worktreeChanged = repo.statusSignature !== undefined
+            && repo.statusSignature !== statusSignature;
+          const refsChanged = !!repo.gitRevision && repo.gitRevision !== status.head
+            || (!!status.branch && status.branch !== repo.activeBranch);
 
-          if (countChanged || repo.gitRevision !== status.head) {
+          if (repo.statusSignature !== statusSignature || repo.gitRevision !== status.head) {
             setRepos(prev => prev.map(item => item.path === repo.path
-              ? { ...item, localChangesCount: status.changeCount, gitRevision: status.head }
+              ? {
+                ...item,
+                localChangesCount: status.changeCount,
+                gitRevision: status.head,
+                statusSignature,
+              }
               : item
             ));
           }
-          if (revisionChanged || branchChanged) {
+
+          if (refsChanged) {
             scheduleRefresh(repo.path, "all", 0);
-          } else if (active() === repo.path) {
+          } else if (worktreeChanged) {
             scheduleRefresh(repo.path, "worktree", 0);
           }
         } catch (error) {
@@ -277,7 +309,7 @@ export default function RepoTabsPage() {
     if (scope === "worktree") {
       await updateLocalChanges(repoPath);
     } else {
-      await updateRefs(repoPath, true);
+      await updateRefs(repoPath);
     }
   };
 
@@ -342,17 +374,19 @@ export default function RepoTabsPage() {
     await requestRefresh(repoPath, "all", 0);
   }
 
+  let previousActive: string | null = null;
   createEffect(() => {
     const currentActive = active();
-    if (currentActive) {
+    if (currentActive && previousActive !== null && currentActive !== previousActive) {
       scheduleRefresh(currentActive, "worktree", 0);
     }
+    previousActive = currentActive;
   });
 
   onMount(async () => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        repos().forEach(repo => void requestRefresh(repo.path, "all", 0).catch(() => undefined));
+      if (document.visibilityState === "visible" && active()) {
+        void requestRefresh(active()!, "all", 0).catch(() => undefined);
       }
     };
     const handleFocus = () => handleVisibilityChange();
@@ -360,7 +394,7 @@ export default function RepoTabsPage() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
     void pollRepositoryStatuses();
-    statusPollTimer = setInterval(() => void pollRepositoryStatuses(), 1500);
+    statusPollTimer = setInterval(() => void pollRepositoryStatuses(), 5000);
 
     onCleanup(() => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -398,7 +432,7 @@ export default function RepoTabsPage() {
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
 
-          <Header repos={repos()} active={active()} activePage={activePage()} refreshBranches={refreshBranches} setActive={setActive} setRepos={setRepos} />
+          <Header repos={repos()} active={active()} activePage={activePage()} refreshBranches={refreshBranches} remoteUrl={remoteUrl()} setRepoBusy={setRepoBusy} setActive={setActive} setRepos={setRepos} />
 
           <div class="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-gray-200 dark:bg-gray-900">
             <Show when={repos().length > 0 && active()}>

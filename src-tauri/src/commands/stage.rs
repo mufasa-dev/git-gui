@@ -1,4 +1,5 @@
 use crate::utils::git_command;
+use git2::{Repository, Status, StatusOptions};
 use serde_json::json;
 use std::fs::{self, File};
 use std::io::Read;
@@ -312,27 +313,33 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
 
 #[tauri::command]
 pub fn get_repository_status(path: String) -> Result<serde_json::Value, String> {
-    let output = git_command(&path)
-        .args([
-            "status",
-            "--porcelain=v2",
-            "--branch",
-            "--untracked-files=all",
-        ])
-        .output()
+    let repository = Repository::open(&path).map_err(|error| error.to_string())?;
+    let head = repository.head().ok();
+    let head_id = head
+        .as_ref()
+        .and_then(|reference| reference.target())
+        .map(|oid| oid.to_string())
+        .unwrap_or_default();
+    let branch = head
+        .as_ref()
+        .and_then(|reference| reference.shorthand())
+        .unwrap_or_default()
+        .to_string();
+
+    let mut options = StatusOptions::new();
+    options.include_untracked(true);
+    let statuses = repository
+        .statuses(Some(&mut options))
         .map_err(|error| error.to_string())?;
-
-    if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
-    }
-
-    let (head, branch, change_count) =
-        parse_repository_status(&String::from_utf8_lossy(&output.stdout));
+    let change_count = statuses
+        .iter()
+        .filter(|entry| entry.status() != Status::CURRENT)
+        .count();
 
     Ok(json!({
         "hasChanges": change_count > 0,
         "changeCount": change_count,
-        "head": head,
+        "head": head_id,
         "branch": branch,
     }))
 }

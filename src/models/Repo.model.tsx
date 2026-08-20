@@ -12,6 +12,7 @@ export type Repo = {
   localChanges?: LocalChange[];
   localChangesCount?: number;
   gitRevision?: string;
+  statusSignature?: string;
   stashes?: Stash[];
   tags?: Tag[];
   refsRevision?: number;

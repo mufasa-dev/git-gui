@@ -38,16 +38,28 @@ pub struct GraphLine {
 }
 
 #[tauri::command]
-pub fn list_commits(path: String, branch: String) -> Result<Vec<GraphLine>, String> {
-    let output = git_command(&path)
-        .args(&[
-            "log",
-            "--graph",
-            "--date=iso-strict",
-            "--pretty=format:SEP%H|%an|%ae|%ad|%s|%P|%D",
-            &branch,
-            "--",
-        ])
+pub fn list_commits(
+    path: String,
+    branch: String,
+    limit: Option<usize>,
+    skip: Option<usize>,
+) -> Result<Vec<GraphLine>, String> {
+    let mut command = git_command(&path);
+    command.args([
+        "log",
+        "--graph",
+        "--date=iso-strict",
+        "--pretty=format:SEP%H|%an|%ae|%ad|%s|%P|%D",
+    ]);
+    if let Some(limit) = limit {
+        command.args(["--max-count", &limit.to_string()]);
+    }
+    if let Some(skip) = skip.filter(|value| *value > 0) {
+        command.args(["--skip", &skip.to_string()]);
+    }
+    let output = command
+        .arg(&branch)
+        .arg("--")
         .output()
         .map_err(|e| e.to_string())?;
 
