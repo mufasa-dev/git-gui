@@ -14,6 +14,7 @@ import { UserProfileDialog } from "../components/Config/UserProfile";
 import { formatContributorName } from "../utils/user";
 import Dialog from "../components/ui/Dialog";
 import CommitsModalList from "../components/commits/CommitsModalList";
+import { CommitDetailsModal } from "../components/commits/CommitDetailsModal";
 import { useApp } from "../context/AppContext";
 
 declare module "solid-js" {
@@ -42,6 +43,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   const [branchFiles, setBranchFiles] = createSignal<{path: string, size: number}[]>([]);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
   const [showCommits, setShowCommits] = createSignal(false);
+  const [showCommitDetails, setShowCommitDetails] = createSignal(false);
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
   let isFetchingCommits = false;
   let previousPath: string | undefined;
@@ -90,6 +92,15 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     const details = await getCommitDetails(props.repo.path, hash);
     setSelectedCommit({ ...details, _ts: Date.now() });
   }
+
+  const openCommitDetails = async (hash: string) => {
+    try {
+      await selectCommit(hash);
+      setShowCommitDetails(true);
+    } catch (error) {
+      notify.error(t("error").load_commits, String(error));
+    }
+  };
 
   createEffect(() => {
     const path = props.repo.path;
@@ -295,7 +306,33 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
           iconColor="text-blue-600 dark:text-blue-300"
           width="550px" bodyClass="p-0"
         >
-          <CommitsModalList commits={selectedCommits()} />
+          <CommitsModalList
+            commits={selectedCommits()}
+            onSelectCommit={(commit) => void openCommitDetails(commit.hash)}
+          />
+        </Dialog>
+      </Show>
+
+      <Show when={showCommitDetails()}>
+        <Dialog
+          open={showCommitDetails()}
+          onClose={() => setShowCommitDetails(false)}
+          title={t('commits').details}
+          icon="fa-solid fa-code-commit"
+          iconColor="text-purple-600 dark:text-purple-300"
+          panelClass="-translate-y-2"
+          bodyClass="h-full p-0"
+          width="calc(100vw - 40px)"
+          height="calc(100vh - 150px)"
+        >
+          <CommitDetailsModal
+            commit={selectedCommit()}
+            repo={props.repo}
+            branch={props.branch}
+            openParent={true}
+            openProfile={true}
+            selectCommit={openCommitDetails}
+          />
         </Dialog>
       </Show>
     </div>

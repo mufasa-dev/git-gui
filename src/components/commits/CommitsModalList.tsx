@@ -4,7 +4,7 @@ import { getGravatarUrl } from "../../services/gravatarService";
 import { Commit } from "../../models/Commit.model";
 import { useApp } from "../../context/AppContext";
 
-export default function CommitsModalList(props: { commits: Commit[] }) {
+export default function CommitsModalList(props: { commits: Commit[]; onSelectCommit?: (commit: Commit) => void }) {
   const { t } = useApp();
 
   return (
@@ -23,8 +23,10 @@ export default function CommitsModalList(props: { commits: Commit[] }) {
             <div class="py-10 text-center text-gray-500 italic text-sm">Nenhum commit encontrado.</div>
           }>
             {(commit) => (
-              <div class="group flex items-start gap-3 p-2 rounded-xl hover:bg-gray-700/40 transition-colors 
-                        border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600">
+              <div
+                class={`group flex items-start gap-3 rounded-xl border border-gray-300 p-2 transition-colors dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 ${props.onSelectCommit ? "cursor-pointer hover:bg-gray-700/40" : ""}`}
+                onClick={() => props.onSelectCommit?.(commit)}
+              >
                 {/* Avatar / Ícone */}
                 <div class="mt-1">
                   <img

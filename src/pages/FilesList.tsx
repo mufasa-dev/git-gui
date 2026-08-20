@@ -4,7 +4,7 @@ import { Commit, FileEntry } from "../models/Commit.model";
 import { useLoading } from "../components/ui/LoadingContext";
 import { useApp } from "../context/AppContext";
 import Dialog from "../components/ui/Dialog";
-import { CommitDetails } from "../components/commits/CommitDetails";
+import { CommitDetailsModal } from "../components/commits/CommitDetailsModal";
 import { 
   listBranchFiles, getBranchFileContent, getBranchFilePage, getLastCommitForPath,
   listDirectory, getPathHistory, getCommitDetails, getBranchFileMetadata 
@@ -255,8 +255,16 @@ export default function FileList(props: { repo: Repo }) {
         icon="fa-solid fa-code-commit"
         iconColor="text-purple-600 dark:text-purple-300"
         onClose={() => setModalCommitDetails(false)}
-        bodyClass="p-0 h-full" width={'calc(100vw - 40px)'} height={'calc(100vh - 100px)'}>
-        <CommitDetails commit={selectedCommit()} repo={props.repo} branch={selectedBranch() || ""} openParent={false} openProfile={true} selectCommit={selectCommit} />
+        panelClass="-translate-y-2"
+        bodyClass="p-0 h-full" width="calc(100vw - 40px)" height="calc(100vh - 150px)">
+        <CommitDetailsModal
+          commit={selectedCommit()}
+          repo={props.repo}
+          branch={selectedBranch() || ""}
+          openParent={true}
+          openProfile={true}
+          selectCommit={selectCommit}
+        />
       </Dialog>
     </div>
   );

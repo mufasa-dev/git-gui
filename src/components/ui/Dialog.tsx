@@ -8,6 +8,7 @@ type Props = {
   width?: string | number;
   height?: string | number;
   bodyClass?: string;
+  panelClass?: string;
   onClose?: () => void;
   children: JSX.Element;
 };
@@ -23,7 +24,7 @@ export default function Dialog(props: Props) {
         onClick={props.onClose}
       >
         <div
-          class="bg-white dark:bg-gray-800 rounded-xl shadow-xl relative"
+          class={`relative rounded-xl bg-white shadow-xl dark:bg-gray-800 ${props.panelClass || ""}`}
           style={{ width, height }}
           onClick={(e) => e.stopPropagation()}
         >
