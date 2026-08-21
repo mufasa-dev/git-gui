@@ -8,6 +8,7 @@ use std::process::{Command, Stdio};
 use std::thread;
 use tauri::{AppHandle, Emitter, Manager};
 use walkdir::WalkDir;
+use super::process::{clear_process, take_stderr, take_stdout, track_child, wait_for_exit};
 
 #[derive(Clone, Serialize)]
 pub struct Payload {
@@ -67,7 +68,7 @@ pub async fn run_rust_tests(
             }
         }
 
-        let mut child = match command.spawn() {
+        let child = match command.spawn() {
             Ok(child) => child,
             Err(error) => {
                 emit_line(&window_clone, format!("Falha ao iniciar cargo test: {}", error));
@@ -84,7 +85,8 @@ pub async fn run_rust_tests(
             }
         };
 
-        let stdout_thread = child.stdout.take().map(|stdout| {
+        let process = track_child(child);
+        let stdout_thread = take_stdout(&process).ok().flatten().map(|stdout| {
             let window = window_clone.clone();
             thread::spawn(move || {
                 for line in BufReader::new(stdout).lines().flatten() {
@@ -92,7 +94,7 @@ pub async fn run_rust_tests(
                 }
             })
         });
-        let stderr_thread = child.stderr.take().map(|stderr| {
+        let stderr_thread = take_stderr(&process).ok().flatten().map(|stderr| {
             let window = window_clone.clone();
             thread::spawn(move || {
                 for line in BufReader::new(stderr).lines().flatten() {
@@ -101,12 +103,16 @@ pub async fn run_rust_tests(
             })
         });
 
-        let _ = child.wait();
-        if let Some(thread) = stdout_thread {
-            let _ = thread.join();
-        }
-        if let Some(thread) = stderr_thread {
-            let _ = thread.join();
+        let process_result = wait_for_exit(&process).ok();
+        clear_process(&process);
+        let was_stopped = process_result.as_ref().map(|result| result.stopped).unwrap_or(false);
+        if !was_stopped {
+            if let Some(thread) = stdout_thread {
+                let _ = thread.join();
+            }
+            if let Some(thread) = stderr_thread {
+                let _ = thread.join();
+            }
         }
 
         let _ = window_clone.emit(
@@ -114,7 +120,7 @@ pub async fn run_rust_tests(
             Payload {
                 file: "SYSTEM".into(),
                 status: "finished".into(),
-                name: "PROCESS_FINISHED".into(),
+                name: if was_stopped { "PROCESS_STOPPED" } else { "PROCESS_FINISHED" }.into(),
                 error: None,
             },
         );

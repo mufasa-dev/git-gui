@@ -12,8 +12,12 @@ export const parseTrxToEvents = (xmlString: string): ParsedEvent[] => {
     const testMethod = definition?.getElementsByTagName("TestMethod")[0];
     
     const fullClassName = testMethod?.getAttribute("className") || "";
+    const methodName = testMethod?.getAttribute("name") || "";
     const className = fullClassName.split('.').pop() || "Geral";
     const testName = result.getAttribute("testName") || "";
+    const executionName = fullClassName && methodName
+      ? `${fullClassName}.${methodName}`
+      : methodName || undefined;
 
     return {
       type: 'RESULT',
@@ -25,6 +29,8 @@ export const parseTrxToEvents = (xmlString: string): ParsedEvent[] => {
             ? 'skip'
             : 'fail',
         duration: result.getAttribute("duration") || "0",
+        resultId: testId || undefined,
+        executionName,
         log: [] // Opcional: extrair erros aqui se desejar
       }
     };

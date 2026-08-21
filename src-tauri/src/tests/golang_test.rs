@@ -8,6 +8,7 @@ use std::process::{Command, Stdio};
 use std::thread;
 use tauri::{AppHandle, Emitter, Manager};
 use walkdir::WalkDir;
+use super::process::{clear_process, take_stdout, track_child, wait_for_exit};
 
 #[derive(Clone, Serialize)]
 pub struct Payload {
@@ -93,9 +94,10 @@ pub async fn run_go_tests(
         }
 
         println!("[Git River] Executando comando Go: {}", cmd_string);
-        let mut child = command.spawn().expect("Falha ao iniciar go test");
+        let child = command.spawn().expect("Falha ao iniciar go test");
+        let process = track_child(child);
 
-        let stdout = child.stdout.take().unwrap();
+        let stdout = take_stdout(&process).expect("Falha ao capturar stdout").expect("stdout ausente");
         let reader = BufReader::new(stdout);
 
         for line in reader.lines() {
@@ -112,14 +114,16 @@ pub async fn run_go_tests(
             }
         }
 
-        let _ = child.wait();
+        let process_result = wait_for_exit(&process).ok();
+        clear_process(&process);
+        let was_stopped = process_result.as_ref().map(|result| result.stopped).unwrap_or(false);
 
         let _ = window_clone.emit(
             "test-event",
             Payload {
                 file: "SYSTEM".into(),
                 status: "finished".into(),
-                name: "PROCESS_FINISHED".into(),
+                name: if was_stopped { "PROCESS_STOPPED" } else { "PROCESS_FINISHED" }.into(),
                 error: None,
             },
         );

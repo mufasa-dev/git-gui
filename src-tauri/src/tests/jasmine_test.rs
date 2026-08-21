@@ -10,6 +10,7 @@ use std::thread;
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Emitter, Manager};
 use walkdir::WalkDir;
+use super::process::{clear_process, take_stderr, take_stdout, track_child, wait_for_exit};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -97,9 +98,10 @@ pub async fn run_angular_tests(
         }
 
         println!("[Git River] Executando via Env: {}", cmd_string);
-        let mut child = command.spawn().expect("Falha ao iniciar comando");
-        let stdout = child.stdout.take().unwrap();
-        let stderr = child.stderr.take().unwrap();
+        let child = command.spawn().expect("Falha ao iniciar comando");
+        let process = track_child(child);
+        let stdout = take_stdout(&process).expect("Falha ao capturar stdout").expect("stdout ausente");
+        let stderr = take_stderr(&process).expect("Falha ao capturar stderr").expect("stderr ausente");
         let win_out = window_clone.clone();
         let win_err = window_clone.clone();
 
@@ -137,9 +139,13 @@ pub async fn run_angular_tests(
             }
         });
 
-        let _ = child.wait();
-        let _ = stdout_thread.join();
-        let _ = stderr_thread.join();
+        let process_result = wait_for_exit(&process).ok();
+        clear_process(&process);
+        let was_stopped = process_result.as_ref().map(|result| result.stopped).unwrap_or(false);
+        if !was_stopped {
+            let _ = stdout_thread.join();
+            let _ = stderr_thread.join();
+        }
 
         if let Err(e) = fs::remove_file(target_bridge) {
             eprintln!("Erro ao remover bridge temporária: {}", e);
@@ -150,7 +156,7 @@ pub async fn run_angular_tests(
             Payload {
                 file: "SYSTEM".into(),
                 status: "finished".into(),
-                name: "PROCESS_FINISHED".into(),
+                name: if was_stopped { "PROCESS_STOPPED" } else { "PROCESS_FINISHED" }.into(),
                 error: None,
             },
         );

@@ -20,6 +20,7 @@ export interface ParsedEvent {
     filePath?: string;
     duration?: string;
     resultId?: string;
+    executionName?: string;
     log?: string[];
   };
 }

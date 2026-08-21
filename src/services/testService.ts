@@ -1,6 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { ProjectType, TestRunnerOption } from "../models/ProjectType.model";
 
+export async function stopTestExecution(): Promise<string> {
+  return await invoke("stop_test_execution");
+}
+
 export async function getProjectType(path: string): Promise<ProjectType> {
   return await invoke("detect_project_type", { projectPath: path });
 }

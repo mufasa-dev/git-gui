@@ -370,6 +370,7 @@
     "run": "Esegui",
     "run_tests": "Esegui test",
     "running": "Esegui",
+    "stop": "Interrompi esecuzione",
     "running_tests": "Esegui test",
     "test_results": "Risultati test",
     "coverage": "Copertura",

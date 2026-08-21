@@ -370,6 +370,7 @@
     "run": "Run",
     "run_tests": "Run tests",
     "running": "Running",
+    "stop": "Stop execution",
     "running_tests": "Running tests",
     "test_results": "Test results",
     "coverage": "Coverage",

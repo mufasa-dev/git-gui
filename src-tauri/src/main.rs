@@ -159,6 +159,7 @@ fn main() {
             tests::jasmine_test::get_angular_test_files,
             tests::dotnet_test::run_dotnet_tests,
             tests::dotnet_test::get_dotnet_test_files,
+            tests::process::stop_test_execution,
             tests::java_test::run_java_tests,
             tests::java_test::get_java_test_files,
             tests::ruby_test::run_ruby_tests,
