@@ -3,6 +3,9 @@ use rayon::prelude::*;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::command;
 
 #[derive(Serialize)]
@@ -296,6 +299,37 @@ pub fn git_commit(
     }
 }
 
+fn is_image_file(path: &str) -> bool {
+    matches!(
+        Path::new(path)
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(|extension| extension.to_ascii_lowercase())
+            .as_deref(),
+        Some("png" | "jpg" | "jpeg" | "gif" | "webp" | "ico")
+    )
+}
+
+fn extract_revision_file(
+    repo_path: &str,
+    revision: &str,
+    file_path: &str,
+    destination: &Path,
+) -> Result<Option<String>, String> {
+    let revision_file = format!("{}:{}", revision, file_path.replace('\\', "/"));
+    let output = git_command(repo_path)
+        .args(["show", &revision_file])
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if !output.status.success() {
+        return Ok(None);
+    }
+
+    fs::write(destination, output.stdout).map_err(|error| error.to_string())?;
+    Ok(Some(destination.to_string_lossy().to_string()))
+}
+
 #[tauri::command]
 pub async fn get_commit_file_diff(
     repo_path: String,
@@ -308,14 +342,46 @@ pub async fn get_commit_file_diff(
         .arg("--")
         .arg(&file_path)
         .output()
-        .map_err(|e| e.to_string())?;
+        .map_err(|error| error.to_string())?;
+
+    if !diff_output.status.success() {
+        return Err(String::from_utf8_lossy(&diff_output.stderr).to_string());
+    }
 
     let diff_text = String::from_utf8_lossy(&diff_output.stdout).to_string();
+    let mut old_file = None;
+    let mut new_file = None;
+
+    if is_image_file(&file_path) {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| error.to_string())?
+            .as_nanos();
+        let preview_dir = std::env::temp_dir()
+            .join("devbrook_commit_previews")
+            .join(format!("{}-{}", std::process::id(), timestamp));
+        fs::create_dir_all(&preview_dir).map_err(|error| error.to_string())?;
+
+        let extension = Path::new(&file_path)
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("img");
+        let old_path = preview_dir.join(format!("old.{}", extension));
+        let new_path = preview_dir.join(format!("new.{}", extension));
+
+        old_file = extract_revision_file(
+            &repo_path,
+            &format!("{}^", commit_sha),
+            &file_path,
+            &old_path,
+        )?;
+        new_file = extract_revision_file(&repo_path, &commit_sha, &file_path, &new_path)?;
+    }
 
     Ok(serde_json::json!({
         "diff": diff_text,
-        "oldFile": file_path,
-        "newFile": file_path
+        "oldFile": old_file,
+        "newFile": new_file
     }))
 }
 

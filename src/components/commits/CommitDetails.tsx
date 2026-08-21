@@ -20,7 +20,25 @@ type CommitDetailsProps = {
   openProfile: boolean;
   selectCommit: (hash: string) => void;
   onCreateTag?: (commit: { hash: string; subject: string }) => void;
-}
+};
+
+const fileStatusClass = (status: string) => {
+  switch (status.toLowerCase()) {
+    case "added":
+    case "a":
+      return "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300";
+    case "deleted":
+    case "d":
+      return "bg-rose-500/15 text-rose-600 dark:text-rose-300";
+    case "renamed":
+    case "r":
+      return "bg-sky-500/15 text-sky-600 dark:text-sky-300";
+    default:
+      return "bg-amber-500/15 text-amber-600 dark:text-amber-300";
+  }
+};
+
+const fileStatusLabel = (status: string) => status || "M";
 
 export function CommitDetails(props: CommitDetailsProps) {
   const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
@@ -36,11 +54,10 @@ export function CommitDetails(props: CommitDetailsProps) {
     setLoadingDiff(true);
     try {
       const res = await getCommitFileDiff(props.repo.path, props.commit.hash, file.file);
-      console.log("Diff recebido:", res);
       setFileDiff(res);
     } catch (e) {
       console.error(e);
-      notify.error(t('error').error, String(e));
+      notify.error(t("error").error, String(e));
     } finally {
       setLoadingDiff(false);
     }
@@ -52,11 +69,11 @@ export function CommitDetails(props: CommitDetailsProps) {
     }
     const parts = path.split(/[\\/]/);
     return parts[parts.length - 1];
-  }
+  };
 
   createEffect(() => {
     const currentCommit = props.commit;
-    
+
     if (!currentCommit) {
       setSelectedFile(null);
       setFileDiff(null);
@@ -68,10 +85,11 @@ export function CommitDetails(props: CommitDetailsProps) {
 
     if (currentHash !== lastProcessedHash()) {
       setLastProcessedHash(currentHash);
-      
+      setActiveTab("geral");
+
       const files = currentCommit.files;
       if (files && files.length > 0) {
-        fetchFileDiff(files[0]);
+        void fetchFileDiff(files[0]);
       } else {
         setSelectedFile(null);
         setFileDiff(null);
@@ -80,113 +98,132 @@ export function CommitDetails(props: CommitDetailsProps) {
   });
 
   return (
-    <div class="flex flex-col h-full bg-white dark:bg-gray-800">
+    <div class="flex h-full min-h-0 flex-col overflow-hidden bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100">
       <Show when={!props.commit} fallback={
         <>
           {/* Navegação de Abas */}
-          <div class="flex border-b border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 px-4">
+          <div class="flex shrink-0 items-end gap-1 border-b border-gray-200 bg-gray-200 px-2 pt-1 dark:border-gray-700 dark:bg-gray-900">
             <button
+              type="button"
               onClick={() => setActiveTab("geral")}
-              class={`px-4 py-2 text-sm font-medium transition-colors rounded-t-xl ${
-                activeTab() === "geral" 
-                ? "bg-white dark:bg-gray-800" 
-                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:dark:text-gray-300"
+              class={`-mb-px rounded-t-lg border px-3 py-1.5 text-[11px] font-bold transition-colors ${
+                activeTab() === "geral"
+                  ? "border-gray-200 border-b-gray-100 bg-gray-100 text-blue-600 dark:border-gray-700 dark:border-b-gray-800 dark:bg-gray-800 dark:text-blue-300"
+                  : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
-              <i class="fa fa-code-commit"></i> {t('common').general}
+              <i class="fa-solid fa-align-left mr-1.5 text-[10px]" aria-hidden="true"></i>{t("common").general}
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab("arquivos")}
-              class={`px-4 py-2 text-sm font-medium transition-colors rounded-t-xl ${
-                activeTab() === "arquivos" 
-                ? "bg-white dark:bg-gray-800" 
-                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:dark:text-gray-300"
+              class={`-mb-px rounded-t-lg border px-3 py-1.5 text-[11px] font-bold transition-colors ${
+                activeTab() === "arquivos"
+                  ? "border-gray-200 border-b-gray-100 bg-gray-100 text-blue-600 dark:border-gray-700 dark:border-b-gray-800 dark:bg-gray-800 dark:text-blue-300"
+                  : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
-              <i class="fa fa-copy"></i> {t('file').files} ({props.commit?.files?.length || 0})
+              <i class="fa-solid fa-file-lines mr-1.5 text-[10px]" aria-hidden="true"></i>{t("file").files} ({props.commit?.files?.length || 0})
             </button>
           </div>
 
-          <div class="flex-1 overflow-auto">
+          <div class="min-h-0 flex-1 overflow-hidden">
             {/* CONTEÚDO: ABA GERAL */}
             <Show when={activeTab() === "geral"}>
-              <div class="space-y-4 p-4">
-                <div class="container-branch-list flex flex-row items-center">
-                  <img
-                    src={getGravatarUrl(props.commit.authorEmail, 80)}
-                    alt={props.commit.authorName}
-                    onClick={() => {
-                      if (props.openProfile) setModalUserProfileOpen(true)
-                    }}
-                    class="w-[60px] h-[60px] rounded-full shadow-sm CURSOR-POINTER"
-                  />
-                  <div class="ml-4 !mt-0 select-text">
-                    <div class="font-bold text-gray-900 dark:text-gray-100 clicked_label" 
-                      onClick={() => {
-                        if (props.openProfile) setModalUserProfileOpen(true)
-                      }}>
-                      {formatContributorName(props.commit.authorName)}
-                    </div>
-                    <div class="text-gray-500 dark:text-gray-200 text-sm">{props.commit.authorEmail}</div>
-                    <div class="text-gray-500 dark:text-gray-400 text-sm">{formatDate(props.commit.authorDate, locale())}</div>
-                  </div>
-                </div>
-
-                <div class="flex">
-                  <div class="container-branch-list flex-1 mr-2">
-                    <div class="flex mt-0 select-text">
-                      <div>
-                        <div class="flex items-start gap-2">
-                          <b class="text-2x1"><CommitMessage message={props.commit.subject} /></b>
-                          <Show when={props.onCreateTag}>
-                            <button
-                              class="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-500"
-                              title={t("tag").create}
-                              onClick={() => props.onCreateTag?.({ hash: props.commit.hash, subject: props.commit.subject })}
-                            >
-                              <i class="fa-solid fa-tag"></i>
-                            </button>
-                          </Show>
-                        </div>
-                        <p class="whitespace-pre-wrap mt-2 text-sm text-gray-500 dark:text-gray-400">{props.commit.body}</p>
+              <div class="h-full overflow-y-auto p-2 custom-scrollbar">
+                <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                  <div class="flex items-center gap-3 border-b border-gray-100 px-3 py-2.5 dark:border-gray-700">
+                    <button
+                      type="button"
+                      disabled={!props.openProfile}
+                      onClick={() => props.openProfile && setModalUserProfileOpen(true)}
+                      class="shrink-0 rounded-full transition-transform hover:scale-105 disabled:cursor-default"
+                      title={props.openProfile ? t("auth").user_profile : undefined}
+                    >
+                      <img
+                        src={getGravatarUrl(props.commit.authorEmail, 96)}
+                        alt={props.commit.authorName}
+                        class="h-12 w-12 rounded-full border-2 border-blue-500/15 object-cover shadow-sm"
+                      />
+                    </button>
+                    <div class="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        disabled={!props.openProfile}
+                        onClick={() => props.openProfile && setModalUserProfileOpen(true)}
+                        class="block max-w-full truncate text-sm font-bold text-gray-900 transition-colors hover:text-blue-600 disabled:cursor-default dark:text-gray-100 dark:hover:text-blue-300"
+                      >
+                        {formatContributorName(props.commit.authorName)}
+                      </button>
+                      <div class="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-gray-400">
+                        <span class="max-w-full truncate">{props.commit.authorEmail}</span>
+                        <span class="text-gray-300 dark:text-gray-600">•</span>
+                        <span>{formatDate(props.commit.authorDate, locale())}</span>
                       </div>
                     </div>
-                  </div>
-
-                  <div class="container-branch-list ml-auto">
-                    <div class="text-smselect-text">
-                      <b class="w-[60px] text-right">SHA:</b> <br />
-                      <span class="font-mono text-sm text-gray-600 dark:text-gray-200 select-text">
-                        {props.commit.hash}
-                      </span>
-                    </div>
-
-                    <Show when={props.commit?.parents?.length > 0}>
-                      <div class="text-sm select-text mb-2">
-                        <b class="w-[60px] text-right mt-1">Parents:</b> <br />
-                        <div class="flex flex-wrap gap-2">
-                          <For each={props.commit.parents}>
-                            {(parentHash) => (
-                              <Show when={props.openParent} fallback={
-                                <span class="font-mono text-xs bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 
-                                           text-blue-600 dark:text-white px-2 py-1 rounded-xl">
-                                  {parentHash.substring(0, 8)}
-                                </span>
-                              }>
-                                <span 
-                                  onClick={() => props.selectCommit(parentHash)}
-                                  class="font-mono text-xs bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-gray-900 rounded-xl
-                                        text-blue-600 dark:text-white px-2 py-1 cursor-pointer transition-colors border border-gray-300 dark:border-gray-600"
-                                  title={parentHash}
-                                >
-                                  {parentHash.substring(0, 8)}
-                                </span>
-                              </Show>
-                            )}
-                          </For>
-                        </div>
-                      </div>
+                    <Show when={props.onCreateTag}>
+                      <button
+                        type="button"
+                        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-600 transition-colors hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                        title={t("tag").create}
+                        aria-label={t("tag").create}
+                        onClick={() => props.onCreateTag?.({ hash: props.commit.hash, subject: props.commit.subject })}
+                      >
+                        <i class="fa-solid fa-tag text-[10px]" aria-hidden="true"></i>
+                      </button>
                     </Show>
+                  </div>
+
+                  <div class="grid gap-2.5 p-2.5 sm:grid-cols-[minmax(0,1fr)_190px]">
+                    <section class="min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-700/40">
+                      <div class="mb-1 flex items-start gap-2">
+                        <div class="min-w-0 flex-1 text-sm font-semibold leading-5 text-gray-800 dark:text-gray-100">
+                          <CommitMessage message={props.commit.subject} />
+                        </div>
+                      </div>
+                      <Show when={props.commit.body}>
+                        <p class="mt-1 whitespace-pre-wrap border-t border-gray-200/80 pt-1.5 text-xs leading-5 text-gray-500 dark:border-gray-600 dark:text-gray-300">
+                          {props.commit.body}
+                        </p>
+                      </Show>
+                    </section>
+
+                    <section class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-700/40">
+                      <div class="mb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">Commit metadata</div>
+                      <div class="space-y-1.5 text-[11px]">
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="text-gray-400">SHA</span>
+                          <span class="max-w-[145px] truncate rounded-md bg-white px-1.5 py-0.5 font-mono text-gray-600 dark:bg-gray-800 dark:text-gray-300" title={props.commit.hash}>
+                            {props.commit.hash.slice(0, 8)}
+                          </span>
+                        </div>
+                        <Show when={props.commit?.parents?.length > 0}>
+                          <div class="flex items-start justify-between gap-2">
+                            <span class="pt-0.5 text-gray-400">Parents</span>
+                            <div class="flex max-w-[145px] flex-wrap justify-end gap-1">
+                              <For each={props.commit.parents}>
+                                {(parentHash) => (
+                                  <Show when={props.openParent} fallback={
+                                    <span class="rounded-md border border-gray-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                      {parentHash.slice(0, 8)}
+                                    </span>
+                                  }>
+                                    <button
+                                      type="button"
+                                      onClick={() => props.selectCommit(parentHash)}
+                                      class="rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] text-blue-600 transition-colors hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300"
+                                      title={parentHash}
+                                    >
+                                      {parentHash.slice(0, 8)}
+                                    </button>
+                                  </Show>
+                                )}
+                              </For>
+                            </div>
+                          </div>
+                        </Show>
+                      </div>
+                    </section>
                   </div>
                 </div>
               </div>
@@ -194,60 +231,79 @@ export function CommitDetails(props: CommitDetailsProps) {
 
             {/* CONTEÚDO: ABA ARQUIVOS */}
             <Show when={activeTab() === "arquivos"}>
-              <div class="flex h-full">
+              <div class="grid h-full min-h-0 grid-cols-[minmax(165px,31%)_minmax(0,1fr)]">
                 {/* Sidebar de arquivos */}
-                <div class="w-1/3 overflow-y-auto p-1">
-                  <For each={props.commit.files}>
-                    {(f) => (
-                      <div 
-                        onClick={() => fetchFileDiff(f)}
-                        class={`flex items-center p-2 text-xs cursor-pointer border-b dark:border-gray-900 
-                          rounded-xl my-1 hover:bg-blue-500/10 
-                          ${selectedFile()?.file === f.file ? 'bg-blue-500/20 dark:bg-blue-400/30' : 'bg-gray-100 dark:bg-gray-700'}`}
-                      >
-                        <FileIcon fileName={getFileNameFromPath(f.file)} /> <span class="ml-2">{getFileNameFromPath(f.file)}</span>
-                      </div>
-                    )}
-                  </For>
-                </div>
+                <aside class="min-h-0 overflow-y-auto border-r border-gray-200 bg-gray-50 p-1.5 custom-scrollbar dark:border-gray-700 dark:bg-gray-900/50">
+                  <div class="mb-1 flex items-center justify-between px-1.5 py-1">
+                    <span class="text-[9px] font-bold uppercase tracking-[0.16em] text-gray-400">{t("file").files}</span>
+                    <span class="rounded-full bg-gray-200 px-1.5 py-0.5 text-[9px] font-bold text-gray-500 dark:bg-gray-700 dark:text-gray-300">{props.commit?.files?.length || 0}</span>
+                  </div>
+                  <div class="space-y-1">
+                    <For each={props.commit.files} fallback={<div class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-[10px] text-gray-400 dark:border-gray-700">{t("common").no_data}</div>}>
+                      {(f) => (
+                        <button
+                          type="button"
+                          onClick={() => void fetchFileDiff(f)}
+                          class={`group flex w-full min-w-0 items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-all ${
+                            selectedFile()?.file === f.file
+                              ? "border-blue-200 bg-blue-50 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/30"
+                              : "border-transparent hover:border-gray-200 hover:bg-white dark:hover:border-gray-700 dark:hover:bg-gray-800"
+                          }`}
+                          title={f.file}
+                        >
+                          <FileIcon fileName={getFileNameFromPath(f.file)} class="h-4 w-4 shrink-0" />
+                          <span class="min-w-0 flex-1 truncate text-[10px] font-semibold text-gray-700 dark:text-gray-200">{getFileNameFromPath(f.file)}</span>
+                          <span class={`shrink-0 rounded px-1 py-0.5 text-[8px] font-black uppercase ${fileStatusClass(f.status || "M")}`}>{fileStatusLabel(f.status || "M")}</span>
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </aside>
 
                 {/* Área do Diff */}
-                <div class="w-2/3 overflow-auto bg-white dark:bg-gray-800 border-l border-gray-300 dark:border-gray-700 ">
-                  <Show when={selectedFile()} fallback={<div class="p-10 text-center text-gray-500 text-sm">{t('pr').select_file_see_changes}</div>}>
-                    <Show when={!loadingDiff()}>
-                      <DiffViewer 
-                        path={props.repo.path}
-                        file={selectedFile().file}
-                        diff={fileDiff()}
-                        class="text-xs"
-                        isStaged={true}
-                      />
+                <section class="min-h-0 overflow-auto bg-gray-100 p-1.5 custom-scrollbar dark:bg-gray-900">
+                  <Show when={selectedFile()} fallback={<div class="flex h-full min-h-32 items-center justify-center rounded-xl border border-dashed border-gray-300 text-xs text-gray-400 dark:border-gray-800">{t("pr").select_file_see_changes}</div>}>
+                    <div class="mb-1.5 flex min-w-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 dark:border-gray-800 dark:bg-gray-800">
+                      <FileIcon fileName={getFileNameFromPath(selectedFile().file)} class="h-4 w-4 shrink-0" />
+                      <span class="min-w-0 flex-1 truncate text-[10px] font-semibold text-gray-700 dark:text-gray-200" title={selectedFile().file}>{selectedFile().file}</span>
+                      <span class={`shrink-0 rounded px-1.5 py-0.5 text-[8px] font-black uppercase ${fileStatusClass(selectedFile().status || "M")}`}>{fileStatusLabel(selectedFile().status || "M")}</span>
+                    </div>
+                    <Show when={!loadingDiff()} fallback={<div class="flex min-h-32 items-center justify-center rounded-xl border border-gray-200 bg-white text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-800"><i class="fa-solid fa-spinner mr-2 animate-spin text-blue-500" aria-hidden="true"></i>{t("common").loading}</div>}>
+                      <div class="min-h-32 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-800">
+                        <DiffViewer
+                          path={props.repo.path}
+                          file={selectedFile().file}
+                          diff={fileDiff()}
+                          class="h-full text-xs"
+                          isStaged={true}
+                        />
+                      </div>
                     </Show>
                   </Show>
-                </div>
+                </section>
               </div>
             </Show>
           </div>
         </>
       }>
-        <div class="h-full flex items-center justify-center text-gray-400 italic">
-          {t('commits').select_commit} 
+        <div class="flex h-full items-center justify-center text-xs text-gray-400">
+          {t("commits").select_commit}
         </div>
       </Show>
       <Show when={modalUserProfileOpen()}>
         <Dialog
           open={modalUserProfileOpen()}
           onClose={() => setModalUserProfileOpen(false)}
-          title={t('auth').user_profile}
+          title={t("auth").user_profile}
           icon="fa-solid fa-user"
           iconColor="text-indigo-600 dark:text-indigo-300"
           width={"90vw"}
         >
-          <UserProfileDialog 
-            repo={props.repo} 
+          <UserProfileDialog
+            repo={props.repo}
             branch={props.branch || ""}
             email={props.commit?.authorEmail}
-            fallbackName={props.commit?.authorName} 
+            fallbackName={props.commit?.authorName}
             open={modalUserProfileOpen()}
             onClose={() => setModalUserProfileOpen(false)}
           />
