@@ -35,10 +35,24 @@ const commitsSignature = (commits: any[]) => commits.map(commit => [
 
 const DASHBOARD_COMMIT_LIMIT = 10_000;
 
+function DashboardPanel(props: { loading: boolean; class?: string; children: any }) {
+  return (
+    <div class={`container-branch-list relative ${props.class || ""}`}>
+      {props.children}
+      <Show when={props.loading}>
+        <div class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-gray-900/35 backdrop-blur-[1px]">
+          <i class="fa-solid fa-spinner animate-spin text-blue-400 text-xl"></i>
+        </div>
+      </Show>
+    </div>
+  );
+}
+
 export default function Dashboard(props: { repo: Repo; branch?: string, class?: string }) {
   const [commits, setCommits] = createSignal<any[]>([]);
   const [selectedCommits, setSelectedCommits] = createSignal<any[]>([]);
-  const [loading, setLoading] = createSignal(false);
+  const [commitsLoading, setCommitsLoading] = createSignal(false);
+  const [filesLoading, setFilesLoading] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   const [branchFiles, setBranchFiles] = createSignal<{path: string, size: number}[]>([]);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
@@ -49,6 +63,8 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   let previousPath: string | undefined;
   let previousBranch: string | undefined;
   let previousRefsRevision: number | undefined;
+  let commitsRequestId = 0;
+  let filesRequestId = 0;
   const { t } = useApp();
   
   let pendingCommitsRefresh = false;
@@ -61,11 +77,19 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     }
 
     isFetchingCommits = true;
+    const requestId = ++commitsRequestId;
+    const requestPath = props.repo.path;
+    const requestBranch = props.branch.replace("* ", "");
+    setCommitsLoading(true);
 
     try {
-      const branchName = props.branch.replace("* ", "");
-      const res = await getCommits(props.repo.path, branchName, DASHBOARD_COMMIT_LIMIT);
-      
+      const res = await getCommits(requestPath, requestBranch, DASHBOARD_COMMIT_LIMIT);
+      const isCurrentRequest = requestId === commitsRequestId
+        && requestPath === props.repo.path
+        && requestBranch === props.branch.replace("* ", "");
+
+      if (!isCurrentRequest) return;
+
       if (commitsSignature(res) !== commitsSignature(commits())) {
         setCommits(res);
       }
@@ -77,13 +101,17 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         }
       }
     } catch(e) {
-      const errorMessage = typeof e === 'string' ? e : String(e);
-      notify.error(t('error').load_commits, errorMessage);
+      if (requestId === commitsRequestId) {
+        const errorMessage = typeof e === 'string' ? e : String(e);
+        notify.error(t('error').load_commits, errorMessage);
+      }
     } finally {
       isFetchingCommits = false;
       if (pendingCommitsRefresh) {
         pendingCommitsRefresh = false;
         void loadCommits(false);
+      } else if (requestId === commitsRequestId) {
+        setCommitsLoading(false);
       }
     }
   };
@@ -113,8 +141,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
       setSelectedCommit(null);
       setCommits([]);
       setBranchFiles([]);
-      setLoading(true);
-      void Promise.all([loadCommits(true), getFiles()]).finally(() => setLoading(false));
+      void Promise.all([loadCommits(true), getFiles()]);
     } else if (refsChanged) {
       void Promise.all([loadCommits(false), getFiles()]);
     }
@@ -126,13 +153,25 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
 
   const getFiles = async () => {
     if (!props.repo.path || !props.branch) return;
+
+    const requestId = ++filesRequestId;
+    const requestPath = props.repo.path;
+    const requestBranch = props.branch;
+    setFilesLoading(true);
+
     try {
-      const files = await listBranchFilesWithSize(props.repo.path, props.branch);
+      const files = await listBranchFilesWithSize(requestPath, requestBranch);
+      if (requestId !== filesRequestId || requestPath !== props.repo.path || requestBranch !== props.branch) return;
+
       const mappedFiles = files.map(f => ({ path: f[0], size: f[1] }));
       setBranchFiles(mappedFiles);
     } catch (e) {
-      console.error("Erro ao carregar arquivos do branch:", e);
-      notify.error(t('error').load_file, String(e));
+      if (requestId === filesRequestId) {
+        console.error("Erro ao carregar arquivos do branch:", e);
+        notify.error(t('error').load_file, String(e));
+      }
+    } finally {
+      if (requestId === filesRequestId) setFilesLoading(false);
     }
   }
 
@@ -165,49 +204,44 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
 
   return (
     <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container">
-      <Show when={!loading()} fallback={
-        <div class="flex-1 flex items-center justify-center">
-          <i class="fa-solid fa-spinner animate-spin text-blue-500 text-2xl"></i>
-        </div>
-      }>
-        <div class="grid grid-cols-4 grid-rows-3 gap-4 w-full h-full pl-4 bg-gray-200 dark:bg-gray-900">
+      <div class="grid grid-cols-4 grid-rows-3 gap-4 w-full h-full pl-4 bg-gray-200 dark:bg-gray-900">
 
-          <div class="grid grid-cols-2 grid-rows-2 gap-2">
-          <div class="container-branch-list items-center justify-center">
+        <div class="grid grid-cols-2 grid-rows-2 gap-2">
+          <DashboardPanel loading={commitsLoading()} class="items-center justify-center">
             <span class="text-xs uppercase opacity-60">{t('dashboard').total_commits}</span>
             <h3 class="font-bold !text-5xl mb-2">{commits()?.length}</h3>
-          </div>
-          <div class="container-branch-list items-center justify-center">
+          </DashboardPanel>
+          <DashboardPanel loading={false} class="items-center justify-center">
             <span class="text-xs uppercase opacity-60">{t('dashboard').total_branches}</span>
             <h3 class="font-bold !text-5xl mb-2">{props.repo.remoteBranches?.length}</h3>
-          </div>
-          <div class="container-branch-list items-center justify-center">
+          </DashboardPanel>
+          <DashboardPanel loading={commitsLoading()} class="items-center justify-center">
             <span class="text-xs uppercase opacity-60">{t('dashboard').contributors}</span>
             <h3 class="font-bold !text-5xl">{totalContributors()}</h3>
-          </div>
-          <div class="container-branch-list items-center justify-center">
+          </DashboardPanel>
+          <DashboardPanel loading={filesLoading()} class="items-center justify-center">
             <span class="text-xs uppercase opacity-60">{t('dashboard').total_files}</span>
             <h3 class="font-bold !text-5xl mb-2">{branchFiles()?.length}</h3>
-          </div>
+          </DashboardPanel>
         </div>
 
-        <div class="col-span-2 container-branch-list">
+        <DashboardPanel loading={commitsLoading()} class="col-span-2">
           <ContributionGraph commits={commits()} openCommits={openModalWithCommits} />
-        </div>
+        </DashboardPanel>
 
-        <div class="row-span-2 container-branch-list">
+        <DashboardPanel loading={false} class="row-span-2">
           <HotspotsTable path={props.repo.path} branch={props.branch || ""} repo={props.repo} selectCommit={selectCommit} />
-        </div>
+        </DashboardPanel>
 
-        <div class="col-span-2 container-branch-list">
+        <DashboardPanel loading={commitsLoading()} class="col-span-2">
           <ActivityChart commits={commits()} openCommits={openModalWithCommits} />
-        </div>
+        </DashboardPanel>
 
-        <div class="container-branch-list">
+        <DashboardPanel loading={filesLoading()}>
           <LanguageBar files={branchFiles()} />
-        </div>
+        </DashboardPanel>
 
-        <div class="container-branch-list">
+        <DashboardPanel loading={commitsLoading()}>
           <h4 class="font-bold mb-0 flex items-center gap-2">
             <i class="fa-solid fa-trophy text-yellow-500"></i>
             {t('dashboard').top_contributors}
@@ -255,22 +289,21 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
               </tbody>
             </table>
           </div>
-        </div>
+        </DashboardPanel>
 
-        <div class="container-branch-list">
+        <DashboardPanel loading={commitsLoading()}>
           <HourlyActivityChart commits={commits()} />
-        </div>
+        </DashboardPanel>
 
-        <div class="container-branch-list">
+        <DashboardPanel loading={false}>
           <TestCoverageDonut path={props.repo.path} branch={props.branch || ""} />
-        </div>
+        </DashboardPanel>
 
-        <div class="container-branch-list">
-          <CommitTypeDistribution commits={commits()} /> 
-        </div>
+        <DashboardPanel loading={commitsLoading()}>
+          <CommitTypeDistribution commits={commits()} />
+        </DashboardPanel>
 
-        </div>
-      </Show>
+      </div>
       <Show when={modalUserProfileOpen()}>
         <Dialog
             open={modalUserProfileOpen()}

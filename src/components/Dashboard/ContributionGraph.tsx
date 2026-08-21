@@ -1,9 +1,10 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { useApp } from "../../context/AppContext";
+import { formatCompactDate } from "../../utils/date";
 
 export default function ContributionGraph(props: { commits: any[], openCommits: (commits: any[]) => void }) {
   const [yearFilter, setYearFilter] = createSignal("last_year");
-  const { t } = useApp();
+  const { t, locale } = useApp();
   
   const months = [t('date').jan, t('date').feb, t('date').mar, t('date').apr, t('date').may, t('date').jun, t('date').jul, t('date').aug, t('date').sep, t('date').oct, t('date').nov, t('date').dec];
   const daysOfWeek = [t('date').sun, t('date').mon, t('date').tue, t('date').wed, t('date').thu, t('date').fri, t('date').sat];
@@ -180,7 +181,7 @@ export default function ContributionGraph(props: { commits: any[], openCommits: 
                         <div 
                             onClick={() => handleDayClick(day.date, day.count)}
                             class={`rounded-[2px] transition-colors duration-200 ${getContributionColor(day.count)} ${day.count === -1 ? 'opacity-[0.02]' : 'hover:ring-1 hover:ring-white/30'}`}
-                            title={day.count >= 0 ? `${day.count} commits em ${day.date}` : ""}
+                            title={day.count >= 0 ? `${day.count} ${t('commits').commits} - ${formatCompactDate(day.date, locale())}` : ""}
                         />
                         )}
                     </For>

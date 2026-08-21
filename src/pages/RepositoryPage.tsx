@@ -26,6 +26,7 @@ export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
   const [active, setActive] = createSignal<string | null>(null);
   const [activePage, setActivePage] = createSignal<string>('commits');
+  const [viewBranches, setViewBranches] = createSignal<Record<string, string>>({});
   const [commitDrafts, setCommitDrafts] = createSignal<Record<string, CommitDraft>>({});
   const [isInitializing, setIsInitializing] = createSignal(true);
   const [initializationTotal, setInitializationTotal] = createSignal(0);
@@ -70,6 +71,13 @@ export default function RepoTabsPage() {
       delete next[repoPath];
       return next;
     });
+  };
+
+  const selectedBranchForRepo = (repo: Repo | null) =>
+    repo ? viewBranches()[repo.path] || repo.activeBranch || "" : "";
+
+  const setViewBranch = (repoPath: string, branch: string) => {
+    setViewBranches(prev => ({ ...prev, [repoPath]: branch }));
   };
 
   const setRepoBusy = (repoPath: string, busy: boolean) => {
@@ -155,9 +163,41 @@ export default function RepoTabsPage() {
     }
 
     setRepos(nextRepos);
+    setViewBranches(previous => {
+      if (!(id in previous)) return previous;
+      const next = { ...previous };
+      delete next[id];
+      return next;
+    });
     clearCommitDraft(id);
     saveRepos(nextRepos);
   };
+
+  createEffect(() => {
+    const currentRepos = repos();
+    setViewBranches(previous => {
+      const next = { ...previous };
+      let changed = false;
+
+      currentRepos.forEach(repo => {
+        const selected = next[repo.path];
+        const hasSelectedBranch = repo.branches.length === 0 || repo.branches.some(branch => branch.name === selected);
+        if (selected === undefined || !hasSelectedBranch) {
+          next[repo.path] = repo.activeBranch || "";
+          changed = true;
+        }
+      });
+
+      Object.keys(next).forEach(repoPath => {
+        if (!currentRepos.some(repo => repo.path === repoPath)) {
+          delete next[repoPath];
+          changed = true;
+        }
+      });
+
+      return changed ? next : previous;
+    });
+  });
 
   onMount(async () => {
     try {
@@ -252,6 +292,12 @@ export default function RepoTabsPage() {
       listStashes(repoPath),
       listTags(repoPath),
     ]);
+    const nextActiveBranch = snapshot.activeBranch ?? undefined;
+    const currentRepo = repos().find(repo => repo.path === repoPath);
+
+    if (currentRepo && currentRepo.activeBranch !== nextActiveBranch) {
+      setViewBranch(repoPath, nextActiveBranch || "");
+    }
 
     setRepos(prev => prev.map(repo => {
       if (repo.path !== repoPath) return repo;
@@ -456,7 +502,18 @@ export default function RepoTabsPage() {
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
 
-          <Header repos={repos()} active={active()} activePage={activePage()} refreshBranches={refreshBranches} remoteUrl={remoteUrl()} setRepoBusy={setRepoBusy} setActive={setActive} setRepos={setRepos} />
+          <Header
+            repos={repos()}
+            active={active()}
+            activePage={activePage()}
+            refreshBranches={refreshBranches}
+            remoteUrl={remoteUrl()}
+            setRepoBusy={setRepoBusy}
+            selectedBranch={selectedBranchForRepo(activeRepo())}
+            onBranchChange={(branch) => active() && setViewBranch(active()!, branch)}
+            setActive={setActive}
+            setRepos={setRepos}
+          />
 
           <div class="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-gray-200 dark:bg-gray-900">
             <Show when={repos().length > 0 && active()}>
@@ -491,16 +548,20 @@ export default function RepoTabsPage() {
               {/* Caso: Página de Arquivos */}
               <Match when={active() && activePage() === 'files'}>
                 <Show when={activeRepo()}>
-                  <FilesList repo={activeRepo()!} />
+                  <FilesList
+                    repo={activeRepo()!}
+                    branch={selectedBranchForRepo(activeRepo())}
+                    onBranchChange={(branch) => active() && setViewBranch(active()!, branch)}
+                  />
                 </Show>
               </Match>
 
               {/* Caso: Dashboard */}
               <Match when={active() && activePage() === 'dashboard'}>
                 <Show when={activeRepo()}>
-                  <Dashboard 
-                    repo={activeRepo()!} 
-                    branch={activeRepo()?.activeBranch} 
+                  <Dashboard
+                    repo={activeRepo()!}
+                    branch={selectedBranchForRepo(activeRepo())}
                   />
                 </Show>
               </Match>
@@ -509,8 +570,8 @@ export default function RepoTabsPage() {
                 <Show when={activeRepo()} fallback={<div>{t('loading').loading_pull_requests}</div>}>
                   {(currentRepo) => (
                     <PullRequestsPage 
-                      repo={currentRepo()} 
-                      branch={activeRepo()?.activeBranch}
+                      repo={currentRepo()}
+                      branch={selectedBranchForRepo(currentRepo())}
                       provider={provider()}
                       remoteUrl={remoteUrl()!}
                       onMergeSuccess={() => refreshBranches(currentRepo().path)}

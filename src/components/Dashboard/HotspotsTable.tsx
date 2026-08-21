@@ -52,7 +52,7 @@ export default function HotspotsTable(props: Props) {
       setNextLine(null);
       setIsLoadingMore(false);
       setSelectedFilePath([path]);
-      const data = await getBranchFileMetadata(props.repo.path, props.repo.activeBranch!, path);
+      const data = await getBranchFileMetadata(props.repo.path, props.branch, path);
       setIsBinary(data.isBinary);
       setIsPreviewLimited(!data.isPreviewable);
       setFileMeta({size: data.size, lines: null});
@@ -61,7 +61,7 @@ export default function HotspotsTable(props: Props) {
     
     showLoading(t('loading').loading_file);
     try {
-      const data = await getBranchFileContent(props.repo.path, props.repo.activeBranch!, path);
+      const data = await getBranchFileContent(props.repo.path, props.branch, path);
       setIsImage(data.isImage);
       setIsBinary(data.isBinary);
       setIsPreviewLimited(!data.isPreviewable);
@@ -81,7 +81,7 @@ export default function HotspotsTable(props: Props) {
 
   const loadMoreFileContent = async () => {
     const path = selectedFilePath()[0];
-    const branch = props.repo.activeBranch!;
+    const branch = props.branch;
     const startLine = nextLine();
     if (!path || !branch || startLine === null || isLoadingMore() || isPreviewLimited()) return;
 
@@ -188,7 +188,7 @@ export default function HotspotsTable(props: Props) {
           <FileViewerContainer
             repoName={props.repo.name}
             repoPath={props.repo.path}
-            selectedBranch={props.repo.activeBranch!}
+            selectedBranch={props.branch}
             selectedFilePath={selectedFilePath()}
             fileContent={fileContent()}
             directoryContent={null}

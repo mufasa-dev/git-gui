@@ -9,6 +9,9 @@ import BranchSwitchModal from "./BranchSwitchModal";
 type BranchSelectorProps = {
   activeRepo: Repo | null;
   refreshBranches: (repoPath: string) => Promise<void>;
+  selectedBranch?: string;
+  onBranchChange?: (branch: string) => void;
+  mode?: "checkout" | "virtual";
 };
 
 export default function BranchSelector(props: BranchSelectorProps) {
@@ -29,18 +32,26 @@ export default function BranchSelector(props: BranchSelectorProps) {
   window.addEventListener("click", handleClickOutside);
   onCleanup(() => window.removeEventListener("click", handleClickOutside));
 
+  const isVirtual = () => props.mode === "virtual";
+  const selectedBranch = () => props.selectedBranch || props.activeRepo?.activeBranch || "";
+
   const currentBranchInfo = () => {
     if (!props.activeRepo) return null;
-    return props.activeRepo.branches.find(b => b.name === props.activeRepo?.activeBranch);
+    return props.activeRepo.branches.find(b => b.name === selectedBranch());
   };
 
   const handleActiveBranch = async (branchName: string) => {
     if (!props.activeRepo) return;
-    if (branchName === props.activeRepo.activeBranch) {
+    if (branchName === selectedBranch()) {
       setIsOpen(false);
       return;
     }
     setIsOpen(false);
+
+    if (isVirtual()) {
+      props.onBranchChange?.(branchName);
+      return;
+    }
 
     try {
       const changes = await getLocalChanges(props.activeRepo.path);
@@ -111,7 +122,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
           <div class="flex flex-col flex-1 min-w-0 justify-center">
             <span class="text-[10px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-wider leading-none mb-1">{t("branch").current_branch}</span>
             <span class="text-sm font-bold text-gray-900 dark:text-white truncate leading-none">
-              {props.activeRepo!.activeBranch}
+              {selectedBranch()}
             </span>
           </div>
 
@@ -147,7 +158,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
             <div class="py-1.5 max-h-72 overflow-y-auto">
               <For each={props.activeRepo!.branches}>
                 {(branch) => {
-                  const isCurrent = branch.name === props.activeRepo!.activeBranch;
+                  const isCurrent = branch.name === selectedBranch();
                   return (
                     <button
                       onClick={() => handleActiveBranch(branch.name)}

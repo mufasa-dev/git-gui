@@ -11,19 +11,9 @@ import CommitTypeDistribution from "../Dashboard/CommitDistributionBar";
 import CommitsModalList from "../commits/CommitsModalList";
 import HotspotsTable from "../Dashboard/HotspotsTable";
 import { useApp } from "../../context/AppContext";
-import { CommitDetails } from "../commits/CommitDetails";
+import { formatShortDate } from "../../utils/date";
+import { CommitDetailsModal } from "../commits/CommitDetailsModal";
 import { Repo } from "../../models/Repo.model";
-
-const formatShortDate = (dateStr: string) => {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString(undefined, { 
-    day: '2-digit', 
-    month: 'short', 
-    year: 'numeric',
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
-};
 
 interface UserProfileDialogProps {
   email: string;
@@ -40,7 +30,7 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
   const [selectedCommits, setSelectedCommits] = createSignal<any[]>([]);
   const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
-  const { t } = useApp();
+  const { t, locale } = useApp();
   
   const [userCommits] = createResource(
     () => ({ path: props.repo.path, branch: props.branch, email: props.email }),
@@ -188,7 +178,7 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
                           <CommitMessage message={commit.message} />
                         </td>
                         <td class="p-2 text-[10px] text-gray-900 dark:text-gray-100 text-right whitespace-nowrap italic">
-                          {formatShortDate(commit.date)}
+                          {formatShortDate(commit.date, locale())}
                         </td>
                       </tr>
                     )}
@@ -212,7 +202,10 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
             iconColor="text-blue-600 dark:text-blue-300"
             width="550px" bodyClass="p-0"
           >
-            <CommitsModalList commits={selectedCommits()} />
+            <CommitsModalList
+              commits={selectedCommits()}
+              onSelectCommit={(commit) => void selectCommit(commit.hash)}
+            />
           </Dialog>
         </Show>
 
@@ -225,7 +218,14 @@ export function UserProfileDialog(props: UserProfileDialogProps) {
                   bodyClass="p-0"
                   width={'calc(100vw - 40px)'}
                   height={'calc(100vh - 100px)'}>
-            <CommitDetails commit={selectedCommit()} repo={props.repo} branch={""} openParent={false} openProfile={false} selectCommit={selectCommit} />
+            <CommitDetailsModal
+              commit={selectedCommit()}
+              repo={props.repo}
+              branch={props.branch}
+              openParent={false}
+              openProfile={false}
+              selectCommit={selectCommit}
+            />
           </Dialog>
         </Show>
       </div>

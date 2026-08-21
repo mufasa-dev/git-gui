@@ -36,6 +36,8 @@ type Props = {
     refreshBranches: (repoPath: string) => Promise<void>;
     remoteUrl?: string;
     setRepoBusy?: (path: string, busy: boolean) => void;
+    selectedBranch?: string;
+    onBranchChange?: (branch: string) => void;
     setActive: (path: string | null) => void;
     setRepos: (repos: Repo[]) => void;
 };
@@ -356,10 +358,13 @@ export default function Header(props: Props) {
             </Show>
 
             {/* 🌟 O seletor de branch customizado integrado ao ecossistema de proteção contra perda de dados */}
-            <Show when={["dashboard", "test", "files"].includes(props.activePage || "")}>
-              <BranchSelector 
-                activeRepo={currentActiveRepo()} 
-                refreshBranches={props.refreshBranches} 
+            <Show when={["dashboard", "test", "files", "pull-requests"].includes(props.activePage || "")}>
+              <BranchSelector
+                activeRepo={currentActiveRepo()}
+                refreshBranches={props.refreshBranches}
+                selectedBranch={["dashboard", "files", "pull-requests"].includes(props.activePage || "") ? props.selectedBranch : undefined}
+                onBranchChange={["dashboard", "files", "pull-requests"].includes(props.activePage || "") ? props.onBranchChange : undefined}
+                mode={["dashboard", "files", "pull-requests"].includes(props.activePage || "") ? "virtual" : "checkout"}
               />
             </Show>
 

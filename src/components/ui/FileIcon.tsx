@@ -3,6 +3,8 @@ import { createMemo } from "solid-js";
 // Importe seus ícones da pasta de assets
 import mdIcon from "../../assets/md.png";
 import cSharpIcon from "../../assets/cs.png";
+import prettierIcon from "../../assets/pretierr.png";
+import worldwideIcon from "../../assets/worldwide.png";
 import cppIcon from "../../assets/cpp.png";
 import rIcon from "../../assets/r.png";
 import bIcon from "../../assets/b.png";
@@ -96,6 +98,7 @@ export default function FileIcon(props: FileIconProps) {
     if (name === 'jenkinsfile') return jenkinsIcon;
     if (name === 'makefile') return makefileIcon;
     if (name === '.gitignore') return gitIcon;
+    if (name === '.prettierrc' || name === 'prettierr') return prettierIcon;
     if (name === 'license') return mdIcon;
     if (name.includes('package.json')) return packageIcon;
     if (name.includes('package-lock.json')) return packageIcon;
@@ -145,6 +148,7 @@ export default function FileIcon(props: FileIconProps) {
       html: htmlIcon,
       htm: htmlIcon,
       htmlx: htmlIcon,
+      hbs: htmlIcon,
       png: imageIcon,
       jpg: imageIcon,
       jpeg: imageIcon,
@@ -156,7 +160,14 @@ export default function FileIcon(props: FileIconProps) {
       cs: cSharpIcon,
       cshtml: cSharpIcon,
       sln: cSharpIcon,
+      slnx: cSharpIcon,
       csproj: cSharpIcon,
+      dcproj: dockerIcon,
+      prettierrc: prettierIcon,
+      prettierr: prettierIcon,
+      http: worldwideIcon,
+      original: configIcon,
+      pubxml: xmlIcon,
       asp: aspIcon,
       razor: aspIcon,
       resx: aspIcon,

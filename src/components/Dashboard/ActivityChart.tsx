@@ -1,18 +1,15 @@
 import { createMemo, createSignal, For, Show, onMount } from "solid-js";
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
-import * as i18n from "@solid-primitives/i18n";
+import { formatCompactDate } from "../../utils/date";
 
-const formatDateAxis = (dateStr: string) => {
-  const d = new Date(dateStr.replace(/-/g, '/')); 
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-};
+const formatDateAxis = (dateStr: string, locale: string) => formatCompactDate(dateStr, locale);
 
 export default function ActivityChart(props: { commits: any[], openCommits: (commits: any[]) => void }) {
   const [daysToView, setDaysToView] = createSignal(30);
   const [isModalOpen, setIsModalOpen] = createSignal(false);
   const [hoveredPoint, setHoveredPoint] = createSignal<{x: number, y: number, value: number, date: string} | null>(null);
-  const { t } = useApp();
+  const { t, locale } = useApp();
   
   // Estado para os dias ocultos (0 = Domingo, 6 = Sábado)
   const [hiddenDays, setHiddenDays] = createSignal<number[]>([]);
@@ -146,7 +143,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
     // 8. Gerar Ticks do Eixo X (Início, Meio e Fim do período visível)
     const xTicksIndices = [0, Math.round((dateRange.length - 1) / 2), dateRange.length - 1];
     const xTicks = xTicksIndices.map(idx => ({
-      label: formatDateAxis(data[idx].date),
+      label: formatDateAxis(data[idx].date, locale()),
       x: points[idx].x
     }));
 
@@ -365,7 +362,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
             }}
           >
             <div class="font-bold border-b border-gray-700 pb-1 mb-1">
-              {formatDateAxis(hoveredPoint()!.date)}
+              {formatDateAxis(hoveredPoint()!.date, locale())}
             </div>
             <div class="flex items-center gap-1">
               <span class="w-2 h-2 rounded-full bg-green-500"></span>

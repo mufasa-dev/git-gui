@@ -130,6 +130,7 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   html: "HTML",
   htm: "HTML",
   ghtml: "HTML",
+  hbs: "HTML",
   php: "PHP",
   makefile: "MakeFile",
   dockerfile: "Dockerfile",
@@ -282,7 +283,7 @@ export const IGNORED_EXTENSIONS = [
   'md', 'markdown', 'txt', 'rtf', 'csv', 'tsv', 'log', 'lock', 'bin', 'iso', 'dmg', 'app', 'apk', 'jar', 'war', 'ear', 'txt', 'log',
   'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'ds_store', 'nfo', 'def', 'filters',
   // Configurações e Metadados
-  'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'cer', 'dep', 'babelrc', 'appcache',
+  'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'http', 'dockerignore', 'dcproj', 'original', 'pubxml', 'cer', 'dep', 'babelrc', 'appcache',
   // Outros arquivos de configuração comuns
   'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults', 'example', 'rules',
   'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload',

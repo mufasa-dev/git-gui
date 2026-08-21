@@ -13,10 +13,14 @@ import { FileSidebar } from "../components/files/FileSidebar";
 import { FileViewerContainer } from "../components/files/FileViewerContainer";
 import { UNSUPPORTED_EXTENSIONS } from "../utils/file";
 
-export default function FileList(props: { repo: Repo }) {
+export default function FileList(props: {
+  repo: Repo;
+  branch?: string;
+  onBranchChange?: (branch: string) => void;
+}) {
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
-  const [selectedBranch, setSelectedBranch] = createSignal(props.repo.activeBranch || "");
+  const [selectedBranch, setSelectedBranch] = createSignal(props.branch || props.repo.activeBranch || "");
   const [branchFiles, setBranchFiles] = createSignal<{path: string, status: string}[]>([]);
   const [selectedFilePath, setSelectedFilePath] = createSignal<string[]>([]);
   const [fileContent, setFileContent] = createSignal<string | null>(null);
@@ -40,7 +44,8 @@ export default function FileList(props: { repo: Repo }) {
   // Limpa estados ao trocar de Repositório
   createEffect(() => {
     props.repo.path;
-    setSelectedBranch(props.repo.activeBranch || "");
+    const branch = props.branch || props.repo.activeBranch || "";
+    setSelectedBranch(branch);
     setFileContent(null);
     setIsBinary(false);
     setIsPreviewLimited(false);
@@ -216,7 +221,16 @@ export default function FileList(props: { repo: Repo }) {
         setSearchTerm={setSearchTerm}
         filteredFiles={filteredFiles()}
         selectedFilePath={selectedFilePath()}
-        onBranchChange={(b) => { setSelectedBranch(b); setFileContent(null); setIsBinary(false); setIsPreviewLimited(false); setNextLine(null); setIsLoadingMore(false); setDirectoryContent(null); }}
+        onBranchChange={(b) => {
+          setSelectedBranch(b);
+          props.onBranchChange?.(b);
+          setFileContent(null);
+          setIsBinary(false);
+          setIsPreviewLimited(false);
+          setNextLine(null);
+          setIsLoadingMore(false);
+          setDirectoryContent(null);
+        }}
         onFileClick={handleFileClick}
         sidebarWidth={sidebarWidth()}
         isResizing={isResizing()}
