@@ -3,7 +3,7 @@ import { Branch, BranchFileContentResponse, BranchFileMetadataResponse } from ".
 import { Diff } from "../models/Diff.model";
 import { GitPullResult } from "../models/Pull.model";
 import { Commit, FileEntry } from "../models/Commit.model";
-import { CoverageStats } from "../models/Dashboard.model";
+import { CodeChurnPoint, CoverageStats } from "../models/Dashboard.model";
 import { Stash } from "../models/Stash.model";
 import { Tag, TagKind } from "../models/Tag.model";
 import { LocalChange } from "../models/LocalChanges.model";
@@ -458,6 +458,10 @@ export async function getBranchFileMetadata(repoPath: string, branch: string, fi
 
 export async function getCodeCoverageRatio(path: string, branch: string): Promise<CoverageStats> {
   return await invoke("get_code_coverage_ratio", { path, branch });
+}
+
+export async function getCodeChurn(path: string, branch: string, days: number): Promise<CodeChurnPoint[]> {
+  return await invoke("get_code_churn", { path, branch, days });
 }
 
 export async function getMostModifiedFiles(path: string, branch: string): Promise<any[]> {

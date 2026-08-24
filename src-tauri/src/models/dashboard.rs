@@ -14,3 +14,12 @@ pub struct FileHotspot {
     pub name: String,
     pub count: usize,
 }
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeChurnPoint {
+    pub date: String,
+    pub additions: usize,
+    pub deletions: usize,
+    pub commits: usize,
+}

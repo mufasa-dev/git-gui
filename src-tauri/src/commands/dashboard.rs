@@ -1,7 +1,8 @@
 use crate::{
-    models::dashboard::{CoverageStats, FileHotspot},
+    models::dashboard::{CodeChurnPoint, CoverageStats, FileHotspot},
     utils::{git_command, git_command_async},
 };
+use std::collections::HashMap;
 
 #[tauri::command]
 pub async fn get_code_coverage_ratio(
@@ -49,6 +50,75 @@ pub async fn get_code_coverage_ratio(
         other_files: others,
         percent,
     })
+}
+
+fn code_churn_from_git(path: &str, branch: &str, days: usize) -> Result<Vec<CodeChurnPoint>, String> {
+    let days = days.clamp(1, 3650);
+    let since = format!("--since={} days ago", days);
+    let output = git_command(path)
+        .args([
+            "log",
+            "--date=short",
+            "--pretty=format:COMMIT|%ad",
+            "--numstat",
+            "--no-renames",
+            &since,
+            branch,
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut points: HashMap<String, CodeChurnPoint> = HashMap::new();
+    let mut current_date: Option<String> = None;
+
+    for line in stdout.lines() {
+        if let Some(date) = line.strip_prefix("COMMIT|") {
+            let date = date.trim().to_string();
+            current_date = Some(date.clone());
+            points.entry(date.clone()).or_insert(CodeChurnPoint {
+                date,
+                additions: 0,
+                deletions: 0,
+                commits: 0,
+            }).commits += 1;
+            continue;
+        }
+
+        let Some(date) = current_date.as_ref() else { continue };
+        let mut fields = line.split('\t');
+        let Some(additions) = fields.next() else { continue };
+        let Some(deletions) = fields.next() else { continue };
+
+        let Some(point) = points.get_mut(date) else { continue };
+        if let Ok(additions) = additions.parse::<usize>() {
+            point.additions += additions;
+        }
+        if let Ok(deletions) = deletions.parse::<usize>() {
+            point.deletions += deletions;
+        }
+    }
+
+    let mut result: Vec<CodeChurnPoint> = points.into_values().collect();
+    result.sort_by(|a, b| a.date.cmp(&b.date));
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn get_code_churn(
+    path: String,
+    branch: String,
+    days: Option<usize>,
+) -> Result<Vec<CodeChurnPoint>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        code_churn_from_git(&path, &branch, days.unwrap_or(30))
+    })
+    .await
+    .map_err(|error| format!("Falha ao carregar churn de código: {}", error))?
 }
 
 #[tauri::command]

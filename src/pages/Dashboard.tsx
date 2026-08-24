@@ -7,7 +7,7 @@ import LanguageBar from "../components/Dashboard/LanguageBar";
 import ActivityChart from "../components/Dashboard/ActivityChart";
 import ContributionGraph from "../components/Dashboard/ContributionGraph";
 import CommitTypeDistribution from "../components/Dashboard/CommitDistributionBar";
-import TestCoverageDonut from "../components/Dashboard/TestCoverageDonut";
+import CodeChurnChart from "../components/Dashboard/CodeChurnChart";
 import HourlyActivityChart from "../components/Dashboard/HourlyActivityChart";
 import HotspotsTable from "../components/Dashboard/HotspotsTable";
 import { UserProfileDialog } from "../components/Config/UserProfile";
@@ -296,7 +296,7 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         </DashboardPanel>
 
         <DashboardPanel loading={false}>
-          <TestCoverageDonut path={props.repo.path} branch={props.branch || ""} />
+          <CodeChurnChart path={props.repo.path} branch={props.branch || ""} />
         </DashboardPanel>
 
         <DashboardPanel loading={commitsLoading()}>
