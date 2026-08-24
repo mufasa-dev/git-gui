@@ -191,6 +191,15 @@ export async function pull(repoPath: string, branch: string, token?: string, pro
   }
 }
 
+export async function pullBranchWithoutCheckout(
+  repoPath: string,
+  branch: string,
+  token?: string,
+  provider?: string,
+): Promise<string> {
+  return await invoke<string>("pull_branch_without_checkout", { repoPath, branch, token, provider });
+}
+
 export async function configPullMode(repoPath: string, mode: "merge" | "rebase" | "ff"): Promise<void> {
   try {
     await invoke("git_config_pull", { repoPath, mode });
@@ -418,8 +427,14 @@ export async function deleteBranch(repoPath: string, branch: string, force: bool
   return await invoke("delete_branch", { path: repoPath, branch: branch, force: force });
 }
 
-export async function deleteRemoteBranch(repoPath: string, branch: string, remote: string = "origin") {
-  return await invoke("delete_remote_branch", { path: repoPath, branch, remote });
+export async function deleteRemoteBranch(
+  repoPath: string,
+  branch: string,
+  remote: string = "origin",
+  token?: string,
+  provider?: string,
+) {
+  return await invoke("delete_remote_branch", { path: repoPath, branch, remote, token, provider });
 }
 
 export async function getGitConfig(path: string, key: string): Promise<string> {

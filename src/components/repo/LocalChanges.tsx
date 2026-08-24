@@ -247,7 +247,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     items.push({ label: t('git').prepare_all, action: () => prepareAll() });
     items.push({
       label: t('branch').discart_changes,
-      action: () => discard(selected()),
+      action: () => discard(item?.path ? [item.path] : selected()),
     });
 
     setMenuItems(items);
@@ -336,10 +336,18 @@ export function LocalChanges(props: { repo: Repo; }) {
   }
 
   const discard = async (paths: string[]) => {
-    await discard_changes(props.repo.path, paths);
-    setSelected([]);
-    clearDiff();
-    await loadChanges();
+    if (paths.length === 0) return;
+
+    try {
+      await discard_changes(props.repo.path, paths);
+      setSelected([]);
+      setStagedPreparedSelected([]);
+      setFileSelected("");
+      clearDiff();
+      await loadChanges();
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    }
   }
 
   const handleCommit = async () => {

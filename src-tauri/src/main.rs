@@ -126,6 +126,7 @@ fn main() {
             commands::tag::delete_remote_tag,
             commands::repo::push_repo,
             commands::repo::git_pull,
+            commands::repo::pull_branch_without_checkout,
             commands::repo::git_config_pull,
             commands::repo::fetch_repo,
             commands::repo::get_remote_url,

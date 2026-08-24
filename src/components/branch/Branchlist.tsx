@@ -1,7 +1,10 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import TreeView, { TreeNodeMap }  from "../ui/TreeView";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
-import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, mergeBranch, openPullRequestUrl } from "../../services/gitService";
+import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, getRemoteUrl, mergeBranch, openPullRequestUrl, pullBranchWithoutCheckout } from "../../services/gitService";
+import { githubService } from "../../services/github";
+import { azureService } from "../../services/azure";
+import { getProviderFromUrl } from "../../utils/gitProvider";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
@@ -52,6 +55,22 @@ export default function BranchList(props: Props) {
             hideLoading();
           }
         }
+      });
+      items.push({
+        label: t("git").pull,
+        action: async () => {
+          try {
+            showLoading(`Atualizando ${branch}...`);
+            const { provider, token } = await getRemoteAuth();
+            await pullBranchWithoutCheckout(props.repoPath, branch, token, provider);
+            notify.success("Git Pull", `Branch '${branch}' atualizada com sucesso!`);
+            await props.refreshBranches(props.repoPath);
+          } catch (error: unknown) {
+            notify.error("Erro no Pull", typeof error === "string" ? error : String(error));
+          } finally {
+            hideLoading();
+          }
+        },
       });
     }
 
@@ -132,7 +151,8 @@ export default function BranchList(props: Props) {
 
           try {
             showLoading("Deletando branch remota...");
-            await deleteRemoteBranch(props.repoPath!, branch, "origin");
+            const { provider, token } = await getRemoteAuth();
+            await deleteRemoteBranch(props.repoPath!, branch, "origin", token, provider);
             
             hideLoading();
             notify.success('Git Remote', `Branch '${branch}' removida do servidor com sucesso!`);
@@ -161,6 +181,17 @@ export default function BranchList(props: Props) {
   function getBranchName(fullBranchPath: string): string {
     return fullBranchPath.split('/').pop() || '';
   }
+
+  const getRemoteAuth = async () => {
+    const remoteUrl = await getRemoteUrl(props.repoPath);
+    const provider = remoteUrl ? getProviderFromUrl(remoteUrl) : "unknown";
+    const token = provider === "azure"
+      ? await azureService.getToken() || ""
+      : provider === "github"
+        ? await githubService.getToken() || ""
+        : "";
+    return { provider, token };
+  };
 
   const checkoutRemote = async (branch: string) => {
     try {

@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { Branch } from "../../models/Banch.model";
 import { buildOpenMap } from "../../utils/tree";
 
@@ -19,6 +19,7 @@ export type TreeViewProps = {
   onSelectBranch?: (branch: string) => void;
   onActivateBranch?: (branch: string) => void;
   openContextMenu?: (e: MouseEvent, branch: string) => void;
+  pathPrefix?: string;
 };
 
 export function buildTree(branches: Branch[]): TreeNodeMap {
@@ -77,7 +78,47 @@ function getFolderVisual(name: string, isOpen: boolean) {
 }
 
 export default function TreeView(props: TreeViewProps) {
-  const [open, setOpen] = createSignal<{ [key: string]: boolean }>(buildOpenMap(props.tree));
+  const pathPrefix = () => props.pathPrefix || "";
+  const [open, setOpen] = createSignal<{ [key: string]: boolean }>(
+    buildOpenMap(props.tree, pathPrefix()),
+  );
+
+  const getNodePath = (node: TreeNode) =>
+    pathPrefix() ? `${pathPrefix()}/${node.name}` : node.name;
+
+  const openSelectedAncestors = (
+    tree: TreeNodeMap,
+    selectedBranch: string,
+    prefix: string,
+    next: { [key: string]: boolean },
+  ) => {
+    for (const node of Object.values(tree)) {
+      if (!node.children) continue;
+
+      const nodePath = prefix ? `${prefix}/${node.name}` : node.name;
+      if (selectedBranch === nodePath || selectedBranch.startsWith(`${nodePath}/`)) {
+        next[nodePath] = true;
+        openSelectedAncestors(node.children, selectedBranch, nodePath, next);
+      }
+    }
+  };
+
+  createEffect(() => {
+    const tree = props.tree;
+    const selectedBranch = props.selectedBranch;
+    const prefix = pathPrefix();
+
+    setOpen((prev) => {
+      const next = { ...prev };
+      Object.keys(buildOpenMap(tree, prefix)).forEach((key) => {
+        if (!(key in next)) next[key] = true;
+      });
+      if (selectedBranch) {
+        openSelectedAncestors(tree, selectedBranch, prefix, next);
+      }
+      return next;
+    });
+  });
 
   const toggle = (key: string) => {
     setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -85,7 +126,7 @@ export default function TreeView(props: TreeViewProps) {
 
   const handleClick = (node: TreeNode) => {
     if (node.children) {
-      toggle(node.name);
+      toggle(getNodePath(node));
     } else {
       props.onSelectBranch?.(node.original);
     }
@@ -95,9 +136,10 @@ export default function TreeView(props: TreeViewProps) {
     <ul class="ml-4 min-w-0 space-y-1">
       {Object.values(props.tree).map((node) => {
         const isLeaf = !node.children;
+        const nodePath = getNodePath(node);
         const isActive = node.original === props.activeBranch;
         const isSelected = node.original === props.selectedBranch;
-        const folderVisual = getFolderVisual(node.name, !!open()[node.name]);
+        const folderVisual = getFolderVisual(node.name, !!open()[nodePath]);
         return (
             <li>
                 <div
@@ -115,7 +157,7 @@ export default function TreeView(props: TreeViewProps) {
                     }
                   }}
                 >
-                  {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[node.name], "fa-caret-right" : !open()[node.name]}}></i>} 
+                  {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[nodePath], "fa-caret-right" : !open()[nodePath]}}></i>}
                   {!isLeaf && <i class={`fa-solid mr-1 ${folderVisual.icon} ${folderVisual.color}`}></i>}
                   {isLeaf && <i class="fa-solid" classList={{"fa-code-branch" : !isActive, "fa-check" : isActive}}></i>}
                   <div class="min-w-0 flex-1 truncate ml-1">{ node.name }</div>
@@ -124,7 +166,7 @@ export default function TreeView(props: TreeViewProps) {
                     {node.behind > 0 && <span class="text-red-600">↓{node.behind}</span>}
                   </div>
                 </div>
-                {node.children && open()[node.name] && (
+                {node.children && open()[nodePath] && (
                     <TreeView
                         tree={node.children || {}}
                         activeBranch={props.activeBranch}
@@ -132,6 +174,7 @@ export default function TreeView(props: TreeViewProps) {
                         onSelectBranch={props.onSelectBranch}
                         onActivateBranch={props.onActivateBranch}
                         openContextMenu={props.openContextMenu}
+                        pathPrefix={nodePath}
                     />
                 )}
           </li>

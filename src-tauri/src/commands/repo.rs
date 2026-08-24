@@ -313,6 +313,42 @@ pub async fn git_pull(
 }
 
 #[tauri::command]
+pub async fn pull_branch_without_checkout(
+    repo_path: String,
+    branch: String,
+    token: Option<String>,
+    provider: Option<String>,
+) -> Result<String, String> {
+    let mut cmd = git_command_async(&repo_path);
+    cmd = configure_git_auth_async(cmd, token, provider);
+    let local_refspec = format!("refs/heads/{branch}:refs/heads/{branch}");
+    let remote_refspec = format!("refs/heads/{branch}:refs/remotes/origin/{branch}");
+
+    let output = cmd
+        .args(["fetch", "origin", &remote_refspec, &local_refspec])
+        .output()
+        .await
+        .map_err(|error| format!("Falha ao executar pull da branch: {}", error))?;
+
+    if output.status.success() {
+        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if stderr.contains("fatal: could not read Password")
+        || stderr.contains("Authentication failed")
+        || stderr.contains("terminal prompts disabled")
+    {
+        return Err(
+            "Erro de Autenticação: Seu token expirou ou é inválido para este repositório."
+                .to_string(),
+        );
+    }
+
+    Err(stderr.to_string())
+}
+
+#[tauri::command]
 pub async fn fetch_repo(
     repo_path: String,
     remote: String,

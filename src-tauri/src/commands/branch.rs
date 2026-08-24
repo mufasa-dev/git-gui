@@ -1,4 +1,5 @@
 use crate::{
+    commands::repo::configure_git_auth_async,
     models::branch::{FileContentResponse, FileMetadataResponse},
     utils::git_command_async,
 };
@@ -461,9 +462,11 @@ pub async fn delete_remote_branch(
     path: String,
     branch: String,
     remote: Option<String>,
+    token: Option<String>,
+    provider: Option<String>,
 ) -> Result<(), String> {
     let remote_name = remote.unwrap_or_else(|| "origin".to_string());
-    let output = git_command_async(&path)
+    let output = configure_git_auth_async(git_command_async(&path), token, provider)
         .args(["push", &remote_name, "--delete", &branch])
         .output()
         .await

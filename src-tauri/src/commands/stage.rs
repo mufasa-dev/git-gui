@@ -3,7 +3,7 @@ use git2::{Repository, Status, StatusOptions};
 use serde_json::json;
 use std::fs::{self, File};
 use std::io::Read;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use tauri::command;
 
 const PREVIEW_MAX_BYTES: usize = 2 * 1024 * 1024;
@@ -439,15 +439,119 @@ pub fn unstage_files(path: String, files: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
-#[command]
-pub fn discard_changes(path: String, files: Vec<String>) -> Result<String, String> {
-    let mut cmd = git_command(&path);
-    cmd.arg("checkout").arg("--");
-    for f in files {
-        cmd.arg(f);
+fn safe_worktree_path(repo_path: &str, file: &str) -> Result<PathBuf, String> {
+    let relative_path = Path::new(file);
+    if file.trim().is_empty()
+        || relative_path.is_absolute()
+        || relative_path.components().any(|component| {
+            matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_))
+        })
+    {
+        return Err(format!("Caminho de arquivo inválido: {}", file));
     }
 
-    let output = cmd.output().map_err(|e| e.to_string())?;
+    let repo_root = Path::new(repo_path)
+        .canonicalize()
+        .map_err(|error| format!("Não foi possível acessar o repositório: {}", error))?;
+    let target = repo_root.join(relative_path);
+    let resolved = if target.exists() {
+        target
+            .canonicalize()
+            .map_err(|error| format!("Não foi possível validar o arquivo {}: {}", file, error))?
+    } else {
+        target
+            .parent()
+            .ok_or_else(|| format!("Caminho de arquivo inválido: {}", file))?
+            .canonicalize()
+            .map_err(|error| format!("Não foi possível validar o arquivo {}: {}", file, error))?
+            .join(target.file_name().ok_or_else(|| format!("Caminho de arquivo inválido: {}", file))?)
+    };
+
+    if !resolved.starts_with(&repo_root) {
+        return Err(format!("O arquivo está fora do repositório: {}", file));
+    }
+
+    Ok(target)
+}
+
+fn is_untracked(path: &str, file: &str) -> Result<bool, String> {
+    let output = git_command(path)
+        .args(["ls-files", "--others", "--exclude-standard", "--", file])
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(!output.stdout.is_empty())
+}
+
+fn is_staged_added(path: &str, file: &str) -> Result<bool, String> {
+    let output = git_command(path)
+        .args(["diff", "--cached", "--name-status", "--", file])
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .any(|line| line.starts_with("A\t")))
+}
+
+fn remove_untracked_path(path: &Path) -> Result<(), String> {
+    let metadata = fs::symlink_metadata(path).map_err(|error| error.to_string())?;
+    if metadata.file_type().is_symlink() || metadata.is_file() {
+        fs::remove_file(path).map_err(|error| error.to_string())
+    } else if metadata.is_dir() {
+        fs::remove_dir(path).map_err(|error| error.to_string())
+    } else {
+        Err(format!("Tipo de arquivo não suportado: {}", path.display()))
+    }
+}
+
+#[command]
+pub fn discard_changes(path: String, files: Vec<String>) -> Result<String, String> {
+    let mut tracked_files = Vec::new();
+
+    for file in files {
+        let worktree_path = safe_worktree_path(&path, &file)?;
+        let staged_added = is_staged_added(&path, &file)?;
+        let untracked = staged_added || is_untracked(&path, &file)?;
+
+        if staged_added {
+            let output = git_command(&path)
+                .args(["reset", "HEAD", "--", &file])
+                .output()
+                .map_err(|error| error.to_string())?;
+            if !output.status.success() {
+                return Err(String::from_utf8_lossy(&output.stderr).to_string());
+            }
+        }
+
+        if untracked {
+            if worktree_path.exists() || fs::symlink_metadata(&worktree_path).is_ok() {
+                remove_untracked_path(&worktree_path)
+                    .map_err(|error| format!("Não foi possível remover {}: {}", file, error))?;
+            }
+        } else {
+            tracked_files.push(file);
+        }
+    }
+
+    if tracked_files.is_empty() {
+        return Ok(String::new());
+    }
+
+    let output = git_command(&path)
+        .arg("checkout")
+        .arg("--")
+        .args(&tracked_files)
+        .output()
+        .map_err(|error| error.to_string())?;
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
@@ -711,5 +815,28 @@ mod tests {
         );
         assert!(normalize_gitignore_entry("../outside.txt").is_err());
         assert!(normalize_gitignore_entry("C:\\outside.txt").is_err());
+    }
+
+    #[test]
+    fn rejects_discard_paths_outside_the_repository() {
+        assert!(safe_worktree_path(".", "../outside.txt").is_err());
+        assert!(safe_worktree_path(".", "").is_err());
+    }
+
+    #[test]
+    fn removes_an_untracked_file_from_the_worktree() {
+        let suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!("devbrook-discard-{suffix}"));
+        std::fs::create_dir_all(&directory).unwrap();
+        let file = directory.join("new.txt");
+        std::fs::write(&file, "new file").unwrap();
+
+        remove_untracked_path(&file).unwrap();
+
+        assert!(!file.exists());
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }
