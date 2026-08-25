@@ -1,5 +1,3 @@
-type Translator = any; 
-
 export function formatRelativeDate(dateStr: string, t: any, locale: string) {
   const date = new Date(dateStr);
   const now = new Date();
@@ -22,19 +20,18 @@ export function formatRelativeDate(dateStr: string, t: any, locale: string) {
   }
 }
 
+// Mapeamento simples para garantir que o Intl entenda o código do idioma
+const localeMap: Record<string, string> = {
+  "pt": "pt-BR",
+  "en": "en-US",
+  "it": "it-IT",
+  "jp": "ja-JP"
+};
+
+const resolveLocale = (locale: string) => localeMap[locale] || locale;
+
 export function formatDate(dateStr: string, locale: string) {
   const date = new Date(dateStr);
-  
-  // Mapeamento simples para garantir que o Intl entenda o código do idioma
-  const localeMap: Record<string, string> = {
-    "pt": "pt-BR",
-    "en": "en-US",
-    "it": "it-IT",
-    "jp": "ja-JP"
-  };
-
-  const currentLocale = localeMap[locale] || locale;
-
   const options: Intl.DateTimeFormatOptions = {
     day: "numeric",
     month: "short",
@@ -44,7 +41,28 @@ export function formatDate(dateStr: string, locale: string) {
     hour12: false,
   };
 
-  return date.toLocaleString(currentLocale, options);
+  return date.toLocaleString(resolveLocale(locale), options);
+}
+
+export function formatShortDate(dateStr: string, locale: string) {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString(resolveLocale(locale), {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function formatCompactDate(dateStr: string, locale: string) {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+    ? new Date(dateStr.replace(/-/g, "/"))
+    : new Date(dateStr);
+  return date.toLocaleDateString(resolveLocale(locale), {
+    day: "numeric",
+    month: "short",
+  });
 }
 
 export const getRelativeTime = (dateStr: string, t: any, locale: string) => {

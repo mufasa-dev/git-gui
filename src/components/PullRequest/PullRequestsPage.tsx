@@ -6,7 +6,7 @@ import { Repo } from "../../models/Repo.model";
 import CommitMessage from "../ui/CommitMessage";
 import PRStatusBadge from "./PRStatusBadge";
 import { useApp } from "../../context/AppContext";
-import { GitProvider } from "../../utils/gitProvider";
+import { GitProvider, parseRemoteRepository } from "../../utils/gitProvider";
 import { azureService } from "../../services/azure";
 import AuthenticatedAvatar from "./AuthenticatedAvatar";
 import CreatePRDialog from "./CreatePRDialog";
@@ -45,24 +45,25 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
 
   // O Resource unificado
   const [prs, { refetch }] = createResource(
-    () => ({ 
-      owner: repoOwner(), 
-      name: props.repo?.name, 
-      state: filter(), 
-      currentProvider: props.provider 
+    () => ({
+      owner: repoOwner(),
+      project: repoProject(),
+      name: repoName(),
+      state: filter(),
+      currentProvider: props.provider,
     }),
     async (params) => {
       if (!params.name || !params.owner) return [];
 
       if (params.currentProvider === 'azure') {
-        return await azureService.getRepoPullRequests(params.owner, params.name, params.state);
+        return await azureService.getRepoPullRequests(params.owner, params.name, params.state, params.project);
       }
-      
+
       if (params.currentProvider === 'github') {
         const stateMapping = params.state === 'ABANDONED' ? 'CLOSED' : params.state;
         return await githubService.getRepoPullRequests(params.owner, params.name, stateMapping);
       }
-      
+
       return [];
     }
   );
@@ -150,18 +151,24 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
             {/* Barra de Busca */}
             <div class="relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[10px]"></i>
-              <input 
+              <input
                 type="text"
                 placeholder={t('pr').search_pull_requests + '...'}
                 onInput={(e) => setSearchTerm(e.currentTarget.value)}
                 class="w-full bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 pl-8 pr-3 text-xs outline-none focus:border-blue-500 transition-colors dark:text-gray-200"
               />
             </div>
+            <div class="flex items-center justify-between text-[10px] uppercase tracking-widest text-gray-400">
+              <span>{props.provider === 'azure' ? 'Azure DevOps' : 'GitHub'}</span>
+              <button class="rounded-md px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-blue-500" onClick={() => refetch()} title="Refresh">
+                <i class={`fa-solid fa-rotate-right ${prs.loading ? 'animate-spin' : ''}`}></i>
+              </button>
+            </div>
           </header>
 
           <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
-            <Show 
-              when={!prs.loading} 
+            <Show
+              when={!prs.loading}
               fallback={
                 <div class="w-full text-center py-8">
                   <i class="fa-solid fa-spinner fa-spin text-blue-500"></i>
@@ -214,7 +221,9 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
                     </div>
                   </div>
                 )}
-              </For>
+                  </For>
+                </Show>
+              </Show>
             </Show>
           </div>
         </div>
@@ -237,10 +246,12 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
             >
               <PRDetailView 
                 pr={selectedPR()} 
-                owner={repoOwner()} 
-                repo={props.repo} 
+                owner={repoOwner()}
+                project={repoProject()}
+                repo={props.repo}
                 branch={props.branch}
                 provider={props.provider}
+                remoteUrl={props.remoteUrl}
                 onMergeSuccess={(updatedPrNumber) => {
                   refetch();
                   setSelectedPR(prev => prev && prev.number === updatedPrNumber ? { ...prev, state: "MERGED" } : prev);

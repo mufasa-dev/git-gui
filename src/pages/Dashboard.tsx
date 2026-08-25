@@ -1,20 +1,20 @@
-import { createEffect, createSignal, createMemo, For, Show, on, onCleanup } from "solid-js";
+import { createEffect, createSignal, createMemo, For, Show } from "solid-js";
 import { Repo } from "../models/Repo.model";
 import { getCommitDetails, getCommits, listBranchFilesWithSize } from "../services/gitService";
-import { formatRelativeDate } from "../utils/date";
 import { notify } from "../utils/notifications";
 import { getGravatarUrl } from "../services/gravatarService";
 import LanguageBar from "../components/Dashboard/LanguageBar";
 import ActivityChart from "../components/Dashboard/ActivityChart";
 import ContributionGraph from "../components/Dashboard/ContributionGraph";
 import CommitTypeDistribution from "../components/Dashboard/CommitDistributionBar";
-import TestCoverageDonut from "../components/Dashboard/TestCoverageDonut";
+import CodeChurnChart from "../components/Dashboard/CodeChurnChart";
 import HourlyActivityChart from "../components/Dashboard/HourlyActivityChart";
 import HotspotsTable from "../components/Dashboard/HotspotsTable";
 import { UserProfileDialog } from "../components/Config/UserProfile";
 import { formatContributorName } from "../utils/user";
 import Dialog from "../components/ui/Dialog";
 import CommitsModalList from "../components/commits/CommitsModalList";
+import { CommitDetailsModal } from "../components/commits/CommitDetailsModal";
 import { useApp } from "../context/AppContext";
 
 declare module "solid-js" {
@@ -24,69 +24,73 @@ declare module "solid-js" {
     }
   }
 }
-let isFetchingCommits = false;
+
+const commitsSignature = (commits: any[]) => commits.map(commit => [
+  commit.hash,
+  commit.date,
+  commit.ref_names,
+  commit.parent_hashes,
+  commit.graph_symbol,
+].join("|")).join("\u0000");
+
+const DASHBOARD_COMMIT_LIMIT = 10_000;
+
+function DashboardPanel(props: { loading: boolean; class?: string; children: any }) {
+  return (
+    <div class={`container-branch-list relative ${props.class || ""}`}>
+      {props.children}
+      <Show when={props.loading}>
+        <div class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-gray-900/35 backdrop-blur-[1px]">
+          <i class="fa-solid fa-spinner animate-spin text-blue-400 text-xl"></i>
+        </div>
+      </Show>
+    </div>
+  );
+}
 
 export default function Dashboard(props: { repo: Repo; branch?: string, class?: string }) {
   const [commits, setCommits] = createSignal<any[]>([]);
   const [selectedCommits, setSelectedCommits] = createSignal<any[]>([]);
-  const [loading, setLoading] = createSignal(false);
+  const [commitsLoading, setCommitsLoading] = createSignal(false);
+  const [filesLoading, setFilesLoading] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
-  const [commitDetailsHeight, setCommitDetailsHeight] = createSignal(300);
   const [branchFiles, setBranchFiles] = createSignal<{path: string, size: number}[]>([]);
-  const [resizing, setResizing] = createSignal(false);
-  const [startDate, setStartDate] = createSignal("");
-  const [endDate, setEndDate] = createSignal("");
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
   const [showCommits, setShowCommits] = createSignal(false);
+  const [showCommitDetails, setShowCommitDetails] = createSignal(false);
   const [selectedUser, setSelectedUser] = createSignal({} as { name: string; email: string });
+  let isFetchingCommits = false;
+  let previousPath: string | undefined;
+  let previousBranch: string | undefined;
+  let previousRefsRevision: number | undefined;
+  let commitsRequestId = 0;
+  let filesRequestId = 0;
   const { t } = useApp();
   
-  // Estados para Paginação e Filtro
-  const [searchTerm, setSearchTerm] = createSignal("");
-  const [currentPage, setCurrentPage] = createSignal(1);
-  const itemsPerPage = 40;
-
-  const filteredCommits = createMemo(() => {
-    const term = searchTerm().toLowerCase();
-    const start = startDate() ? new Date(startDate()) : null;
-    const end = endDate() ? new Date(endDate()) : null;
-
-    return commits().filter(c => {
-      // 1. Filtro de Texto
-      const matchesText = !term || 
-        c.message.toLowerCase().includes(term) || 
-        c.hash.toLowerCase().includes(term) ||
-        c.author.toLowerCase().includes(term);
-
-      // 2. Filtro de Data
-      const commitDate = new Date(c.date);
-      let matchesDate = true;
-      
-      if (start) {
-        matchesDate = matchesDate && commitDate >= start;
-      }
-      if (end) {
-        // Adicionamos 23:59:59 para garantir que pegue o dia final inteiro
-        const endWithTime = new Date(end);
-        endWithTime.setHours(23, 59, 59, 999);
-        matchesDate = matchesDate && commitDate <= endWithTime;
-      }
-
-      return matchesText && matchesDate;
-    });
-  });
+  let pendingCommitsRefresh = false;
 
   const loadCommits = async (isNewBranch: boolean) => {
-    if (!props.repo.path || !props.branch || isFetchingCommits) return;
+    if (!props.repo.path || !props.branch) return;
+    if (isFetchingCommits) {
+      pendingCommitsRefresh = true;
+      return;
+    }
 
     isFetchingCommits = true;
-    if (isNewBranch) setLoading(true);
+    const requestId = ++commitsRequestId;
+    const requestPath = props.repo.path;
+    const requestBranch = props.branch.replace("* ", "");
+    setCommitsLoading(true);
 
     try {
-      const branchName = props.branch.replace("* ", "");
-      const res = await getCommits(props.repo.path, branchName);
-      
-      if (JSON.stringify(res) !== JSON.stringify(commits())) {
+      const res = await getCommits(requestPath, requestBranch, DASHBOARD_COMMIT_LIMIT);
+      const isCurrentRequest = requestId === commitsRequestId
+        && requestPath === props.repo.path
+        && requestBranch === props.branch.replace("* ", "");
+
+      if (!isCurrentRequest) return;
+
+      if (commitsSignature(res) !== commitsSignature(commits())) {
         setCommits(res);
       }
 
@@ -97,11 +101,18 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         }
       }
     } catch(e) {
-      const errorMessage = typeof e === 'string' ? e : String(e);
-      notify.error(t('error').load_commits, errorMessage);
+      if (requestId === commitsRequestId) {
+        const errorMessage = typeof e === 'string' ? e : String(e);
+        notify.error(t('error').load_commits, errorMessage);
+      }
     } finally {
-      setLoading(false);
       isFetchingCommits = false;
+      if (pendingCommitsRefresh) {
+        pendingCommitsRefresh = false;
+        void loadCommits(false);
+      } else if (requestId === commitsRequestId) {
+        setCommitsLoading(false);
+      }
     }
   };
 
@@ -110,44 +121,57 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
     setSelectedCommit({ ...details, _ts: Date.now() });
   }
 
-  createEffect(on(() => [props.repo.path, props.branch], async ([path, branch], prev) => {
-    const isNewRepoOrBranch = !prev || path !== prev[0] || branch !== prev[1];
-    
-    if (isNewRepoOrBranch) {
-       setCurrentPage(1);
-       setSelectedCommit(null);
-       loadCommits(true);
-       getFiles();
-    } else {
-       loadCommits(false);
-    }
-  }));
-
-  const getFiles = async () => {
-    if (!props.repo.path || !props.branch) return;
+  const openCommitDetails = async (hash: string) => {
     try {
-      const files = await listBranchFilesWithSize(props.repo.path, props.branch);
-      const mappedFiles = files.map(f => ({ path: f[0], size: f[1] }));
-      setBranchFiles(mappedFiles);
-    } catch (e) {
-      console.error("Erro ao carregar arquivos do branch:", e);
-      notify.error(t('error').load_file, String(e));
-    }
-  }
-
-  const handleFocus = () => {
-    if (document.visibilityState === "visible") {
-      loadCommits(false);
+      await selectCommit(hash);
+      setShowCommitDetails(true);
+    } catch (error) {
+      notify.error(t("error").load_commits, String(error));
     }
   };
 
-  window.addEventListener("focus", handleFocus);
-  onCleanup(() => window.removeEventListener("focus", handleFocus));
+  createEffect(() => {
+    const path = props.repo.path;
+    const branch = props.branch;
+    const refsRevision = props.repo.refsRevision;
+    const isNewRepoOrBranch = previousPath === undefined || path !== previousPath || branch !== previousBranch;
+    const refsChanged = previousRefsRevision !== undefined && refsRevision !== previousRefsRevision;
 
-  function onMouseMove(e: MouseEvent) {
-    if (resizing()) {
-      const newHeight = window.innerHeight - e.clientY - 20;
-      setCommitDetailsHeight(Math.max(150, newHeight));
+    if (isNewRepoOrBranch) {
+      setSelectedCommit(null);
+      setCommits([]);
+      setBranchFiles([]);
+      void Promise.all([loadCommits(true), getFiles()]);
+    } else if (refsChanged) {
+      void Promise.all([loadCommits(false), getFiles()]);
+    }
+
+    previousPath = path;
+    previousBranch = branch;
+    previousRefsRevision = refsRevision;
+  });
+
+  const getFiles = async () => {
+    if (!props.repo.path || !props.branch) return;
+
+    const requestId = ++filesRequestId;
+    const requestPath = props.repo.path;
+    const requestBranch = props.branch;
+    setFilesLoading(true);
+
+    try {
+      const files = await listBranchFilesWithSize(requestPath, requestBranch);
+      if (requestId !== filesRequestId || requestPath !== props.repo.path || requestBranch !== props.branch) return;
+
+      const mappedFiles = files.map(f => ({ path: f[0], size: f[1] }));
+      setBranchFiles(mappedFiles);
+    } catch (e) {
+      if (requestId === filesRequestId) {
+        console.error("Erro ao carregar arquivos do branch:", e);
+        notify.error(t('error').load_file, String(e));
+      }
+    } finally {
+      if (requestId === filesRequestId) setFilesLoading(false);
     }
   }
 
@@ -179,46 +203,45 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
   const topContributors = createMemo(() => contributorStats().slice(0, 100));
 
   return (
-    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container"
-         onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
+    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container">
       <div class="grid grid-cols-4 grid-rows-3 gap-4 w-full h-full pl-4 bg-gray-200 dark:bg-gray-900">
-  
+
         <div class="grid grid-cols-2 grid-rows-2 gap-2">
-          <div class="container-branch-list items-center justify-center">
+          <DashboardPanel loading={commitsLoading()} class="items-center justify-center">
             <span class="text-xs uppercase opacity-60">{t('dashboard').total_commits}</span>
             <h3 class="font-bold !text-5xl mb-2">{commits()?.length}</h3>
-          </div>
-          <div class="container-branch-list items-center justify-center">
+          </DashboardPanel>
+          <DashboardPanel loading={false} class="items-center justify-center">
             <span class="text-xs uppercase opacity-60">{t('dashboard').total_branches}</span>
             <h3 class="font-bold !text-5xl mb-2">{props.repo.remoteBranches?.length}</h3>
-          </div>
-          <div class="container-branch-list items-center justify-center">
+          </DashboardPanel>
+          <DashboardPanel loading={commitsLoading()} class="items-center justify-center">
             <span class="text-xs uppercase opacity-60">{t('dashboard').contributors}</span>
             <h3 class="font-bold !text-5xl">{totalContributors()}</h3>
-          </div>
-          <div class="container-branch-list items-center justify-center">
+          </DashboardPanel>
+          <DashboardPanel loading={filesLoading()} class="items-center justify-center">
             <span class="text-xs uppercase opacity-60">{t('dashboard').total_files}</span>
             <h3 class="font-bold !text-5xl mb-2">{branchFiles()?.length}</h3>
-          </div>
+          </DashboardPanel>
         </div>
 
-        <div class="col-span-2 container-branch-list">
+        <DashboardPanel loading={commitsLoading()} class="col-span-2">
           <ContributionGraph commits={commits()} openCommits={openModalWithCommits} />
-        </div>
+        </DashboardPanel>
 
-        <div class="row-span-2 container-branch-list">
-          <HotspotsTable path={props.repo.path} branch={props.branch || ""} />
-        </div>
+        <DashboardPanel loading={false} class="row-span-2">
+          <HotspotsTable path={props.repo.path} branch={props.branch || ""} repo={props.repo} selectCommit={selectCommit} />
+        </DashboardPanel>
 
-        <div class="col-span-2 container-branch-list">
+        <DashboardPanel loading={commitsLoading()} class="col-span-2">
           <ActivityChart commits={commits()} openCommits={openModalWithCommits} />
-        </div>
+        </DashboardPanel>
 
-        <div class="container-branch-list">
+        <DashboardPanel loading={filesLoading()}>
           <LanguageBar files={branchFiles()} />
-        </div>
+        </DashboardPanel>
 
-        <div class="container-branch-list">
+        <DashboardPanel loading={commitsLoading()}>
           <h4 class="font-bold mb-0 flex items-center gap-2">
             <i class="fa-solid fa-trophy text-yellow-500"></i>
             {t('dashboard').top_contributors}
@@ -266,29 +289,35 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
               </tbody>
             </table>
           </div>
-        </div>
+        </DashboardPanel>
 
-        <div class="container-branch-list">
+        <DashboardPanel loading={commitsLoading()}>
           <HourlyActivityChart commits={commits()} />
-        </div>
+        </DashboardPanel>
 
-        <div class="container-branch-list">
-          <TestCoverageDonut path={props.repo.path} branch={props.branch || ""} />
-        </div>
+        <DashboardPanel loading={false}>
+          <CodeChurnChart path={props.repo.path} branch={props.branch || ""} />
+        </DashboardPanel>
 
-        <div class="container-branch-list">
-          <CommitTypeDistribution commits={commits()} /> 
-        </div>
+        <DashboardPanel loading={commitsLoading()}>
+          <CommitTypeDistribution commits={commits()} />
+        </DashboardPanel>
 
       </div>
       <Show when={modalUserProfileOpen()}>
-        <Dialog open={modalUserProfileOpen()} 
+        <Dialog
+            open={modalUserProfileOpen()}
             onClose={() => {
               setModalUserProfileOpen(false)
               setSelectedUser({ name: "", email: "" });
-            }} title={t('auth').user_profile} width={"90vw"}>
+            }}
+            title={t('auth').user_profile}
+            icon="fa-solid fa-user"
+            iconColor="text-indigo-600 dark:text-indigo-300"
+            width={"90vw"}
+        >
           <UserProfileDialog 
-            repoPath={props.repo.path || ""} 
+            repo={props.repo} 
             branch={props.branch || ""}
             email={selectedUser()?.email || ""}
             fallbackName={formatContributorName(selectedUser()?.name) || "Usuário Desconhecido"} 
@@ -305,10 +334,38 @@ export default function Dashboard(props: { repo: Repo; branch?: string, class?: 
         <Dialog 
           open={showCommits()} 
           onClose={() => setShowCommits(false)} 
-          title="Histórico de Alterações"
+          title={t('file').changes_history}
+          icon="fa-solid fa-clock-rotate-left"
+          iconColor="text-blue-600 dark:text-blue-300"
           width="550px" bodyClass="p-0"
         >
-          <CommitsModalList commits={selectedCommits()} />
+          <CommitsModalList
+            commits={selectedCommits()}
+            onSelectCommit={(commit) => void openCommitDetails(commit.hash)}
+          />
+        </Dialog>
+      </Show>
+
+      <Show when={showCommitDetails()}>
+        <Dialog
+          open={showCommitDetails()}
+          onClose={() => setShowCommitDetails(false)}
+          title={t('commits').details}
+          icon="fa-solid fa-code-commit"
+          iconColor="text-purple-600 dark:text-purple-300"
+          panelClass="-translate-y-2"
+          bodyClass="h-full p-0"
+          width="calc(100vw - 40px)"
+          height="calc(100vh - 150px)"
+        >
+          <CommitDetailsModal
+            commit={selectedCommit()}
+            repo={props.repo}
+            branch={props.branch}
+            openParent={true}
+            openProfile={true}
+            selectCommit={openCommitDetails}
+          />
         </Dialog>
       </Show>
     </div>

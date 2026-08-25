@@ -102,6 +102,8 @@ export default function UserConfigModal(props: UserConfigModalProps) {
       open={props.isOpen} 
       onClose={props.onClose} 
       title={t('repository').config_repository}
+      icon="fa-solid fa-sliders"
+      iconColor="text-blue-600 dark:text-blue-300"
       bodyClass="p-0"
       width={'600px'}
     >

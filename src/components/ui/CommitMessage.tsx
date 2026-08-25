@@ -8,27 +8,56 @@ interface Props {
   onClickCard?: (cardId: string) => void;
 }
 
-const CommitMessage = (props: Props) => {
-  const parsed = createMemo(() => {
-    const msg = props.message || "";
+interface ParsedCommitMessage {
+  isMerge: boolean;
+  mergeLabel?: string;
+  branchName?: string;
+  type?: string | null;
+  scope?: string | null;
+  mainContent?: string;
+  fullMessage?: string;
+}
 
-    // Lógica para Merges
-    if (msg.startsWith("Merge branch") || msg.startsWith("Merge remote-tracking branch")) {
-      const branchName = msg.match(/'([^']+)'/)?.[1] || "branch";
-      return { isMerge: true, branchName };
+const CommitMessage = (props: Props) => {
+  const parsed = createMemo<ParsedCommitMessage>(() => {
+    const msg = (props.message || "").trim();
+
+    const pullRequestMatch = msg.match(/^Merge pull request\s+#?(\d+)\s+from\s+(.+)$/i);
+    if (pullRequestMatch) {
+      return {
+        isMerge: true,
+        mergeLabel: `PR #${pullRequestMatch[1]}`,
+        branchName: pullRequestMatch[2],
+      };
     }
 
-    // Regex para capturar Tag e Conteúdo
-    const tagRegex = /^(\w+)(?:\(([^)]+)\))?:\s*(.*)$/;
-    const tagMatch = msg.match(tagRegex);
+    const providerPullRequestMatch = msg.match(/^Merged?\s+PR\s+#?(\d+)\s*:?\s*(.*)$/i);
+    if (providerPullRequestMatch) {
+      return {
+        isMerge: true,
+        mergeLabel: `PR #${providerPullRequestMatch[1]}`,
+        branchName: providerPullRequestMatch[2] || "pull request",
+      };
+    }
+
+    const branchMergeMatch = msg.match(/^Merge (?:remote-tracking )?branch\s+'([^']+)'/i);
+    if (branchMergeMatch) {
+      return {
+        isMerge: true,
+        mergeLabel: "branch",
+        branchName: branchMergeMatch[1],
+      };
+    }
+
+    // Aceita tanto "feat(scope): mensagem" quanto "feat: (scope): mensagem".
+    const malformedTagMatch = msg.match(/^([\w-]+)\s*:\s*\(([^)]+)\)\s*:?[ \t]*(.*)$/);
+    const conventionalTagMatch = msg.match(/^([\w-]+)(?:\(([^)]+)\))?\s*:\s*(.*)$/);
+    const tagMatch = malformedTagMatch || conventionalTagMatch;
 
     let type = tagMatch ? tagMatch[1] : null;
-
     if (type) {
       const lowerType = type.toLowerCase();
-      if (TAG_MAPPING[lowerType]) {
-        type = TAG_MAPPING[lowerType];
-      }
+      type = TAG_MAPPING[lowerType] || lowerType;
     }
 
     return {
@@ -36,7 +65,7 @@ const CommitMessage = (props: Props) => {
       type,
       scope: tagMatch ? tagMatch[2] : null,
       mainContent: tagMatch ? tagMatch[3] : msg,
-      fullMessage: msg
+      fullMessage: msg,
     };
   });
 
@@ -65,9 +94,10 @@ const CommitMessage = (props: Props) => {
       <Show 
         when={!parsed().isMerge} 
         fallback={
-          <div class="font-mono text-sm">
-            <span class="text-fuchsia-500 dark:text-fuchsia-400 font-bold">merge:</span>
-            <span> from {parsed().branchName}</span>
+          <div class="flex min-w-0 items-center gap-1 font-mono text-sm">
+            <span class="shrink-0 font-bold text-fuchsia-500 dark:text-fuchsia-400">merge:</span>
+            <span class="shrink-0">{parsed().mergeLabel}</span>
+            <span class="truncate text-gray-600 dark:text-gray-300">· {parsed().branchName}</span>
           </div>
         }
       >

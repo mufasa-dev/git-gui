@@ -5,7 +5,13 @@
 @tailwind utilities;
 
 html {
-  @apply text-base;
+  @apply h-full text-base;
+}
+
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
 }
 
 @layer components {
@@ -44,9 +50,9 @@ html {
   }
 
   .cm-commit-item {
-    @apply flex items-center cursor-pointer
-          px-4 py-2 mb-2 mr-1
-          rounded-xl
+    @apply grid items-center cursor-pointer
+          px-3 py-2 mb-[5px]
+          rounded-xl h-[30px]
 
           bg-gray-200 dark:bg-slate-800/60
           border border-white/5
@@ -54,6 +60,171 @@ html {
           dark:text-gray-200
 
           transition-all duration-200;
+    grid-template-columns: 4.5rem minmax(0, 1fr) minmax(8rem, 12rem) minmax(6.5rem, 10rem);
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .commit-hash-cell,
+  .commit-date-cell,
+  .commit-author-cell,
+  .commit-message-cell {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .commit-hash-cell {
+    @apply text-sm font-mono opacity-80;
+  }
+
+  .commit-message-cell {
+    @apply flex h-full min-w-0 items-center px-2;
+  }
+
+  .commit-message-text {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .commit-message-text > div {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .commit-tags {
+    @apply ml-2 flex min-w-0 max-w-[42%] shrink-0 items-center gap-1;
+    overflow: hidden;
+  }
+
+  .commit-tag {
+    @apply min-w-0 max-w-[7rem] truncate rounded bg-green-500/20 px-1 font-mono text-[9px] text-green-600 dark:text-green-300;
+  }
+
+  .commit-author-cell {
+    @apply flex items-center gap-2 text-xs;
+  }
+
+  .commit-date-cell {
+    @apply px-2 text-right text-xs;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .commits-toolbar {
+    @apply flex min-w-0 flex-wrap items-center gap-2 p-1;
+  }
+
+  .commit-search {
+    @apply rounded-xl border border-gray-300 bg-white/70 px-3 py-1.5 shadow-sm transition-colors dark:border-gray-700 dark:bg-gray-900/40;
+  }
+
+  .commit-search:focus-within {
+    @apply border-blue-500 ring-2 ring-blue-500/20;
+  }
+
+  .commit-search input {
+    @apply min-w-0 flex-1 bg-transparent text-sm outline-none;
+  }
+
+  .commit-date-filter {
+    @apply flex shrink-0 items-center gap-2 rounded-xl border border-gray-300 bg-white/70 px-2 py-1.5 shadow-sm dark:border-gray-700 dark:bg-gray-900/40;
+  }
+
+  .commit-date-field {
+    @apply flex items-center gap-1.5;
+  }
+
+  .commit-date-field span {
+    @apply text-[10px] font-bold uppercase tracking-wide text-gray-400;
+  }
+
+  .commit-date-field input {
+    @apply w-[8.5rem] rounded-lg border border-gray-200 bg-transparent px-2 py-1 text-xs text-gray-700 outline-none transition-colors dark:border-gray-700 dark:text-gray-200;
+  }
+
+  .commit-date-field input:focus {
+    @apply border-blue-500 ring-1 ring-blue-500/30;
+  }
+
+  .commit-date-separator {
+    @apply text-xs text-gray-400;
+  }
+
+  .commit-clear-filter,
+  .commit-page-button {
+    @apply flex h-7 w-7 items-center justify-center rounded-lg border-0 bg-transparent p-0 text-gray-400 shadow-none transition-colors hover:bg-gray-200 hover:text-blue-500 dark:hover:bg-gray-700;
+  }
+
+  .commit-list-meta {
+    @apply flex min-w-0 items-center justify-between gap-3 px-1 pb-1 text-xs;
+  }
+
+  .commit-pagination {
+    @apply flex shrink-0 items-center gap-2 text-gray-500;
+  }
+
+  .commit-page-button:disabled {
+    @apply cursor-not-allowed opacity-30;
+  }
+
+  .commit-list-viewport {
+    @apply flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden;
+  }
+
+  .commit-graph-column {
+    @apply sticky left-0 z-10 min-w-0 shrink-0;
+    height: max-content;
+    overflow: visible;
+  }
+
+  .commit-rows {
+    @apply min-w-0 flex-1;
+    min-height: max-content;
+    overflow: visible;
+  }
+
+  @media (max-width: 850px) {
+    .cm-commit-item {
+      grid-template-columns: 4rem minmax(0, 1fr) minmax(6.5rem, 9rem) 6.5rem;
+    }
+
+    .commit-date-field span {
+      display: none;
+    }
+
+    .commit-date-field input {
+      width: 7.5rem;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .cm-commit-item {
+      grid-template-columns: 4rem minmax(0, 1fr) 6.5rem;
+    }
+
+    .commit-author-cell {
+      display: none;
+    }
+
+    .commit-date-filter {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .commit-date-field {
+      flex: 1 1 0;
+    }
+
+    .commit-date-field input {
+      width: 100%;
+    }
   }
 
   .cm-commit-item:hover {
@@ -150,7 +321,7 @@ html {
 
   .table-striped thead tr {
     @apply border-b border-gray-300 bg-gray-200 
-           dark:border-gray-700 dark:bg-gray-800; /* Ajustei para bg-gray-800 no dark para contrastar melhor */
+           dark:border-gray-700 dark:bg-gray-800;
   }
 
   .table-striped th {

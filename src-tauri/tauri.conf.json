@@ -59,12 +59,9 @@
   },
   "plugins": {
     "deep-link": {
-      "protocols": [
-        {
-          "scheme": "dev-brook",
-          "role": "viewer"
-        }
-      ]
+      "desktop": {
+        "schemes": ["dev-brook"]
+      }
     },
     "shell": {
       "open": true

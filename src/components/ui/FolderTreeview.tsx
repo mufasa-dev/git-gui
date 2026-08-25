@@ -90,14 +90,7 @@ function TreeNode(props: {
   } ) {
   const [open, setOpen] = createSignal(props.defaultOpen ?? true);
 
-  const sortedChildren = () => props.sortFn(Object.entries(props.node.__children || {}));
-
-  const entries = () =>
-    Object.entries(props.node.__children || {}).concat(
-      props.node.__isFile ? [[props.name, props.node]] : []
-    );
-
-  const toggle = (e: MouseEvent) => {
+  const toggle = () => {
     if (props.selectMode === "single") {
       const currentlySelected = props.selected.includes(props.path);
       props.onToggle(props.path, !currentlySelected, props.node.__isFile);

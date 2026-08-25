@@ -27,16 +27,18 @@ import { PRWorkItemsList } from "./PRWorkItemsList";
 interface PRDetailViewProps {
   pr: any;
   owner: string;
+  project: string;
   repo: Repo;
   branch?: string;
   provider: GitProvider;
+  remoteUrl: string;
   onMergeSuccess: (prNumber: number) => void;
   onAbandonSuccess: (prNumber: number) => void;
   onReactivateSuccess: (prNumber: number) => void;
 }
 
 export default function PRDetailView(props: PRDetailViewProps) {
-  const [activeTab, setActiveTab] = createSignal("Visão Geral");
+  const [activeTab, setActiveTab] = createSignal("overview");
   const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
@@ -57,10 +59,10 @@ export default function PRDetailView(props: PRDetailViewProps) {
   const { t, locale } = useApp();
   
   const [details, { refetch }] = createResource(
-    () => ({ owner: props.owner, name: props.repo.name, number: props.pr.number, provider: props.provider }),
+    () => ({ owner: props.owner, project: props.project, name: props.repo.name, number: props.pr.number, provider: props.provider }),
     async (p) => {
       if (p.provider === 'azure') {
-        return await azureService.getPullRequestDescription(p.owner, p.name, p.number);
+        return await azureService.getPullRequestDescription(p.owner, p.name, p.number, props.project);
       }
       let data = await githubService.getPullRequestDescription(p.owner, p.name, p.number);
       const nodes = data.closingIssuesReferences?.nodes || [];
@@ -375,6 +377,20 @@ export default function PRDetailView(props: PRDetailViewProps) {
           </h1>
           
           <div class="flex items-center gap-2">
+            <button
+              onClick={copyPullRequestUrl}
+              title={isPrUrlCopied() ? t('pr').pr_url_copied : t('pr').copy_link}
+              aria-label={t('pr').copy_link}
+              class="group inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/30 dark:hover:text-blue-300 active:scale-95"
+              classList={{
+                "border-emerald-400 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-300": isPrUrlCopied(),
+              }}
+            >
+              <Show when={isPrUrlCopied()} fallback={<i class="fa-regular fa-copy text-[11px]" />}>
+                <i class="fa-solid fa-check text-[11px]" />
+              </Show>
+              <span class="hidden xl:inline">{isPrUrlCopied() ? t('pr').pr_url_copied : t('pr').copy_link}</span>
+            </button>
             <Switch>
               {/* 🚀 1. STATUS PRIORITÁRIO: SE FOR ABANDONADO NA AZURE, TRAVA AQUI */}
               <Match when={props.pr.state === "ABANDONED" && props.provider === "azure"}>
@@ -424,11 +440,17 @@ export default function PRDetailView(props: PRDetailViewProps) {
                   <span class="text-[10px] font-bold text-red-500 uppercase tracking-tight">
                     {t('pr').has_conflicts}
                   </span>
-                  <button 
-                    onClick={() => setActiveTab('Files')} 
+                  <button
+                    onClick={() => setShowConflictResolver(true)}
                     class="bg-red-500 text-white px-3 py-1 rounded text-[9px] font-black uppercase hover:bg-red-600 transition-all"
                   >
                     {t('merge').resolve_conflicts}
+                  </button>
+                  <button
+                    onClick={openProviderPage}
+                    class="border border-red-500/40 text-red-500 px-3 py-1 rounded text-[9px] font-black uppercase hover:bg-red-500/10 transition-all"
+                  >
+                    {t('merge').open_provider_conflicts}
                   </button>
                 </div>
               </Match>
@@ -602,7 +624,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                   provider={props.provider}
                 />
               </Match>
-              <Match when={activeTab() === 'Commits'}>
+              <Match when={activeTab() === 'commits'}>
                 <PRCommitsView 
                   owner={props.owner} 
                   repoName={props.repo.name} 
@@ -611,7 +633,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
                   provider={props.provider}
                 />
               </Match>
-              <Match when={activeTab() === 'Checks'}>
+              <Match when={activeTab() === 'checks'}>
                 <PRChecksView
                   owner={props.owner} 
                   repoName={props.repo.name} 
@@ -676,6 +698,8 @@ export default function PRDetailView(props: PRDetailViewProps) {
       {/* DIALOGS */}
       <Dialog open={showModalCommitDetails()}
               title={t('commits').details}
+              icon="fa-solid fa-code-commit"
+              iconColor="text-purple-600 dark:text-purple-300"
               onClose={() => setModalCommitDetails(false)}
               bodyClass="p-0 h-full"
               width={'calc(100vw - 40px)'}
@@ -693,13 +717,19 @@ export default function PRDetailView(props: PRDetailViewProps) {
       </Dialog>
       
       <Show when={modalUserProfileOpen()}>
-        <Dialog open={modalUserProfileOpen()} 
+        <Dialog
+            open={modalUserProfileOpen()}
             onClose={() => {
               setModalUserProfileOpen(false);
               setSelectedUser({ name: "", email: "" });
-            }} title={t('auth').user_profile} width={"90vw"}>
+            }}
+            title={t('auth').user_profile}
+            icon="fa-solid fa-user"
+            iconColor="text-indigo-600 dark:text-indigo-300"
+            width={"90vw"}
+        >
           <UserProfileDialog 
-            repoPath={props.repo.path || ""} 
+            repo={props.repo} 
             branch={props.branch || ""}
             email={selectedUser()?.email || ""}
             fallbackName={formatContributorName(selectedUser()?.name) || "Usuário Desconhecido"} 

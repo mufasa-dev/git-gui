@@ -5,6 +5,19 @@
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
 }
 
+.flatpickr-calendar.dark .flatpickr-innerContainer,
+.flatpickr-calendar.dark .flatpickr-rContainer,
+.flatpickr-calendar.dark .flatpickr-weekdays,
+.flatpickr-calendar.dark .flatpickr-days {
+  background: #0f172a !important;
+}
+
+.flatpickr-calendar.dark .flatpickr-day:hover,
+.flatpickr-calendar.dark .flatpickr-day:focus {
+  background: #1e293b !important;
+  border-color: #3b82f6 !important;
+}
+
 /* 2. O cabeçalho (mês e ano) */
 .flatpickr-calendar.dark .flatpickr-months,
 .flatpickr-calendar.dark .flatpickr-month,

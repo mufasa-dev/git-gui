@@ -131,7 +131,14 @@ export default function Titlebar() {
         </button>
       </div>
       <Show when={showProfileModal()}>
-        <Dialog open={showProfileModal()} onClose={() => setShowProfileModal(false)} title={t('auth').user_profile} width="400px">
+        <Dialog
+          open={showProfileModal()}
+          onClose={() => setShowProfileModal(false)}
+          title={t('auth').user_profile}
+          icon="fa-solid fa-user"
+          iconColor="text-indigo-600 dark:text-indigo-300"
+          width="400px"
+        >
           <ProfileModal />
         </Dialog>
       </Show>

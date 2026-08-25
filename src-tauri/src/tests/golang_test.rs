@@ -1,13 +1,14 @@
-use tauri::{Manager, AppHandle, Emitter};
-use std::process::{Command, Stdio};
-use std::io::{BufRead, BufReader};
-use std::thread;
-use std::fs;
-use std::path::Path;
-use serde::Serialize;
-use regex::Regex;
-use walkdir::WalkDir;
 use crate::models::test::{TestCase, TestFile};
+use regex::Regex;
+use serde::Serialize;
+use std::fs;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
+use std::process::{Command, Stdio};
+use std::thread;
+use tauri::{AppHandle, Emitter, Manager};
+use walkdir::WalkDir;
+use super::process::{clear_process, take_stdout, track_child, wait_for_exit};
 
 #[derive(Clone, Serialize)]
 pub struct Payload {
@@ -19,14 +20,15 @@ pub struct Payload {
 
 #[tauri::command]
 pub async fn run_go_tests(
-    app: AppHandle, 
-    project_path: String, 
+    app: AppHandle,
+    project_path: String,
     test_file: Option<String>,
-    test_name: Option<String>
+    test_name: Option<String>,
 ) -> Result<String, String> {
-    let window = app.get_webview_window("main")
+    let window = app
+        .get_webview_window("main")
         .ok_or_else(|| "Janela principal não encontrada".to_string())?;
-    
+
     let window_clone = window.clone();
 
     thread::spawn(move || {
@@ -58,7 +60,7 @@ pub async fn run_go_tests(
                 } else {
                     format!(".*/{}", name)
                 };
-                
+
                 // Remove espaços extras que possam quebrar a regex do terminal
                 run_filter = Some(clean_name.replace(" ", ""));
             }
@@ -66,7 +68,7 @@ pub async fn run_go_tests(
 
         // Monta a string do comando base do Go com JSON stream ativo
         let mut cmd_string = format!("go test {} -v -json", target_dir);
-        
+
         if let Some(filter) = run_filter {
             cmd_string = format!("go test {} -v -json -run \"{}\"", target_dir, filter);
         }
@@ -78,7 +80,8 @@ pub async fn run_go_tests(
         };
 
         let mut command = Command::new(shell);
-        command.args([arg, &cmd_string])
+        command
+            .args([arg, &cmd_string])
             .current_dir(&project_path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -91,30 +94,39 @@ pub async fn run_go_tests(
         }
 
         println!("[Git River] Executando comando Go: {}", cmd_string);
-        let mut child = command.spawn().expect("Falha ao iniciar go test");
+        let child = command.spawn().expect("Falha ao iniciar go test");
+        let process = track_child(child);
 
-        let stdout = child.stdout.take().unwrap();
+        let stdout = take_stdout(&process).expect("Falha ao capturar stdout").expect("stdout ausente");
         let reader = BufReader::new(stdout);
 
         for line in reader.lines() {
             if let Ok(l) = line {
-                let _ = window_clone.emit("test-event", Payload { 
-                    file: "GO_JSON".into(), 
-                    status: "running".into(), 
-                    name: l, 
-                    error: None 
-                });
+                let _ = window_clone.emit(
+                    "test-event",
+                    Payload {
+                        file: "GO_JSON".into(),
+                        status: "running".into(),
+                        name: l,
+                        error: None,
+                    },
+                );
             }
         }
 
-        let _ = child.wait();
+        let process_result = wait_for_exit(&process).ok();
+        clear_process(&process);
+        let was_stopped = process_result.as_ref().map(|result| result.stopped).unwrap_or(false);
 
-        let _ = window_clone.emit("test-event", Payload { 
-            file: "SYSTEM".into(), 
-            status: "finished".into(), 
-            name: "PROCESS_FINISHED".into(), 
-            error: None 
-        });
+        let _ = window_clone.emit(
+            "test-event",
+            Payload {
+                file: "SYSTEM".into(),
+                status: "finished".into(),
+                name: if was_stopped { "PROCESS_STOPPED" } else { "PROCESS_FINISHED" }.into(),
+                error: None,
+            },
+        );
     });
 
     Ok("Execução Go iniciada".into())
@@ -125,7 +137,8 @@ pub async fn get_go_test_files(project_path: String) -> Result<Vec<TestFile>, St
     let mut test_files = Vec::new();
 
     // Regex para capturar funções de teste principais: func TestNome(t *testing.T)
-    let test_func_re = Regex::new(r"func\s+(Test[A-Za-z0-9_]+)\s*\(\s*[A-Za-z0-9_]+\s+\*testing\.T\s*\)").unwrap();
+    let test_func_re =
+        Regex::new(r"func\s+(Test[A-Za-z0-9_]+)\s*\(\s*[A-Za-z0-9_]+\s+\*testing\.T\s*\)").unwrap();
     // Regex para capturar t.Run("SubTeste", ...) suportando aspas normais ou crases de Go
     let t_run_re = Regex::new(r#"t\.Run\s*\(\s*['"\x60](.*?)['"\x60]"#).unwrap();
 
@@ -141,7 +154,8 @@ pub async fn get_go_test_files(project_path: String) -> Result<Vec<TestFile>, St
 
             // Encontra a função de teste principal no arquivo para usar como o nome da Suíte
             // Go costuma ter uma única função principal ou poucas por arquivo.
-            let suite_name = test_func_re.captures(&content)
+            let suite_name = test_func_re
+                .captures(&content)
                 .map(|cap| cap[1].to_string())
                 .unwrap_or_else(|| "Unknown Go Suite".to_string());
 
@@ -169,7 +183,11 @@ pub async fn get_go_test_files(project_path: String) -> Result<Vec<TestFile>, St
             test_files.push(TestFile {
                 name: path.file_name().unwrap().to_string_lossy().into(),
                 path: relative_clean,
-                label: path.file_stem().unwrap().to_string_lossy().replace("_test", ""),
+                label: path
+                    .file_stem()
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace("_test", ""),
                 tests: found_tests,
             });
         }

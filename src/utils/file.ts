@@ -91,18 +91,26 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   java: "Java",
   jsp: "Java",
   rb: "Ruby",
+<<<<<<< HEAD
   rbx: "Ruby",
+=======
+  godot: "GDScript",
+>>>>>>> simple_fix
   gd: "GDScript",
-  tscn: "Godot Scene",
-  tres: "Godot Resource",
-  uid: "Godot Resource",
+  tscn: "Scene",
+  res: "Resource",
+  tres: "Resource",
+  uid: "Resource",
+  gdshader: "Resource",
   cfg: "Config",
   cs: "C#",
   csproject: "C#",
+  vcxproj: "C#",
   csproj: "C#",
   cshtml: "C#",
   razor: "C#",
   sln: "C#",
+  slnx: "C#",
   cpp: "C++",
   hpp: "C++",
   h: "C++",
@@ -129,6 +137,11 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   svelte: "Svelte",
   vue: "Vue",
   astro: "Astro",
+  // Assembly
+  asm: "Assembly",
+  wasm: "WebAssembly",
+  wat: "WebAssembly",
+  wast: "WebAssembly",
   // Styles
   css: "CSS",
   sass: "CSS",
@@ -139,6 +152,11 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   htm: "HTML",
   htc: "HTML",
   ghtml: "HTML",
+<<<<<<< HEAD
+=======
+  hbs: "HTML",
+  php: "PHP",
+>>>>>>> simple_fix
   makefile: "MakeFile",
   dockerfile: "Dockerfile",
   graphql: "GraphQL",
@@ -161,7 +179,8 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   config: "Config",
   conf: "Config",
   settings: "Config",
-  asa: "Config"
+  asa: "Config",
+  properties: "Config"
 };
 
 export const INFERENCE_RULES: Record<string, string[]> = {
@@ -262,8 +281,8 @@ export const GROUP_COLORS: Record<string, string> = {
   "Julia": "#f3705a",
   "Lua": "#000080",
   "GDScript": "#355570",
-  "Godot Scene": "#eb5555",
-  "Godot Resource": "#eb5555",
+  "Scene": "#8e7cc3",
+  "Resource": "#41b375",
   "Svelte": "#ff3e00",
   "Vue": "#2c3e50",
   "Astro": "#ff5a03",
@@ -279,26 +298,55 @@ export const GROUP_COLORS: Record<string, string> = {
   "Adobe Flash": "#f7e03d",
   "Adobe Photoshop": "#3a86ff",
   "Json": "#51aff7",
+  "Assembly": "#3053a5",
+  "WebAssembly": "#5d58ea",
   "Coffee": "#6f4c3e",
-  "Config": "#8b949e",
+  "Config": "#555555",
   "Other": "#8b949e"
 };
 
 // --- LISTA NEGRA: Extensões que NÃO devem aparecer no gráfico ---
 export const IGNORED_EXTENSIONS = [
   // Imagens
-  'png', 'icns', 'bmp', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp',
+  'png', 'icns', 'bmp', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp', 'glb', 'art', 'tpl',
   // Binários e outros
-  'exe', 'dll', 'so', 'lock', 'bin', 'ttf', 'woff', 'woff2', 'mp4', "mp3", 'avi', 'mov', 'zip', 'log', 'map',
+  'exe', 'dll', 'so', 'lock', 'bin', 'ttf', 'woff', 'woff2', 'mp4', "mp3", 'avi', 'mov', 'zip', 'log', 'map', 'brotli', 'br', 'mem',
   'pdf', 'docx', 'xlsx', 'DS_Store',  'yml', 'yaml', 'env', 'env.local', 'env.development', 'env.production',
   'md', 'markdown', 'txt', 'rtf', 'csv', 'tsv', 'log', 'lock', 'bin', 'iso', 'dmg', 'app', 'apk', 'jar', 'war', 'ear', 'txt', 'log',
+<<<<<<< HEAD
   'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'xaml', 'ds_store', 'nfo', 'def',
+=======
+  'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'ds_store', 'nfo', 'def', 'filters',
+>>>>>>> simple_fix
   // Configurações e Metadados
-  'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'cer', 'dep',
+  'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'http', 'dockerignore', 'dcproj', 'original', 'pubxml', 'cer', 'dep', 'babelrc', 'appcache',
   // Outros arquivos de configuração comuns
+<<<<<<< HEAD
   'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults', "example", "properties",
   'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload', "pro",
+=======
+  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults', 'example', 'rules',
+  'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload',
+>>>>>>> simple_fix
   'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc', 'ini', 'old', 'new', 'lic', 'log', 'bak', 'backup', 'temp', 'cache', 'dist', 'out', 'build', 'target', 'obj',
   // Godot
-  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', '.import'
+  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', 'depren'
 ];
+
+export const PREVIEW_MAX_BYTES = 2 * 1024 * 1024;
+export const PREVIEW_MAX_LINES = 1000;
+
+export const UNSUPPORTED_EXTENSIONS = [
+  '.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.bin', '.dll', '.so', '.dylib',
+  '.mp4', '.mkv', '.mov', '.mp3', '.ogg', '.wav', '.avi', '.webm',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.ds_store', '.ifc', '.bim', '.rvt', '.rfa', '.nwd', '.nwc',
+  '.blend', '.fbx', '.obj', '.gltf', '.glb', '.3d', '.3dm', '.3mf', '.x3d', '.3ds', '.max', '.ma', '.mb',
+  '.step', '.stp', '.iges', '.igs', '.dwg', '.dxf', '.e57', '.las', '.laz',
+  '.psd', '.ai', '.skp', '.dae', '.stl'
+];
+
+export function isUnsupportedPreviewFile(filename: string): boolean {
+  const normalized = filename.toLowerCase();
+  return UNSUPPORTED_EXTENSIONS.some(extension => normalized.endsWith(extension));
+}

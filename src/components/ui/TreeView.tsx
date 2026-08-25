@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { Branch } from "../../models/Banch.model";
 import { buildOpenMap } from "../../utils/tree";
 
@@ -19,6 +19,18 @@ export type TreeViewProps = {
   onSelectBranch?: (branch: string) => void;
   onActivateBranch?: (branch: string) => void;
   openContextMenu?: (e: MouseEvent, branch: string) => void;
+  enableBranchDrag?: boolean;
+  draggedBranch?: string | null;
+  dropTargetBranch?: string | null;
+  onBranchDragStart?: (e: DragEvent, branch: string) => void;
+  onBranchDragOver?: (e: DragEvent, branch: string) => void;
+  onBranchDrop?: (e: DragEvent, branch: string) => void;
+  onBranchDragEnd?: () => void;
+  onBranchPointerDown?: (e: PointerEvent, branch: string) => void;
+  onBranchPointerMove?: (e: PointerEvent, branch: string | null) => void;
+  onBranchPointerUp?: (e: PointerEvent, branch: string | null) => void;
+  onBranchPointerCancel?: () => void;
+  pathPrefix?: string;
 };
 
 export function buildTree(branches: Branch[]): TreeNodeMap {
@@ -54,8 +66,70 @@ export function buildTree(branches: Branch[]): TreeNodeMap {
   return tree;
 }
 
+function getFolderVisual(name: string, isOpen: boolean) {
+  const normalized = name.toLowerCase();
+
+  if (["hotfix", "bug", "bugs"].includes(normalized)) {
+    return { icon: "fa-bug", color: "text-red-500" };
+  }
+  if (["feature", "features"].includes(normalized)) {
+    return { icon: "fa-lightbulb", color: "text-yellow-400" };
+  }
+  if (["release", "releases"].includes(normalized)) {
+    return { icon: "fa-rocket", color: "text-purple-400" };
+  }
+  if (normalized === "origin") {
+    return { icon: "fa-cloud-arrow-up", color: "text-blue-400" };
+  }
+
+  return {
+    icon: isOpen ? "fa-folder-open" : "fa-folder",
+    color: "text-yellow-600",
+  };
+}
+
 export default function TreeView(props: TreeViewProps) {
-  const [open, setOpen] = createSignal<{ [key: string]: boolean }>(buildOpenMap(props.tree));
+  const pathPrefix = () => props.pathPrefix || "";
+  const [open, setOpen] = createSignal<{ [key: string]: boolean }>(
+    buildOpenMap(props.tree, pathPrefix()),
+  );
+
+  const getNodePath = (node: TreeNode) =>
+    pathPrefix() ? `${pathPrefix()}/${node.name}` : node.name;
+
+  const openSelectedAncestors = (
+    tree: TreeNodeMap,
+    selectedBranch: string,
+    prefix: string,
+    next: { [key: string]: boolean },
+  ) => {
+    for (const node of Object.values(tree)) {
+      if (!node.children) continue;
+
+      const nodePath = prefix ? `${prefix}/${node.name}` : node.name;
+      if (selectedBranch === nodePath || selectedBranch.startsWith(`${nodePath}/`)) {
+        next[nodePath] = true;
+        openSelectedAncestors(node.children, selectedBranch, nodePath, next);
+      }
+    }
+  };
+
+  createEffect(() => {
+    const tree = props.tree;
+    const selectedBranch = props.selectedBranch;
+    const prefix = pathPrefix();
+
+    setOpen((prev) => {
+      const next = { ...prev };
+      Object.keys(buildOpenMap(tree, prefix)).forEach((key) => {
+        if (!(key in next)) next[key] = true;
+      });
+      if (selectedBranch) {
+        openSelectedAncestors(tree, selectedBranch, prefix, next);
+      }
+      return next;
+    });
+  });
 
   const toggle = (key: string) => {
     setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -63,24 +137,62 @@ export default function TreeView(props: TreeViewProps) {
 
   const handleClick = (node: TreeNode) => {
     if (node.children) {
-      toggle(node.name);
+      toggle(getNodePath(node));
     } else {
       props.onSelectBranch?.(node.original);
     }
   };
-  
 
   return (
-    <ul class="ml-4 space-y-1">
+    <ul class="ml-4 min-w-0 space-y-1">
       {Object.values(props.tree).map((node) => {
         const isLeaf = !node.children;
+        const nodePath = getNodePath(node);
         const isActive = node.original === props.activeBranch;
         const isSelected = node.original === props.selectedBranch;
+        const isDragged = isLeaf && node.original === props.draggedBranch;
+        const isDropTarget = isLeaf && node.original === props.dropTargetBranch;
+        const folderVisual = getFolderVisual(node.name, !!open()[nodePath]);
         return (
             <li>
                 <div
-                  class={`cursor-pointer select-none flex items-center ${isSelected ? "font-bold text-green-600" : ""}`}
+                  class={`flex min-w-0 select-none items-center rounded-lg transition-colors ${props.enableBranchDrag && isLeaf ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${isSelected ? "font-bold text-green-600" : ""} ${isDropTarget ? "bg-blue-500/15 ring-1 ring-blue-500/60" : ""} ${isDragged ? "opacity-50" : ""}`}
+                  draggable={props.enableBranchDrag && isLeaf}
                   onClick={() => handleClick(node)}
+                  onDragStart={(e: DragEvent) => {
+                    if (props.enableBranchDrag && isLeaf) {
+                      props.onBranchDragStart?.(e, node.original);
+                    }
+                  }}
+                  onDragOver={(e: DragEvent) => {
+                    if (!props.enableBranchDrag || !isLeaf) return;
+                    e.preventDefault();
+                    props.onBranchDragOver?.(e, node.original);
+                  }}
+                  onDrop={(e: DragEvent) => {
+                    if (!props.enableBranchDrag || !isLeaf) return;
+                    e.preventDefault();
+                    props.onBranchDrop?.(e, node.original);
+                  }}
+                  onDragEnd={() => props.onBranchDragEnd?.()}
+                  onPointerDown={(e: PointerEvent) => {
+                    if (props.enableBranchDrag && isLeaf) {
+                      props.onBranchPointerDown?.(e, node.original);
+                    }
+                  }}
+                  onPointerMove={(e: PointerEvent) => {
+                    if (props.enableBranchDrag) {
+                      props.onBranchPointerMove?.(e, isLeaf ? node.original : null);
+                    }
+                  }}
+                  onPointerUp={(e: PointerEvent) => {
+                    if (props.enableBranchDrag) {
+                      props.onBranchPointerUp?.(e, isLeaf ? node.original : null);
+                    }
+                  }}
+                  onPointerCancel={() => {
+                    if (props.enableBranchDrag) props.onBranchPointerCancel?.();
+                  }}
                   onDblClick={() => {
                     if (!node.children) {
                       props.onActivateBranch?.(node.original);
@@ -93,16 +205,16 @@ export default function TreeView(props: TreeViewProps) {
                     }
                   }}
                 >
-                  {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[node.name], "fa-caret-right" : !open()[node.name]}}></i>} 
-                  {!isLeaf && <i class="fa-solid mr-1 text-yellow-600" classList={{"fa-folder-open" : open()[node.name], "fa-folder" : !open()[node.name]}}></i>} 
+                  {!isLeaf && <i class="fa-solid" classList={{"fa-caret-down" : open()[nodePath], "fa-caret-right" : !open()[nodePath]}}></i>}
+                  {!isLeaf && <i class={`fa-solid mr-1 ${folderVisual.icon} ${folderVisual.color}`}></i>}
                   {isLeaf && <i class="fa-solid" classList={{"fa-code-branch" : !isActive, "fa-check" : isActive}}></i>}
-                  <div class="truncate ml-1">{ node.name }</div>
-                  <div class="ml-auto">
+                  <div class="min-w-0 flex-1 truncate ml-1">{ node.name }</div>
+                  <div class="ml-auto shrink-0 whitespace-nowrap">
                     {node.ahead > 0 && <span class="text-green-600">↑{node.ahead}</span>}
                     {node.behind > 0 && <span class="text-red-600">↓{node.behind}</span>}
                   </div>
                 </div>
-                {node.children && open()[node.name] && (
+                {node.children && open()[nodePath] && (
                     <TreeView
                         tree={node.children || {}}
                         activeBranch={props.activeBranch}
@@ -110,6 +222,18 @@ export default function TreeView(props: TreeViewProps) {
                         onSelectBranch={props.onSelectBranch}
                         onActivateBranch={props.onActivateBranch}
                         openContextMenu={props.openContextMenu}
+                        enableBranchDrag={props.enableBranchDrag}
+                        draggedBranch={props.draggedBranch}
+                        dropTargetBranch={props.dropTargetBranch}
+                        onBranchDragStart={props.onBranchDragStart}
+                        onBranchDragOver={props.onBranchDragOver}
+                        onBranchDrop={props.onBranchDrop}
+                        onBranchDragEnd={props.onBranchDragEnd}
+                        onBranchPointerDown={props.onBranchPointerDown}
+                        onBranchPointerMove={props.onBranchPointerMove}
+                        onBranchPointerUp={props.onBranchPointerUp}
+                        onBranchPointerCancel={props.onBranchPointerCancel}
+                        pathPrefix={nodePath}
                     />
                 )}
           </li>

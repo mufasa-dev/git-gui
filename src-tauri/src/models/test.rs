@@ -2,8 +2,8 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct TestCase {
-    pub name: String,      // O texto dentro do 'it'
-    pub suite: String,     // O texto do 'describe' pai
+    pub name: String,  // O texto dentro do 'it'
+    pub suite: String, // O texto do 'describe' pai
 }
 
 #[derive(Serialize)]

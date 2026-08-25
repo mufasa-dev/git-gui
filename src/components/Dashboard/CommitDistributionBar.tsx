@@ -113,7 +113,7 @@ const CommitTypeDistribution = (props: Props) => {
   });
 
   return (
-    <div class="p-2 h-full flex flex-col relative">
+    <div class="p-1 flex flex-col h-full bg-white dark:bg-gray-800 rounded-lg shadow-sm relative">
       <div class="flex items-center justify-between mb-5">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-chart-pie text-blue-400 text-xs"></i>
@@ -134,12 +134,12 @@ const CommitTypeDistribution = (props: Props) => {
         when={stats().length > 0} 
         fallback={
           <div class="flex-1 flex items-center justify-center text-gray-500 italic text-xs">
-            Sem Tags Identificadas
+            {t('common').no_data}
           </div>
         }
       >
         {/* Barra Segmentada */}
-        <div class="w-full h-3 flex rounded-full overflow-hidden bg-gray-200 dark:bg-gray-900 mb-6 border border-black/10 dark:border-white/5">
+        <div class="w-full h-3 flex rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-8">
           <For each={stats()}>
             {(item) => (
               <div 
@@ -155,7 +155,7 @@ const CommitTypeDistribution = (props: Props) => {
         </div>
 
         {/* Legenda em Grid */}
-        <div class="flex-1 grid grid-cols-2 gap-x-6 gap-y-3 overflow-y-auto pr-2 custom-scrollbar text-[11px]">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 overflow-y-auto pr-2">
           <For each={stats()}>
             {(item) => (
               <div class="flex items-center justify-between group">
@@ -186,6 +186,8 @@ const CommitTypeDistribution = (props: Props) => {
       <Dialog 
         open={isModalOpen()} 
         title={t('dashboard').filter_commit_type}
+        icon="fa-solid fa-filter"
+        iconColor="text-orange-600 dark:text-orange-300"
         onClose={() => setIsModalOpen(false)}
         width="380px"
       >

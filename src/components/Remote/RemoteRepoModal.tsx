@@ -74,10 +74,12 @@ export default function RemoteRepoModal(props: {
       open={props.isOpen} 
       title={
         props.providerId === 'github' 
-          ? 'Selecionar Repositório (GitHub)' 
-          : `Azure DevOps ${selectedProject() ? `> ${selectedProject()}` : '> Projetos'}`
+          ? t('repository').select_repository + ' (GitHub)' 
+          : `Azure DevOps ${selectedProject() ? `> ${selectedProject()}` : '> ' + t('provider').projects}`
       } 
       onClose={props.onClose}
+      icon="fa-solid fa-code-branch"
+      iconColor="text-blue-600 dark:text-blue-300"
       width="650px"
       height="70vh"
       bodyClass="p-0 flex flex-col h-full !overflow-hidden bg-white dark:bg-gray-800"

@@ -6,12 +6,17 @@ export type Branch = {
 
 export type BranchFileContentResponse = {
     isImage: boolean;
+    isBinary: boolean;
+    isPreviewable: boolean;
     content: string;
     size: number;
-    lineCount: number;
+    lineCount: number | null;
+    truncated: boolean;
+    nextLine: number | null;
 }
 
 export type BranchFileMetadataResponse = {
     isBinary: boolean;
+    isPreviewable: boolean;
     size: number;
 }

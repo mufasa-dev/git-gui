@@ -15,7 +15,9 @@ import AuthenticatedAvatar from "./AuthenticatedAvatar";
 
 type PRTimelineViewProps = {
     owner: string;
+    project: string;
     repo: string;
+    provider: GitProvider;
     pr: any;
     details: any;
     currentUserAvatar: string;
@@ -312,6 +314,10 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     });
 
     const handleSaveComment = async () => {
+        if (props.provider !== 'github') {
+            notify.error(t('pr').comment, 'Comentários do Azure DevOps são exibidos nesta versão, mas a edição será feita no provedor.');
+            return;
+        }
         if (!commentText()) return;
 
         try {
@@ -331,6 +337,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     };
 
     const onReact = async (subjectId: string, content: string, hasReacted: boolean) => {
+        if (props.provider !== 'github') return;
         try {
             showLoading(hasReacted ? t('pr').deleting + '...' : t('pr').reacting + '...');
             
@@ -385,6 +392,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     };
 
     const handleHide = async (id: string) => {
+        if (props.provider !== 'github') return;
         try {
             showLoading("Escondendo comentário...");
             await githubService.minimizeComment(id, "OUTDATED");

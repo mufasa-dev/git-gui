@@ -1,6 +1,6 @@
 import { createResource, For, Show } from "solid-js";
 import { githubService } from "../../services/github";
-import { azureService } from "../../services/azure"; // 👈 Importado
+import { azureService } from "../../services/azure";
 import CommitMessage from "../ui/CommitMessage";
 import { useApp } from "../../context/AppContext";
 import { formatRelativeDate } from "../../utils/date";
@@ -8,6 +8,7 @@ import { GitProvider } from "../../utils/gitProvider";
 
 interface PRCommitsViewProps {
   owner: string;
+  project: string;
   repoName: string;
   prNumber: number;
   provider: GitProvider;
@@ -19,13 +20,10 @@ export default function PRCommitsView(props: PRCommitsViewProps) {
   
   // 🛠️ Recurso modificado para escutar também o provider e ramificar a service
   const [commits] = createResource(
-    () => ({ owner: props.owner, name: props.repoName, number: props.prNumber, provider: props.provider }),
-    async (params) => {
-      if (params.provider === 'azure') {
-        return await azureService.getPRCommits(params.owner, params.name, params.number);
-      }
-      return await githubService.getPRCommits(params.owner, params.name, params.number);
-    }
+    () => ({ owner: props.owner, project: props.project, name: props.repoName, number: props.prNumber, provider: props.provider }),
+    async (params) => params.provider === 'azure'
+      ? await azureService.getPRCommits(params.owner, params.name, params.number, params.project)
+      : await githubService.getPRCommits(params.owner, params.name, params.number)
   );
 
   return (

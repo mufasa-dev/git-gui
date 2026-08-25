@@ -3,9 +3,10 @@ import CommitMessage from "../ui/CommitMessage";
 import { getGravatarUrl } from "../../services/gravatarService";
 import { Commit } from "../../models/Commit.model";
 import { useApp } from "../../context/AppContext";
+import { formatShortDate } from "../../utils/date";
 
-export default function CommitsModalList(props: { commits: Commit[] }) {
-  const { t } = useApp();
+export default function CommitsModalList(props: { commits: Commit[]; onSelectCommit?: (commit: Commit) => void }) {
+  const { t, locale } = useApp();
 
   return (
     <div class="flex flex-col h-full max-h-[500px] antialiased">
@@ -23,8 +24,10 @@ export default function CommitsModalList(props: { commits: Commit[] }) {
             <div class="py-10 text-center text-gray-500 italic text-sm">Nenhum commit encontrado.</div>
           }>
             {(commit) => (
-              <div class="group flex items-start gap-3 p-2 rounded-xl hover:bg-gray-700/40 transition-colors 
-                        border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600">
+              <div
+                class={`group flex items-start gap-3 rounded-xl border border-gray-300 p-2 transition-colors dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 ${props.onSelectCommit ? "cursor-pointer hover:bg-gray-700/40" : ""}`}
+                onClick={() => props.onSelectCommit?.(commit)}
+              >
                 {/* Avatar / Ícone */}
                 <div class="mt-1">
                   <img
@@ -41,13 +44,7 @@ export default function CommitsModalList(props: { commits: Commit[] }) {
                       {commit.hash.substring(0, 7)}
                     </span>
                     <span class="text-[10px] text-gray-500 dark:text-gray-200">
-                      {new Date(commit.date).toLocaleString(undefined, {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        })}
+                      {formatShortDate(commit.date, locale())}
                     </span>
                   </div>
                   

@@ -1,18 +1,27 @@
 import { createMemo, createSignal, For, Show, onMount } from "solid-js";
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
-import * as i18n from "@solid-primitives/i18n";
+import { formatCompactDate } from "../../utils/date";
 
-const formatDateAxis = (dateStr: string) => {
-  const d = new Date(dateStr.replace(/-/g, '/')); 
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+const formatDateAxis = (dateStr: string, locale: string) => formatCompactDate(dateStr, locale);
+
+const createSmoothPath = (points: { x: number, y: number }[]) => {
+  if (!points.length) return "";
+
+  return points.reduce((path, point, index) => {
+    if (index === 0) return `M ${point.x} ${point.y}`;
+
+    const previous = points[index - 1];
+    const midpoint = (previous.x + point.x) / 2;
+    return `${path} C ${midpoint} ${previous.y}, ${midpoint} ${point.y}, ${point.x} ${point.y}`;
+  }, "");
 };
 
 export default function ActivityChart(props: { commits: any[], openCommits: (commits: any[]) => void }) {
   const [daysToView, setDaysToView] = createSignal(30);
   const [isModalOpen, setIsModalOpen] = createSignal(false);
   const [hoveredPoint, setHoveredPoint] = createSignal<{x: number, y: number, value: number, date: string} | null>(null);
-  const { t } = useApp();
+  const { t, locale } = useApp();
   
   // Estado para os dias ocultos (0 = Domingo, 6 = Sábado)
   const [hiddenDays, setHiddenDays] = createSignal<number[]>([]);
@@ -67,9 +76,9 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
   };
 
   const chartConfig = {
-    svgWidth: 500,
-    svgHeight: 180,
-    paddings: { top: 10, right: 10, bottom: 30, left: 40 }
+    svgWidth: 560,
+    svgHeight: 190,
+    paddings: { top: 14, right: 14, bottom: 30, left: 38 }
   };
 
   const processedData = createMemo(() => {
@@ -132,9 +141,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
     }));
 
     // 6. Gerar caminhos (Paths) do SVG
-    const lineData = `M ${points[0].x} ${points[0].y} ` + 
-                    points.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ");
-                    
+    const lineData = createSmoothPath(points);
     const areaData = `${lineData} L ${points[points.length - 1].x} ${chartConfig.paddings.top + drawHeight} L ${chartConfig.paddings.left} ${chartConfig.paddings.top + drawHeight} Z`;
 
     // 7. Gerar Ticks do Eixo Y
@@ -146,7 +153,7 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
     // 8. Gerar Ticks do Eixo X (Início, Meio e Fim do período visível)
     const xTicksIndices = [0, Math.round((dateRange.length - 1) / 2), dateRange.length - 1];
     const xTicks = xTicksIndices.map(idx => ({
-      label: formatDateAxis(data[idx].date),
+      label: formatDateAxis(data[idx].date, locale()),
       x: points[idx].x
     }));
 
@@ -176,18 +183,27 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
   };
 
   return (
-    <div class="flex flex-col h-full relative">
-      <div class="flex items-center justify-between mb-4">
-        <h4 class="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2 ml-2">
-           <i class="fa-solid fa-chart-line text-green-500"></i>
-           {t('dashboard').activity}
-        </h4>
+    <div class="relative flex h-full flex-col overflow-hidden p-2">
+      <div class="mb-3 flex items-center justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+            <i class="fa-solid fa-chart-line text-xs"></i>
+          </span>
+          <div class="min-w-0">
+            <h4 class="truncate font-bold tracking-wide text-gray-900 dark:text-gray-100">
+              {t('dashboard').activity}
+            </h4>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400">
+              {props.commits.length} {t('commits').commits}
+            </span>
+          </div>
+        </div>
         
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1.5">
           <select 
             value={daysToView()} 
             onInput={(e) => setDaysToView(parseInt(e.currentTarget.value))}
-            class="input-select mt-0"
+            class="input-select mt-0 py-1 text-[10px]"
           >
             <option value={7}>{formatDateLabel(7)}</option>
             <option value={30}>{formatDateLabel(30)}</option>
@@ -199,9 +215,11 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
           
           <button 
             onClick={() => setIsModalOpen(true)}
-            class="p-2 text-gray-400 hover:text-white transition-colors"
+            title={t('dashboard').config_Dash}
+            aria-label={t('dashboard').config_Dash}
+            class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-700/60 hover:text-emerald-300"
           >
-            <i class="fa-solid fa-cog"></i>
+            <i class="fa-solid fa-sliders text-[10px]"></i>
           </button>
         </div>
       </div>
@@ -210,6 +228,8 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
       <Dialog 
         open={isModalOpen()} 
         title={t('dashboard').config_Dash}
+        icon="fa-solid fa-chart-line"
+        iconColor="text-emerald-600 dark:text-emerald-300"
         onClose={() => setIsModalOpen(false)}
         width="350px"
       >
@@ -242,9 +262,9 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
         </div>
       </Dialog>
       
-      <div class="relative flex-1 min-h-[150px]">
+      <div class="relative min-h-[150px] flex-1">
         <Show when={props.commits.length > 0} fallback={
-          <div class="flex items-center justify-center h-full text-xs opacity-50 italic text-white">{t('dashboard').no_activity}</div>
+          <div class="flex h-full items-center justify-center text-xs italic text-gray-500">{t('dashboard').no_activity}</div>
         }>
           
           {/* 1. LEGENDAS DO EIXO Y (HTML Absoluto - Não distorce) */}
@@ -271,8 +291,8 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
           >
             <defs>
               <linearGradient id="activityGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" style="stop-color:rgb(34, 197, 94);stop-opacity:0.3" />
-                <stop offset="100%" style="stop-color:rgb(34, 197, 94);stop-opacity:0" />
+                <stop offset="0%" style="stop-color:rgb(52, 211, 153);stop-opacity:0.32" />
+                <stop offset="100%" style="stop-color:rgb(52, 211, 153);stop-opacity:0" />
               </linearGradient>
             </defs>
 
@@ -282,14 +302,14 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
                 <line 
                   x1={chartConfig.paddings.left} y1={tick.y} 
                   x2={chartConfig.svgWidth - chartConfig.paddings.right} y2={tick.y} 
-                  stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 2" class="text-gray-700"
+                  stroke="currentColor" stroke-width="0.5" stroke-dasharray="3 4" class="text-gray-700/70"
                 />
               )}
             </For>
 
             <path d={processedData().area} fill="url(#activityGrad)" />
             <path 
-              d={processedData().line} fill="none" stroke="#22c55e" stroke-width="2" 
+              d={processedData().line} fill="none" stroke="#34d399" stroke-width="2.5" 
               stroke-linecap="round" stroke-linejoin="round"
               style={{ "vector-effect": "non-scaling-stroke" }} // Mantém a espessura da linha constante
             />
@@ -299,15 +319,15 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
                 cx={hoveredPoint()!.x} 
                 cy={hoveredPoint()!.y} 
                 r="4" 
-                fill="#22c55e" 
-                stroke="white" 
+                fill="#34d399" 
+                stroke="#ecfdf5" 
                 stroke-width="2" 
               />
               {/* Linha vertical indicadora */}
               <line 
                 x1={hoveredPoint()!.x} y1={chartConfig.paddings.top} 
                 x2={hoveredPoint()!.x} y2={chartConfig.svgHeight - chartConfig.paddings.bottom} 
-                stroke="#22c55e" stroke-width="1" stroke-dasharray="4" opacity="0.5"
+                stroke="#34d399" stroke-width="1" stroke-dasharray="4" opacity="0.45"
               />
             </Show>
 
@@ -355,18 +375,18 @@ export default function ActivityChart(props: { commits: any[], openCommits: (com
         {/* Tooltip Flutuante */}
         <Show when={hoveredPoint()}>
           <div 
-            class="absolute z-10 pointer-events-none bg-gray-900 border border-gray-700 p-2 rounded shadow-lg text-[10px] text-white"
+            class="absolute z-10 pointer-events-none rounded-lg border border-gray-700 bg-gray-950/95 px-2.5 py-2 text-[10px] text-white shadow-xl"
             style={{
               left: `${(hoveredPoint()!.x / chartConfig.svgWidth) * 100}%`,
               top: `${(hoveredPoint()!.y / chartConfig.svgHeight) * 100}%`,
               transform: 'translate(-50%, -120%)' // Centraliza sobre o ponto
             }}
           >
-            <div class="font-bold border-b border-gray-700 pb-1 mb-1">
-              {formatDateAxis(hoveredPoint()!.date)}
+            <div class="mb-1 border-b border-gray-800 pb-1 font-semibold text-gray-300">
+              {formatDateAxis(hoveredPoint()!.date, locale())}
             </div>
-            <div class="flex items-center gap-1">
-              <span class="w-2 h-2 rounded-full bg-green-500"></span>
+            <div class="flex items-center gap-1.5">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
               {hoveredPoint()!.value} {t('commits').commits}
             </div>
           </div>

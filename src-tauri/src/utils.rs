@@ -5,7 +5,7 @@ use tokio::process::Command as TokioCommand;
 pub fn git_command(path: &str) -> Command {
     #[allow(unused_mut)]
     let mut cmd = Command::new("git");
-    
+
     cmd.arg("-C").arg(path);
 
     #[cfg(target_os = "windows")]
@@ -21,7 +21,7 @@ pub fn git_command(path: &str) -> Command {
 pub fn git_command_async(path: &str) -> TokioCommand {
     #[allow(unused_mut)]
     let mut cmd = TokioCommand::new("git");
-    
+
     cmd.arg("-C").arg(path);
 
     #[cfg(target_os = "windows")]

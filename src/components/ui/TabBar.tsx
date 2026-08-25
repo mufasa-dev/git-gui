@@ -1,6 +1,37 @@
 import { For, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 
+const MAX_TAB_NAME_LENGTH = 24;
+const REPO_ROLE_LABELS: Record<string, string> = {
+  ui: "UI",
+  dashboard: "Dashboard",
+  bim: "BIM",
+  main: "Main",
+  api: "API",
+  backend: "Backend",
+  frontend: "Frontend",
+  server: "Server",
+};
+
+const formatRepoPart = (part: string) => {
+  if (/^[A-Z0-9]+$/.test(part)) return part;
+  return part.charAt(0).toUpperCase() + part.slice(1);
+};
+
+export function getRepoTabLabel(name: string): string {
+  if (name.length <= MAX_TAB_NAME_LENGTH) return name;
+
+  const parts = name.split(/[.\\/_-]+/).filter(Boolean);
+  const lastPart = parts[parts.length - 1] || name;
+  const roleLabel = REPO_ROLE_LABELS[lastPart.toLowerCase()];
+  if (roleLabel) return roleLabel;
+
+  const managerPart = [...parts].reverse().find((part) => /construmanager/i.test(part));
+  if (managerPart) return formatRepoPart(managerPart);
+
+  return formatRepoPart(lastPart);
+}
+
 export default function TabBar(props: {
   repos: Repo[];
   active: string | null;
@@ -18,11 +49,12 @@ export default function TabBar(props: {
                 : "bg-gray-200 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-400"
             }`}
             onClick={() => props.onChangeActive(repo.path)}
+            title={repo.name}
           >
-            {repo.localChanges && repo.localChanges.length > 0 && (
+            {(repo.localChangesCount ?? repo.localChanges?.length ?? 0) > 0 && (
               <i class="fa-solid fa-circle text-orange-500 text-[8px] mr-2"></i>
             )}
-            <span class="truncate max-w-[150px] text-sm font-medium">{repo.name}</span>
+            <span class="truncate max-w-[150px] text-sm font-medium">{getRepoTabLabel(repo.name)}</span>
             <button
               class="ml-3 text-gray-400 hover:text-red-500 transition-colors"
               onClick={e => {

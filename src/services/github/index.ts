@@ -2,9 +2,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
+<<<<<<< HEAD
 import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_ISSUES_QUERY, GET_PR_TIMELINE_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY, UPDATE_PR_ISSUES_MUTATION } from "./queries";
 import { PRValidationResult, ReviewerItem } from "../../models/PR.model";
 import { CardComment, WorkItem } from "../../models/WorkItem";
+=======
+import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_TIMELINE_QUERY, GET_REPOSITORY_PIPELINES_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY } from "./queries";
+import { UnifiedPipelineRun } from "../../models/Pipeline.model";
+>>>>>>> simple_fix
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
@@ -13,58 +18,121 @@ async function getAuthStore() {
   return await load("auth.bin");
 }
 
+let tokenCache: string | null | undefined;
+
+async function githubRequest(path: string, init: RequestInit = {}) {
+  const token = await githubService.getToken();
+  if (!token) throw new Error("Faça login no GitHub para continuar.");
+
+  const response = await fetch(`https://api.github.com${path}`, {
+    ...init,
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
+    },
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.message || `GitHub retornou HTTP ${response.status}.`);
+  }
+  return payload;
+}
+
 export const githubService = {
 
   async getToken(): Promise<string | null> {
+    if (tokenCache !== undefined) return tokenCache;
+
     try {
       const store = await getAuthStore();
       const tokenData = await store.get<any>("github_token");
-      
-      if (!tokenData) return null;
-      
-      const token = typeof tokenData === 'string' ? tokenData : tokenData.value;
-      return token ? token.trim() : null;
+      const token = !tokenData
+        ? null
+        : typeof tokenData === 'string' ? tokenData : tokenData.value;
+      tokenCache = token ? token.trim() : null;
+      return tokenCache ?? null;
     } catch (e) {
+      tokenCache = null;
       return null;
     }
   },
 
   async login() {
-    const rootUrl = `https://github.com/login/oauth/authorize`;
+    const rootUrl = "https://github.com/login/oauth/authorize";
     const options = {
       client_id: GITHUB_CLIENT_ID,
       redirect_uri: "dev-brook://auth",
       scope: "repo user",
     };
+    const authorizationUrl = `${rootUrl}?${new URLSearchParams(options).toString()}`;
 
-    const qs = new URLSearchParams(options);
-    await open(`${rootUrl}?${qs.toString()}`);
+    return new Promise<{ token: string; provider: string }>((resolve, reject) => {
+      let unlisten: (() => void) | undefined;
+      let handled = false;
 
-    return new Promise((resolve, reject) => {
-      const unlisten = listen("oauth-callback", async (event: any) => {
-        const url = event.payload as string;
-        const code = new URL(url).searchParams.get("code");
+      const handleCallback = async (event: { payload: unknown }) => {
+        if (handled || typeof event.payload !== "string") return;
 
-        if (code) {
-          try {
-            const result: any = await invoke("exchange_code_for_token", {
-              code,
-              clientId: GITHUB_CLIENT_ID,
-              clientSecret: GITHUB_CLIENT_SECRET
-            });
-            
-            // USO CORRETO DO STORE NA V2:
-            const store = await getAuthStore();
-            await store.set("github_token", result.token);
-            await store.save(); // Importante salvar no disco!
-            
-            resolve(result);
-          } catch (err) {
-            reject(err);
-          }
+        let callbackUrl: URL;
+        try {
+          callbackUrl = new URL(event.payload);
+        } catch {
+          return;
         }
-        unlisten.then(f => f());
-      });
+
+        if (callbackUrl.protocol !== "dev-brook:" || callbackUrl.hostname !== "auth") {
+          return;
+        }
+
+        handled = true;
+
+        try {
+          const error = callbackUrl.searchParams.get("error");
+          if (error) {
+            const description = callbackUrl.searchParams.get("error_description");
+            throw new Error(description || `Autenticação cancelada pelo GitHub: ${error}`);
+          }
+
+          const code = callbackUrl.searchParams.get("code");
+          if (!code) {
+            throw new Error("O GitHub não retornou o código de autenticação.");
+          }
+
+          const result = await invoke<{ token: string; provider: string }>("exchange_code_for_token", {
+            code,
+            clientId: GITHUB_CLIENT_ID,
+            clientSecret: GITHUB_CLIENT_SECRET,
+          });
+
+          const token = result.token?.trim();
+          if (!token) {
+            throw new Error("O GitHub não retornou um token de acesso.");
+          }
+
+          const store = await getAuthStore();
+          await store.set("github_token", token);
+          await store.save();
+          tokenCache = token;
+
+          resolve({ ...result, token });
+        } catch (error) {
+          reject(error);
+        } finally {
+          unlisten?.();
+        }
+      };
+
+      (async () => {
+        try {
+          unlisten = await listen("oauth-callback", handleCallback);
+          await open(authorizationUrl);
+        } catch (error) {
+          unlisten?.();
+          reject(error);
+        }
+      })();
     });
   },
 
@@ -109,9 +177,15 @@ export const githubService = {
       body: JSON.stringify({ query, variables }),
     });
 
-    if (!res.ok) throw new Error("Erro na requisição GraphQL");
-    const json = await res.json();
-    return json.data;
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message = json?.message || json?.errors?.map((item: any) => item.message).join('; ');
+      throw new Error(message || `GitHub retornou HTTP ${res.status}.`);
+    }
+    if (Array.isArray(json?.errors) && json.errors.length > 0) {
+      throw new Error(json.errors.map((item: any) => item.message).join('; '));
+    }
+    return json?.data;
   },
 
   async getFullUserData(username: string) {
@@ -230,6 +304,17 @@ export const githubService = {
     }
   },
 
+  async updatePullRequestBranch(owner: string, name: string, number: number, expectedHeadSha?: string) {
+    return await githubRequest(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/pulls/${number}/update-branch`, {
+      method: "PUT",
+      body: JSON.stringify(expectedHeadSha ? { expected_head_sha: expectedHeadSha } : {}),
+    });
+  },
+
+  async getPullRequestWebUrl(owner: string, name: string, number: number) {
+    return `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/pull/${number}`;
+  },
+
   async getPRFiles(owner: string, name: string, number: number) {
     const res = await this.fetchGraphQL(GET_PR_FILES_QUERY, { owner, name, number });
     return res.repository.pullRequest.files.nodes;
@@ -290,6 +375,7 @@ export const githubService = {
     return await this.fetchGraphQL(HIDE_PR_COMMENT, { subjectId, reason });
   },
 
+<<<<<<< HEAD
   async validatePullRequest(owner: string, repo: string, source: string, target: string): Promise<PRValidationResult> {
     try {
       const token = await this.getToken();
@@ -414,10 +500,63 @@ export const githubService = {
       return prResult;
     } catch (error) {
       console.error("Erro na service GitHub (createPullRequest):", error);
+=======
+  async getPipelineRuns(owner: string, name: string): Promise<UnifiedPipelineRun[]> {
+    try {
+      const data = await this.fetchGraphQL(GET_REPOSITORY_PIPELINES_QUERY, { owner, name });
+      
+      const runs = data?.repository?.workflowRuns?.nodes || [];
+      
+      return runs.map((run: any) => ({
+        id: run.id,
+        number: run.runNumber,
+        name: run.workflow?.name || "Workflow",
+        status: run.status?.toLowerCase(),     // 'completed', 'queued', 'in_progress'
+        result: run.conclusion?.toLowerCase(), // 'success', 'failure', 'cancelled', 'skipped'
+        url: run.url,
+        trigger: "push/pr", 
+        startTime: run.createdAt,
+        finishTime: run.updatedAt,
+        sourceBranch: run.headBranch || ""
+      }));
+    } catch (e) {
+      console.error("Erro ao buscar pipelines no GitHub:", e);
+      return [];
+    }
+  },
+
+  async triggerPipelineRun(owner: string, repo: string, workflowId: string | number, branch: string = "main") {
+    try {
+      const token = await this.getToken();
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`,
+        {
+          method: "POST",
+          headers: {
+            'Accept': 'application/vnd.github.v3.diff',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            ref: branch, // Branch obrigatória para o GitHub Actions
+            inputs: {}   // Inputs adicionais se o seu YAML exigir
+          })
+        }
+      );
+
+      if (response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao disparar workflow no GitHub: ${response.status}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Erro em triggerPipelineRun (GitHub):", error);
+>>>>>>> simple_fix
       throw error;
     }
   },
 
+<<<<<<< HEAD
   async searchIssues(owner: string, repo: string, queryText: string): Promise<Array<{ id: string; title: string; state?: string }>> {
     if (!queryText || queryText.trim().length < 2) return [];
 
@@ -582,10 +721,36 @@ export const githubService = {
       };
     } catch (error) {
       console.error("Erro ao unificar dados do GitHub:", error);
+=======
+  async rerunFailedJobs(owner: string, repo: string, runId: string | number) {
+    try {
+      const token = await this.getToken();
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/rerun-failed-jobs`,
+        {
+          method: "POST",
+          headers: {
+            'Accept': 'application/vnd.github+json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      // O GitHub retorna 201 Created quando o rerun é aceito com sucesso
+      if (response.status !== 201) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao reexecutar falhas no GitHub: ${response.status}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Erro em rerunFailedJobs (GitHub):", error);
+>>>>>>> simple_fix
       throw error;
     }
   },
 
+<<<<<<< HEAD
   async getIssueHistory(owner: string, repo: string, issueNumber: number): Promise<Array<any>> {
     const token = await this.getToken();
     if (!token) return [];
@@ -883,6 +1048,32 @@ export const githubService = {
     } catch (error) {
       console.error("Erro ao desassociar issue do PR no GitHub:", error);
       return false;
+=======
+  async deletePipelineRun(owner: string, repo: string, runId: string | number) {
+    try {
+      const token = await this.getToken();
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`,
+        {
+          method: "DELETE",
+          headers: {
+            'Accept': 'application/vnd.github+json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      // O GitHub retorna 204 No Content quando a deleção é concluída
+      if (response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao deletar run no GitHub: ${response.status}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Erro em deletePipelineRun (GitHub):", error);
+      throw error;
+>>>>>>> simple_fix
     }
   },
 
@@ -890,9 +1081,6 @@ export const githubService = {
     const store = await getAuthStore();
     await store.delete("github_token");
     await store.save();
+    tokenCache = null;
   }
 };
-
-listen("oauth-callback", (event) => {
-  console.log("EVENTO OAUTH RECEBIDO NO FRONT:", event.payload);
-});

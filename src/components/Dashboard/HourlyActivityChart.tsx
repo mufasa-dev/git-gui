@@ -68,7 +68,7 @@ export default function HourlyActivityChart(props: { commits: any[] }) {
             class="w-full h-full overflow-visible"
           >
             {/* Linhas de Grade Horizontais */}
-            <g class="text-gray-800/50">
+            <g class="text-gray-800/50 dark:text-gray-600">
                 <line 
                   x1={chartConfig.paddings.left} y1={chartConfig.paddings.top} 
                   x2={chartConfig.svgWidth} y2={chartConfig.paddings.top} 

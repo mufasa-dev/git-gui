@@ -1,24 +1,33 @@
-import { createSignal, createMemo, For, Show, createEffect, on, onCleanup } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { createCodeMirror } from "solid-codemirror";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { javascript } from "@codemirror/lang-javascript";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { githubLight } from '@uiw/codemirror-theme-github';
-import { Transaction, Annotation } from "@codemirror/state";
+import { githubLight } from "@uiw/codemirror-theme-github";
+import { Annotation } from "@codemirror/state";
 import { notify } from "../../utils/notifications";
-import { conflictHighlightPlugin } from "../../utils/conflictHighlight";
 import { useApp } from "../../context/AppContext";
 import { highlightCode } from "../../utils/highlight";
 
 // Helper para identificar mudanças programáticas vs manuais
 const ExternalChange = Annotation.define<boolean>();
 
-interface Line {
-  lineNumber?: number;
-  content: string;
-  type: "normal" | "current" | "incoming" | "separator" | "header";
-  conflictId?: number;
-}
+type Resolution = "current" | "incoming" | "both";
+
+type NormalSegment = {
+  type: "normal";
+  lines: string[];
+};
+
+type ConflictSegment = {
+  type: "conflict";
+  id: number;
+  startLine: number;
+  current: string[];
+  incoming: string[];
+};
+
+type Segment = NormalSegment | ConflictSegment;
 
 type Props = {
   diffContent: string;
@@ -27,143 +36,148 @@ type Props = {
   onClose: () => void;
 };
 
-export default function MergeResolver(props: Props) {
-  const [lines, setLines] = createSignal<Line[]>([]);
-  const [resolutions, setResolutions] = createSignal<Record<number, ("current" | "incoming")[]>>({});
-  const [manualResult, setManualResult] = createSignal<string | null>(null);
-  const [isDark, setIsDark] = createSignal(localStorage.getItem("theme") === "dark");
-  const [activeConflictId, setActiveConflictId] = createSignal<number | null>(null);
-  const { t } = useApp();
+function parseMergeContent(content: string): Segment[] {
+  const rawLines = (content || "").split("\n");
+  const segments: Segment[] = [];
+  let normalLines: string[] = [];
+  let conflictId = 0;
 
-  let leftRef: HTMLDivElement | undefined;
-  let rightRef: HTMLDivElement | undefined;
-  let cmScroller: HTMLElement | null = null;
-  let isSyncing = false;
-  let lastProcessedContent = "";
-
-  const conflictIds = createMemo(() => {
-    const ids: number[] = [];
-    const seen = new Set<number>();
-    lines().forEach(line => {
-      if (line.conflictId !== undefined && !seen.has(line.conflictId)) {
-        seen.add(line.conflictId);
-        ids.push(line.conflictId);
-      }
-    });
-    return ids;
-  });
-
-  // ---- Total de conflitos e resolvidos ----
-  const conflictStats = createMemo(() => {
-    const ids = conflictIds();
-    const total = ids.length;
-    let resolved = 0;
-    const res = resolutions();
-    ids.forEach(id => {
-      if (res[id] && res[id].length > 0) resolved++;
-    });
-    return { total, resolved };
-  });
-
-  const goToConflict = (id: number) => {
-    setActiveConflictId(id);
-    // Rola para o elemento em ambos os painéis
-    const scrollToElement = (ref: HTMLDivElement | undefined) => {
-      if (!ref) return;
-      const el = ref.querySelector(`[data-conflict-id="${id}"]`) as HTMLElement;
-      if (el) {
-        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
-    };
-    scrollToElement(leftRef);
-    scrollToElement(rightRef);
-    // Também sincroniza o CodeMirror (opcional) - não temos acesso direto à linha, mas o scroll sincronizado já mantém
+  const flushNormal = () => {
+    if (normalLines.length > 0) {
+      segments.push({ type: "normal", lines: normalLines });
+      normalLines = [];
+    }
   };
 
-  const goToNextConflict = () => {
-    const ids = conflictIds();
-    if (ids.length === 0) return;
-    const current = activeConflictId();
-    let index = ids.findIndex(id => id === current);
-    if (index === -1) index = -1;
-    const nextIndex = (index + 1) % ids.length;
-    goToConflict(ids[nextIndex]);
-  };
+  let index = 0;
+  while (index < rawLines.length) {
+    if (!rawLines[index].startsWith("<<<<<<<")) {
+      normalLines.push(rawLines[index]);
+      index++;
+      continue;
+    }
 
-  const goToPrevConflict = () => {
-    const ids = conflictIds();
-    if (ids.length === 0) return;
-    const current = activeConflictId();
-    let index = ids.findIndex(id => id === current);
-    if (index === -1) index = 0;
-    const prevIndex = (index - 1 + ids.length) % ids.length;
-    goToConflict(ids[prevIndex]);
-  };
-
-  const synchronizeScrolls = (source: HTMLElement, targets: (HTMLElement | null | undefined)[]) => {
-    const scrollTop = source.scrollTop;
-    const scrollLeft = source.scrollLeft;
-    targets.forEach(el => {
-      if (el && el !== source) {
-        if (el.scrollTop !== scrollTop) el.scrollTop = scrollTop;
-        if (el.scrollLeft !== scrollLeft) el.scrollLeft = scrollLeft;
-      }
-    });
-  };
-
-  const autoResult = createMemo(() => {
-    const res = resolutions();
-    const final: string[] = [];
-    const linesArr = lines();
-
-    for (let i = 0; i < linesArr.length; i++) {
-      const line = linesArr[i];
-
-      if (line.type === "normal") {
-        final.push(line.content);
-        continue;
-      }
-
-      if (line.conflictId) {
-        const id = line.conflictId;
-        const choices = res[id] || [];
-
-        if (choices.length === 0) {
-          final.push(line.content);
-        } else {
-          const conflictLines = linesArr.filter(l => l.conflictId === id);
-          
-          choices.forEach(side => {
-            conflictLines
-              .filter(l => l.type === side)
-              .forEach(l => final.push(l.content));
-          });
-
-          while (i + 1 < linesArr.length && linesArr[i + 1].conflictId === id) {
-            i++;
-          }
-        }
+    let separator = -1;
+    let end = -1;
+    for (let cursor = index + 1; cursor < rawLines.length; cursor++) {
+      if (separator === -1 && rawLines[cursor].startsWith("=======")) {
+        separator = cursor;
+      } else if (separator !== -1 && rawLines[cursor].startsWith(">>>>>>>")) {
+        end = cursor;
+        break;
       }
     }
-    return final.join("\n");
-  });
 
+    if (separator === -1 || end === -1) {
+      normalLines.push(rawLines[index]);
+      index++;
+      continue;
+    }
+
+    flushNormal();
+    conflictId++;
+    segments.push({
+      type: "conflict",
+      id: conflictId,
+      startLine: index + 1,
+      current: rawLines.slice(index + 1, separator),
+      incoming: rawLines.slice(separator + 1, end),
+    });
+    index = end + 1;
+  }
+
+  flushNormal();
+  return segments;
+}
+
+function conflictMarkers(segment: ConflictSegment): string[] {
+  return [
+    "<<<<<<< CURRENT",
+    ...segment.current,
+    "=======",
+    ...segment.incoming,
+    ">>>>>>> INCOMING",
+  ];
+}
+
+function resolveSegments(segments: Segment[], resolutions: Record<number, Resolution | null>): string {
+  const result: string[] = [];
+
+  for (const segment of segments) {
+    if (segment.type === "normal") {
+      result.push(...segment.lines);
+      continue;
+    }
+
+    const resolution = resolutions[segment.id];
+    if (!resolution) {
+      result.push(...conflictMarkers(segment));
+    } else if (resolution === "current") {
+      result.push(...segment.current);
+    } else if (resolution === "incoming") {
+      result.push(...segment.incoming);
+    } else {
+      result.push(...segment.current, ...segment.incoming);
+    }
+  }
+
+  return result.join("\n");
+}
+
+function applyResolutionToText(
+  content: string,
+  conflictId: number,
+  resolution: Resolution,
+  originalResolutions: Record<number, Resolution | null>,
+): string {
+  const segments = parseMergeContent(content);
+  const manualConflicts = segments.filter((segment): segment is ConflictSegment => segment.type === "conflict");
+  const unresolvedOriginalIds = Object.keys(originalResolutions)
+    .map(Number)
+    .filter(id => !originalResolutions[id]);
+  const targetPosition = unresolvedOriginalIds.indexOf(conflictId);
+  const target = manualConflicts[targetPosition];
+
+  if (!target) return content;
+  return resolveSegments(segments, { [target.id]: resolution });
+}
+
+export default function MergeResolver(props: Props) {
+  const [segments, setSegments] = createSignal<Segment[]>([]);
+  const [resolutions, setResolutions] = createSignal<Record<number, Resolution | null>>({});
+  const [manualResult, setManualResult] = createSignal<string | null>(null);
+  const [activeConflict, setActiveConflict] = createSignal<number | null>(null);
+  const [isDark] = createSignal(localStorage.getItem("theme") === "dark");
+  const { t } = useApp();
+
+  const conflictRefs: Record<number, HTMLButtonElement | undefined> = {};
+
+  const conflicts = createMemo(() => segments().filter((segment): segment is ConflictSegment => segment.type === "conflict"));
+  const unresolvedCount = createMemo(() => conflicts().filter(conflict => !resolutions()[conflict.id]).length);
+  const autoResult = createMemo(() => resolveSegments(segments(), resolutions()));
   const displayResult = () => manualResult() ?? autoResult();
+
+  const language = createMemo(() => {
+    const extension = props.fileName.toLowerCase().split(".").pop() || "";
+    return javascript({
+      jsx: ["js", "jsx", "ts", "tsx"].includes(extension),
+      typescript: ["ts", "tsx"].includes(extension),
+    });
+  });
 
   // Configuração do CodeMirror
   const { ref: codeMirrorRef, editorView: view, createExtension } = createCodeMirror({
-    value: displayResult()
+    value: displayResult(),
   });
 
   createExtension(() => {
     const dark = isDark();
-
     const extensions = [
-      javascript(),
+      language(),
       lineNumbers(),
       EditorView.lineWrapping,
-      conflictHighlightPlugin
     ];
+
     if (dark) {
       extensions.push(oneDark);
     } else {
@@ -176,60 +190,60 @@ export default function MergeResolver(props: Props) {
           height: "100%",
           backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#ffffff !important",
         },
-        ".cm-scroller": { 
+        ".cm-scroller": {
           overflow: "auto",
           backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#ffffff !important",
         },
         ".cm-gutters": {
           backgroundColor: dark ? "rgb(31 41 55 / 1) !important" : "#f5f5f5",
-          border: "none"
+          border: "none",
         },
         ".cm-content": {
           color: dark ? "#abb2bf" : "#000000",
-        }
-      }, { dark: dark })
+        },
+      }, { dark }),
     );
 
     extensions.push(
       EditorView.updateListener.of((update) => {
-        if (update.docChanged && !update.transactions.some(tr => tr.annotation(ExternalChange))) {
-          const newValue = update.state.doc.toString();
-          setManualResult(newValue);
+        if (update.docChanged && !update.transactions.some(transaction => transaction.annotation(ExternalChange))) {
+          setManualResult(update.state.doc.toString());
         }
-      })
+      }),
     );
 
     return extensions;
   });
 
-  createEffect(() => {
-    const v = view();
-    if (!v) return;
-    const scroller = v.scrollDOM;
-    if (!scroller) return;
-    cmScroller = scroller;
+  const selectConflict = (id: number) => {
+    setActiveConflict(id);
+    conflictRefs[id]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
 
-    const onScroll = () => {
-      if (!isSyncing && cmScroller) {
-        isSyncing = true;
-        const targets = [leftRef, rightRef];
-        synchronizeScrolls(cmScroller, targets);
-        queueMicrotask(() => { isSyncing = false; });
-      }
-    };
+  const setResolution = (id: number, resolution: Resolution) => {
+    const currentResolutions = resolutions();
+    setResolutions(previous => ({ ...previous, [id]: resolution }));
+    setManualResult(previous => previous === null ? null : applyResolutionToText(previous, id, resolution, currentResolutions));
+  };
 
-    scroller.addEventListener('scroll', onScroll);
-    onCleanup(() => scroller.removeEventListener('scroll', onScroll));
-  });
+  const resetResolution = (id: number) => {
+    setResolutions(previous => ({ ...previous, [id]: null }));
+    setManualResult(null);
+  };
+
+  const resetAll = () => {
+    const next: Record<number, Resolution | null> = {};
+    conflicts().forEach(conflict => { next[conflict.id] = null; });
+    setResolutions(next);
+    setManualResult(null);
+  };
 
   const handleCompleteMerge = () => {
-    const v = view();
-    const finalContent = v ? v.state.doc.toString() : displayResult();
-    
-    const hasMarkers = finalContent.includes("<<<<<<<") || finalContent.includes(">>>>>>>");
+    const finalContent = view()?.state.doc.toString() ?? displayResult();
+    const hasMarkers = /^(<<<<<<<|=======|>>>>>>>)/m.test(finalContent);
 
     if (hasMarkers) {
-      notify.error("Merge incompleto", "Ainda existem marcadores de conflito no texto.");
+      notify.error(t('merge').merge_incomplete, t('merge').unresolved_conflicts);
       return;
     }
 
@@ -237,209 +251,99 @@ export default function MergeResolver(props: Props) {
   };
 
   createEffect(() => {
-    const v = view();
-    if (!v) return;
+    const currentView = view();
+    if (!currentView) return;
 
-    const target = manualResult() ?? autoResult();
-    const currentDoc = v.state.doc.toString();
-
-    if (currentDoc !== target) {
-      v.dispatch({
-        changes: { from: 0, to: v.state.doc.length, insert: target },
-        annotations: ExternalChange.of(true)
+    const target = displayResult();
+    if (currentView.state.doc.toString() !== target) {
+      currentView.dispatch({
+        changes: { from: 0, to: currentView.state.doc.length, insert: target },
+        annotations: ExternalChange.of(true),
       });
     }
   });
 
   createEffect(on(() => props.diffContent, (newContent) => {
-    if (newContent === lastProcessedContent && lines().length > 0) return;
-    const rawLines = (newContent || "").split("\n");
-    const processed: Line[] = [];
-    const initialResolutions: Record<number, any> = {};
-    let conflictCounter = 0;
-    let currentType: Line["type"] = "normal";
-    let countIncoming = 1;
-    let countCurrent = 1;
-
-    rawLines.forEach((lineContent) => {
-      if (lineContent.startsWith("<<<<<<<")) {
-        conflictCounter++;
-        currentType = "current";
-        initialResolutions[conflictCounter] = null;
-        processed.push({ content: lineContent, type: "header", conflictId: conflictCounter });
-      } else if (lineContent.startsWith("=======")) {
-        currentType = "incoming";
-        processed.push({ content: lineContent, type: "separator", conflictId: conflictCounter });
-      } else if (lineContent.startsWith(">>>>>>>")) {
-        currentType = "normal";
-        processed.push({ content: lineContent, type: "header", conflictId: conflictCounter });
-      } else {
-        const isNormal = currentType === "normal";
-        processed.push({ 
-          content: lineContent, 
-          type: currentType, 
-          conflictId: !isNormal ? conflictCounter : undefined,
-          lineNumber: isNormal ? countCurrent : (currentType === "current" ? countCurrent : countIncoming)
-        });
-        if (isNormal) { countCurrent++; countIncoming++; }
-        else if (currentType === "current") countCurrent++;
-        else if (currentType === "incoming") countIncoming++;
-      }
+    const parsed = parseMergeContent(newContent);
+    const nextResolutions: Record<number, Resolution | null> = {};
+    parsed.forEach(segment => {
+      if (segment.type === "conflict") nextResolutions[segment.id] = null;
     });
-
-    lastProcessedContent = newContent;
-    setLines(processed);
-    setResolutions(initialResolutions);
-    setManualResult(null); 
+    setSegments(parsed);
+    setResolutions(nextResolutions);
+    setManualResult(null);
+    setActiveConflict(parsed.find(segment => segment.type === "conflict")?.id ?? null);
   }));
 
-  const toggleResolution = (id: number, side: "current" | "incoming") => {
-    setResolutions(p => {
-      const currentList = p[id] || [];
-      const isAlreadySelected = currentList.includes(side);
-      
-      let newList;
-      if (isAlreadySelected) {
-        newList = currentList.filter(s => s !== side);
-      } else {
-        newList = [...currentList, side];
-      }
-      
-      return { ...p, [id]: newList };
-    });
-  };
-
-  const handleScroll = (e: Event) => {
-    const target = e.currentTarget as HTMLDivElement;
-    if (!isSyncing) {
-      isSyncing = true;
-      const targets = [leftRef, rightRef, cmScroller];
-      synchronizeScrolls(target, targets);
-      queueMicrotask(() => { isSyncing = false; });
-    }
-  };
-
   return (
-    <div class="flex flex-col h-[calc(100vh-120px)] font-sans text-[12px] border border-gray-200 dark:border-gray-900 bg-gray-300 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-      
-      {/* CABEÇALHO DE CONFLITOS E NAVEGAÇÃO */}
-      <div class="flex items-center justify-between px-4 py-2 bg-gray-200 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700">
-        <div class="flex items-center gap-4">
-          <span class="text-sm font-semibold">
-            {t('merge').conflicts}: <span class="text-green-500">{conflictStats().resolved}</span> / {t('merge').resolved.replace("{{number}}", String(conflictStats().total))}
-          </span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button
-            onClick={goToPrevConflict}
-            disabled={conflictIds().length === 0}
-            class="p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-700 disabled:opacity-30"
-            title={t('merge').previous_conflict}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-            </svg>
-          </button>
-          <button
-            onClick={goToNextConflict}
-            disabled={conflictIds().length === 0}
-            class="p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-700 disabled:opacity-30"
-            title={t('merge').next_conflict}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* PAINÉIS SUPERIORES (Incoming / Current) */}
-      <div class="flex flex-[1.2] min-h-0 border-b border-white/10">
-        {/* Lado Esquerdo - Incoming */}
-        <div class="flex-1 flex flex-col border-r border-white/10 w-1/2">
-          <div class="bg-blue-300 dark:bg-blue-900 px-4 py-1 text-[11px] uppercase text-blue-700 dark:text-blue-400 font-bold border-b border-blue-500/30">← Incoming</div>
-          <div ref={leftRef} onScroll={handleScroll} class="overflow-auto flex-1 p-2 custom-scrollbar">
-            <For each={lines()}>{(line) => {
-              const isSelected = () => resolutions()[line.conflictId!]?.includes('incoming');
-              const isActive = () => line.conflictId === activeConflictId();
-              if (!line.lineNumber || line.type === 'current') return null;
-              return (
-                <div 
-                  onClick={() => {
-                    if (line.conflictId) {
-                      toggleResolution(line.conflictId, 'incoming');
-                      setActiveConflictId(line.conflictId);
-                    }
-                  }}
-                  data-conflict-id={line.conflictId}
-                  class={`flex min-h-[1.5em] items-center border-l-4 border-transparent w-fit min-w-full
-                    ${line.type === 'incoming' ? (isSelected() ? 'bg-blue-600/30 !border-blue-500 py-2' : 'bg-blue-300/30 py-2') : ''}
-                    ${isActive() ? 'border-yellow-400 !border-l-4' : ''}
-                    ${line.conflictId ? 'cursor-pointer text-black dark:text-white' : 'w-fit'}`}
-                >
-                  <span class="w-8 text-right pr-2 text-black dark:text-gray-400 text-[10px]">
-                    {line.type === 'normal' ? line.lineNumber : ''}
-                    {isSelected() && line.type === 'incoming' && <span>✅</span>}
-                  </span>
-                  <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre font-mono select-text'}>
-                    <div innerHTML={highlightCode(line.content, props.fileName)} />
-                  </pre>
-                </div>
-              );
-            }}</For>
-          </div>
-        </div>
-
-        {/* Lado Direito - Current */}
-        <div class="flex-1 flex flex-col w-1/2">
-          <div class="bg-green-300 dark:bg-green-900 px-4 py-1 text-[11px] uppercase text-green-700 dark:text-green-400 font-bold border-b border-green-500/30">Current →</div>
-          <div ref={rightRef} onScroll={handleScroll} class="overflow-auto flex-1 p-2 custom-scrollbar">
-            <For each={lines()}>{(line) => {
-              const isSelected = () => resolutions()[line.conflictId!]?.includes('current');
-              const isActive = () => line.conflictId === activeConflictId();
-              if (!line.lineNumber || line.type === 'incoming') return null;
-              return (
-                <div 
-                  onClick={() => {
-                    if (line.conflictId) {
-                      toggleResolution(line.conflictId, 'current');
-                      setActiveConflictId(line.conflictId);
-                    }
-                  }}
-                  data-conflict-id={line.conflictId}
-                  class={`flex min-h-[1.5em] items-center border-l-4 border-transparent w-fit min-w-full
-                    ${line.type === 'current' ? (isSelected() ? 'bg-green-600/30 border-l-2 !border-green-500 py-2' : 'bg-green-300/30 py-2') : ''}
-                    ${isActive() ? 'border-yellow-400 !border-l-4' : ''}
-                    ${line.conflictId ? 'cursor-pointer text-black dark:text-white' : 'w-fit'}`}
-                >
-                  <span class="w-8 text-right pr-2 text-gray-500 dark:text-gray-400 mr-2 text-[10px]">
-                    {line.type === 'normal' ? line.lineNumber : ''}
-                    {isSelected() && line.type === 'current' && <span>✅</span>}
-                  </span>
-                  <pre class={line.type === 'header' || line.type === 'separator' ? 'hidden' : 'whitespace-pre font-mono select-text'}>
-                    <div innerHTML={highlightCode(line.content, props.fileName)} />
-                  </pre>
-                </div>
-              );
-            }}</For>
-          </div>
-        </div>
-      </div>
-
-      {/* PAINEL INFERIOR (Resultado) */}
-      <div class="flex-1 flex flex-col min-h-0">
-        <div class="bg-gray-200 dark:bg-gray-900 px-4 py-2 flex justify-between items-center border-b border-white/5">
-          <span class="text-[11px] font-bold uppercase text-orange-400">{t('merge').result_merged}</span>
-          <div class="flex gap-3 text-[11px]">
-            <Show when={manualResult() !== null}>
-              <button onClick={() => setManualResult(null)} class="text-gray-400 hover:text-white underline italic">{t('merge').reset_to_auto}</button>
+    <div class="flex h-full min-h-0 flex-col font-sans text-[12px] border border-gray-200 dark:border-gray-900 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+      <div class="flex items-center justify-between gap-4 border-b border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3">
+        <div class="min-w-0">
+          <div class="font-semibold truncate">{props.fileName}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">
+            {conflicts().length} {t('merge').conflicts_found}
+            <Show when={unresolvedCount() > 0}>
+              <span class="text-amber-600 dark:text-amber-400"> · {unresolvedCount()} {t('merge').unresolved_conflicts}</span>
             </Show>
-            <button onClick={props.onClose} class="hover:text-white text-gray-400">{t('common').cancel}</button>
-            <button onClick={handleCompleteMerge} class="px-3 py-1 bg-blue-600 text-white rounded-xl font-bold">{t('merge').complete}</button>
           </div>
         </div>
-        {/* CodeMirror */}
-        <div class="flex-1 overflow-hidden" ref={codeMirrorRef} />
+        <div class="flex items-center gap-2 shrink-0">
+          <Show when={manualResult() !== null}>
+            <button onClick={() => setManualResult(null)} class="px-2 py-1 text-gray-500 hover:text-gray-900 dark:hover:text-white">{t('merge').reset_auto}</button>
+          </Show>
+          <button onClick={resetAll} class="px-2 py-1 text-gray-500 hover:text-gray-900 dark:hover:text-white">{t('merge').reset_all}</button>
+          <button onClick={props.onClose} class="px-3 py-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">{t('common').cancel}</button>
+          <button onClick={handleCompleteMerge} class="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white font-semibold">{t('merge').complete_merge}</button>
+        </div>
+      </div>
+
+      <div class="flex flex-1 min-h-0">
+        <aside class="w-[280px] shrink-0 overflow-auto border-r border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 p-3 custom-scrollbar">
+          <Show when={conflicts().length > 0} fallback={<div class="p-4 text-center text-gray-500">{t('merge').no_conflicts}</div>}>
+            <div class="space-y-2">
+              <For each={conflicts()}>
+                {(conflict) => {
+                  const resolution = () => resolutions()[conflict.id];
+                  return (
+                    <button
+                      ref={(element) => { conflictRefs[conflict.id] = element; }}
+                      onClick={() => selectConflict(conflict.id)}
+                      class="w-full text-left rounded-lg border p-3 transition-colors"
+                      classList={{
+                        "border-blue-500 bg-blue-50 dark:bg-blue-950/40": activeConflict() === conflict.id,
+                        "border-gray-200 dark:border-gray-700 hover:border-blue-300": activeConflict() !== conflict.id,
+                      }}
+                    >
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="font-semibold">#{conflict.id}</span>
+                        <span class={resolution() ? "text-green-600" : "text-amber-600"}>{resolution() ? t('merge').resolved : t('merge').unresolved}</span>
+                      </div>
+                      <div class="mt-1 text-[11px] text-gray-500">{t('merge').line} {conflict.startLine} · {conflict.current.length}/{conflict.incoming.length} {t('merge').lines}</div>
+                      <div class="mt-2 grid grid-cols-2 gap-1">
+                        <span onClick={(event) => { event.stopPropagation(); setResolution(conflict.id, "current"); }} class="rounded bg-green-100 dark:bg-green-900/40 px-1.5 py-1 text-center text-[10px] text-green-800 dark:text-green-200">{t('merge').current}</span>
+                        <span onClick={(event) => { event.stopPropagation(); setResolution(conflict.id, "incoming"); }} class="rounded bg-blue-100 dark:bg-blue-900/40 px-1.5 py-1 text-center text-[10px] text-blue-800 dark:text-blue-200">{t('merge').incoming}</span>
+                        <span onClick={(event) => { event.stopPropagation(); setResolution(conflict.id, "both"); }} class="rounded bg-purple-100 dark:bg-purple-900/40 px-1.5 py-1 text-center text-[10px] text-purple-800 dark:text-purple-200">{t('merge').both}</span>
+                        <span onClick={(event) => { event.stopPropagation(); resetResolution(conflict.id); }} class="rounded bg-gray-100 dark:bg-gray-700 px-1.5 py-1 text-center text-[10px]">{t('merge').reset}</span>
+                      </div>
+                    </button>
+                  );
+                }}
+              </For>
+            </div>
+          </Show>
+        </aside>
+
+        <section class="flex min-w-0 flex-1 flex-col bg-white dark:bg-gray-800">
+          <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-2">
+            <span class="font-semibold text-gray-600 dark:text-gray-300">{t('merge').merged_version}</span>
+            <Show when={manualResult() !== null}>
+              <span class="text-[10px] text-amber-600 dark:text-amber-400">{t('merge').manual_edit}</span>
+            </Show>
+          </div>
+          <div class="min-h-0 flex-1 overflow-hidden">
+            <div class="h-full" ref={codeMirrorRef} />
+          </div>
+        </section>
       </div>
     </div>
   );

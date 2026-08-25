@@ -22,10 +22,19 @@ export type ConnectedProviders = {
   login?: string;
 };
 
+export type CommitDraft = {
+  message: string;
+  description: string;
+};
+
 type RepoContextType = {
   repos: () => Repo[];
   active: () => string | null;
   refreshBranches: (repoPath: string) => Promise<void>;
+  refreshLocalChanges: (repoPath: string) => Promise<void>;
+  commitDrafts: () => Record<string, CommitDraft>;
+  updateCommitDraft: (repoPath: string, draft: CommitDraft) => void;
+  clearCommitDraft: (repoPath: string) => void;
   // 2. O seu recurso agora envelopa a estrutura de múltiplos provedores
   user: Resource<ConnectedProviders | null>; 
   mutateUser: (data: any | ((prev: ConnectedProviders | null) => ConnectedProviders | null)) => void;

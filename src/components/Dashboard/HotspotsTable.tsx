@@ -1,16 +1,34 @@
-import { createResource, For, Show } from "solid-js";
-import { getMostModifiedFiles, getUserMostModifiedFiles } from "../../services/gitService";
+import { createResource, createSignal, For, Show } from "solid-js";
+import { getBranchFileContent, getBranchFileMetadata, getBranchFilePage, getMostModifiedFiles, getUserMostModifiedFiles } from "../../services/gitService";
 import FileIcon from "../ui/FileIcon";
 import { useApp } from "../../context/AppContext";
+import Dialog from "../ui/Dialog";
+import { FileViewerContainer } from "../files/FileViewerContainer";
+import { Repo } from "../../models/Repo.model";
+import { useLoading } from "../ui/LoadingContext";
+import { UNSUPPORTED_EXTENSIONS } from "../../utils/file";
 
 interface Props {
   path: string;
+  repo: Repo;
   branch: string;
   email?: string;
+  selectCommit: (hash: string) => void
 }
 
 export default function HotspotsTable(props: Props) {
-  const { t } = useApp();
+  const [showFileModal, setShowFileModal] = createSignal(false);
+  const [selectedFile, setSelectedFile] = createSignal({} as { name: string });
+  const [fileContent, setFileContent] = createSignal<string | null>(null);
+  const [isImage, setIsImage] = createSignal(false);
+  const [isBinary, setIsBinary] = createSignal(false);
+  const [isPreviewLimited, setIsPreviewLimited] = createSignal(false);
+  const [nextLine, setNextLine] = createSignal<number | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = createSignal(false);
+  const [selectedFilePath, setSelectedFilePath] = createSignal<string[]>([]);
+  const [fileMeta, setFileMeta] = createSignal<{size: number, lines: number | null} | null>(null);
+  const { t, locale } = useApp();
+  const { showLoading, hideLoading } = useLoading();
 
   const [hotspots] = createResource(
     () => ({ path: props.path, branch: props.branch }),
@@ -23,6 +41,69 @@ export default function HotspotsTable(props: Props) {
     }
   );
 
+  const handleFileClick = async (path: string) => {
+    const extension = path.substring(path.lastIndexOf('.')).toLowerCase();
+    const unsupported = UNSUPPORTED_EXTENSIONS.includes(extension);
+    setIsBinary(unsupported);
+
+    if (unsupported) {
+      setFileContent("");
+      setIsImage(false);
+      setNextLine(null);
+      setIsLoadingMore(false);
+      setSelectedFilePath([path]);
+      const data = await getBranchFileMetadata(props.repo.path, props.branch, path);
+      setIsBinary(data.isBinary);
+      setIsPreviewLimited(!data.isPreviewable);
+      setFileMeta({size: data.size, lines: null});
+      return; 
+    }
+    
+    showLoading(t('loading').loading_file);
+    try {
+      const data = await getBranchFileContent(props.repo.path, props.branch, path);
+      setIsImage(data.isImage);
+      setIsBinary(data.isBinary);
+      setIsPreviewLimited(!data.isPreviewable);
+      setNextLine(data.nextLine ?? (data.truncated ? data.lineCount : null));
+      setIsLoadingMore(false);
+      setFileContent(data.content);
+      setFileMeta({size: data.size, lines: data.lineCount});
+      setSelectedFilePath([path]);
+      setSelectedFile({name: path});
+      setShowFileModal(true);
+    } catch (e) {
+      setFileContent(t('error').load_file);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  const loadMoreFileContent = async () => {
+    const path = selectedFilePath()[0];
+    const branch = props.branch;
+    const startLine = nextLine();
+    if (!path || !branch || startLine === null || isLoadingMore() || isPreviewLimited()) return;
+
+    setIsLoadingMore(true);
+    try {
+      const data = await getBranchFilePage(props.repo.path, branch, path, startLine);
+      if (selectedFilePath()[0] !== path) return;
+
+      setFileContent((previous) => `${previous || ""}${data.content}`);
+      setNextLine(data.nextLine ?? (data.truncated
+        ? startLine + (data.lineCount || 0)
+        : null));
+      setFileMeta((previous) => previous
+        ? { ...previous, lines: (previous.lines || 0) + (data.lineCount || 0) }
+        : previous);
+    } catch (error) {
+      console.error("Erro ao carregar a próxima página do arquivo:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
   return (
     <div class="p-2 h-full flex flex-col overflow-hidden">
       <div class="flex items-center justify-between mb-4">
@@ -30,41 +111,22 @@ export default function HotspotsTable(props: Props) {
           <i class="fa-solid fa-fire text-orange-500"></i>
           {t('dashboard').hotspots}
         </h3>
-        <Show when={hotspots.loading}>
-          <div class="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-        </Show>
       </div>
 
-      <div class="flex-1 overflow-auto custom-scrollbar rounded-lg border border-gray-300 dark:border-gray-700">
-        <table class="table-striped">
-          <thead>
-            <tr>
-              <th class="text-[10px]">{t('file').file}</th>
-              <th class="text-right text-[10px]">{t('file').updates}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <Show 
-              when={!hotspots.loading} 
-              fallback={
-                <For each={[1, 2, 3]}>
-                  {() => (
-                    <tr class="animate-pulse">
-                      <td>
-                        <div class="flex flex-col gap-1.5 py-1">
-                          <div class="h-3 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
-                          <div class="h-2 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
-                        </div>
-                      </td>
-                      <td class="flex justify-end items-center h-full py-2">
-                        <div class="h-3 bg-gray-300 dark:bg-gray-700 rounded w-8 mr-2"></div>
-                        <div class="w-12 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full hidden sm:block"></div>
-                      </td>
-                    </tr>
-                  )}
-                </For>
-              }
-            >
+      <Show when={!hotspots.loading} fallback={
+        <div class="flex-1 flex items-center justify-center">
+          <i class="fa-solid fa-spinner animate-spin text-orange-500 text-xl"></i>
+        </div>
+      }>
+        <div class="flex-1 overflow-auto custom-scrollbar rounded-lg border border-gray-300 dark:border-gray-700">
+          <table class="table-striped">
+            <thead>
+              <tr>
+                <th class="text-[10px]">{t('file').file}</th>
+                <th class="text-right text-[10px]">{t('file').updates}</th>
+              </tr>
+            </thead>
+            <tbody>
               <For each={hotspots()} fallback={
                 <tr>
                   <td colspan="2" class="text-center py-10 text-xs text-gray-500 italic">
@@ -73,7 +135,7 @@ export default function HotspotsTable(props: Props) {
                 </tr>
               }>
                 {(file) => (
-                  <tr class="group">
+                  <tr class="group" onClick={() => handleFileClick(file.name)}>
                     <td class="max-w-[200px]">
                       <div class="flex flex-col">
                         <span class="truncate text-xs text-gray-900 dark:text-gray-200 font-mono group-hover:text-blue-400 transition-colors flex items-center gap-1">
@@ -89,11 +151,12 @@ export default function HotspotsTable(props: Props) {
                         <span class="text-xs font-bold text-orange-400 font-mono">
                           {file.count}
                         </span>
+                        {/* Pequena barra visual de intensidade */}
                         <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-900 rounded-full overflow-hidden hidden sm:block">
-                          <div 
-                            class="h-full bg-orange-500/50" 
-                            style={{ 
-                              width: `${Math.min((file.count / (hotspots()?.[0]?.count || 1)) * 100, 100)}%` 
+                          <div
+                            class="h-full bg-orange-500/50"
+                            style={{
+                              width: `${Math.min((file.count / (hotspots()?.[0]?.count || 1)) * 100, 100)}%`
                             }}
                           />
                         </div>
@@ -102,14 +165,52 @@ export default function HotspotsTable(props: Props) {
                   </tr>
                 )}
               </For>
-            </Show>
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      </Show>
 
-      <div class="mt-3 text-[9px] text-gray-600 dark:text-gray-200 italic">
-        * {t('dashboard').basead_activit_branch}
-      </div>
+      <Show when={!hotspots.loading}>
+        <div class="mt-3 text-[9px] text-gray-600 dark:text-gray-200 italic">
+          * {t('dashboard').basead_activit_branch}
+        </div>
+      </Show>
+
+      <Show when={showFileModal()}>
+        <Dialog
+            open={true}
+            onClose={() => setShowFileModal(false)}
+            title={selectedFile()?.name.split('/').pop()}
+            icon="fa-solid fa-file-code"
+            iconColor="text-cyan-600 dark:text-cyan-300"
+            width="calc(100% - 30px)" bodyClass="p-2"
+        >
+          <FileViewerContainer
+            repoName={props.repo.name}
+            repoPath={props.repo.path}
+            selectedBranch={props.branch}
+            selectedFilePath={selectedFilePath()}
+            fileContent={fileContent()}
+            directoryContent={null}
+            pathHistory={null}
+            lastCommit={null}
+            fileMeta={fileMeta()}
+            isImage={isImage()}
+            isBinary={isBinary()}
+            previewLimited={isPreviewLimited()}
+            hasMoreContent={nextLine() !== null}
+            isLoadingMore={isLoadingMore()}
+            onLoadMore={loadMoreFileContent}
+            showHistory={false}
+            setShowHistory={() => {}}
+            onFileClick={() => {}}
+            onGoBack={() => {}}
+            onSelectCommit={props.selectCommit}
+            t={t}
+            locale={locale()}
+          />
+        </Dialog>
+      </Show>
     </div>
   );
 }

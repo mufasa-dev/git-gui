@@ -1,7 +1,9 @@
-import { createEffect, createMemo, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { commit, discard_changes, getDiff, getLocalChanges, stageFiles, unstageFiles } from "../../services/gitService";
+import { commit, discard_changes, getDiff, ignoreFile, stageFiles, unstageFiles } from "../../services/gitService";
 import { FolderTreeView } from "../ui/FolderTreeview";
+import { ChangeListView } from "../ui/ChangeListView";
+import LocalChangesSettingsModal from "./LocalChangesSettingsModal";
 import { useRepoContext } from "../../context/RepoContext";
 import DiffViewer from "../ui/DiffViewer";
 import { LocalChange } from "../../models/LocalChanges.model";
@@ -11,8 +13,8 @@ import { Diff } from "../../models/Diff.model";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
-
-let isRefreshing = false;
+import { generateCommitSuggestion } from "../../services/aiService";
+import { PREVIEW_MAX_BYTES } from "../../utils/file";
 
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
@@ -29,7 +31,9 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [commitMessage, setCommitMessage] = createSignal("");
   const [commitDescription, setCommitDescription] = createSignal("");
   const [commitAmend, setCommitAmend] = createSignal(false);
-  const { refreshBranches } = useRepoContext();
+  let lastRepoPath: string | undefined;
+  let diffRequestId = 0;
+  const { refreshBranches, refreshLocalChanges, commitDrafts, updateCommitDraft, clearCommitDraft } = useRepoContext();
   const [diff, setDiff] = createSignal<Diff>({diff: ""});
   const [menuVisible, setMenuVisible] = createSignal(false);
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
@@ -37,80 +41,101 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [isMerging, setIsMerging] = createSignal(false);
   const [isVisualizingStaged, setIsVisualizingStaged] = createSignal(false);
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
+  const [isGeneratingAI, setIsGeneratingAI] = createSignal(false);
+  const [settingsOpen, setSettingsOpen] = createSignal(false);
+
+  const saveCommitDraft = (message: string, description: string) => {
+    updateCommitDraft(props.repo.path, { message, description });
+  };
+  const [viewMode, setViewMode] = createSignal<"tree" | "list">(
+    localStorage.getItem("local-changes-view-mode") === "list" ? "list" : "tree"
+  );
   const { t } = useApp();
 
-  const loadChanges = async () => {
-    if (!props.repo.path || isMerging() || isRefreshing) return;
-    
-    isRefreshing = true;
-    
-    try {
-      const res = await getLocalChanges(props.repo.path);
-      
-      if (JSON.stringify(res) !== JSON.stringify(changes())) {
-        setChanges(res);
-      }
+  const summaryDiff = (change: LocalChange): Diff => ({
+    diff: "",
+    size: change.size,
+    lineCount: change.lineCount,
+    isBinary: change.isBinary,
+    isPreviewable: false,
+    truncated: change.size !== undefined && change.size > PREVIEW_MAX_BYTES,
+    hasConflict: change.status === "conflicted",
+    reason: change.isBinary ? "binary" : "unsupported_or_large",
+    newFile: change.path,
+  });
 
-      const currentPaths = res.map(c => c.path);
-      setSelected(prev => prev.filter(p => currentPaths.includes(p)));
-      setStagedPreparedSelected(prev => prev.filter(p => currentPaths.includes(p)));
+  const changeSignature = (items: LocalChange[]) => items.map(item => [
+    item.path,
+    item.status,
+    item.staged,
+    item.size,
+    item.isBinary,
+    item.isPreviewable,
+  ].join("|")).join("\u0000");
 
-      if (fileSelected()) {
-        const fileExists = res.find(c => c.path === fileSelected());
-        if (fileExists) {
-          const newDiff = await getDiff(props.repo.path, fileSelected(), fileExists.staged);
-          if (newDiff.diff !== diff().diff) {
-            setDiff(newDiff);
-          }
-        } else {
-          setFileSelected("");
-          setDiff({diff: ""});
+  const syncChanges = async (res: LocalChange[]) => {
+    if (isMerging()) return;
+
+    const previousChanges = changes();
+    const previousSelectedChange = previousChanges.find(change => change.path === fileSelected());
+    const listChanged = changeSignature(res) !== changeSignature(previousChanges);
+
+    if (listChanged) {
+      setChanges(res);
+    }
+
+    const currentPaths = res.map(c => c.path);
+    setSelected(prev => prev.filter(p => currentPaths.includes(p)));
+    setStagedPreparedSelected(prev => prev.filter(p => currentPaths.includes(p)));
+
+    const selectedPath = fileSelected();
+    const currentDiffRequestId = ++diffRequestId;
+    if (selectedPath) {
+      const fileExists = res.find(c => c.path === selectedPath);
+      if (fileExists) {
+        const selectedChangeChanged = !previousSelectedChange
+          || changeSignature([previousSelectedChange]) !== changeSignature([fileExists]);
+        if (!selectedChangeChanged) return;
+
+        const newDiff = fileExists.isPreviewable === false
+          ? summaryDiff(fileExists)
+          : await getDiff(props.repo.path, selectedPath, fileExists.staged);
+        if (currentDiffRequestId === diffRequestId && fileSelected() === selectedPath
+          && (newDiff.diff !== diff().diff || newDiff.reason !== diff().reason || newDiff.truncated !== diff().truncated)) {
+          setDiff(newDiff);
         }
+      } else if (currentDiffRequestId === diffRequestId && fileSelected() === selectedPath) {
+        setFileSelected("");
+        setDiff({diff: ""});
       }
-    } catch (e) {
-      console.error("Erro ao carregar mudanças:", e);
-    } finally {
-      isRefreshing = false;
     }
   };
 
-  createEffect(on(() => props.repo.path, (newPath, oldPath) => {
+  const loadChanges = async () => {
+    await refreshLocalChanges(props.repo.path);
+  };
+
+  createEffect(() => {
+    const newPath = props.repo.path;
+    const localChanges = props.repo.localChanges ?? [];
     if (!newPath) return;
-    
-    if (newPath !== oldPath) {
+
+    if (newPath !== lastRepoPath) {
       setChanges([]);
       setSelected([]);
       setStagedPreparedSelected([]);
       setFileSelected("");
       setDiff({diff: ""});
-    }
-    
-    loadChanges();
-  }));
 
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === "visible") {
-      loadChanges();
+      const draft = commitDrafts()[newPath] ?? { message: "", description: "" };
+      setCommitMessage(draft.message);
+      setCommitDescription(draft.description);
+      lastRepoPath = newPath;
     }
-  };
 
-  const currentFileChange = createMemo(() => {
-    return changes().find(c => c.path === fileSelected() && c.staged === isVisualizingStaged());
+    void syncChanges(localChanges);
   });
-  
-  document.addEventListener("visibilitychange", handleVisibilityChange);
 
-  const handleFocus = () => {
-    if (!isMerging() && !isRefreshing) {
-      loadChanges();
-    }
-  };
-  window.addEventListener("focus", handleFocus);
-
-  onCleanup(() => {
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-    window.removeEventListener("focus", handleFocus);
-  });
 
   const startResize = (e: MouseEvent) => {
     setIsResizing(true);
@@ -130,7 +155,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const staged = () => changes().filter((c) => c.staged && c.status !== "untracked");
   const unstaged = () => changes().filter((c) => !c.staged || c.status == "untracked");
 
-  const toggleItem = (path: string, select: boolean, isFile: boolean) => {
+  const toggleItem = (path: string, select: boolean, _isFile: boolean) => {
     if (path === fileSelected()) {
       clearDiff();
       setFileSelected("");
@@ -168,6 +193,35 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   };
 
+  const openSelectedInVsCode = async (filePath: string) => {
+    try {
+      await openVsCodeDiff(props.repo.path, filePath);
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    }
+  };
+
+  const updateViewMode = (mode: "tree" | "list") => {
+    setViewMode(mode);
+    localStorage.setItem("local-changes-view-mode", mode);
+  };
+
+  const ignoreSelectedFile = async (filePath: string) => {
+    try {
+      await ignoreFile(props.repo.path, filePath);
+      notify.success(t('git').ignore_file, t('git').file_ignored);
+      setSelected((prev) => prev.filter((path) => path !== filePath));
+      setStagedPreparedSelected((prev) => prev.filter((path) => path !== filePath));
+      if (fileSelected() === filePath) {
+        setFileSelected("");
+        clearDiff();
+      }
+      await loadChanges();
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    }
+  };
+
   const showContextMenu = (e: MouseEvent, item: any = null) => {
     e.preventDefault();
 
@@ -183,13 +237,17 @@ export function LocalChanges(props: { repo: Repo; }) {
       items.push({
         label: t('branch').open_diff_vscode,
         hr: true,
-        action: () => openVsCodeDiff(props.repo.path, item.path),
+        action: () => openSelectedInVsCode(item.path),
+      });
+      items.push({
+        label: t('git').ignore_file,
+        action: () => ignoreSelectedFile(item.path),
       });
     }
     items.push({ label: t('git').prepare_all, action: () => prepareAll() });
     items.push({
       label: t('branch').discart_changes,
-      action: () => discard(selected()),
+      action: () => discard(item?.path ? [item.path] : selected()),
     });
 
     setMenuItems(items);
@@ -203,10 +261,29 @@ export function LocalChanges(props: { repo: Repo; }) {
   onCleanup(() => document.removeEventListener("click", hideContextMenu));
 
   const loadDiff = async (staged: boolean) => {
-    console.log("Loading diff for", fileSelected(), "staged:", staged, props.repo.path);
-    const result = await getDiff(props.repo.path, fileSelected(), staged);
-    console.log("Diff loaded:", result);
-    setDiff(result);
+    const selectedPath = fileSelected();
+    const change = changes().find(item => item.path === selectedPath && item.staged === staged)
+      ?? changes().find(item => item.path === selectedPath);
+
+    if (!change) {
+      clearDiff();
+      return;
+    }
+
+    if (change.isPreviewable === false) {
+      setDiff(summaryDiff(change));
+      return;
+    }
+
+    try {
+      const result = await getDiff(props.repo.path, selectedPath, staged);
+      if (fileSelected() === selectedPath) {
+        setDiff(result);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar diff:", error);
+      notify.error(t('error').load_file, String(error));
+    }
   }
 
   const prepare = async (paths: string[]) => {
@@ -226,6 +303,30 @@ export function LocalChanges(props: { repo: Repo; }) {
     await loadChanges();
   };
 
+  const handleAIGenerate = async () => {
+    if (staged().length === 0) {
+      notify.error("Ops!", "Você precisa preparar (stage) alguns arquivos antes de pedir ajuda à IA.");
+      return;
+    }
+
+    try {
+      setIsGeneratingAI(true);
+      // Chama o serviço do Tauri que criamos
+      const [suggestedTitle, suggestedDescription] = await generateCommitSuggestion(props.repo.path);
+      
+      // Alimenta os inputs da sua tela automaticamente
+      setCommitMessage(suggestedTitle);
+      setCommitDescription(suggestedDescription);
+      saveCommitDraft(suggestedTitle, suggestedDescription);
+      notify.success("Sucesso", "Sugestão de commit aplicada!");
+    } catch (err) {
+      console.error(err);
+      notify.error("Erro na IA", String(err));
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
   const unstage = async (paths: string[]) => {
     await unstageFiles(props.repo.path, paths);
     setSelected([]);
@@ -235,10 +336,18 @@ export function LocalChanges(props: { repo: Repo; }) {
   }
 
   const discard = async (paths: string[]) => {
-    await discard_changes(props.repo.path, paths);
-    setSelected([]);
-    clearDiff();
-    await loadChanges();
+    if (paths.length === 0) return;
+
+    try {
+      await discard_changes(props.repo.path, paths);
+      setSelected([]);
+      setStagedPreparedSelected([]);
+      setFileSelected("");
+      clearDiff();
+      await loadChanges();
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    }
   }
 
   const handleCommit = async () => {
@@ -248,12 +357,12 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
     try {
       showLoading("Realizando commit...");
-      const res = await commit(props.repo.path, commitMessage(), commitDescription(), commitAmend());
+      await commit(props.repo.path, commitMessage(), commitDescription(), commitAmend());
       setCommitMessage("");
       setCommitDescription("");
+      clearCommitDraft(props.repo.path);
       setCommitAmend(false);
       clearDiff();
-      await loadChanges();
       await refreshBranches(props.repo.path);
     } catch (err) {
       console.error("Erro no commit:", err);
@@ -270,22 +379,41 @@ export function LocalChanges(props: { repo: Repo; }) {
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}>
-      <div class="container-branch-list mb-4 overflow-auto border-r py-3 px-0" style={{ width: `${sidebarWidth()}px` }}>
+      <div class="container-branch-list mb-2 overflow-auto border-r py-3 px-0" style={{ width: `${sidebarWidth()}px` }}>
         <div style={{"height": "40px"}} class="flex flex-col">
           <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 mb-3 flex items-center" onContextMenu={showContextMenu}>
             <b>{t('file').updates}</b>
-            <button class="ml-auto px-3 py-1 text-sm bg-blue-500 text-white rounded-lg disabled:opacity-50" 
+            <button
+              class="ml-auto px-2 py-1 text-gray-500 hover:text-blue-500"
+              title={t('git').settings}
+              aria-label={t('git').settings}
+              onClick={() => setSettingsOpen(true)}
+            >
+              <i class="fa-solid fa-gear"></i>
+            </button>
+            <button class="px-3 py-1 text-sm bg-blue-500 text-white rounded-lg disabled:opacity-50"
               disabled={selected().length === 0}
               onClick={() => prepare(selected())}>
               {t('git').prepare}
             </button>
           </div>
           {unstaged().length === 0 && <div class="px-4 text-center text-gray-400">{t('git').no_changes}</div>}
-          <FolderTreeView items={unstaged()} selectMode="multi"
-            selected={selected()} staged={false} showStatus={true}
-            onToggle={toggleItem} onContextMenu={showContextMenu}
-            onDbClick={(items: string[]) => prepare(items)}
-          />
+          <Show when={viewMode() === "tree"} fallback={
+            <ChangeListView
+              items={unstaged()}
+              selected={selected()}
+              staged={false}
+              onToggle={toggleItem}
+              onContextMenu={showContextMenu}
+              onDbClick={(items: string[]) => prepare(items)}
+            />
+          }>
+            <FolderTreeView items={unstaged()} selectMode="multi"
+              selected={selected()} staged={false} showStatus={true}
+              onToggle={toggleItem} onContextMenu={showContextMenu}
+              onDbClick={(items: string[]) => prepare(items)}
+            />
+          </Show>
 
           <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 flex items-center mt-2 mb-3">
             <b class="mr-1">{t('git').prepared}</b>
@@ -295,11 +423,22 @@ export function LocalChanges(props: { repo: Repo; }) {
             </button>
           </div>
           
-          <FolderTreeView items={staged()} showStatus={true}
-            selected={stagedPreparedSelected()} staged={true} selectMode="multi"
-            onToggle={toggleStagedItem} onContextMenu={showContextMenu}
-            onDbClick={(items: string[]) => unstage(items)}
-          />
+          <Show when={viewMode() === "tree"} fallback={
+            <ChangeListView
+              items={staged()}
+              selected={stagedPreparedSelected()}
+              staged={true}
+              onToggle={toggleStagedItem}
+              onContextMenu={showContextMenu}
+              onDbClick={(items: string[]) => unstage(items)}
+            />
+          }>
+            <FolderTreeView items={staged()} showStatus={true}
+              selected={stagedPreparedSelected()} staged={true} selectMode="multi"
+              onToggle={toggleStagedItem} onContextMenu={showContextMenu}
+              onDbClick={(items: string[]) => unstage(items)}
+            />
+          </Show>
         </div>
       </div>
 
@@ -309,8 +448,8 @@ export function LocalChanges(props: { repo: Repo; }) {
         onMouseDown={startResize}
       ></div>
 
-      <div  class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
-        <div class="flex-1 overflow-auto px-2 container-branch-list min-w-0">
+      <div class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+        <div class="flex-1 overflow-auto p-2 container-branch-list min-w-0 border border-gray-300 dark:border-gray-700">
           <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
             path={props.repo.path} isStaged={isVisualizingStaged()}
             onMergeStatusChange={(open) => setIsMerging(open)}
@@ -320,13 +459,43 @@ export function LocalChanges(props: { repo: Repo; }) {
               loadChanges();
             }} />
         </div>
-        <div class="mt-2 container-branch-list mb-4">
-          <input type="text" class="w-full input-text" placeholder={t('commits').commit_message}
-            value={commitMessage()}
-            onInput={(e) => setCommitMessage(e.currentTarget.value)} />
-          <input type="text" class="w-full mt-2 input-text" placeholder={t('common').description}
+        <div class="mt-2 container-branch-list mb-2">
+          <div class="flex gap-2 items-center w-full">
+            <input type="text" class="flex-1 input-text mt-0" placeholder={t('commits').commit_message}
+              value={commitMessage()} disabled={isGeneratingAI()}
+              onInput={(e) => {
+                const message = e.currentTarget.value;
+                setCommitMessage(message);
+                saveCommitDraft(message, commitDescription());
+              }}
+            />
+            
+            <button 
+              class="px-3 py-2 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 
+                    border border-gray-300 dark:border-gray-900 text-gray-700 dark:text-white
+                    rounded-lg transition-colors flex items-center justify-center disabled:opacity-40"
+              title="Sugerir mensagem com IA"
+              onClick={handleAIGenerate}
+              disabled={isGeneratingAI() || staged().length === 0}
+            >
+              <Show when={isGeneratingAI()} fallback={<i class="fa fa-wand-magic-sparkles"></i>}>
+                <i class="fa fa-spinner animate-spin"></i>
+              </Show>
+            </button>
+          </div>
+
+          <textarea 
+            class="w-full mt-2 input-text min-h-[20px] max-h-[200px] resize-y py-2 custom-scrollbar" 
+            placeholder={t('common').description}
             value={commitDescription()}
-            onInput={(e) => setCommitDescription(e.currentTarget.value)} />
+            onInput={(e) => {
+              const description = e.currentTarget.value;
+              setCommitDescription(description);
+              saveCommitDraft(commitMessage(), description);
+            }}
+            rows="2" disabled={isGeneratingAI()}
+          />
+
           <div class="flex mt-2">
             <div>
               <input
@@ -336,12 +505,19 @@ export function LocalChanges(props: { repo: Repo; }) {
               <label for="amend" class="ml-1">{t('git').amend}</label>
             </div>
             <button class="pl-2 pr-4 py-1 bg-blue-600 ml-auto text-white rounded-xl" onClick={handleCommit}
-              disabled={staged().length === 0 || !commitMessage().trim()}>
+              disabled={staged().length === 0 || !commitMessage().trim() || isGeneratingAI()}>
               <i class="fa fa-check"></i> {t('git').commit}
             </button>
           </div>
         </div>
       </div>
+      <LocalChangesSettingsModal
+        open={settingsOpen()}
+        viewMode={viewMode()}
+        onViewModeChange={updateViewMode}
+        onClose={() => setSettingsOpen(false)}
+        t={t}
+      />
       <Show when={menuVisible()}>
         <ContextMenu
           name={''}

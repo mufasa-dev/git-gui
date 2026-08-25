@@ -2,19 +2,52 @@ import { load } from "@tauri-apps/plugin-store";
 import { fetch } from "@tauri-apps/plugin-http";
 import { PRValidationResult, ReviewerItem, UnifiedPR } from "../../models/PR.model";
 import { CardComment, WorkItem } from "../../models/WorkItem";
+import { UnifiedPipelineRun } from "../../models/Pipeline.model";
+import { invoke } from "@tauri-apps/api/core";
 
 async function getAuthStore() {
   return await load("auth.bin");
 }
 
+let tokenCache: string | null | undefined;
+
+async function azureRequest(organization: string, project: string, repository: string, path: string, init: RequestInit = {}) {
+  const token = await azureService.getToken();
+  if (!token) throw new Error("Faça login no Azure DevOps para continuar.");
+
+  const credentials = btoa(`:${token.trim()}`);
+  const response = await window.fetch(
+    `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repository)}${path}`,
+    {
+      ...init,
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        Accept: "application/json",
+        ...(init.headers || {}),
+      },
+    },
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.typeKey || `Azure DevOps retornou HTTP ${response.status}.`);
+  }
+  return payload;
+}
+
 export const azureService = {
   async getToken(): Promise<string | null> {
+    if (tokenCache !== undefined) return tokenCache;
+
     try {
       const store = await getAuthStore();
       const tokenData = await store.get<any>("azure_token");
-      if (!tokenData) return null;
-      return typeof tokenData === 'string' ? tokenData : tokenData.value;
+      const token = !tokenData
+        ? null
+        : typeof tokenData === 'string' ? tokenData : tokenData.value;
+      tokenCache = token ? token.trim() : null;
+      return tokenCache ?? null;
     } catch {
+      tokenCache = null;
       return null;
     }
   },
@@ -40,6 +73,7 @@ export const azureService = {
               await store.set("azure_token", token.trim());
               await store.set("azure_org", cleanOrg); 
               await store.save();
+              tokenCache = token.trim();
 
               return {
                   success: true,
@@ -191,6 +225,8 @@ export const azureService = {
         title: pr.title,
         state: pr.status === 'active' ? 'OPEN' : (pr.status === 'completed' ? 'MERGED' : 'ABANDONED'),
         createdAt: pr.creationDate,
+        updatedAt: pr.closedDate || pr.creationDate,
+        url: pr.url || `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_git/${encodeURIComponent(repoName)}/pullrequest/${pr.pullRequestId}`,
         author: {
           login: pr.createdBy.uniqueName,
           name: pr.createdBy.displayName,
@@ -198,7 +234,10 @@ export const azureService = {
         },
         headRefName: pr.sourceRefName.replace("refs/heads/", ""),
         baseRefName: pr.targetRefName.replace("refs/heads/", ""),
-        comments: { totalCount: 0 }
+        headRefOid: pr.lastMergeSourceCommit?.commitId,
+        baseRefOid: pr.lastMergeTargetCommit?.commitId,
+        comments: { totalCount: pr.commentCount || 0 },
+        mergeable: pr.mergeStatus === 'conflicts' ? 'CONFLICTING' : 'UNKNOWN'
       }));
     } catch (e) {
       console.error(e);
@@ -206,7 +245,7 @@ export const azureService = {
     }
   },
 
-  async getPullRequestDescription(organization: string, repoName: string, prNumber: number): Promise<Partial<UnifiedPR & { 
+  async getPullRequestDescription(organization: string, repoName: string, prNumber: number, project = repoName): Promise<Partial<UnifiedPR & { 
     mergeable: string, 
     reviewers: any[], 
     workItems: any[],
@@ -289,11 +328,20 @@ export const azureService = {
       }));
 
       return {
-        mergeable: pr.mergeStatus === 'conflicts' ? 'CONFLICTING' : 'MERGEABLE',
+        id: pr.pullRequestId?.toString(),
+        title: pr.title,
+        body: pr.description || "",
+        createdAt: pr.creationDate,
+        updatedAt: pr.closedDate || pr.creationDate,
+        url: pr.url || `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_git/${encodeURIComponent(repoName)}/pullrequest/${prNumber}`,
+        headRefName: pr.sourceRefName?.replace("refs/heads/", ""),
+        baseRefName: pr.targetRefName?.replace("refs/heads/", ""),
+        headRefOid: pr.lastMergeSourceCommit?.commitId,
+        baseRefOid: pr.lastMergeTargetCommit?.commitId,
+        mergeable: pr.mergeStatus === 'conflicts' ? 'CONFLICTING' : pr.mergeStatus === 'queued' ? 'BLOCKED' : 'MERGEABLE',
+        mergeableReason: pr.mergeStatus,
         reviewers,
-        workItems,
-        projectId: finalProjectId,
-        repositoryId: finalRepoId
+        comments: { totalCount: pr.commentCount || 0 },
       } as any;
     } catch (e) {
       console.error(e);
@@ -534,7 +582,11 @@ export const azureService = {
       headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ vote: 10 })
     });
-    return response.ok;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `Azure DevOps retornou HTTP ${response.status}.`);
+    }
+    return true;
   },
 
   async mergePullRequest(
@@ -1718,20 +1770,234 @@ export const azureService = {
       return mappedUpdates.reverse();
     } catch (error) {
       console.error("Erro no parse do histórico:", error);
+    const response = await window.fetch(url, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: "completed",
+        completionOptions: {
+          deleteSourceBranch: false,
+          mergeCommitMessage: "Merged via Dev Brook",
+          mergeStrategy: "noFastForward",
+        },
+        lastMergeSourceCommit: prData.lastMergeSourceCommit,
+        lastMergeSourceCommitId: prData.lastMergeSourceCommit?.commitId || prData.lastMergeSourceCommitId,
+      })
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `Azure DevOps retornou HTTP ${response.status}.`);
+    }
+    return true;
+  },
+
+  async getPullRequestWebUrl(organization: string, project: string, repoName: string, prNumber: number) {
+    return `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_git/${encodeURIComponent(repoName)}/pullrequest/${prNumber}`;
+  },
+
+  async getPRFiles(organization: string, repoName: string, prNumber: number, project = repoName) {
+    const iterations = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/iterations?api-version=7.1`);
+    const iteration = iterations?.value?.[iterations.value.length - 1];
+    if (!iteration) return [];
+    const changes = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/iterations/${iteration.id}/changes?top=2000&api-version=7.1`);
+    return (changes?.changeEntries || changes?.value || []).map((change: any) => ({
+      path: change.item?.path || change.path || "",
+      changeType: change.changeType || "edit",
+      additions: 0,
+      deletions: 0,
+    }));
+  },
+
+  async getPRCommits(organization: string, repoName: string, prNumber: number, project = repoName) {
+    const data = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/commits?api-version=7.1`);
+    return (data?.value || []).map((commit: any) => ({
+      oid: commit.commitId,
+      abbreviatedOid: commit.commitId?.slice(0, 7),
+      message: commit.comment || "",
+      committedDate: commit.author?.date || commit.committer?.date,
+      author: {
+        name: commit.author?.name || commit.committer?.name || "",
+        avatarUrl: commit.author?._links?.avatar?.href || "",
+        user: { login: commit.author?.email || commit.committer?.email || "" },
+      },
+    }));
+  },
+
+  async getPRChecks(organization: string, repoName: string, prNumber: number, project = repoName) {
+    const data = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/statuses?api-version=7.1-preview.1`);
+    const contexts = (data?.value || []).map((item: any) => ({
+      name: item.context?.name || item.description || "Policy",
+      state: item.state?.toUpperCase() || "UNKNOWN",
+      description: item.description || item.targetUrl || "",
+      targetUrl: item.targetUrl,
+    }));
+    const state = contexts.some((item: any) => ["FAILED", "ERROR"].includes(item.state))
+      ? "FAILURE"
+      : contexts.some((item: any) => ["PENDING", "NOTKNOWN"].includes(item.state)) ? "PENDING" : "SUCCESS";
+    return { state, contexts };
+  },
+
+  async getPRTimeline(organization: string, repoName: string, prNumber: number, project = repoName) {
+    const data = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/threads?api-version=7.1`);
+    return (data?.value || []).map((thread: any) => ({
+      __typename: "IssueComment",
+      id: thread.id?.toString(),
+      createdAt: thread.publishedDate || thread.lastUpdatedDate,
+      body: thread.comments?.map((comment: any) => comment.content).filter(Boolean).join("\\n") || "",
+      author: {
+        login: thread.comments?.[0]?.author?.uniqueName || thread.comments?.[0]?.author?.displayName || "Azure DevOps",
+        name: thread.comments?.[0]?.author?.displayName,
+        avatarUrl: thread.comments?.[0]?.author?._links?.avatar?.href || "",
+      },
+      isMinimized: false,
+    }));
+  },
+
+  async getPipelineRuns(organization: string, project: string, repoPath: string): Promise<UnifiedPipelineRun[]> {
+    try {
+      const token = await this.getToken();
+      if (!token) return [];
+      const credentials = btoa(`:${token.trim()}`);
+      
+      // Voltamos para a URL leve padrão
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/build/builds?top=15&api-version=7.0`;
+      
+      const response = await window.fetch(url, {
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Accept': 'application/json' 
+        }
+      });
+
+      if (!response.ok) {
+        console.error("Erro ao buscar pipelines no Azure:", response.status);
+        return [];
+      }
+      
+      const data = await response.json();
+      const builds = data.value || [];
+
+      // 1. Extrai todos os SHAs únicos da lista de runs
+      const shas: string[] = builds
+        .map((b: any) => b.sourceVersion)
+        .filter((sha: string | undefined) => sha && sha.trim().length > 0);
+
+      // 2. Busca as mensagens em lote diretamente no repositório local usando o Rust
+      let localCommitsMap: Record<string, string> = {};
+      try {
+        if (repoPath) {
+          localCommitsMap = await invoke("get_multiple_commits_subjects", { path: repoPath, hashes: shas });
+        }
+      } catch (err) {
+        console.warn("Falha ao buscar commits locais via Rust:", err);
+      }
+
+      // 3. Monta o mapeamento final com estratégia de Fallback
+      const mappedRuns = await Promise.all(builds.map(async (build: any) => {
+        const sha = build.sourceVersion || "";
+        let commitMessage = "";
+
+        // Estratégia 1: Tenta ler o mapa local retornado pelo Rust
+        if (sha && localCommitsMap[sha]) {
+          commitMessage = localCommitsMap[sha];
+        } 
+        // Estratégia 2: Se não achou local, faz o Fallback seguro via API individual do Azure
+        else if (sha && build.repository?.id && build.repository?.type === "TfsGit") {
+          try {
+            const commitUrl = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/git/repositories/${build.repository.id}/commits/${sha}?api-version=7.0`;
+            const commitRes = await window.fetch(commitUrl, {
+              headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+            });
+            if (commitRes.ok) {
+              const commitData = await commitRes.json();
+              commitMessage = commitData.comment || "";
+            }
+          } catch (apiErr) {
+            console.error(`Erro no fallback do commit ${sha}:`, apiErr);
+          }
+        }
+
+        // Estratégia 3: Último fallback (Gatilhos automáticos)
+        if (!commitMessage && build.triggerInfo) {
+          commitMessage = build.triggerInfo["ci.message"] || "";
+        }
+
+        return {
+          id: build.id,
+          number: build.buildNumber,
+          name: build.definition?.name || "Pipeline",
+          status: build.status,       
+          result: build.result,       
+          url: build._links?.web?.href || "",
+          trigger: build.reason,      
+          startTime: build.startTime,
+          finishTime: build.finishTime,
+          sourceBranch: build.sourceBranch?.replace('refs/heads/', '') || "",
+          commitId: sha.substring(0, 7),
+          commitMessage: commitMessage,
+          requestedFor: build.requestedFor
+        };
+      }));
+
+      return mappedRuns;
+    } catch (e) {
+      console.error("Erro na request de pipelines do Azure:", e);
       return [];
     }
   },
 
-  async searchProjectMembers(organization: string, project: string, queryText: string): Promise<Array<{ id: string; descriptor: string; login: string; avatarUrl?: string }>> {
-    if (!queryText || queryText.trim().length < 1) return [];
-    
-    const token = await this.getToken();
-    if (!token) return [];
-    const credentials = btoa(`:${token.trim()}`);
-
-    const url = `https://vssps.dev.azure.com/${organization}/_apis/graph/users?api-version=7.1-preview.1`;
-
+  async getPipelineRunDetails(organization: string, project: string, buildId: number): Promise<any> {
     try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token.trim()}`);
+      
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/build/builds/${buildId}?api-version=7.0`;
+      
+      const response = await window.fetch(url, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+
+      if (!response.ok) return null;
+      const build = await response.json();
+      console.log('build', build)
+      return {
+        id: build.id,
+        definitionId: build.definition?.id,
+        number: build.buildNumber,
+        name: build.definition?.name || "Pipeline",
+        status: build.status,
+        result: build.result,
+        url: build._links?.web?.href || "",
+        trigger: build.reason === 'individualCI' ? 'Individual CI' : build.reason,
+        startTime: build.startTime,
+        finishTime: build.finishTime,
+        sourceBranch: build.sourceBranch?.replace('refs/heads/', '') || "",
+        logs: build.logs,
+        author: {
+          name: build.requestedFor?.displayName || "Desconhecido",
+          avatarUrl: build.requestedFor?._links?.avatar?.href || ""
+        },
+        commit: {
+          id: build.sourceVersion?.substring(0, 7) || "",
+          fullId: build.sourceVersion || "",
+          message: build.triggerInfo?.['ci.message'] || "Disparado por alteração de código"
+        }
+      };
+    } catch (e) {
+      console.error("Erro ao buscar detalhes da pipeline no Azure:", e);
+      return null;
+    }
+  },
+
+  async getPipelineRunChanges(organization: string, project: string, buildId: number): Promise<any[]> {
+    try {
+      const token = await this.getToken();
+      if (!token) return [];
+      const credentials = btoa(`:${token.trim()}`);
+      
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/build/builds/${buildId}/changes?api-version=7.0`;
+      
       const response = await window.fetch(url, {
         headers: { 
           'Authorization': `Basic ${credentials}`, 
@@ -1784,6 +2050,236 @@ export const azureService = {
         return user?.id || null;
     } catch {
         return null;
+  async getPipelineRunTimeline(organization: string, project: string, buildId: number): Promise<any[]> {
+    try {
+      const token = await this.getToken();
+      if (!token) return [];
+      const credentials = btoa(`:${token.trim()}`);
+      
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/build/builds/${buildId}/timeline?api-version=7.0`;
+      
+      const response = await window.fetch(url, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' }
+      });
+
+      if (!response.ok) return [];
+      const data = await response.json();
+      const records = data.records || [];
+
+      const filteredRecords = records.filter((rec: any) => {
+        const type = rec.type;
+        const name = rec.name?.toLowerCase() || "";
+        
+        if (type === 'Checkpoint' || type === 'Phase') return false;
+        if (name === '__default') return false;
+        
+        return true;
+      });
+
+      return filteredRecords.sort((a: any, b: any) => {
+        const timeA = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const timeB = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return timeA - timeB;
+      });
+    } catch (e) {
+      console.error("Erro ao buscar timeline da pipeline no Azure:", e);
+      return [];
+    }
+  },
+
+  async getTaskLogText(logUrl: string): Promise<string> {
+    try {
+      const token = await this.getToken();
+      if (!token) return "";
+      const credentials = btoa(`:${token.trim()}`);
+      
+      const response = await window.fetch(logUrl, {
+        headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'text/plain' }
+      });
+
+      if (!response.ok) return "Não foi possível carregar os logs desta etapa.";
+      return await response.text();
+    } catch (e) {
+      console.error("Erro ao buscar texto do log no Azure:", e);
+      return "Erro ao conectar com o servidor de logs.";
+    }
+  },
+
+  async triggerPipelineRun(
+    owner: string, 
+    project: string, 
+    pipelineId: string | number, 
+    branch: string = "main",
+    agentPoolName?: string,
+    enableDiagnostics: boolean = false
+  ) {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const targetPipelineId = Number(pipelineId);
+      
+      if (isNaN(targetPipelineId) || targetPipelineId === 0) {
+        throw new Error(`O método triggerPipelineRun exige um ID numérico válido. Recebido: "${pipelineId}"`);
+      }
+
+      const cleanBranch = branch.startsWith("refs/") ? branch : `refs/heads/${branch}`;
+      const url = `https://dev.azure.com/${owner}/${encodeURIComponent(project)}/_apis/build/builds?api-version=7.0`;
+
+      const payload: any = {
+        definition: {
+          id: targetPipelineId
+        },
+        sourceBranch: cleanBranch,
+        templateParameters: {},
+        variables: {}
+      };
+
+      if (enableDiagnostics) {
+        payload.variables["system.debug"] = {
+          value: "true",
+          allowOverride: true
+        };
+      }
+
+      if (agentPoolName) {
+        payload.queue = {
+          name: agentPoolName
+        };
+      }
+
+      const response = await window.fetch(url, {
+        method: "POST",
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao disparar pipeline no Azure: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Erro em triggerPipelineRun (Azure):", error);
+      throw error;
+    }
+  },
+
+  async rerunFailedJobs(owner: string, project: string, runId: string | number) {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token.trim()}`);
+
+      const targetRunId = Number(runId);
+      if (isNaN(targetRunId) || targetRunId === 0) {
+        throw new Error(`O método rerunFailedJobs exige um ID de run válido. Recebido: "${runId}"`);
+      }
+
+      // No Azure DevOps, reexecutar falhas em pipelines modernos mapeia uma alteração de estado no build (Retry)
+      const url = `https://dev.azure.com/${owner}/${encodeURIComponent(project)}/_apis/build/builds/${targetRunId}?api-version=7.0`;
+
+      await window.fetch(url, {
+        method: "PATCH", // Atualiza o estado da execução existente
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+        body: JSON.stringify({
+          status: "Cancelling"
+        })
+      });
+
+      const retryUrl = `https://dev.azure.com/${owner}/${encodeURIComponent(project)}/_apis/build/builds?buildId=${targetRunId}&api-version=7.0`;
+      
+      const retryResponse = await window.fetch(retryUrl, {
+        method: "POST",
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+      });
+
+      if (!retryResponse.ok) {
+        const errorData = await retryResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao reexecutar run no Azure: ${retryResponse.statusText}`);
+      }
+
+      return await retryResponse.json();
+    } catch (error) {
+      console.error("Erro em rerunFailedJobs (Azure):", error);
+      throw error;
+    }
+  },
+
+  async deletePipelineRun(owner: string, project: string, runId: string | number) {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+      const credentials = btoa(`:${token?.trim()}`);
+
+      const targetRunId = Number(runId);
+      if (isNaN(targetRunId) || targetRunId === 0) {
+        throw new Error(`O método deletePipelineRun exige um ID de run válido. Recebido: "${runId}"`);
+      }
+
+      const url = `https://dev.azure.com/${owner}/${encodeURIComponent(project)}/_apis/build/builds/${targetRunId}?api-version=7.0`;
+
+      const response = await window.fetch(url, {
+        method: "DELETE",
+        headers: { 
+          'Authorization': `Basic ${credentials}`, 
+          'Accept': 'application/json' 
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao deletar run no Azure: ${response.statusText}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Erro em deletePipelineRun (Azure):", error);
+      throw error;
+    }
+  },
+
+  async getAgentPools(owner: string, project: string) {
+    try {
+      const store = await getAuthStore();
+      const token = await store.get<string>("azure_token");
+      if (!token) return [];
+
+      // Chama o backend Rust diretamente, eliminando o erro de CORS do navegador
+      const jsonString = await invoke<string>("fetch_azure_queues", { 
+        owner, 
+        project, 
+        token 
+      });
+      
+      const data = JSON.parse(jsonString);
+
+      if (data.value && Array.isArray(data.value)) {
+        return data.value.map((queue: any) => ({
+          id: queue.pool?.id || queue.id,
+          name: queue.pool?.name || queue.name,
+          isHosted: queue.pool?.isHosted
+        }));
+      }
+
+      return [];
+    } catch (error) {
+      console.error("Erro em getAgentPools via Backend Rust:", error);
+      return [];
     }
   },
 
@@ -1792,5 +2288,6 @@ export const azureService = {
     await store.delete("azure_token");
     await store.delete("azure_org");
     await store.save();
+    tokenCache = null;
   }
 };

@@ -20,8 +20,6 @@ module.exports = function (config) {
           };
 
           this.onSpecComplete = function(browser, result) {
-            const suite = result.suite.join(' > ');
-            const status = result.success ? 'PASS' : 'FAIL';
             const duration = result.time || 0;
 
             let filePath = 'unknown';
@@ -38,9 +36,15 @@ module.exports = function (config) {
               filePath = match ? match[1] : 'unknown';
             }
 
-            console.error(
-              `SPEC_RESULT|${suite}|${result.description}|${status}|${filePath}|${duration}`
-            );
+            console.error(`SPEC_RESULT|${JSON.stringify({
+              id: result.id,
+              suite: result.suite,
+              description: result.description,
+              success: result.success,
+              time: duration,
+              filePath,
+              log: result.log
+            })}`);
           };
         }]
       }
@@ -68,7 +72,7 @@ module.exports = function (config) {
     
     client: {
       jasmine: {
-        random: false
+        random: process.env.GIT_RIVER_TEST_RANDOM === 'true'
       },
       clearContext: false,
       // Garante que o log do console do browser seja repassado para o terminal

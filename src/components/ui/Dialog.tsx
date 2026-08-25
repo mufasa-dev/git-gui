@@ -3,9 +3,12 @@ import { JSX, Show } from "solid-js";
 type Props = {
   open: boolean;
   title?: string;
+  icon?: string;
+  iconColor?: string;
   width?: string | number;
   height?: string | number;
   bodyClass?: string;
+  panelClass?: string;
   onClose?: () => void;
   closeOnClickOutside?: boolean;
   children: JSX.Element;
@@ -22,15 +25,23 @@ export default function Dialog(props: Props) {
         onClick={props.closeOnClickOutside ? props.onClose : undefined}
       >
         <div
-          class="bg-white dark:bg-gray-800 rounded-xl shadow-xl relative"
+          class={`relative rounded-xl bg-white shadow-xl dark:bg-gray-800 ${props.panelClass || ""}`}
           style={{ width, height }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div class="flex items-center justify-between border-b border-gray-600 dark:border-gray-700 p-4 rounded-t-xl">
-            <span class="text-gray-500 dark:text-white font-bold">{props.title}</span>
+          <div class="flex items-center justify-between border-b border-gray-200 bg-gray-50 p-4 rounded-t-xl dark:border-gray-700 dark:bg-gray-800">
+            <div class="flex min-w-0 items-center gap-3">
+              <Show when={props.icon}>
+                <span class={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40 ${props.iconColor || "text-blue-600 dark:text-blue-300"}`}>
+                  <i class={props.icon}></i>
+                </span>
+              </Show>
+              <span class="truncate text-gray-800 dark:text-white font-bold">{props.title}</span>
+            </div>
             <button
-              class="text-gray-500 dark:text-white hover:text-red-500 transition-colors"
+              class="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-500 dark:text-gray-300 dark:hover:bg-red-500/20 dark:hover:text-red-400"
+              aria-label="Fechar"
               onClick={props.onClose}
             >
               <i class="fa-solid fa-xmark"></i>

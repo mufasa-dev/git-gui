@@ -9,6 +9,9 @@ import BranchSwitchModal from "./BranchSwitchModal";
 type BranchSelectorProps = {
   activeRepo: Repo | null;
   refreshBranches: (repoPath: string) => Promise<void>;
+  selectedBranch?: string;
+  onBranchChange?: (branch: string) => void;
+  mode?: "checkout" | "virtual";
 };
 
 export default function BranchSelector(props: BranchSelectorProps) {
@@ -29,18 +32,26 @@ export default function BranchSelector(props: BranchSelectorProps) {
   window.addEventListener("click", handleClickOutside);
   onCleanup(() => window.removeEventListener("click", handleClickOutside));
 
+  const isVirtual = () => props.mode === "virtual";
+  const selectedBranch = () => props.selectedBranch || props.activeRepo?.activeBranch || "";
+
   const currentBranchInfo = () => {
     if (!props.activeRepo) return null;
-    return props.activeRepo.branches.find(b => b.name === props.activeRepo?.activeBranch);
+    return props.activeRepo.branches.find(b => b.name === selectedBranch());
   };
 
   const handleActiveBranch = async (branchName: string) => {
     if (!props.activeRepo) return;
-    if (branchName === props.activeRepo.activeBranch) {
+    if (branchName === selectedBranch()) {
       setIsOpen(false);
       return;
     }
     setIsOpen(false);
+
+    if (isVirtual()) {
+      props.onBranchChange?.(branchName);
+      return;
+    }
 
     try {
       const changes = await getLocalChanges(props.activeRepo.path);
@@ -63,15 +74,17 @@ export default function BranchSelector(props: BranchSelectorProps) {
   async function doStashAndApply() {
     if (!props.activeRepo || !targetBranch()) return;
     try {
-      showLoading("Salvando alterações locais no Stash...");
+      showLoading(t('branch').saving_on_stash);
       await stashChanges(props.activeRepo.path);
       await checkoutBranch(props.activeRepo.path, targetBranch()!);
       await stashPop(props.activeRepo.path);
       await props.refreshBranches(props.activeRepo.path);
-    } catch (err) {
-      notify.error('Erro', t('branch').error_changing_branch);
-    } finally {
       setModalSwtBranchOpen(false);
+      notify.success(t('common').success, t('branch').changed_to_branch.replace('{{branch}}', targetBranch()!));
+    } catch (error) {
+      await props.refreshBranches(props.activeRepo.path).catch(() => undefined);
+      notify.error(t('common').error, String(error));
+    } finally {
       hideLoading();
     }
   }
@@ -79,14 +92,14 @@ export default function BranchSelector(props: BranchSelectorProps) {
   async function doDiscard() {
     if (!props.activeRepo || !targetBranch()) return;
     try {
-      showLoading("Descartando alterações locais...");
+      showLoading(t('branch').discarting_local);
       await resetHard(props.activeRepo.path);
       await checkoutBranch(props.activeRepo.path, targetBranch()!);
       await props.refreshBranches(props.activeRepo.path);
-    } catch (err) {
-      notify.error('Erro', t('branch').error_changing_branch);
-    } finally {
       setModalSwtBranchOpen(false);
+    } catch (error) {
+      notify.error(t('common').error, String(error));
+    } finally {
       hideLoading();
     }
   }
@@ -109,7 +122,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
           <div class="flex flex-col flex-1 min-w-0 justify-center">
             <span class="text-[10px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-wider leading-none mb-1">{t("branch").current_branch}</span>
             <span class="text-sm font-bold text-gray-900 dark:text-white truncate leading-none">
-              {props.activeRepo!.activeBranch}
+              {selectedBranch()}
             </span>
           </div>
 
@@ -134,7 +147,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
             {/* Header Interno do Popover */}
             <div class="p-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-900 flex items-center justify-between">
               <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                <i class="fa fa-laptop mr-1.5 text-blue-500 dark:text-blue-400"></i> Alternar Branch Local
+                <i class="fa fa-laptop mr-1.5 text-blue-500 dark:text-blue-400"></i> {t('branch').switch_local_branch}
               </span>
               <span class="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full font-mono">
                 {props.activeRepo!.branches.length}
@@ -145,7 +158,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
             <div class="py-1.5 max-h-72 overflow-y-auto">
               <For each={props.activeRepo!.branches}>
                 {(branch) => {
-                  const isCurrent = branch.name === props.activeRepo!.activeBranch;
+                  const isCurrent = branch.name === selectedBranch();
                   return (
                     <button
                       onClick={() => handleActiveBranch(branch.name)}
@@ -162,7 +175,7 @@ export default function BranchSelector(props: BranchSelectorProps) {
                       
                       <div class="flex items-center gap-2 shrink-0 font-mono text-xs">
                         <Show when={isCurrent}>
-                          <span class="bg-white/20 text-white text-[10px] uppercase px-1.5 py-0.5 rounded font-bold tracking-wider">Atual</span>
+                          <span class="bg-white/20 text-white text-[10px] uppercase px-1.5 py-0.5 rounded font-bold tracking-wider">{t('branch').actual}</span>
                         </Show>
                         <Show when={!isCurrent && branch.ahead > 0}>
                           <span class="text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded">↑{branch.ahead}</span>

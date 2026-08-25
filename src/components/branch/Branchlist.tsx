@@ -1,15 +1,21 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import TreeView, { TreeNodeMap }  from "../ui/TreeView";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
-import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, mergeBranch } from "../../services/gitService";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
 import ConfirmModal from "../ui/ConfirmModal";
+import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, getRemoteUrl, mergeBranch, openPullRequestUrl, pullBranchWithoutCheckout } from "../../services/gitService";
+import { githubService } from "../../services/github";
+import { azureService } from "../../services/azure";
+import { getProviderFromUrl } from "../../utils/gitProvider";
+import MergeBranchModal from "./MergeBranchModal";
 
 type Props = {
   localTree: TreeNodeMap;
   remoteTree: TreeNodeMap;
+  localBranchCount: number;
+  remoteBranchCount: number;
   activeBranch?: string;
   selectedBranch?: string;
   repoPath: string;
@@ -26,6 +32,12 @@ export default function BranchList(props: Props) {
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
   const [itemName, setItemName] = createSignal<string>("");
+  const [draggedBranch, setDraggedBranch] = createSignal<string | null>(null);
+  const [dropTargetBranch, setDropTargetBranch] = createSignal<string | null>(null);
+  const [pointerBranch, setPointerBranch] = createSignal<string | null>(null);
+  const [pointerDragging, setPointerDragging] = createSignal(false);
+  const [mergeSource, setMergeSource] = createSignal<string | null>(null);
+  const [mergeTarget, setMergeTarget] = createSignal<string | null>(null);
   const { showLoading, hideLoading } = useLoading();
   const [openModalConfirm, setModalConfirmOpen] = createSignal<{ id: string } | null>(null);
   const [modalConfirmTitle, setModalConfirmTitle] = createSignal<string>("");
@@ -33,6 +45,92 @@ export default function BranchList(props: Props) {
   const [modalConfirmOnExecute, setModalConfirmOnExecute] = createSignal<() => void>(() => {});
   const [modalConfirmOnCancel, setModalConfirmOnCancel] = createSignal<() => void>(() => {});
   const { t } = useApp();
+
+  const clearDragState = () => {
+    setDraggedBranch(null);
+    setDropTargetBranch(null);
+    setPointerBranch(null);
+    setPointerDragging(false);
+  };
+
+  const handleBranchDragStart = (e: DragEvent, branch: string) => {
+    setPointerBranch(null);
+    setPointerDragging(false);
+    setDraggedBranch(branch);
+    setDropTargetBranch(null);
+    e.dataTransfer?.setData("text/plain", branch);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleBranchDragOver = (e: DragEvent, branch: string) => {
+    const source = draggedBranch();
+    if (!source || source === branch) {
+      setDropTargetBranch(null);
+      return;
+    }
+
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    setDropTargetBranch(branch);
+  };
+
+  const handleBranchDrop = (e: DragEvent, targetBranch: string) => {
+    e.preventDefault();
+    const sourceBranch = draggedBranch() || e.dataTransfer?.getData("text/plain");
+    clearDragState();
+
+    if (!sourceBranch || sourceBranch === targetBranch) return;
+
+    setMergeSource(sourceBranch);
+    setMergeTarget(targetBranch);
+  };
+
+  const handleBranchPointerDown = (_e: PointerEvent, branch: string) => {
+    setPointerBranch(branch);
+    setPointerDragging(false);
+  };
+
+  const handleBranchPointerMove = (_e: PointerEvent, targetBranch: string | null) => {
+    const sourceBranch = pointerBranch();
+    if (!sourceBranch) return;
+
+    setPointerDragging(true);
+    setDraggedBranch(sourceBranch);
+    setDropTargetBranch(targetBranch && targetBranch !== sourceBranch ? targetBranch : null);
+  };
+
+  const handleBranchPointerUp = (_e: PointerEvent, targetBranch: string | null) => {
+    const sourceBranch = pointerBranch();
+    const wasDragging = pointerDragging();
+    clearDragState();
+
+    if (!wasDragging || !sourceBranch || !targetBranch || sourceBranch === targetBranch) return;
+
+    setMergeSource(sourceBranch);
+    setMergeTarget(targetBranch);
+  };
+
+  const confirmMerge = async () => {
+    const sourceBranch = mergeSource();
+    const targetBranch = mergeTarget();
+    if (!sourceBranch || !targetBranch) return;
+
+    setMergeSource(null);
+    setMergeTarget(null);
+
+    try {
+      showLoading(`Mesclando ${sourceBranch} em ${targetBranch}...`);
+      await mergeBranch(props.repoPath, sourceBranch, targetBranch);
+      notify.success("Git Merge", `Branch '${sourceBranch}' mesclada com sucesso em '${targetBranch}'!`);
+      await props.refreshBranches(props.repoPath);
+    } catch (err: unknown) {
+      const errorMessage = typeof err === "string" ? err : String(err);
+      notify.error("Erro ao mesclar branches", errorMessage);
+      console.error("Erro Git Merge:", errorMessage);
+    } finally {
+      hideLoading();
+    }
+  };
 
   const openContextMenu = (e: MouseEvent, branch: string) => {
     e.preventDefault();
@@ -57,6 +155,22 @@ export default function BranchList(props: Props) {
             hideLoading();
           }
         }
+      });
+      items.push({
+        label: t("git").pull,
+        action: async () => {
+          try {
+            showLoading(`Atualizando ${branch}...`);
+            const { provider, token } = await getRemoteAuth();
+            await pullBranchWithoutCheckout(props.repoPath, branch, token, provider);
+            notify.success("Git Pull", `Branch '${branch}' atualizada com sucesso!`);
+            await props.refreshBranches(props.repoPath);
+          } catch (error: unknown) {
+            notify.error("Erro no Pull", typeof error === "string" ? error : String(error));
+          } finally {
+            hideLoading();
+          }
+        },
       });
     }
 
@@ -156,11 +270,25 @@ export default function BranchList(props: Props) {
             }
           });
 
-          setModalConfirmOnCancel(() => () => {
-            setModalConfirmOpen(null);
-          });
-
-          setModalConfirmOpen({ id: branch });
+          try {
+            showLoading("Deletando branch remota...");
+            const { provider, token } = await getRemoteAuth();
+            await deleteRemoteBranch(props.repoPath!, branch, "origin", token, provider);
+            
+            hideLoading();
+            notify.success('Git Remote', `Branch '${branch}' removida do servidor com sucesso!`);
+            
+            await props.refreshBranches(props.repoPath!);
+            
+          } catch (err: unknown) {
+            const errorMessage = typeof err === 'string' ? err : String(err);
+            
+            // Erros comuns aqui: Falha de autenticação ou branch protegida (main/master)
+            notify.error('Erro ao deletar remota', errorMessage);
+            console.error("Erro Git Remote:", errorMessage);
+          } finally {
+            hideLoading();
+          }
         } 
       });
     }
@@ -174,6 +302,17 @@ export default function BranchList(props: Props) {
   function getBranchName(fullBranchPath: string): string {
     return fullBranchPath.split('/').pop() || '';
   }
+
+  const getRemoteAuth = async () => {
+    const remoteUrl = await getRemoteUrl(props.repoPath);
+    const provider = remoteUrl ? getProviderFromUrl(remoteUrl) : "unknown";
+    const token = provider === "azure"
+      ? await azureService.getToken() || ""
+      : provider === "github"
+        ? await githubService.getToken() || ""
+        : "";
+    return { provider, token };
+  };
 
   const checkoutRemote = async (branch: string) => {
     try {
@@ -191,41 +330,71 @@ export default function BranchList(props: Props) {
   }
 
   const hideContextMenu = () => setMenuVisible(false);
-  
+
   document.addEventListener("click", hideContextMenu);
   onCleanup(() => document.removeEventListener("click", hideContextMenu));
 
   return (
-    <div class="h-[100px]">
-      <b onClick={() => setOpenBranch(!openBranch())} class="collapse-btn">
-        <b>
-          <i class="fa fa-laptop"></i> {t("git").local}
-        </b>
-        <i class="fa-solid ml-auto" classList={{"fa-angle-down" : openBranch(), "fa-angle-right" : !openBranch()}}></i>
-      </b>
-      <div class="pr-2">
-        {openBranch() && <TreeView tree={props.localTree} 
-          activeBranch={props.activeBranch}
-          selectedBranch={props.selectedBranch}
-          onSelectBranch={props.onSelectBranch}
-          onActivateBranch={props.onActivateBranch}
-          openContextMenu={openContextMenu}
-        />}
+    <div class="space-y-3">
+      <div class="border-t border-gray-300 dark:border-gray-700">
+        <button
+          class="flex items-center w-full px-2 py-2 cursor-pointer text-left bg-transparent border-b border-gray-300 dark:border-gray-700 shadow-none"
+          onClick={() => setOpenBranch(!openBranch())}
+        >
+          <i class="fa fa-laptop text-blue-500 mr-2"></i>
+          <b class="text-sm">{t("git").local}</b>
+          <span class="ml-2 text-[10px] rounded-full px-1.5 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-300">{props.localBranchCount}</span>
+          <i class={`fa-solid ml-auto text-xs ${openBranch() ? "fa-angle-down" : "fa-angle-right"}`}></i>
+        </button>
+        <Show when={openBranch()}>
+          <div class="pr-2 mt-1">
+            <TreeView
+              tree={props.localTree}
+              activeBranch={props.activeBranch}
+              selectedBranch={props.selectedBranch}
+              onSelectBranch={props.onSelectBranch}
+              onActivateBranch={props.onActivateBranch}
+              openContextMenu={openContextMenu}
+              enableBranchDrag={true}
+              draggedBranch={draggedBranch()}
+              dropTargetBranch={dropTargetBranch()}
+              onBranchDragStart={handleBranchDragStart}
+              onBranchDragOver={handleBranchDragOver}
+              onBranchDrop={handleBranchDrop}
+              onBranchDragEnd={clearDragState}
+              onBranchPointerDown={handleBranchPointerDown}
+              onBranchPointerMove={handleBranchPointerMove}
+              onBranchPointerUp={handleBranchPointerUp}
+              onBranchPointerCancel={clearDragState}
+            />
+          </div>
+        </Show>
       </div>
 
-      <b onClick={() => setOpenRemote(!openRemote())} class="collapse-btn mt-2">
-        <b>
-          <i class="fa fa-earth-americas"></i> {t("git").remote}
-        </b>
-        <i class="fa-solid ml-auto" classList={{"fa-angle-down" : openRemote(), "fa-angle-right" : !openRemote()}}></i>
-      </b>
-      {openRemote() && <TreeView tree={props.remoteTree}
-        activeBranch={props.activeBranch}
-        onActivateBranch={checkoutRemote}
-        selectedBranch={props.selectedBranch}
-        onSelectBranch={props.onSelectBranch} 
-        openContextMenu={openRemoteContextMenu}
-      />}
+      <div class="border-t border-gray-300 dark:border-gray-700">
+        <button
+          class="flex items-center w-full px-2 py-2 cursor-pointer text-left bg-transparent border-b border-gray-300 dark:border-gray-700 shadow-none"
+          onClick={() => setOpenRemote(!openRemote())}
+        >
+          <i class="fa fa-earth-americas text-purple-500 mr-2"></i>
+          <b class="text-sm">{t("git").remote}</b>
+            <span class="ml-2 text-[10px] rounded-full px-1.5 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-300">{props.remoteBranchCount}</span>
+          <i class={`fa-solid ml-auto text-xs ${openRemote() ? "fa-angle-down" : "fa-angle-right"}`}></i>
+        </button>
+        <Show when={openRemote()}>
+          <div class="mt-1">
+            <TreeView
+              tree={props.remoteTree}
+              activeBranch={props.activeBranch}
+              onActivateBranch={checkoutRemote}
+              selectedBranch={props.selectedBranch}
+              onSelectBranch={props.onSelectBranch}
+              openContextMenu={openRemoteContextMenu}
+            />
+          </div>
+        </Show>
+      </div>
+
       <Show when={menuVisible()}>
         <ContextMenu
           name={itemName()}
@@ -245,6 +414,17 @@ export default function BranchList(props: Props) {
               onCancel={() => modalConfirmOnCancel()()}
           />
       </Show>
+
+      <MergeBranchModal
+        open={mergeSource() !== null && mergeTarget() !== null}
+        sourceBranch={mergeSource() ?? ""}
+        targetBranch={mergeTarget() ?? ""}
+        onCancel={() => {
+          setMergeSource(null);
+          setMergeTarget(null);
+        }}
+        onConfirm={confirmMerge}
+      />
     </div>
   );
 }

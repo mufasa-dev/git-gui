@@ -3,6 +3,8 @@ import { createMemo } from "solid-js";
 // Importe seus ícones da pasta de assets
 import mdIcon from "../../assets/md.png";
 import cSharpIcon from "../../assets/cs.png";
+import prettierIcon from "../../assets/pretierr.png";
+import worldwideIcon from "../../assets/worldwide.png";
 import cppIcon from "../../assets/cpp.png";
 import rIcon from "../../assets/r.png";
 import bIcon from "../../assets/b.png";
@@ -55,6 +57,7 @@ import vbsIcon from "../../assets/vbs.png";
 import delphiIcon from "../../assets/delphi.png";
 import pascalIcon from "../../assets/pascal.png";
 import dllIcon from "../../assets/dll.png";
+import webAssemblyIcon from "../../assets/web_assembly.png";
 import flashIcon from "../../assets/flash.png";
 import rpgMakerIcon from "../../assets/rpg_maker.png";
 import androidIcon from "../../assets/android.png";
@@ -95,6 +98,7 @@ export default function FileIcon(props: FileIconProps) {
     if (name === 'jenkinsfile') return jenkinsIcon;
     if (name === 'makefile') return makefileIcon;
     if (name === '.gitignore') return gitIcon;
+    if (name === '.prettierrc' || name === 'prettierr') return prettierIcon;
     if (name === 'license') return mdIcon;
     if (name.includes('package.json')) return packageIcon;
     if (name.includes('package-lock.json')) return packageIcon;
@@ -105,7 +109,10 @@ export default function FileIcon(props: FileIconProps) {
     if (name === 'vitest') return vitestIcon;
     if (name === 'gotest') return goIcon;
     if (name === 'pytest') return pythonIcon;
-    if (name === 'dotnet test') return cSharpIcon;
+    if (name === 'dotnet test' || name.includes('xunit') || name.includes('nunit') || name.includes('mstest')) return cSharpIcon;
+    if (name === 'cargo test' || name === 'rust') return rustIcon;
+    if (name.includes('maven') || name.includes('gradle') || name.includes('junit') || name.includes('testng')) return javaIcon;
+    if (name === 'rspec' || name === 'minitest') return rubyIcon;
     if (name === 'none') return alertIcon;
 
     // Checagem por arquivos de tradução
@@ -141,17 +148,26 @@ export default function FileIcon(props: FileIconProps) {
       html: htmlIcon,
       htm: htmlIcon,
       htmlx: htmlIcon,
+      hbs: htmlIcon,
       png: imageIcon,
       jpg: imageIcon,
       jpeg: imageIcon,
       bmp: imageIcon,
       gif: imageIcon,
       ico: imageIcon,
+      webp: imageIcon,
       svg: svgIcon,
       cs: cSharpIcon,
       cshtml: cSharpIcon,
       sln: cSharpIcon,
+      slnx: cSharpIcon,
       csproj: cSharpIcon,
+      dcproj: dockerIcon,
+      prettierrc: prettierIcon,
+      prettierr: prettierIcon,
+      http: worldwideIcon,
+      original: configIcon,
+      pubxml: xmlIcon,
       asp: aspIcon,
       razor: aspIcon,
       resx: aspIcon,
@@ -159,6 +175,9 @@ export default function FileIcon(props: FileIconProps) {
       r: rIcon,
       b: bIcon,
       asm: asmIcon,
+      wasm: webAssemblyIcon,
+      wat: webAssemblyIcon,
+      wast: webAssemblyIcon,
       elixir: elixirIcon,
       ex: elixirIcon,
       exs: elixirIcon,

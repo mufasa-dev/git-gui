@@ -1,16 +1,17 @@
-import { createResource, createSignal, onMount, Show } from "solid-js";
+import { createSignal, onMount, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { openBash, openConsole, openFileManager, openRepositoryBrowser, openVsCode } from "../../services/openService";
 import Button from "../ui/Button";
 import DropdownButton from "../ui/DropdownButton";
 import NewBranchModal from "../branch/NewBranchModal";
 import BranchSelector from "../branch/BranchSelector"; // 🌟 Import do novo seletor customizado
-import { fetchRepo, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteBranches, pull, pushRepo, validateRepo, createBranch, configPullMode, getRemoteUrl } from "../../services/gitService";
+import { fetchRepo, getRepositorySnapshot, getCurrentBranch, pull, pushRepo, validateRepo, createBranch, configPullMode, listStashes, listTags, applyStash, popStash, clearStashes } from "../../services/gitService";
 import { saveRepos } from "../../services/storeService";
 import folderIcon from "../../assets/folder_silver.png";
 import fetchIcon from "../../assets/reload_silver.png";
 import pullIcon from "../../assets/pull_silver.png";
 import pushIcon from "../../assets/push_silver.png";
+import packageIcon from "../../assets/package.png";
 import newWindowIcon from "../../assets/terminal_silver.png";
 import branchIcon from "../../assets/branch.png";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -19,7 +20,6 @@ import Dialog from "../ui/Dialog";
 import { notify } from "../../utils/notifications";
 import vsCodeIcon from "../../assets/vscode.png";
 import bashIcon from "../../assets/bash.png";
-import commandIcon from "../../assets/command.png";
 import openIcon from "../../assets/open_icon.png";
 import internetIcon from "../../assets/worldwide.png";
 import { useLoading } from "../ui/LoadingContext";
@@ -27,12 +27,17 @@ import { useApp } from "../../context/AppContext";
 import { githubService } from "../../services/github";
 import { azureService } from "../../services/azure";
 import { getProviderFromUrl } from "../../utils/gitProvider";
+import CreateStashModal from "../repo/CreateStashModal";
 
 type Props = {
     repos: Repo[];
     active: string | null;
     activePage: string | null;
     refreshBranches: (repoPath: string) => Promise<void>;
+    remoteUrl?: string;
+    setRepoBusy?: (path: string, busy: boolean) => void;
+    selectedBranch?: string;
+    onBranchChange?: (branch: string) => void;
     setActive: (path: string | null) => void;
     setRepos: (repos: Repo[]) => void;
 };
@@ -47,6 +52,7 @@ export default function Header(props: Props) {
     
     const [platform, setPlatform] = createSignal("");
     const [showModalPullOpts, setShowModalPullOpts] = createSignal(false);
+    const [showCreateStash, setShowCreateStash] = createSignal(false);
     const [modalInfo, setModalInfo] = createSignal<{
       repoPath: string;
       branch: string;
@@ -56,14 +62,7 @@ export default function Header(props: Props) {
     // 🌟 Memoizador para obter o repositório ativo completo exigido pelo BranchSelector
     const currentActiveRepo = () => props.repos.find(r => r.path === props.active) || null;
 
-    const [remoteUrl] = createResource(
-      () => props.active || false, 
-      async (path) => {
-        if (!path) return "";
-        return await getRemoteUrl(path);
-      }
-    );
-    const provider = () => remoteUrl() ? getProviderFromUrl(remoteUrl()!) : 'unknown';
+    const provider = () => props.remoteUrl ? getProviderFromUrl(props.remoteUrl) : 'unknown';
 
     async function openRepo() {
         const selected = await open({ directory: true, multiple: false });
@@ -72,12 +71,25 @@ export default function Header(props: Props) {
             try {
               showLoading("Abrindo repositório...");
               await validateRepo(selected);
-              const branches = await getBranchStatus(selected);
-              const remoteBranches = await getRemoteBranches(selected);
+              const snapshot = await getRepositorySnapshot(selected);
               const name = await path.basename(selected);
-              const activeBranch = await getCurrentBranch(selected!);
-              const localChanges = await getLocalChanges(selected);
-              const newRepo: Repo = { path: selected, name, branches, remoteBranches, activeBranch, localChanges };
+              const [stashes, tags] = await Promise.all([
+                listStashes(selected),
+                listTags(selected),
+              ]);
+              const newRepo: Repo = {
+                path: selected,
+                name,
+                branches: snapshot.branches,
+                remoteBranches: snapshot.remoteBranches,
+                activeBranch: snapshot.activeBranch ?? undefined,
+                localChanges: snapshot.localChanges,
+                localChangesCount: snapshot.localChangesCount,
+                gitRevision: snapshot.gitRevision ?? undefined,
+                statusSignature: snapshot.statusSignature,
+                stashes,
+                tags,
+              };
 
               // Evita duplicar se já estiver aberto
               if (!props.repos.some(r => r.path === selected)) {
@@ -94,11 +106,13 @@ export default function Header(props: Props) {
     }
 
     const doPush = async () => {
-      if (!props.active) return;
+      const repoPath = props.active;
+      if (!repoPath) return;
+      props.setRepoBusy?.(repoPath, true);
       setPushing(true);
       showLoading(t("loading").pushing);
       try {
-        const branch = await getCurrentBranch(props.active!);
+        const branch = await getCurrentBranch(repoPath);
         
         let tokenToSend = "";
         if (provider() === 'azure') {
@@ -107,31 +121,40 @@ export default function Header(props: Props) {
           tokenToSend = await githubService.getToken() || "";
         }
 
-        // Envia o token para o comando Rust fazer a autenticação silenciosa
-        await pushRepo(props.active!, "origin", branch, tokenToSend, provider());
+        await pushRepo(repoPath, "origin", branch, tokenToSend, provider());
         
         notify.success('Git Push', `Push realizado com sucesso!`);
-        await props.refreshBranches(props.active!);
+        await props.refreshBranches(repoPath);
       } catch (err) {
         notify.error('Erro no Push', `${err}`);
       } finally {
         setPushing(false);
+        props.setRepoBusy?.(repoPath, false);
         hideLoading();
       }
     };
 
     const doPull = async () => {
-      if (!props.active) return;
+      const repoPath = props.active;
+      if (!repoPath) return;
+      props.setRepoBusy?.(repoPath, true);
       setPulling(true);
       showLoading("Realizando pull...");
       try {
-        const branch = await getCurrentBranch(props.active!);
-        const result = await pull(props.active!, branch);
+        let tokenToSend = "";
+        if (provider() === 'azure') {
+          tokenToSend = await azureService.getToken() || "";
+        } else if (provider() === 'github') {
+          tokenToSend = await githubService.getToken() || "";
+        }
+
+        const branch = await getCurrentBranch(repoPath);
+        const result = await pull(repoPath, branch, tokenToSend, provider());
 
         if (result.needs_resolution) {
           // abre o modal com as informações
           setModalInfo({
-            repoPath: props.active!,
+            repoPath,
             branch,
             message:
               "O Git detectou branches divergentes.\nEscolha como reconciliar as diferenças:",
@@ -146,11 +169,12 @@ export default function Header(props: Props) {
           notify.error('Erro no Pull', `Erro ao realizar o pull: ${result.message}`);
         }
 
-        await props.refreshBranches(props.active!);
+        await props.refreshBranches(repoPath);
       } catch (err: any) {
         notify.error('Erro no Pull', `Erro ao realizar o pull: ${err.message}`);
       } finally {
         setPulling(false);
+        props.setRepoBusy?.(repoPath, false);
         hideLoading();
       }
     };
@@ -159,11 +183,18 @@ export default function Header(props: Props) {
     const handlePullModeChoice = async (mode: "merge" | "rebase" | "ff") => {
       const info = modalInfo();
       if (!info) return;
+      props.setRepoBusy?.(info.repoPath, true);
 
       try {
         await configPullMode(info.repoPath, mode);
 
-        const retryResult = await pull(info.repoPath, info.branch);
+        let tokenToSend = "";
+        if (provider() === 'azure') {
+          tokenToSend = await azureService.getToken() || "";
+        } else if (provider() === 'github') {
+          tokenToSend = await githubService.getToken() || "";
+        }
+        const retryResult = await pull(info.repoPath, info.branch, tokenToSend, provider());
         if (retryResult.success) {
           notify.success('Git Pull', `Pull realizado com sucesso após ajuste!`);
         } else {
@@ -177,23 +208,34 @@ export default function Header(props: Props) {
         setShowModalPullOpts(false);
         setModalInfo(null);
         setPulling(false);
+        props.setRepoBusy?.(info.repoPath, false);
       }
     };
 
     const doFetch = async () => {
-      if (!props.active) return;
+      const repoPath = props.active;
+      if (!repoPath) return;
+      props.setRepoBusy?.(repoPath, true);
       showLoading("Realizando fetch...");
       setFetching(true);
 
       try {
-        await fetchRepo(props.active!, "origin");
+        let tokenToSend = "";
+        if (provider() === 'azure') {
+          tokenToSend = await azureService.getToken() || "";
+        } else if (provider() === 'github') {
+          tokenToSend = await githubService.getToken() || "";
+        }
+
+        await fetchRepo(repoPath, "origin", tokenToSend, provider());
         notify.success('Git Fetch', `Fetch realizado com sucesso!`);
-        await props.refreshBranches(props.active!);
+        await props.refreshBranches(repoPath);
       } catch (err) {
         notify.error('Erro no Fetch', `Erro ao realizar o fetch: ${err}`);
       } finally {
         hideLoading();
         setFetching(false);
+        props.setRepoBusy?.(repoPath, false);
       }
     };
 
@@ -215,6 +257,45 @@ export default function Header(props: Props) {
     const disabledButton = () => {
       return pushing() || pulling() || fetching();
     }
+
+    const currentStashes = () => currentActiveRepo()?.stashes ?? [];
+
+    const refreshActiveRepo = async () => {
+      if (props.active) await props.refreshBranches(props.active);
+    };
+
+    const applyLatestStash = async (pop: boolean) => {
+      if (!props.active || !currentStashes().length) return;
+      try {
+        showLoading(t("common").loading);
+        const reference = currentStashes()[0].reference;
+        if (pop) {
+          await popStash(props.active, reference);
+        } else {
+          await applyStash(props.active, reference);
+        }
+        notify.success(t("common").success, pop ? t("stash").pop : t("stash").apply);
+        await refreshActiveRepo();
+      } catch (error) {
+        notify.error(t("common").error, String(error));
+      } finally {
+        hideLoading();
+      }
+    };
+
+    const clearAllStashes = async () => {
+      if (!props.active || !currentStashes().length || !confirm(t("stash").confirm_clear)) return;
+      try {
+        showLoading(t("common").loading);
+        await clearStashes(props.active);
+        notify.success(t("common").success, t("stash").clear);
+        await refreshActiveRepo();
+      } catch (error) {
+        notify.error(t("common").error, String(error));
+      } finally {
+        hideLoading();
+      }
+    };
 
     onMount(async () => {
       const plat = platform();
@@ -259,6 +340,17 @@ export default function Header(props: Props) {
                     : null;
                 })()}
               </Button>
+              <DropdownButton
+                label={t("git").stash}
+                img={packageIcon}
+                class="ml-1"
+                options={[
+                  { label: t("stash").create, action: () => setShowCreateStash(true) },
+                  { label: t("stash").apply, hide: currentStashes().length === 0, action: () => void applyLatestStash(false) },
+                  { label: t("stash").pop, hide: currentStashes().length === 0, action: () => void applyLatestStash(true) },
+                  { label: t("stash").clear, hide: currentStashes().length === 0, action: () => void clearAllStashes() },
+                ]}
+              />
               <Button class="top-btn" onClick={() => setOpenModalNewBranch(true)} disabled={disabledButton()}>
                 <img src={branchIcon} class="inline h-6" />
                 <small>{t('git').new_branch}</small>
@@ -266,10 +358,13 @@ export default function Header(props: Props) {
             </Show>
 
             {/* 🌟 O seletor de branch customizado integrado ao ecossistema de proteção contra perda de dados */}
-            <Show when={["dashboard", "test", "files"].includes(props.activePage || "")}>
-              <BranchSelector 
-                activeRepo={currentActiveRepo()} 
-                refreshBranches={props.refreshBranches} 
+            <Show when={["dashboard", "test", "files", "pull-requests"].includes(props.activePage || "")}>
+              <BranchSelector
+                activeRepo={currentActiveRepo()}
+                refreshBranches={props.refreshBranches}
+                selectedBranch={["dashboard", "files", "pull-requests"].includes(props.activePage || "") ? props.selectedBranch : undefined}
+                onBranchChange={["dashboard", "files", "pull-requests"].includes(props.activePage || "") ? props.onBranchChange : undefined}
+                mode={["dashboard", "files", "pull-requests"].includes(props.activePage || "") ? "virtual" : "checkout"}
               />
             </Show>
 
@@ -315,6 +410,13 @@ export default function Header(props: Props) {
               ]}
             />
           </Show>
+
+          <CreateStashModal
+            open={showCreateStash()}
+            repoPath={props.active || ""}
+            onClose={() => setShowCreateStash(false)}
+            onCreated={refreshActiveRepo}
+          />
 
           <NewBranchModal open={openModalNewBranch()} 
             onCancel={() => setOpenModalNewBranch(false)} 

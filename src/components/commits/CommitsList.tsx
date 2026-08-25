@@ -1,4 +1,4 @@
-import { createEffect, createSignal, createMemo, For, Show, on, onCleanup } from "solid-js";
+import { createEffect, createSignal, createMemo, For, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { getCommitDetails, getCommits } from "../../services/gitService";
 import { formatRelativeDate } from "../../utils/date";
@@ -19,7 +19,6 @@ declare module "solid-js" {
     }
   }
 }
-let isFetchingCommits = false;
 
 type Props = {
   repo: Repo; 
@@ -28,9 +27,38 @@ type Props = {
   provider: GitProvider;
   org: string;
   isLogged: boolean;
+  onCreateTag?: (commit: { hash: string; subject: string }) => void;
 }
 
 export default function CommitsList(props: Props) {
+  void datepicker;
+
+
+  function commitsSignature(commits: any[]) {
+    return commits.map(commit => [
+      commit.hash,
+      commit.date,
+      commit.ref_names,
+      commit.parent_hashes,
+      commit.graph_symbol,
+    ].join("|")).join("\u0000");
+  }
+
+  function parseDateInput(value: string, endOfDay = false) {
+    const [year, month, day] = value.split("-").map(Number);
+    if (!year || !month || !day) return null;
+
+    return new Date(
+      year,
+      month - 1,
+      day,
+      endOfDay ? 23 : 0,
+      endOfDay ? 59 : 0,
+      endOfDay ? 59 : 0,
+      endOfDay ? 999 : 0,
+    );
+  }
+
   const [commits, setCommits] = createSignal<any[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
@@ -38,7 +66,14 @@ export default function CommitsList(props: Props) {
   const [resizing, setResizing] = createSignal(false);
   const [startDate, setStartDate] = createSignal("");
   const [endDate, setEndDate] = createSignal("");
-  const { t, locale } = useApp();
+  let fetchId = 0;
+  const { t, locale, isDark } = useApp();
+  const datePlaceholder = createMemo(() => ({
+    pt: "dd/mm/aaaa",
+    en: "mm/dd/yyyy",
+    it: "gg/mm/aaaa",
+    jp: "yyyy/mm/dd",
+  })[locale()] || "dd/mm/aaaa");
   
   // Estados para Paginação e Filtro
   const [searchTerm, setSearchTerm] = createSignal("");
@@ -50,41 +85,46 @@ export default function CommitsList(props: Props) {
   );
 
   const filteredCommits = createMemo(() => {
-    const term = searchTerm().toLowerCase();
-    const start = startDate() ? new Date(startDate()) : null;
-    const end = endDate() ? new Date(endDate()) : null;
+    const term = searchTerm().trim().toLowerCase();
+    const start = parseDateInput(startDate());
+    const end = parseDateInput(endDate(), true);
 
     return commitsOnly().filter(c => {
-      const matchesText = !term || 
-        c.message.toLowerCase().includes(term) || 
-        c.hash.toLowerCase().includes(term) ||
-        c.author.toLowerCase().includes(term);
+      const message = String(c.message || "").toLowerCase();
+      const hash = String(c.hash || "").toLowerCase();
+      const author = String(c.author || "").toLowerCase();
+      const matchesText = !term ||
+        message.includes(term) ||
+        hash.includes(term) ||
+        author.includes(term);
 
-      const commitDate = new Date(c.date);
-      let matchesDate = true;
-      if (start) {
-        matchesDate = matchesDate && commitDate >= start;
-      }
-      if (end) {
-        const endWithTime = new Date(end);
-        endWithTime.setHours(23, 59, 59, 999);
-        matchesDate = matchesDate && commitDate <= endWithTime;
-      }
-      return matchesText && matchesDate;
+      const commitTime = Date.parse(c.date);
+      const hasValidCommitDate = !Number.isNaN(commitTime);
+      const matchesDate = hasValidCommitDate &&
+        (!start || commitTime >= start.getTime()) &&
+        (!end || commitTime <= end.getTime());
+
+      return matchesText && (!start && !end ? true : matchesDate);
     });
   });
 
-  const loadCommits = async (isNewBranch: boolean) => {
-    if (!props.repo.path || !props.branch || isFetchingCommits) return;
-    
-    isFetchingCommits = true;
+  const loadCommits = async (
+    repoPath: string | undefined,
+    branchName: string | undefined,
+    isNewBranch: boolean,
+  ) => {
+    if (!repoPath || !branchName) return;
+
+    const myFetchId = ++fetchId;
     if (isNewBranch) setLoading(true);
 
     try {
-      const branchName = props.branch.replace("* ", "");
-      const res = await getCommits(props.repo.path, branchName);
-      
-      if (JSON.stringify(res) !== JSON.stringify(commits())) {
+      const cleanBranch = branchName.replace("* ", "");
+      const res = await getCommits(repoPath, cleanBranch);
+
+      if (myFetchId !== fetchId) return;
+
+      if (commitsSignature(res) !== commitsSignature(commits())) {
         setCommits(res);
       }
 
@@ -95,35 +135,30 @@ export default function CommitsList(props: Props) {
         }
       }
     } catch(e) {
-      const errorMessage = typeof e === 'string' ? e : String(e);
-      notify.error(t('error').load_commits, errorMessage);
+      if (myFetchId === fetchId) {
+        const errorMessage = typeof e === 'string' ? e : String(e);
+        notify.error(t('error').load_commits, errorMessage);
+      }
     } finally {
-      setLoading(false);
-      isFetchingCommits = false;
+      if (myFetchId === fetchId) {
+        setLoading(false);
+      }
     }
   };
 
   const paginatedCommits = createMemo(() => {
     const start = (currentPage() - 1) * itemsPerPage;
-    console.log('paginatedCommits', filteredCommits().slice(start, start + itemsPerPage))
     return filteredCommits().slice(start, start + itemsPerPage);
   });
 
-  const graphLines = createMemo(() => {
-    const pageCommits = paginatedCommits();
-    if (!pageCommits.length || !commits().length) return [];
-
-    const firstHash = pageCommits[0].hash;
-    const lastHash = pageCommits[pageCommits.length - 1].hash;
-    
-    const all = commits(); // array original com linhas de gráfico
-    const firstIdx = all.findIndex(c => c.hash === firstHash);
-    const lastIdx = all.findIndex(c => c.hash === lastHash);
-    if (firstIdx === -1 || lastIdx === -1) return pageCommits;
-    return all.slice(firstIdx, lastIdx + 1);
-  });
-
   const totalPages = createMemo(() => Math.ceil(filteredCommits().length / itemsPerPage));
+
+  createEffect(() => {
+    searchTerm();
+    startDate();
+    endDate();
+    setCurrentPage(1);
+  });
 
   async function selectCommit(hash: string) {
     if (!props.repo || !props.repo.path) return;
@@ -131,36 +166,42 @@ export default function CommitsList(props: Props) {
     setSelectedCommit({ ...details, _ts: Date.now() });
   }
 
-  createEffect(on(() => [props.repo.path, props.branch], ([path, branch], prev) => {
-    const isNewRepo = !prev || path !== prev[0];
-    const isNewBranch = !prev || branch !== prev[1];
+  let previousPath: string | undefined;
+  let previousBranch: string | undefined;
+  let previousRefsRevision: number | undefined;
+
+  createEffect(() => {
+    const path = props.repo.path;
+    const branch = props.branch;
+    const activeBranch = props.repo.activeBranch;
+    const refsRevision = props.repo.refsRevision;
+    const isNewRepo = previousPath === undefined || path !== previousPath;
+    const isNewBranch = previousBranch === undefined || branch !== previousBranch;
+    const refsChanged = previousRefsRevision !== undefined && refsRevision !== previousRefsRevision;
 
     if (isNewRepo) {
+      // Força o descarte imediato de qualquer requisição paralela anterior
+      fetchId++;
       setCommits([]);
       setCurrentPage(1);
       setSelectedCommit(null);
-    }
 
-    const branchExists = props.repo.branches.some(b => b.name === branch) || 
-                        props.repo.remoteBranches?.includes(branch ||  "");
-
-    if (isNewRepo || isNewBranch) {
-      if (branchExists) {
-        loadCommits(isNewRepo);
+      if (branch !== activeBranch) {
+        previousPath = path;
+        previousBranch = branch;
+        previousRefsRevision = refsRevision;
+        return;
       }
-    } else {
-      loadCommits(false);
     }
-  }));
 
-  const handleFocus = () => {
-    if (document.visibilityState === "visible") {
-      loadCommits(false);
+    if (isNewRepo || isNewBranch || refsChanged) {
+      void loadCommits(path, branch || "", isNewRepo);
     }
-  };
 
-  window.addEventListener("focus", handleFocus);
-  onCleanup(() => window.removeEventListener("focus", handleFocus));
+    previousPath = path;
+    previousBranch = branch;
+    previousRefsRevision = refsRevision;
+  });
 
   function onMouseMove(e: MouseEvent) {
     if (resizing()) {
@@ -170,73 +211,91 @@ export default function CommitsList(props: Props) {
   }
 
   return (
-    <div class="flex-1 flex flex-col overflow-hidden pt-2 pb-2 pr-2 height-container"
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-2 pb-2 pr-2"
          onMouseMove={onMouseMove} onMouseUp={() => setResizing(false)} onMouseLeave={() => setResizing(false)}>
-      <div class="container-branch-list flex-1 overflow-auto mb-1" style={{"height": "100px"}}>
-        {/* Header com Busca e Paginação */}
-        <div class="p-1 flex flex-col gap-2">
-          <div class="flex gap-2 items-center">
-            <input 
-              type="text"
+      <div class="container-branch-list flex-1 min-h-0 min-w-0 overflow-hidden mb-1">
+        {/* Busca, filtro de data e paginação */}
+        <div class="commits-toolbar">
+          <label class="commit-search flex min-w-0 flex-1 items-center gap-2">
+            <i class="fas fa-search text-gray-400" aria-hidden="true" />
+            <input
+              type="search"
               placeholder={t('commits').search_placeholder}
-              class="w-full p-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none focus:ring-1 ring-blue-500"
               value={searchTerm()}
               onInput={(e) => setSearchTerm(e.currentTarget.value)}
             />
+          </label>
 
-            {/* Filtro de Data */}
-            <div class="flex items-center gap-1">
-              <input 
-                use:datepicker={{ value: startDate, onChange: setStartDate }}
-                placeholder={t('common').start_date}
-                class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
+          <div class="commit-date-filter" aria-label={`${t('common').start_date} ${t('common').to_date} ${t('common').end_date}`}>
+            <label class="commit-date-field">
+              <span>{t('common').start_date}</span>
+              <input
+                use:datepicker={{ value: startDate, onChange: setStartDate, locale, isDark, maxDate: endDate }}
+                type="text"
+                placeholder={datePlaceholder()}
+                autocomplete="off"
               />
-              <span class="text-gray-400 whitespace-nowrap">{t('common').to_date}</span>
-              <input 
-                use:datepicker={{ value: endDate, onChange: setEndDate }}
-                placeholder={t('common').end_date}
-                class="p-1.5 text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none w-28"
+            </label>
+            <span class="commit-date-separator">{t('common').to_date}</span>
+            <label class="commit-date-field">
+              <span>{t('common').end_date}</span>
+              <input
+                use:datepicker={{ value: endDate, onChange: setEndDate, locale, isDark, minDate: startDate }}
+                type="text"
+                placeholder={datePlaceholder()}
+                autocomplete="off"
               />
-              
-              {/* Botão de Limpar (Opcional mas útil) */}
-              <Show when={startDate() || endDate()}>
-                <button 
-                  onClick={() => { setStartDate(""); setEndDate(""); }}
-                  class="p-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950 rounded"
-                  title="Limpar datas"
-                > ✕ </button>
-              </Show>
-            </div>
-          </div>
-          
-          <div class="flex items-center text-xs">
-            <b class="text-green-600">
-              <i class="fas fa-code-branch" />{props.branch}:
-            </b>
-            <span class="text-gray-500 ml-2">{t('common').showing} {paginatedCommits().length} {t('common').of} {filteredCommits().length}</span>
-            <div class="flex gap-2 items-center ml-auto">
-              <button 
-                disabled={currentPage() === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-                class="px-4 py-1 bg-gray-300 dark:bg-gray-900 rounded-full disabled:opacity-30"
-              > {t('common').previous} </button>
-              <span>{currentPage()} / {totalPages() || 1}</span>
-              <button 
-                disabled={currentPage() >= totalPages()}
-                onClick={() => setCurrentPage(p => p + 1)}
-                class="px-4 py-1 bg-gray-300 dark:bg-gray-900 rounded-full disabled:opacity-30"
-              > {t('common').next} </button>
-            </div>
+            </label>
+            <Show when={startDate() || endDate()}>
+              <button
+                type="button"
+                onClick={() => { setStartDate(""); setEndDate(""); }}
+                class="commit-clear-filter"
+                title="Limpar datas"
+                aria-label="Limpar datas"
+              >
+                <i class="fas fa-xmark" aria-hidden="true" />
+              </button>
+            </Show>
           </div>
         </div>
 
-
-        {/* Lista de Commits */}
-        <div class="flex flex-1 overflow-auto">
-          <div class="sticky left-0 z-10 flex-shrink-0">
-            <CommitGraph commits={paginatedCommits()} rowHeight={41} />
+        <div class="commit-list-meta">
+          <div class="min-w-0 truncate">
+            <b class="text-green-600 dark:text-green-400">
+              <i class="fas fa-code-branch mr-1" />{props.branch}
+            </b>
+            <span class="text-gray-500 ml-2">{t('common').showing} {paginatedCommits().length} {t('common').of} {filteredCommits().length}</span>
           </div>
-          <div class="flex-1">
+          <div class="commit-pagination">
+            <button
+              type="button"
+              disabled={currentPage() === 1}
+              onClick={() => setCurrentPage(p => p - 1)}
+              class="commit-page-button"
+              aria-label={t('common').previous}
+            >
+              <i class="fas fa-chevron-left" aria-hidden="true" />
+            </button>
+            <span>{currentPage()} / {totalPages() || 1}</span>
+            <button
+              type="button"
+              disabled={currentPage() >= totalPages()}
+              onClick={() => setCurrentPage(p => p + 1)}
+              class="commit-page-button"
+              aria-label={t('common').next}
+            >
+              <i class="fas fa-chevron-right" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+
+        {/* Lista de commits */}
+        <div class="commit-list-viewport">
+          <div class="commit-graph-column">
+            <CommitGraph commits={paginatedCommits()} rowHeight={35} />
+          </div>
+          <div class="commit-rows">
             <Show when={!loading()} fallback={<div class="p-4 text-center">{t('common').loading}</div>}>
               <For each={paginatedCommits()}>
                 {(c) => (
@@ -246,19 +305,26 @@ export default function CommitsList(props: Props) {
                     }`}
                     onClick={() => selectCommit(c.hash)}
                   >
-                    <div class="text-sm font-mono opacity-80">{c.hash.slice(0, 7)}</div>
-                    <div class="font-semibold px-2 flex-1">
-                      <CommitMessage message={c.message} />
+                    <div class="commit-hash-cell">{c.hash.slice(0, 7)}</div>
+                    <div class="commit-message-cell">
+                      <div class="commit-message-text">
+                        <CommitMessage message={c.message} class="text-sm font-mono whitespace-nowrap" />
+                      </div>
+                      <div class="commit-tags">
+                        <For each={(c.ref_names || "").split(",").map((ref: string) => ref.trim()).filter((ref: string) => ref.startsWith("tag: "))}>
+                          {(ref) => <span class="commit-tag" title={ref.replace("tag: ", "")}>{ref.replace("tag: ", "")}</span>}
+                        </For>
+                      </div>
                     </div>
-                    <div class="text-xs ml-auto whitespace-nowrap flex items-center gap-2 w-[200px]">
+                    <div class="commit-author-cell">
                       <img
                         src={getGravatarUrl(c.email, 80)}
                         alt={c.author}
                         class="w-[18px] h-[18px] rounded-full shadow-sm"
-                      /> 
-                      <span class="opacity-50 truncate">{formatContributorName(c.author)}</span>
+                      />
+                      <span class="truncate">{formatContributorName(c.author)}</span>
                     </div>
-                    <div class="px-2 text-xs w-[182px] text-right truncate">{formatRelativeDate(c.date, t, locale())}</div>
+                    <div class="commit-date-cell">{formatRelativeDate(c.date, t, locale())}</div>
                   </div>
                 )}
               </For>
@@ -272,16 +338,14 @@ export default function CommitsList(props: Props) {
       
       {/* Detalhes */}
       <div style={{ height: `${commitDetailsHeight()}px`, "min-height": "100px" }} class="overflow-auto container-branch-list p-0 mt-1">
-        <CommitDetails 
+        <CommitDetails
           commit={selectedCommit()}
-          repoName={props.repo.name}
-          repoPath={props.repo.path} 
-          branch={props.branch || ""} 
-          selectCommit={selectCommit} 
+          repo={props.repo}
+          branch={props.branch || ""}
+          selectCommit={selectCommit}
           openParent={true}
-          provider={props.provider}
-          org={props.org}
-          isLogged={props.isLogged}
+          openProfile={true}
+          onCreateTag={props.onCreateTag}
         />
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { createSignal, createMemo, createEffect, on, Show } from "solid-js";
 import { Repo } from "../../models/Repo.model";
 import { Branch } from "../../models/Banch.model";
+import { Tag } from "../../models/Tag.model";
 import BranchList from "../branch/Branchlist";
 import { buildTree } from "../ui/TreeView";
 import CommitsList from "../commits/CommitsList";
@@ -13,6 +14,9 @@ import UserConfigModal from "../Config/UserConfig";
 import { useApp } from "../../context/AppContext";
 import CreatePRDialog from "../PullRequest/CreatePRDialog";
 import { GitProvider } from "../../utils/gitProvider";
+import StashList from "./StashList";
+import TagList from "./TagList";
+import CreateTagModal from "./CreateTagModal";
 
 type Props = {
   repo: Repo;
@@ -32,11 +36,13 @@ export default function RepoView(props: Props) {
   const [isResizing, setIsResizing] = createSignal(false);
   const [selectedBranch, setSelectedBranch] = createSignal(props.repo.activeBranch);
   const [prSelectedBranch, setprSelectedBranch] = createSignal(props.repo.activeBranch);
+  const [selectedRef, setSelectedRef] = createSignal(props.repo.activeBranch);
   const [modalSwtBranchOpen, setModalSwtBranchOpen] = createSignal(false);
   const [targetBranch, setTargetBranch] = createSignal<string | null>(null);
   const { showLoading, hideLoading } = useLoading();
   const [isUserConfigOpen, setIsUserConfigOpen] = createSignal(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = createSignal(false);
+  const [tagTargetCommit, setTagTargetCommit] = createSignal<string | null>(null);
   const { t } = useApp();
 
   const startResize = () => setIsResizing(true);
@@ -51,7 +57,7 @@ export default function RepoView(props: Props) {
   };
 
   const selectBranch = (branch: string) => {
-    setSelectedBranch(branch);
+    setSelectedRef(branch);
     setViewMode("commits");
   }
 
@@ -94,16 +100,36 @@ export default function RepoView(props: Props) {
   };
 
   async function doStashAndApply() {
-    await stashChanges(props.repo.path);
-    await checkoutBranch(props.repo.path, targetBranch()!);
-    await stashPop(props.repo.path);
-    setModalSwtBranchOpen(false);
+    if (!targetBranch()) return;
+    try {
+      showLoading(t("branch").saving_on_stash);
+      await stashChanges(props.repo.path);
+      await checkoutBranch(props.repo.path, targetBranch()!);
+      await stashPop(props.repo.path);
+      await props.refreshBranches(props.repo.path);
+      setModalSwtBranchOpen(false);
+      notify.success(t("common").success, t("branch").changed_to_branch.replace("{{branch}}", targetBranch()!));
+    } catch (error) {
+      await props.refreshBranches(props.repo.path).catch(() => undefined);
+      notify.error(t("common").error, String(error));
+    } finally {
+      hideLoading();
+    }
   }
 
   async function doDiscard() {
-    await resetHard(props.repo.path);
-    await checkoutBranch(props.repo.path, targetBranch()!);
-    setModalSwtBranchOpen(false);
+    if (!targetBranch()) return;
+    try {
+      showLoading(t("branch").discarting_local);
+      await resetHard(props.repo.path);
+      await checkoutBranch(props.repo.path, targetBranch()!);
+      await props.refreshBranches(props.repo.path);
+      setModalSwtBranchOpen(false);
+    } catch (error) {
+      notify.error(t("common").error, String(error));
+    } finally {
+      hideLoading();
+    }
   }
   
   async function openPullRequestUrl(branch: string) {
@@ -141,20 +167,22 @@ export default function RepoView(props: Props) {
     filteredRemoteBranches() ? buildTree(filteredRemoteBranches()!) : {}
   );
 
-  createEffect(on(() => props.repo.path, (newPath) => {
-    if (!newPath) return;
-
-    setSelectedBranch(props.repo.activeBranch);
-  }));
+  createEffect(on(
+    () => [props.repo.path, props.repo.activeBranch],
+    ([newPath, newBranch]) => {
+      if (!newPath) return;
+      setSelectedRef(newBranch);
+    },
+  ));
 
   return (
-    <div class="flex h-full w-full select-none bg-gray-200 dark:bg-gray-900"
+    <div class="flex min-h-0 min-w-0 flex-1 w-full select-none overflow-hidden bg-gray-200 dark:bg-gray-900"
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}
     >
       {/* Painel esquerdo */}
-      <div class="flex flex-col border-r overflow-auto border-gray-300 pt-2 pb-2 pl-2 dark:border-gray-900 " style={{ width: `${sidebarWidth()}px` }}>
+      <div class="flex min-h-0 min-w-0 flex-col border-r border-gray-300 pt-2 pb-2 pl-2 dark:border-gray-900 overflow-hidden" style={{ width: `${sidebarWidth()}px` }}>
         <div class="container-branch-list mb-2">
           <div class="flex">
             <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>
@@ -169,9 +197,9 @@ export default function RepoView(props: Props) {
             onClick={() => setViewMode("changes")}
           >
             <i class="fa fa-copy"></i> {t('file').updates}
-            {props.repo.localChanges && props.repo.localChanges.length > 0 && (
+            {(props.repo.localChangesCount ?? props.repo.localChanges?.length ?? 0) > 0 && (
               <span class="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                {props.repo.localChanges.length}
+                {props.repo.localChangesCount ?? props.repo.localChanges?.length ?? 0}
               </span>
             )}
           </button>
@@ -185,7 +213,7 @@ export default function RepoView(props: Props) {
           </button>
         </div>
 
-        <div class="container-branch-list px-0 overflow-auto h-[100%]">
+        <div class="container-branch-list min-h-0 min-w-0 flex-1 px-0 overflow-x-hidden overflow-y-auto">
           <div class="relative w-full mb-2 px-2">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-white">
               <i class="fas fa-search"></i>
@@ -203,13 +231,15 @@ export default function RepoView(props: Props) {
           <BranchList 
             localTree={localTree()} 
             remoteTree={remoteTree()} 
+            localBranchCount={props.repo.branches.length}
+            remoteBranchCount={props.repo.remoteBranches?.length ?? 0}
             activeBranch={props.repo.activeBranch}
             repoPath={props.repo.path}
-            selectedBranch={selectedBranch()}
+            selectedBranch={selectedRef()}
             onSelectBranch={selectBranch}
             refreshBranches={props.refreshBranches}
             onCreatePR={(branch: string) => openPullRequestUrl(branch)}
-            onActivateBranch={(branch: string) => handleActiveBranch(props.repo.path, branch)}  
+            onActivateBranch={(branch: string) => handleActiveBranch(props.repo.path, branch)} 
           />
           <Show when={isCreateDialogOpen()}>
             <CreatePRDialog 
@@ -227,6 +257,15 @@ export default function RepoView(props: Props) {
               }}
             />
           </Show>
+          <StashList repo={props.repo} refresh={() => props.refreshBranches(props.repo.path)} />
+          <TagList
+            repo={props.repo}
+            refresh={() => props.refreshBranches(props.repo.path)}
+            onSelectTag={(tag: Tag) => {
+              setSelectedRef(tag.name);
+              setViewMode("commits");
+            }}
+          />
         </div>
       </div>
 
@@ -240,12 +279,11 @@ export default function RepoView(props: Props) {
       {viewMode() === "commits" && (
         <CommitsList 
           repo={props.repo} 
-          branch={selectedBranch() && props.repo.branches.some(b => b.name === selectedBranch()) 
-            ? selectedBranch() 
-            : props.repo.activeBranch}
           provider={props.provider}
           org={repoOwner()}
           isLogged={props.isLogged}
+          branch={selectedRef() || props.repo.activeBranch}
+          onCreateTag={(commit) => setTagTargetCommit(commit.hash)}
         />
       )}
       {viewMode() === "changes" && <LocalChanges repo={props.repo}/>}
@@ -262,6 +300,14 @@ export default function RepoView(props: Props) {
         repoPath={props.repo.path} 
         isOpen={isUserConfigOpen()} 
         onClose={() => setIsUserConfigOpen(false)} 
+      />
+
+      <CreateTagModal
+        open={!!tagTargetCommit()}
+        repoPath={props.repo.path}
+        targetCommit={tagTargetCommit() ?? ""}
+        onClose={() => setTagTargetCommit(null)}
+        onCreated={() => props.refreshBranches(props.repo.path)}
       />
     </div>
   );

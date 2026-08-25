@@ -2,13 +2,17 @@ import { createResource, For, Show } from "solid-js";
 import { githubService } from "../../services/github";
 import { open } from "@tauri-apps/plugin-shell";
 import { useApp } from "../../context/AppContext";
+import { azureService } from "../../services/azure";
+import { GitProvider } from "../../utils/gitProvider";
 
-export default function PRChecksView(props: { owner: string, repoName: string, prNumber: number }) {
+export default function PRChecksView(props: { owner: string, project: string, repoName: string, prNumber: number, provider: GitProvider }) {
   const { t } = useApp();
 
   const [checks] = createResource(
-    () => ({ owner: props.owner, name: props.repoName, number: props.prNumber }),
-    async (params) => await githubService.getPRChecks(params.owner, params.name, params.number)
+    () => ({ owner: props.owner, project: props.project, name: props.repoName, number: props.prNumber, provider: props.provider }),
+    async (params) => params.provider === 'azure'
+      ? await azureService.getPRChecks(params.owner, params.name, params.number, params.project)
+      : await githubService.getPRChecks(params.owner, params.name, params.number)
   );
 
   const getStatusIcon = (item: any) => {
