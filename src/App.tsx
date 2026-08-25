@@ -9,7 +9,7 @@ import { useApp } from "./context/AppContext"; // Importe seu contexto
 
 export default function App() {
   // Pegamos o token e a função de atualização diretamente do contexto global
-  const { token, updateToken } = useApp();
+  const { token } = useApp();
 
   onMount(() => {
     // A lógica de inicialização do token pode ficar no AppContext, 

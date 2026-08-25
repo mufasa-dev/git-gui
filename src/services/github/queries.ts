@@ -145,24 +145,22 @@ export const PR_DESCRIPTION_QUERY = `
         headRefOid
         baseRefOid
         viewerCanMergeAsAdmin
-<<<<<<< HEAD
-        closingIssuesReferences(first: 20) {
-          nodes {
-            id        # O ID global (ex: "I_kwDO...") que usamos para adicionar/remover
-            number    # O número da issue (ex: 42)
-            title     # O título da issue
-            state     # Estado da issue: OPEN ou CLOSED
-            url       # URL web da issue no GitHub
-            createdAt
-            updatedAt
-          }
-=======
         viewerCanUpdate
         headRepository {
           name
           url
           owner { login }
->>>>>>> simple_fix
+        }
+        closingIssuesReferences(first: 20) {
+          nodes {
+            id
+            number
+            title
+            state
+            url
+            createdAt
+            updatedAt
+          }
         }
         reviews(first: 10) {
           nodes {
@@ -452,7 +450,6 @@ export const MERGE_PR = `
   }
 `;
 
-<<<<<<< HEAD
 export const UPDATE_PR_ISSUES_MUTATION = `
   mutation ($pullRequestId: ID!, $issueIds: [ID!]) {
     updatePullRequest(input: { pullRequestId: $pullRequestId, issueIds: $issueIds }) {
@@ -477,7 +474,13 @@ export const GET_PR_ISSUES_QUERY = `
         closingIssuesReferences(first: 50) {
           nodes {
             id
-=======
+          }
+        }
+      }
+    }
+  }
+`;
+
 export const GET_REPOSITORY_PIPELINES_QUERY = `
   query($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {
@@ -493,7 +496,6 @@ export const GET_REPOSITORY_PIPELINES_QUERY = `
           headBranch
           workflow {
             name
->>>>>>> simple_fix
           }
         }
       }

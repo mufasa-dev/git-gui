@@ -20,9 +20,9 @@ import { GitProvider } from "../../utils/gitProvider";
 import AzureMergeDialog from "./AzureMergeDialog";
 import AuthenticatedAvatar from "./AuthenticatedAvatar";
 import ConfirmModal from "../ui/ConfirmModal";
-import { WorkItemSearchSelector } from "../board/WorkItemSearchSelector";
 import { PRReviewersList } from "./PRReviewersList";
 import { PRWorkItemsList } from "./PRWorkItemsList";
+import PRConflictResolver from "./PRConflictResolver";
 
 interface PRDetailViewProps {
   pr: any;
@@ -38,7 +38,7 @@ interface PRDetailViewProps {
 }
 
 export default function PRDetailView(props: PRDetailViewProps) {
-  const [activeTab, setActiveTab] = createSignal("overview");
+  const [activeTab, setActiveTab] = createSignal("Visão Geral");
   const [showModalCommitDetails, setModalCommitDetails] = createSignal(false);
   const [selectedCommit, setSelectedCommit] = createSignal<any>(null);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
@@ -46,15 +46,16 @@ export default function PRDetailView(props: PRDetailViewProps) {
   const [isApproving, setIsApproving] = createSignal(false);
   const [isMerging, setIsMerging] = createSignal(false);
   const [showAzureMergeModal, setShowAzureMergeModal] = createSignal(false);
+  const [showConflictResolver, setShowConflictResolver] = createSignal(false);
   const [showApproveMenu, setShowApproveMenu] = createSignal(false);
   const [showActionMenu, setShowActionMenu] = createSignal(false);
   const [currentFeedback, setCurrentFeedback] = createSignal('Approve');
+  const [isPrUrlCopied, setIsPrUrlCopied] = createSignal(false);
 
   const [openModalConfirm, setModalConfirmOpen] = createSignal<{ id: string } | null>(null);
-  const [modalConfirmTitle, setModalConfirmTitle] = createSignal<string>("");
-  const [modalConfirmMessage, setModalConfirmMessage] = createSignal<string>("");
-  const [modalConfirmOnExecute, setModalConfirmOnExecute] = createSignal<() => void>(() => {});
-  const [modalConfirmOnCancel, setModalConfirmOnCancel] = createSignal<() => void>(() => {});
+  const [modalConfirmTitle] = createSignal<string>("");
+  const [modalConfirmMessage] = createSignal<string>("");
+  const [modalConfirmOnExecute] = createSignal<() => void>(() => {});
   
   const { t, locale } = useApp();
   
@@ -80,6 +81,22 @@ export default function PRDetailView(props: PRDetailViewProps) {
       return data;
     }
   );
+
+  const pullRequestUrl = () => props.pr.url || props.remoteUrl;
+
+  const copyPullRequestUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(pullRequestUrl());
+      setIsPrUrlCopied(true);
+      window.setTimeout(() => setIsPrUrlCopied(false), 2000);
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    }
+  };
+
+  const openProviderPage = () => {
+    window.open(pullRequestUrl(), "_blank", "noopener,noreferrer");
+  };
 
   const hasPendingRequiredReviewers = () => {
     if (props.provider !== 'azure') return false;
@@ -155,11 +172,6 @@ export default function PRDetailView(props: PRDetailViewProps) {
         notify.error("Erro", "Não foi possível mudar para Draft.");
       }
     }
-  };
-
-  const additionsWidth = () => {
-    const total = (details()?.additions || 0) + (details()?.deletions || 0);
-    return total === 0 ? 50 : (details()?.additions / total) * 100;
   };
 
   const reviewersList = createMemo(() => {
@@ -606,6 +618,7 @@ export default function PRDetailView(props: PRDetailViewProps) {
               <Match when={activeTab() === 'Visão Geral'}>
                 <PRTimelineView 
                   owner={props.owner} 
+                  project={props.project}
                   repo={props.repo.name} 
                   pr={props.pr}
                   provider={props.provider}
@@ -624,20 +637,23 @@ export default function PRDetailView(props: PRDetailViewProps) {
                   provider={props.provider}
                 />
               </Match>
-              <Match when={activeTab() === 'commits'}>
+              <Match when={activeTab() === 'Commits'}>
                 <PRCommitsView 
                   owner={props.owner} 
+                  project={props.project}
                   repoName={props.repo.name} 
                   prNumber={props.pr.number} 
                   selectCommit={selectCommit}
                   provider={props.provider}
                 />
               </Match>
-              <Match when={activeTab() === 'checks'}>
+              <Match when={activeTab() === 'Checks'}>
                 <PRChecksView
-                  owner={props.owner} 
+                  owner={props.owner}
+                  project={props.project}
                   repoName={props.repo.name} 
                   prNumber={props.pr.number} 
+                  provider={props.provider}
                 />
               </Match>
             </Switch>
@@ -737,6 +753,31 @@ export default function PRDetailView(props: PRDetailViewProps) {
             onClose={() => {
               setModalUserProfileOpen(false);
               setSelectedUser({ name: "", email: "" });
+            }}
+          />
+        </Dialog>
+      </Show>
+      <Show when={showConflictResolver()}>
+        <Dialog
+          open={showConflictResolver()}
+          title={t("merge").resolve_conflicts}
+          onClose={() => setShowConflictResolver(false)}
+          bodyClass="p-0 h-[80vh]"
+          width="90vw"
+          height="80vh"
+        >
+          <PRConflictResolver
+            repoPath={props.repo.path}
+            sourceBranch={props.pr.headRefName || props.pr.sourceRefName?.replace("refs/heads/", "") || ""}
+            targetBranch={props.pr.baseRefName || props.pr.targetRefName?.replace("refs/heads/", "") || ""}
+            expectedHeadSha={props.pr.headRefOid}
+            provider={props.provider}
+            webUrl={pullRequestUrl()}
+            onClose={() => setShowConflictResolver(false)}
+            onComplete={() => {
+              setShowConflictResolver(false);
+              refetch();
+              props.onMergeSuccess(props.pr.number);
             }}
           />
         </Dialog>

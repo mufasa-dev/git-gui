@@ -21,7 +21,6 @@ type PRTimelineViewProps = {
     pr: any;
     details: any;
     currentUserAvatar: string;
-    provider: GitProvider;
     selectCommit: (hash: string) => void;
     openUserProfile: (name: string, email: string, login: string) => void;
 };
@@ -314,11 +313,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     });
 
     const handleSaveComment = async () => {
-        if (props.provider !== 'github') {
-            notify.error(t('pr').comment, 'Comentários do Azure DevOps são exibidos nesta versão, mas a edição será feita no provedor.');
-            return;
-        }
-        if (!commentText()) return;
+        if (!commentText().trim()) return;
 
         try {
             showLoading("Salvando comentário...");
@@ -337,7 +332,6 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
     };
 
     const onReact = async (subjectId: string, content: string, hasReacted: boolean) => {
-        if (props.provider !== 'github') return;
         try {
             showLoading(hasReacted ? t('pr').deleting + '...' : t('pr').reacting + '...');
             
@@ -369,7 +363,7 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
         console.log("Editando:", item.id);
     };
 
-    const handleSaveReply = async (threadId: string, parentCommentId: string) => {
+    const handleSaveReply = async (threadId: string, _parentCommentId: string) => {
         if (!replyText().trim()) return;
 
         try {

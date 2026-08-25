@@ -156,11 +156,8 @@ fn main() {
             git_hub::auth::exchange_code_for_token,
             azure::auth::request_azure_device_code,
             azure::auth::get_user_avatar,
-<<<<<<< HEAD
             azure::auth::fetch_azure_avatar,
-=======
             azure::queue::fetch_azure_queues,
->>>>>>> simple_fix
             tests::jasmine_test::run_angular_tests,
             tests::jasmine_test::get_angular_test_files,
             tests::dotnet_test::run_dotnet_tests,

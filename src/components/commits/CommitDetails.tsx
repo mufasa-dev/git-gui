@@ -11,15 +11,19 @@ import { formatContributorName } from "../../utils/user";
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
 import { GitProvider } from "../../utils/gitProvider";
-import CardDetailView from "../board/CardItem";
 import { Repo } from "../../models/Repo.model";
 
 type CommitDetailsProps = {
   commit: any;
-  repo: Repo;
+  repo?: Repo;
+  repoName?: string;
+  repoPath?: string;
   branch: string;
   openParent: boolean;
-  openProfile: boolean;
+  openProfile?: boolean;
+  provider?: GitProvider;
+  org?: string;
+  isLogged?: boolean;
   selectCommit: (hash: string) => void;
   onCreateTag?: (commit: { hash: string; subject: string }) => void;
 };
@@ -43,22 +47,24 @@ const fileStatusClass = (status: string) => {
 const fileStatusLabel = (status: string) => status || "M";
 
 export function CommitDetails(props: CommitDetailsProps) {
+  const repository = props.repo ?? {
+    path: props.repoPath ?? "",
+    name: props.repoName ?? "",
+    branches: [],
+  };
   const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
   const [selectedFile, setSelectedFile] = createSignal<any>(null);
   const [fileDiff, setFileDiff] = createSignal<any>(null);
   const [lastProcessedHash, setLastProcessedHash] = createSignal<string | null>(null);
   const [loadingDiff, setLoadingDiff] = createSignal(false);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
-  const [workItemId, setWorkItemId] = createSignal("");
-  const [modalWorkItemOpen, setModalWorkItemOpen] = createSignal(false);
-
   const { t, locale } = useApp();
 
   const fetchFileDiff = async (file: any) => {
     setSelectedFile(file);
     setLoadingDiff(true);
     try {
-      const res = await getCommitFileDiff(props.repo.path, props.commit.hash, file.file);
+      const res = await getCommitFileDiff(repository.path, props.commit.hash, file.file);
       setFileDiff(res);
     } catch (e) {
       console.error(e);
@@ -276,7 +282,7 @@ export function CommitDetails(props: CommitDetailsProps) {
                     <Show when={!loadingDiff()} fallback={<div class="flex min-h-32 items-center justify-center rounded-xl border border-gray-200 bg-white text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-800"><i class="fa-solid fa-spinner mr-2 animate-spin text-blue-500" aria-hidden="true"></i>{t("common").loading}</div>}>
                       <div class="min-h-32 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-800">
                         <DiffViewer
-                          path={props.repo.path}
+                          path={repository.path}
                           file={selectedFile().file}
                           diff={fileDiff()}
                           class="h-full text-xs"
@@ -306,7 +312,7 @@ export function CommitDetails(props: CommitDetailsProps) {
           width={"90vw"}
         >
           <UserProfileDialog
-            repo={props.repo}
+            repo={repository}
             branch={props.branch || ""}
             email={props.commit?.authorEmail}
             fallbackName={props.commit?.authorName}
@@ -316,16 +322,6 @@ export function CommitDetails(props: CommitDetailsProps) {
         </Dialog>
       </Show>
 
-      <Show when={modalWorkItemOpen()}>
-        <CardDetailView
-          repoName={props.repoName}
-          repoPath={props.repoPath} 
-          cardId={workItemId()}
-          provider={props.provider}
-          organization={props.org}
-          onClose={() => setModalWorkItemOpen(false)}
-        />
-      </Show>
     </div>
   );
 }

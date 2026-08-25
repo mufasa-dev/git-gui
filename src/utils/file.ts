@@ -91,11 +91,8 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   java: "Java",
   jsp: "Java",
   rb: "Ruby",
-<<<<<<< HEAD
   rbx: "Ruby",
-=======
   godot: "GDScript",
->>>>>>> simple_fix
   gd: "GDScript",
   tscn: "Scene",
   res: "Resource",
@@ -152,11 +149,7 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   htm: "HTML",
   htc: "HTML",
   ghtml: "HTML",
-<<<<<<< HEAD
-=======
   hbs: "HTML",
-  php: "PHP",
->>>>>>> simple_fix
   makefile: "MakeFile",
   dockerfile: "Dockerfile",
   graphql: "GraphQL",
@@ -313,21 +306,12 @@ export const IGNORED_EXTENSIONS = [
   'exe', 'dll', 'so', 'lock', 'bin', 'ttf', 'woff', 'woff2', 'mp4', "mp3", 'avi', 'mov', 'zip', 'log', 'map', 'brotli', 'br', 'mem',
   'pdf', 'docx', 'xlsx', 'DS_Store',  'yml', 'yaml', 'env', 'env.local', 'env.development', 'env.production',
   'md', 'markdown', 'txt', 'rtf', 'csv', 'tsv', 'log', 'lock', 'bin', 'iso', 'dmg', 'app', 'apk', 'jar', 'war', 'ear', 'txt', 'log',
-<<<<<<< HEAD
-  'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'xaml', 'ds_store', 'nfo', 'def',
-=======
-  'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'ds_store', 'nfo', 'def', 'filters',
->>>>>>> simple_fix
+  'rar', 'tar', 'gz', '7z', 'wxl', 'xlsx', 'pptx', 'key', 'numbers', 'pages', 'xml', 'xaml', 'ds_store', 'nfo', 'def', 'filters',
   // Configurações e Metadados
   'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'http', 'dockerignore', 'dcproj', 'original', 'pubxml', 'cer', 'dep', 'babelrc', 'appcache',
   // Outros arquivos de configuração comuns
-<<<<<<< HEAD
-  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults', "example", "properties",
+  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults', "example", "properties", 'rules',
   'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload', "pro",
-=======
-  'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults', 'example', 'rules',
-  'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload',
->>>>>>> simple_fix
   'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc', 'ini', 'old', 'new', 'lic', 'log', 'bak', 'backup', 'temp', 'cache', 'dist', 'out', 'build', 'target', 'obj',
   // Godot
   'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', 'depren'

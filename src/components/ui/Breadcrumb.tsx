@@ -1,5 +1,4 @@
 import { For, Show, createSignal } from "solid-js";
-import Tooltip from "./Tooltip";
 import { useApp } from "../../context/AppContext";
 
 interface BreadcrumbProps {

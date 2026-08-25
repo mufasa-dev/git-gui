@@ -23,7 +23,7 @@ export default function RemoteRepoModal(props: {
     }
   });
 
-  const [items, { refetch }] = createResource(
+  const [items] = createResource(
     () => ({ open: props.isOpen, id: props.providerId, project: selectedProject() }), 
     async ({ open, id, project }) => {
       if (!open) return [];

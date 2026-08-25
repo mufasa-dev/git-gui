@@ -7,7 +7,6 @@ import { githubLight } from "@uiw/codemirror-theme-github";
 import { Annotation } from "@codemirror/state";
 import { notify } from "../../utils/notifications";
 import { useApp } from "../../context/AppContext";
-import { highlightCode } from "../../utils/highlight";
 
 // Helper para identificar mudanças programáticas vs manuais
 const ExternalChange = Annotation.define<boolean>();

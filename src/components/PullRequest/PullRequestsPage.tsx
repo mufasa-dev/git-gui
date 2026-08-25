@@ -11,7 +11,7 @@ import { azureService } from "../../services/azure";
 import AuthenticatedAvatar from "./AuthenticatedAvatar";
 import CreatePRDialog from "./CreatePRDialog";
 
-export default function PullRequestsPage(props: { repo: Repo,  branch?: string, provider: GitProvider, remoteUrl: string }) {
+export default function PullRequestsPage(props: { repo: Repo, branch?: string, provider: GitProvider, remoteUrl: string, onMergeSuccess?: (prNumber: number) => void }) {
   const [filter, setFilter] = createSignal("OPEN");
   const [searchTerm, setSearchTerm] = createSignal("");
   const [selectedPR, setSelectedPR] = createSignal<any>(null);
@@ -42,6 +42,10 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
     }
     return "";
   });
+
+  const remoteContext = createMemo(() => parseRemoteRepository(props.remoteUrl));
+  const repoProject = createMemo(() => remoteContext()?.project || props.repo?.name || "");
+  const repoName = createMemo(() => remoteContext()?.repository || props.repo?.name || "");
 
   // O Resource unificado
   const [prs, { refetch }] = createResource(
@@ -221,9 +225,7 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
                     </div>
                   </div>
                 )}
-                  </For>
-                </Show>
-              </Show>
+              </For>
             </Show>
           </div>
         </div>
@@ -255,6 +257,7 @@ export default function PullRequestsPage(props: { repo: Repo,  branch?: string, 
                 onMergeSuccess={(updatedPrNumber) => {
                   refetch();
                   setSelectedPR(prev => prev && prev.number === updatedPrNumber ? { ...prev, state: "MERGED" } : prev);
+                  props.onMergeSuccess?.(updatedPrNumber);
                 }}
                 onAbandonSuccess={(updatedPrNumber) => {
                   refetch();

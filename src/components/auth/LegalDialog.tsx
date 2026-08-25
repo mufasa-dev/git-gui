@@ -11,16 +11,6 @@ type LegalDialogProps = {
 export default function LegalDialog(props: LegalDialogProps) {
   const { t } = useApp();
 
-  // Mantemos as seções puras aqui, mas a indexação de chaves agora é dinâmica e sem ifs na UI
-  const sectionsData = {
-    terms: [
-      {
-        h: props.type === "terms" ? "1. Aceitação dos Termos" : "1. Acceptance of Terms", // Se preferir, pode mover estas seções para o JSON também!
-        p: "" 
-      }
-    ]
-  };
-
   // OBS: Como os textos das seções são maiores, para não inflar o JSON, 
   // buscamos direto do objeto estruturado local usando o hook interno do sistema
   const content = {

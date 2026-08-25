@@ -6,7 +6,7 @@ import BranchList from "../branch/Branchlist";
 import { buildTree } from "../ui/TreeView";
 import CommitsList from "../commits/CommitsList";
 import { LocalChanges } from "./LocalChanges";
-import { checkoutBranch, getLocalChanges, openPullRequestRemoteUrl, resetHard, stashChanges, stashPop } from "../../services/gitService";
+import { checkoutBranch, getLocalChanges, openPullRequestUrl as openPullRequestRemote, resetHard, stashChanges, stashPop } from "../../services/gitService";
 import BranchSwitchModal from "../branch/BranchSwitchModal";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
@@ -34,7 +34,6 @@ export default function RepoView(props: Props) {
   const [viewMode, setViewMode] = createSignal<"commits" | "changes">("commits");
   const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
-  const [selectedBranch, setSelectedBranch] = createSignal(props.repo.activeBranch);
   const [prSelectedBranch, setprSelectedBranch] = createSignal(props.repo.activeBranch);
   const [selectedRef, setSelectedRef] = createSignal(props.repo.activeBranch);
   const [modalSwtBranchOpen, setModalSwtBranchOpen] = createSignal(false);
@@ -137,7 +136,7 @@ export default function RepoView(props: Props) {
       setprSelectedBranch(branch);
       setIsCreateDialogOpen(true);
     } else {
-      await openPullRequestRemoteUrl(props.repo.path, branch)
+      await openPullRequestRemote(props.repo.path, branch)
     }
   }
 
@@ -250,7 +249,7 @@ export default function RepoView(props: Props) {
               org={repoOwner()}
               repo={props.repo.name}
               currentBranch={prSelectedBranch() || ""}
-              onCreatePR={async (data: any) => {
+              onCreatePR={async () => {
                 setIsCreateDialogOpen(false);
                 props.goToPage("pull-requests");
                 notify.success(t('success').pr_created, "");

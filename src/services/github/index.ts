@@ -2,14 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
-<<<<<<< HEAD
-import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_ISSUES_QUERY, GET_PR_TIMELINE_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY, UPDATE_PR_ISSUES_MUTATION } from "./queries";
+import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_ISSUES_QUERY, GET_PR_TIMELINE_QUERY, GET_REPOSITORY_PIPELINES_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY, UPDATE_PR_ISSUES_MUTATION } from "./queries";
 import { PRValidationResult, ReviewerItem } from "../../models/PR.model";
 import { CardComment, WorkItem } from "../../models/WorkItem";
-=======
-import { ADD_PR_COMMENT, ADD_REACTION, APROVE_PR, DELETE_PR_COMMENT, FOLLOWERS_QUERY, FOLLOWING_QUERY, GET_FILE_CONTENT_QUERY, GET_PR_CHECKS_QUERY, GET_PR_COMMITS_QUERY, GET_PR_FILES_QUERY, GET_PR_TIMELINE_QUERY, GET_REPOSITORY_PIPELINES_QUERY, HIDE_PR_COMMENT, MERGE_PR, PR_DESCRIPTION_QUERY, PROFILE_GRAPHQL_QUERY, REMOVE_REACTION, REPO_PULL_REQUESTS_QUERY } from "./queries";
 import { UnifiedPipelineRun } from "../../models/Pipeline.model";
->>>>>>> simple_fix
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET;
@@ -375,7 +371,109 @@ export const githubService = {
     return await this.fetchGraphQL(HIDE_PR_COMMENT, { subjectId, reason });
   },
 
-<<<<<<< HEAD
+  async getPipelineRuns(owner: string, name: string): Promise<UnifiedPipelineRun[]> {
+    try {
+      const data = await this.fetchGraphQL(GET_REPOSITORY_PIPELINES_QUERY, { owner, name });
+      const runs = data?.repository?.workflowRuns?.nodes || [];
+
+      return runs.map((run: any) => ({
+        id: run.id,
+        number: run.runNumber,
+        name: run.workflow?.name || "Workflow",
+        status: run.status?.toLowerCase(),
+        result: run.conclusion?.toLowerCase(),
+        url: run.url,
+        triggerType: "push/pr",
+        startTime: run.createdAt,
+        finishTime: run.updatedAt,
+        sourceBranch: run.headBranch || ""
+      }));
+    } catch (error) {
+      console.error("Erro ao buscar pipelines no GitHub:", error);
+      return [];
+    }
+  },
+
+  async triggerPipelineRun(owner: string, repo: string, workflowId: string | number, branch: string = "main") {
+    try {
+      const token = await this.getToken();
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ ref: branch, inputs: {} })
+        }
+      );
+
+      if (response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao disparar workflow no GitHub: ${response.status}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Erro em triggerPipelineRun (GitHub):", error);
+      throw error;
+    }
+  },
+
+  async rerunFailedJobs(owner: string, repo: string, runId: string | number) {
+    try {
+      const token = await this.getToken();
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/rerun-failed-jobs`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.status !== 201) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao reexecutar falhas no GitHub: ${response.status}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Erro em rerunFailedJobs (GitHub):", error);
+      throw error;
+    }
+  },
+
+  async deletePipelineRun(owner: string, repo: string, runId: string | number) {
+    try {
+      const token = await this.getToken();
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ao deletar run no GitHub: ${response.status}`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Erro em deletePipelineRun (GitHub):", error);
+      throw error;
+    }
+  },
+
   async validatePullRequest(owner: string, repo: string, source: string, target: string): Promise<PRValidationResult> {
     try {
       const token = await this.getToken();
@@ -500,63 +598,10 @@ export const githubService = {
       return prResult;
     } catch (error) {
       console.error("Erro na service GitHub (createPullRequest):", error);
-=======
-  async getPipelineRuns(owner: string, name: string): Promise<UnifiedPipelineRun[]> {
-    try {
-      const data = await this.fetchGraphQL(GET_REPOSITORY_PIPELINES_QUERY, { owner, name });
-      
-      const runs = data?.repository?.workflowRuns?.nodes || [];
-      
-      return runs.map((run: any) => ({
-        id: run.id,
-        number: run.runNumber,
-        name: run.workflow?.name || "Workflow",
-        status: run.status?.toLowerCase(),     // 'completed', 'queued', 'in_progress'
-        result: run.conclusion?.toLowerCase(), // 'success', 'failure', 'cancelled', 'skipped'
-        url: run.url,
-        trigger: "push/pr", 
-        startTime: run.createdAt,
-        finishTime: run.updatedAt,
-        sourceBranch: run.headBranch || ""
-      }));
-    } catch (e) {
-      console.error("Erro ao buscar pipelines no GitHub:", e);
-      return [];
-    }
-  },
-
-  async triggerPipelineRun(owner: string, repo: string, workflowId: string | number, branch: string = "main") {
-    try {
-      const token = await this.getToken();
-      const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`,
-        {
-          method: "POST",
-          headers: {
-            'Accept': 'application/vnd.github.v3.diff',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            ref: branch, // Branch obrigatória para o GitHub Actions
-            inputs: {}   // Inputs adicionais se o seu YAML exigir
-          })
-        }
-      );
-
-      if (response.status !== 204) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Erro ao disparar workflow no GitHub: ${response.status}`);
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error("Erro em triggerPipelineRun (GitHub):", error);
->>>>>>> simple_fix
       throw error;
     }
   },
 
-<<<<<<< HEAD
   async searchIssues(owner: string, repo: string, queryText: string): Promise<Array<{ id: string; title: string; state?: string }>> {
     if (!queryText || queryText.trim().length < 2) return [];
 
@@ -721,36 +766,10 @@ export const githubService = {
       };
     } catch (error) {
       console.error("Erro ao unificar dados do GitHub:", error);
-=======
-  async rerunFailedJobs(owner: string, repo: string, runId: string | number) {
-    try {
-      const token = await this.getToken();
-      const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/rerun-failed-jobs`,
-        {
-          method: "POST",
-          headers: {
-            'Accept': 'application/vnd.github+json',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      // O GitHub retorna 201 Created quando o rerun é aceito com sucesso
-      if (response.status !== 201) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Erro ao reexecutar falhas no GitHub: ${response.status}`);
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error("Erro em rerunFailedJobs (GitHub):", error);
->>>>>>> simple_fix
       throw error;
     }
   },
 
-<<<<<<< HEAD
   async getIssueHistory(owner: string, repo: string, issueNumber: number): Promise<Array<any>> {
     const token = await this.getToken();
     if (!token) return [];
@@ -1048,32 +1067,6 @@ export const githubService = {
     } catch (error) {
       console.error("Erro ao desassociar issue do PR no GitHub:", error);
       return false;
-=======
-  async deletePipelineRun(owner: string, repo: string, runId: string | number) {
-    try {
-      const token = await this.getToken();
-      const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`,
-        {
-          method: "DELETE",
-          headers: {
-            'Accept': 'application/vnd.github+json',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      // O GitHub retorna 204 No Content quando a deleção é concluída
-      if (response.status !== 204) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Erro ao deletar run no GitHub: ${response.status}`);
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error("Erro em deletePipelineRun (GitHub):", error);
-      throw error;
->>>>>>> simple_fix
     }
   },
 

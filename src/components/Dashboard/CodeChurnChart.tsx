@@ -121,7 +121,7 @@ export default function CodeChurnChart(props: Props) {
   };
 
   const updateHoveredPoint = (event: MouseEvent) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
+    const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const x = ((event.clientX - bounds.left) / bounds.width) * chartConfig.width;
     const points = chartData().points;
     if (!points.length) return;

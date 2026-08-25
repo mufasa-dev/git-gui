@@ -1,4 +1,4 @@
-import { createResource, Show, For, createMemo, createSignal } from "solid-js";
+import { createResource, Show, For, createSignal } from "solid-js";
 import { githubService } from "../../services/github";
 import { useRepoContext } from "../../context/RepoContext";
 // @ts-ignore

@@ -5,7 +5,7 @@ import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
 import ConfirmModal from "../ui/ConfirmModal";
-import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, getRemoteUrl, mergeBranch, openPullRequestUrl, pullBranchWithoutCheckout } from "../../services/gitService";
+import { checkoutRemoteBranch, deleteBranch, deleteRemoteBranch, getRemoteUrl, mergeBranch, pullBranchWithoutCheckout } from "../../services/gitService";
 import { githubService } from "../../services/github";
 import { azureService } from "../../services/azure";
 import { getProviderFromUrl } from "../../utils/gitProvider";

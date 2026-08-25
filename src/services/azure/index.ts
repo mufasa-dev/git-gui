@@ -193,7 +193,7 @@ export const azureService = {
     }
   },
 
-  async getRepoPullRequests(organization: string, repoName: string, state: string): Promise<UnifiedPR[]> {
+  async getRepoPullRequests(organization: string, repoName: string, state: string, project = repoName): Promise<UnifiedPR[]> {
     try {
       const token = await this.getToken();
       if (!token) return [];
@@ -203,7 +203,7 @@ export const azureService = {
       if (state === "MERGED") statusParam = "completed";
       if (state === "ABANDONED" || state === "CLOSED") statusParam = "abandoned";
 
-      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests?searchCriteria.status=${statusParam}&api-version=7.0`;
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullrequests?searchCriteria.status=${statusParam}&api-version=7.0`;
 
       const response = await window.fetch(url, {
         headers: { 
@@ -424,7 +424,7 @@ export const azureService = {
   async removeWorkItemFromPR(
     organization: string,
     projectId: string,
-    repoName: string,
+    _repoName: string,
     prNumber: number,
     workItemId: number
   ): Promise<boolean> {
@@ -951,13 +951,13 @@ export const azureService = {
     }
   },
 
-  async getPRCommits(organization: string, repoName: string, prNumber: number): Promise<any[]> {
+  async getPRCommits(organization: string, repoName: string, prNumber: number, project = repoName): Promise<any[]> {
     try {
       const token = await this.getToken();
       if (!token) return [];
       const credentials = btoa(`:${token.trim()}`);
 
-      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(repoName)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/commits?api-version=7.0`;
+      const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repoName)}/pullRequests/${prNumber}/commits?api-version=7.0`;
 
       const response = await window.fetch(url, {
         headers: { 
@@ -1581,7 +1581,7 @@ export const azureService = {
     const credentials = btoa(`:${token.trim()}`);
 
     // Nota: se você não tiver o ID do repositório dinâmico, pode usar o nome do projeto/repositório na rota padrão
-    const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(project)}/commits/${commitHash}?api-version=7.0`;
+    const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repoId)}/commits/${commitHash}?api-version=7.0`;
 
     try {
       const response = await window.fetch(url, {
@@ -1770,25 +1770,8 @@ export const azureService = {
       return mappedUpdates.reverse();
     } catch (error) {
       console.error("Erro no parse do histórico:", error);
-    const response = await window.fetch(url, {
-      method: 'PATCH',
-      headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        status: "completed",
-        completionOptions: {
-          deleteSourceBranch: false,
-          mergeCommitMessage: "Merged via Dev Brook",
-          mergeStrategy: "noFastForward",
-        },
-        lastMergeSourceCommit: prData.lastMergeSourceCommit,
-        lastMergeSourceCommitId: prData.lastMergeSourceCommit?.commitId || prData.lastMergeSourceCommitId,
-      })
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `Azure DevOps retornou HTTP ${response.status}.`);
+      return [];
     }
-    return true;
   },
 
   async getPullRequestWebUrl(organization: string, project: string, repoName: string, prNumber: number) {
@@ -1805,21 +1788,6 @@ export const azureService = {
       changeType: change.changeType || "edit",
       additions: 0,
       deletions: 0,
-    }));
-  },
-
-  async getPRCommits(organization: string, repoName: string, prNumber: number, project = repoName) {
-    const data = await azureRequest(organization, project, repoName, `/pullrequests/${prNumber}/commits?api-version=7.1`);
-    return (data?.value || []).map((commit: any) => ({
-      oid: commit.commitId,
-      abbreviatedOid: commit.commitId?.slice(0, 7),
-      message: commit.comment || "",
-      committedDate: commit.author?.date || commit.committer?.date,
-      author: {
-        name: commit.author?.name || commit.committer?.name || "",
-        avatarUrl: commit.author?._links?.avatar?.href || "",
-        user: { login: commit.author?.email || commit.committer?.email || "" },
-      },
     }));
   },
 
@@ -1995,37 +1963,60 @@ export const azureService = {
       const token = await this.getToken();
       if (!token) return [];
       const credentials = btoa(`:${token.trim()}`);
-      
       const url = `https://dev.azure.com/${organization}/${encodeURIComponent(project)}/_apis/build/builds/${buildId}/changes?api-version=7.0`;
-      
       const response = await window.fetch(url, {
-        headers: { 
-          'Authorization': `Basic ${credentials}`, 
-          'Accept': 'application/json' 
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          Accept: "application/json"
         }
       });
 
       if (!response.ok) return [];
       const data = await response.json();
-      console.log('data', data)
+      return (data.value || []).map((change: any) => ({
+        id: change.id,
+        commitId: change.id,
+        message: (change.message || "Sem mensagem de commit").split("\\n")[0],
+        timestamp: change.timestamp || null,
+        author: {
+          name: change.author?.displayName || change.author?.uniqueName || "Autor Desconhecido",
+          imageUrl: change.author?._links?.avatar?.href || null
+        }
+      }));
+    } catch (error) {
+      console.error(`Erro ao buscar alterações do build #${buildId} no Azure:`, error);
+      return [];
+    }
+  },
+
+  async searchProjectMembers(organization: string, project: string, queryText: string): Promise<Array<{ id: string; descriptor: string; login: string; avatarUrl?: string }>> {
+    if (!queryText.trim()) return [];
+    const token = await this.getToken();
+    if (!token) return [];
+    const credentials = btoa(`:${token.trim()}`);
+    const url = `https://vssps.dev.azure.com/${encodeURIComponent(organization)}/_apis/graph/users?api-version=7.1-preview.1`;
+
+    try {
+      const response = await window.fetch(url, {
+        headers: { Authorization: `Basic ${credentials}`, Accept: "application/json" }
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      const query = queryText.toLowerCase();
       return (data.value || [])
         .filter((user: any) => {
           if (user.domain === "Build" || user.domain === "AgentPool") return false;
-          if (!user.mailAddress || user.mailAddress.trim() === "") return false;
-
-          const query = queryText.toLowerCase();
-          return user.displayName?.toLowerCase().includes(query) ||
-                 user.mailAddress?.toLowerCase().includes(query);
+          return user.displayName?.toLowerCase().includes(query) || user.mailAddress?.toLowerCase().includes(query);
         })
-        .slice(0, 5)
+        .slice(0, 10)
         .map((user: any) => ({
-          // Armazena o descriptor para uso futuro, mas retornamos também o email
+          id: user.id || user.descriptor,
           descriptor: user.descriptor,
-          login: user.displayName,
-          avatarUrl: `https://dev.azure.com/${organization}/_apis/GraphProfile/MemberAvatars/${user.descriptor}?size=small`
+          login: user.mailAddress || user.displayName,
+          avatarUrl: `https://dev.azure.com/${encodeURIComponent(organization)}/_apis/GraphProfile/MemberAvatars/${user.descriptor}?size=small`
         }));
     } catch (error) {
-      console.error("Erro ao buscar membros no Azure Graph:", error);
+      console.error(`Erro ao buscar membros do projeto ${project}:`, error);
       return [];
     }
   },
@@ -2050,6 +2041,9 @@ export const azureService = {
         return user?.id || null;
     } catch {
         return null;
+    }
+  },
+
   async getPipelineRunTimeline(organization: string, project: string, buildId: number): Promise<any[]> {
     try {
       const token = await this.getToken();

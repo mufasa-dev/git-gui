@@ -134,7 +134,7 @@ export function PRWorkItemsList(props: PRWorkItemsListProps) {
         <Show when={props.workItems && props.workItems.length > 0}>
           <For each={props.workItems}>
             {(wi) => {
-              const [isRemoving, setIsRemoving] = createSignal(false);
+              const isRemoving = () => false;
               return (
                 <div class="flex items-center justify-between group p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
                   <div class="flex-1 min-w-0">

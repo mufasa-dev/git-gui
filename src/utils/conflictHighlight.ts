@@ -1,4 +1,4 @@
-import { Extension, RangeSetBuilder } from "@codemirror/state";
+import { RangeSetBuilder } from "@codemirror/state"
 import { Decoration, ViewPlugin, DecorationSet, ViewUpdate, EditorView } from "@codemirror/view";
 
 // Definição das decorações de linha (pegam o fundo da linha inteira)

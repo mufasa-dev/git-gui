@@ -1,4 +1,4 @@
-import { For, JSX, Show } from "solid-js";
+import { For, Show } from "solid-js";
 
 export type ContextMenuItem = {
   label: string;

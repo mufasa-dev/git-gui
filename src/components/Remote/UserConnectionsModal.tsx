@@ -1,6 +1,5 @@
 import { Show, For, createResource } from "solid-js";
 import { githubService } from "../../services/github";
-import { open } from "@tauri-apps/plugin-shell"; // Importe o open do Tauri para manter consistência
 import { useApp } from "../../context/AppContext";
 
 interface UserConnectionsModalProps {

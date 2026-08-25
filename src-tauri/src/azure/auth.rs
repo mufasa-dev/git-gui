@@ -52,7 +52,6 @@ pub async fn get_user_avatar(token: &str, org: &str) -> Result<String, String> {
         Err("Falha ao buscar avatar".to_string())
     }
 }
-<<<<<<< HEAD
 
 #[tauri::command]
 pub async fn fetch_azure_avatar(url: String, pat: String) -> Result<String, String> {
@@ -60,7 +59,7 @@ pub async fn fetch_azure_avatar(url: String, pat: String) -> Result<String, Stri
     let mut headers = HeaderMap::new();
     
     // Cria a credencial Basic :PAT idêntica ao btoa do JS
-    let auth_value = format!("Basic :{}", pat.trim());
+    let auth_value = format!("Basic {}", general_purpose::STANDARD.encode(format!(":{}", pat.trim())));
     let mut header_value = HeaderValue::from_str(&auth_value)
         .map_err(|_| "Erro ao gerar header de autenticação".to_string())?;
     header_value.set_sensitive(true);
@@ -95,5 +94,3 @@ pub async fn fetch_azure_avatar(url: String, pat: String) -> Result<String, Stri
     // Devolve a String pronta para o src da img
     Ok(format!("data:{};base64,{}", content_type, b64_encoded))
 }
-=======
->>>>>>> simple_fix

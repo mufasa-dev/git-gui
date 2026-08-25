@@ -23,15 +23,6 @@ interface CreatePRDialogProps {
   onCreatePR: (data: any) => Promise<void>;
 }
 
-// Interface para unificar a resposta da API de ambos os providers
-interface PRValidationResult {
-  hasChanges: boolean;
-  alreadyExists: boolean;
-  existingPrId?: string | number;
-  commits: any[];
-  files: any[];
-}
-
 export default function CreatePRDialog(props: CreatePRDialogProps) {
   
   const [activeOrg, setActiveOrg] = createSignal(props.org);
@@ -47,7 +38,6 @@ export default function CreatePRDialog(props: CreatePRDialogProps) {
   const [title, setTitle] = createSignal("");
   const [description, setDescription] = createSignal("");
   const [reviewers, setReviewers] = createSignal<ReviewerItem[]>([]);
-  const [newReviewer, setNewReviewer] = createSignal("");
   const [linkedWorkItems, setLinkedWorkItems] = createSignal<Array<{ id: string; title: string; state?: string }>>([]);
 
   // Chaves de controle para forçar o SearchableSelect a remontar e atualizar visualmente

@@ -1,12 +1,11 @@
 import { createEffect, createMemo, createResource, createSignal, lazy, Match, onCleanup, onMount, Show, Switch } from "solid-js";
-import { validateRepo, getRemoteBranches, getBranchStatus, getCurrentBranch, getLocalChanges, getRemoteUrl } from "../services/gitService";
+import { getRepositorySnapshot, getRepositoryStatus, getLocalChanges, getRemoteUrl, listStashes, listTags } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
 import { Repo } from "../models/Repo.model";
 import RepoContext, { CommitDraft } from "../context/RepoContext";
 
-import { path } from "@tauri-apps/api";
-import { loadActiveRepo, loadRepos, saveActiveRepo, saveRepos } from "../services/storeService";
+import { loadRepos, saveActiveRepo, saveRepos } from "../services/storeService";
 import Header from "../components/layout/Header";
 import LateralBar from "../components/ui/LateralBar";
 import WelcomeScreen from "./WelcomeScreen";
