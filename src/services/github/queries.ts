@@ -107,7 +107,13 @@ export const REPO_PULL_REQUESTS_QUERY = `
           baseRefOid
           createdAt
           updatedAt
-          author { login avatarUrl name }
+          author {
+            login
+            avatarUrl
+            ... on User {
+              name
+            }
+          }
           comments { totalCount }
         }
       }
@@ -122,7 +128,13 @@ export const PR_DESCRIPTION_QUERY = `
         id
         url
         body
-        author { login name avatarUrl }
+        author {
+          login
+          avatarUrl
+          ... on User {
+            name
+          }
+        }
         changedFiles
         additions
         deletions

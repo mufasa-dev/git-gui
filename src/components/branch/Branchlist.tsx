@@ -8,6 +8,7 @@ import { getProviderFromUrl } from "../../utils/gitProvider";
 import { notify } from "../../utils/notifications";
 import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
+import MergeBranchModal from "./MergeBranchModal";
 
 type Props = {
   localTree: TreeNodeMap;
@@ -29,8 +30,100 @@ export default function BranchList(props: Props) {
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
   const [itemName, setItemName] = createSignal<string>("");
+  const [draggedBranch, setDraggedBranch] = createSignal<string | null>(null);
+  const [dropTargetBranch, setDropTargetBranch] = createSignal<string | null>(null);
+  const [pointerBranch, setPointerBranch] = createSignal<string | null>(null);
+  const [pointerDragging, setPointerDragging] = createSignal(false);
+  const [mergeSource, setMergeSource] = createSignal<string | null>(null);
+  const [mergeTarget, setMergeTarget] = createSignal<string | null>(null);
   const { showLoading, hideLoading } = useLoading();
   const { t } = useApp();
+
+  const clearDragState = () => {
+    setDraggedBranch(null);
+    setDropTargetBranch(null);
+    setPointerBranch(null);
+    setPointerDragging(false);
+  };
+
+  const handleBranchDragStart = (e: DragEvent, branch: string) => {
+    setPointerBranch(null);
+    setPointerDragging(false);
+    setDraggedBranch(branch);
+    setDropTargetBranch(null);
+    e.dataTransfer?.setData("text/plain", branch);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleBranchDragOver = (e: DragEvent, branch: string) => {
+    const source = draggedBranch();
+    if (!source || source === branch) {
+      setDropTargetBranch(null);
+      return;
+    }
+
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    setDropTargetBranch(branch);
+  };
+
+  const handleBranchDrop = (e: DragEvent, targetBranch: string) => {
+    e.preventDefault();
+    const sourceBranch = draggedBranch() || e.dataTransfer?.getData("text/plain");
+    clearDragState();
+
+    if (!sourceBranch || sourceBranch === targetBranch) return;
+
+    setMergeSource(sourceBranch);
+    setMergeTarget(targetBranch);
+  };
+
+  const handleBranchPointerDown = (_e: PointerEvent, branch: string) => {
+    setPointerBranch(branch);
+    setPointerDragging(false);
+  };
+
+  const handleBranchPointerMove = (_e: PointerEvent, targetBranch: string | null) => {
+    const sourceBranch = pointerBranch();
+    if (!sourceBranch) return;
+
+    setPointerDragging(true);
+    setDraggedBranch(sourceBranch);
+    setDropTargetBranch(targetBranch && targetBranch !== sourceBranch ? targetBranch : null);
+  };
+
+  const handleBranchPointerUp = (_e: PointerEvent, targetBranch: string | null) => {
+    const sourceBranch = pointerBranch();
+    const wasDragging = pointerDragging();
+    clearDragState();
+
+    if (!wasDragging || !sourceBranch || !targetBranch || sourceBranch === targetBranch) return;
+
+    setMergeSource(sourceBranch);
+    setMergeTarget(targetBranch);
+  };
+
+  const confirmMerge = async () => {
+    const sourceBranch = mergeSource();
+    const targetBranch = mergeTarget();
+    if (!sourceBranch || !targetBranch) return;
+
+    setMergeSource(null);
+    setMergeTarget(null);
+
+    try {
+      showLoading(`Mesclando ${sourceBranch} em ${targetBranch}...`);
+      await mergeBranch(props.repoPath, sourceBranch, targetBranch);
+      notify.success("Git Merge", `Branch '${sourceBranch}' mesclada com sucesso em '${targetBranch}'!`);
+      await props.refreshBranches(props.repoPath);
+    } catch (err: unknown) {
+      const errorMessage = typeof err === "string" ? err : String(err);
+      notify.error("Erro ao mesclar branches", errorMessage);
+      console.error("Erro Git Merge:", errorMessage);
+    } finally {
+      hideLoading();
+    }
+  };
 
   const openContextMenu = (e: MouseEvent, branch: string) => {
     e.preventDefault();
@@ -234,6 +327,17 @@ export default function BranchList(props: Props) {
               onSelectBranch={props.onSelectBranch}
               onActivateBranch={props.onActivateBranch}
               openContextMenu={openContextMenu}
+              enableBranchDrag={true}
+              draggedBranch={draggedBranch()}
+              dropTargetBranch={dropTargetBranch()}
+              onBranchDragStart={handleBranchDragStart}
+              onBranchDragOver={handleBranchDragOver}
+              onBranchDrop={handleBranchDrop}
+              onBranchDragEnd={clearDragState}
+              onBranchPointerDown={handleBranchPointerDown}
+              onBranchPointerMove={handleBranchPointerMove}
+              onBranchPointerUp={handleBranchPointerUp}
+              onBranchPointerCancel={clearDragState}
             />
           </div>
         </Show>
@@ -271,6 +375,17 @@ export default function BranchList(props: Props) {
           onClose={() => setMenuVisible(false)}
         />
       </Show>
+
+      <MergeBranchModal
+        open={mergeSource() !== null && mergeTarget() !== null}
+        sourceBranch={mergeSource() ?? ""}
+        targetBranch={mergeTarget() ?? ""}
+        onCancel={() => {
+          setMergeSource(null);
+          setMergeTarget(null);
+        }}
+        onConfirm={confirmMerge}
+      />
     </div>
   );
 }

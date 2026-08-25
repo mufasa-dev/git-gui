@@ -19,6 +19,17 @@ export type TreeViewProps = {
   onSelectBranch?: (branch: string) => void;
   onActivateBranch?: (branch: string) => void;
   openContextMenu?: (e: MouseEvent, branch: string) => void;
+  enableBranchDrag?: boolean;
+  draggedBranch?: string | null;
+  dropTargetBranch?: string | null;
+  onBranchDragStart?: (e: DragEvent, branch: string) => void;
+  onBranchDragOver?: (e: DragEvent, branch: string) => void;
+  onBranchDrop?: (e: DragEvent, branch: string) => void;
+  onBranchDragEnd?: () => void;
+  onBranchPointerDown?: (e: PointerEvent, branch: string) => void;
+  onBranchPointerMove?: (e: PointerEvent, branch: string | null) => void;
+  onBranchPointerUp?: (e: PointerEvent, branch: string | null) => void;
+  onBranchPointerCancel?: () => void;
   pathPrefix?: string;
 };
 
@@ -139,12 +150,49 @@ export default function TreeView(props: TreeViewProps) {
         const nodePath = getNodePath(node);
         const isActive = node.original === props.activeBranch;
         const isSelected = node.original === props.selectedBranch;
+        const isDragged = isLeaf && node.original === props.draggedBranch;
+        const isDropTarget = isLeaf && node.original === props.dropTargetBranch;
         const folderVisual = getFolderVisual(node.name, !!open()[nodePath]);
         return (
             <li>
                 <div
-                  class={`flex min-w-0 cursor-pointer select-none items-center ${isSelected ? "font-bold text-green-600" : ""}`}
+                  class={`flex min-w-0 select-none items-center rounded-lg transition-colors ${props.enableBranchDrag && isLeaf ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${isSelected ? "font-bold text-green-600" : ""} ${isDropTarget ? "bg-blue-500/15 ring-1 ring-blue-500/60" : ""} ${isDragged ? "opacity-50" : ""}`}
+                  draggable={props.enableBranchDrag && isLeaf}
                   onClick={() => handleClick(node)}
+                  onDragStart={(e: DragEvent) => {
+                    if (props.enableBranchDrag && isLeaf) {
+                      props.onBranchDragStart?.(e, node.original);
+                    }
+                  }}
+                  onDragOver={(e: DragEvent) => {
+                    if (!props.enableBranchDrag || !isLeaf) return;
+                    e.preventDefault();
+                    props.onBranchDragOver?.(e, node.original);
+                  }}
+                  onDrop={(e: DragEvent) => {
+                    if (!props.enableBranchDrag || !isLeaf) return;
+                    e.preventDefault();
+                    props.onBranchDrop?.(e, node.original);
+                  }}
+                  onDragEnd={() => props.onBranchDragEnd?.()}
+                  onPointerDown={(e: PointerEvent) => {
+                    if (props.enableBranchDrag && isLeaf) {
+                      props.onBranchPointerDown?.(e, node.original);
+                    }
+                  }}
+                  onPointerMove={(e: PointerEvent) => {
+                    if (props.enableBranchDrag) {
+                      props.onBranchPointerMove?.(e, isLeaf ? node.original : null);
+                    }
+                  }}
+                  onPointerUp={(e: PointerEvent) => {
+                    if (props.enableBranchDrag) {
+                      props.onBranchPointerUp?.(e, isLeaf ? node.original : null);
+                    }
+                  }}
+                  onPointerCancel={() => {
+                    if (props.enableBranchDrag) props.onBranchPointerCancel?.();
+                  }}
                   onDblClick={() => {
                     if (!node.children) {
                       props.onActivateBranch?.(node.original);
@@ -174,6 +222,17 @@ export default function TreeView(props: TreeViewProps) {
                         onSelectBranch={props.onSelectBranch}
                         onActivateBranch={props.onActivateBranch}
                         openContextMenu={props.openContextMenu}
+                        enableBranchDrag={props.enableBranchDrag}
+                        draggedBranch={props.draggedBranch}
+                        dropTargetBranch={props.dropTargetBranch}
+                        onBranchDragStart={props.onBranchDragStart}
+                        onBranchDragOver={props.onBranchDragOver}
+                        onBranchDrop={props.onBranchDrop}
+                        onBranchDragEnd={props.onBranchDragEnd}
+                        onBranchPointerDown={props.onBranchPointerDown}
+                        onBranchPointerMove={props.onBranchPointerMove}
+                        onBranchPointerUp={props.onBranchPointerUp}
+                        onBranchPointerCancel={props.onBranchPointerCancel}
                         pathPrefix={nodePath}
                     />
                 )}
