@@ -67,6 +67,7 @@ export default function CommitsList(props: Props) {
   const [startDate, setStartDate] = createSignal("");
   const [endDate, setEndDate] = createSignal("");
   let fetchId = 0;
+  let commitRequestId = 0;
   const { t, locale, isDark } = useApp();
   const datePlaceholder = createMemo(() => ({
     pt: "dd/mm/aaaa",
@@ -162,8 +163,19 @@ export default function CommitsList(props: Props) {
 
   async function selectCommit(hash: string) {
     if (!props.repo || !props.repo.path) return;
-    const details = await getCommitDetails(props.repo.path, hash);
-    setSelectedCommit({ ...details, _ts: Date.now() });
+
+    const requestId = ++commitRequestId;
+    try {
+      const details = await getCommitDetails(props.repo.path, hash);
+      if (requestId === commitRequestId) {
+        setSelectedCommit({ ...details, _ts: Date.now() });
+      }
+    } catch (error) {
+      if (requestId === commitRequestId) {
+        setSelectedCommit(null);
+        notify.error(t("error").load_commits, String(error));
+      }
+    }
   }
 
   let previousPath: string | undefined;
@@ -182,6 +194,7 @@ export default function CommitsList(props: Props) {
     if (isNewRepo) {
       // Força o descarte imediato de qualquer requisição paralela anterior
       fetchId++;
+      commitRequestId++;
       setCommits([]);
       setCurrentPage(1);
       setSelectedCommit(null);

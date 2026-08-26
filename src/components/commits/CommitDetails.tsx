@@ -12,6 +12,7 @@ import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
 import { GitProvider } from "../../utils/gitProvider";
 import { Repo } from "../../models/Repo.model";
+import { Diff } from "../../models/Diff.model";
 
 type CommitDetailsProps = {
   commit: any;
@@ -54,23 +55,36 @@ export function CommitDetails(props: CommitDetailsProps) {
   };
   const [activeTab, setActiveTab] = createSignal<"geral" | "arquivos">("geral");
   const [selectedFile, setSelectedFile] = createSignal<any>(null);
-  const [fileDiff, setFileDiff] = createSignal<any>(null);
+  const [fileDiff, setFileDiff] = createSignal<Diff | null>(null);
+  const [diffError, setDiffError] = createSignal<string | null>(null);
   const [lastProcessedHash, setLastProcessedHash] = createSignal<string | null>(null);
   const [loadingDiff, setLoadingDiff] = createSignal(false);
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
+  let diffRequestId = 0;
   const { t, locale } = useApp();
 
   const fetchFileDiff = async (file: any) => {
+    const requestId = ++diffRequestId;
     setSelectedFile(file);
+    setFileDiff(null);
+    setDiffError(null);
     setLoadingDiff(true);
     try {
       const res = await getCommitFileDiff(repository.path, props.commit.hash, file.file);
-      setFileDiff(res);
+      if (requestId === diffRequestId) {
+        setFileDiff(res);
+      }
     } catch (e) {
-      console.error(e);
-      notify.error(t("error").error, String(e));
+      if (requestId === diffRequestId) {
+        console.error(e);
+        setFileDiff(null);
+        setDiffError(String(e));
+        notify.error(t("error").error, String(e));
+      }
     } finally {
-      setLoadingDiff(false);
+      if (requestId === diffRequestId) {
+        setLoadingDiff(false);
+      }
     }
   };
 
@@ -86,8 +100,11 @@ export function CommitDetails(props: CommitDetailsProps) {
     const currentCommit = props.commit;
 
     if (!currentCommit) {
+      diffRequestId++;
       setSelectedFile(null);
       setFileDiff(null);
+      setDiffError(null);
+      setLoadingDiff(false);
       setLastProcessedHash(null);
       return;
     }
@@ -102,8 +119,11 @@ export function CommitDetails(props: CommitDetailsProps) {
       if (files && files.length > 0) {
         void fetchFileDiff(files[0]);
       } else {
+        diffRequestId++;
         setSelectedFile(null);
         setFileDiff(null);
+        setDiffError(null);
+        setLoadingDiff(false);
       }
     }
   });
@@ -280,15 +300,17 @@ export function CommitDetails(props: CommitDetailsProps) {
                       <span class={`shrink-0 rounded px-1.5 py-0.5 text-[8px] font-black uppercase ${fileStatusClass(selectedFile().status || "M")}`}>{fileStatusLabel(selectedFile().status || "M")}</span>
                     </div>
                     <Show when={!loadingDiff()} fallback={<div class="flex min-h-32 items-center justify-center rounded-xl border border-gray-200 bg-white text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-800"><i class="fa-solid fa-spinner mr-2 animate-spin text-blue-500" aria-hidden="true"></i>{t("common").loading}</div>}>
-                      <div class="min-h-32 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-800">
-                        <DiffViewer
-                          path={repository.path}
-                          file={selectedFile().file}
-                          diff={fileDiff()}
-                          class="h-full text-xs"
-                          isStaged={true}
-                        />
-                      </div>
+                      <Show when={fileDiff()} fallback={<div class="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-center text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"><i class="fa-solid fa-triangle-exclamation text-lg" aria-hidden="true"></i><span>{t("file").preview_unavailable}</span><Show when={diffError()}><span class="max-w-full break-words text-[10px] opacity-75">{diffError()}</span></Show></div>}>
+                        <div class="min-h-32 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-800">
+                          <DiffViewer
+                            path={repository.path}
+                            file={selectedFile().file}
+                            diff={fileDiff()!}
+                            class="h-full text-xs"
+                            isStaged={true}
+                          />
+                        </div>
+                      </Show>
                     </Show>
                   </Show>
                 </section>
