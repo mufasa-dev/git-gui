@@ -172,6 +172,24 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   };
 
+  const toggleItems = (paths: string[], select: boolean) => {
+    setSelected((prev) => {
+      if (!select) return prev.filter((path) => !paths.includes(path));
+      const selectedPaths = new Set(prev);
+      paths.forEach((path) => selectedPaths.add(path));
+      return [...selectedPaths];
+    });
+  };
+
+  const toggleStagedItems = (paths: string[], select: boolean) => {
+    setStagedPreparedSelected((prev) => {
+      if (!select) return prev.filter((path) => !paths.includes(path));
+      const selectedPaths = new Set(prev);
+      paths.forEach((path) => selectedPaths.add(path));
+      return [...selectedPaths];
+    });
+  };
+
   const toggleStagedItem = (path: string, select: boolean, isFile?: boolean) => {
     setStagedPreparedSelected((prev) => {
       if (select) {
@@ -410,7 +428,7 @@ export function LocalChanges(props: { repo: Repo; }) {
           }>
             <FolderTreeView items={unstaged()} selectMode="multi"
               selected={selected()} staged={false} showStatus={true}
-              onToggle={toggleItem} onContextMenu={showContextMenu}
+              onToggle={toggleItem} onToggleMany={toggleItems} onContextMenu={showContextMenu}
               onDbClick={(items: string[]) => prepare(items)}
             />
           </Show>
@@ -435,7 +453,7 @@ export function LocalChanges(props: { repo: Repo; }) {
           }>
             <FolderTreeView items={staged()} showStatus={true}
               selected={stagedPreparedSelected()} staged={true} selectMode="multi"
-              onToggle={toggleStagedItem} onContextMenu={showContextMenu}
+              onToggle={toggleStagedItem} onToggleMany={toggleStagedItems} onContextMenu={showContextMenu}
               onDbClick={(items: string[]) => unstage(items)}
             />
           </Show>

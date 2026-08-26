@@ -206,6 +206,29 @@ fn status_has_conflict(status: &[u8]) -> bool {
         || (first == b'D' && second == b'D')
 }
 
+fn status_file_path(line: &str) -> Option<String> {
+    if line.len() <= 3 {
+        return None;
+    }
+
+    let code = &line[..2];
+    let raw_path = line[3..].trim_matches('"').replace('\\', "/");
+    if raw_path.is_empty() {
+        return None;
+    }
+
+    let path = if code.chars().any(|status| matches!(status, 'R' | 'C')) {
+        raw_path
+            .rsplit_once(" -> ")
+            .map(|(_, new_path)| new_path)
+            .unwrap_or(&raw_path)
+    } else {
+        &raw_path
+    };
+
+    (!path.is_empty()).then_some(path.to_string())
+}
+
 #[tauri::command]
 pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
     let output = git_command(&path)
@@ -224,11 +247,12 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
 
     let mut add_change = |file_path: String, status: &str, staged: bool| {
         let file = Path::new(&file_path);
-        let deleted = status == "deleted";
-        let (size, is_binary, is_previewable) = if deleted {
-            (0, false, true)
+        let size = if status == "deleted" {
+            0
         } else {
-            file_metadata(&repo_path.join(file))
+            fs::metadata(repo_path.join(file))
+                .map(|metadata| metadata.len())
+                .unwrap_or(0)
         };
 
         changes.push(json!({
@@ -238,8 +262,8 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
             "extension": file.extension().and_then(|value| value.to_str()).unwrap_or(""),
             "size": size,
             "lineCount": null,
-            "isBinary": is_binary,
-            "isPreviewable": is_previewable
+            "isBinary": false,
+            "isPreviewable": true
         }));
     };
 
@@ -249,10 +273,8 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
         }
 
         let code = if line.len() >= 2 { &line[0..2] } else { "  " };
-        let file_path = if line.len() > 3 {
-            line[3..].trim_matches('"').to_string()
-        } else {
-            String::new()
+        let Some(file_path) = status_file_path(line) else {
+            continue;
         };
         let index_status = code.chars().next().unwrap_or(' ');
         let worktree_status = code.chars().nth(1).unwrap_or(' ');
@@ -328,6 +350,7 @@ pub fn get_repository_status(path: String) -> Result<serde_json::Value, String> 
 
     let mut options = StatusOptions::new();
     options.include_untracked(true);
+    options.recurse_untracked_dirs(true);
     let statuses = repository
         .statuses(Some(&mut options))
         .map_err(|error| error.to_string())?;
@@ -801,6 +824,15 @@ mod tests {
         assert!(status_has_conflict(b"AA src/main.rs"));
         assert!(status_has_conflict(b"DD src/main.rs"));
         assert!(!status_has_conflict(b" M src/main.rs"));
+    }
+
+    #[test]
+    fn uses_the_new_path_for_renamed_files() {
+        assert_eq!(
+            status_file_path("R  old/name.cs -> src/name.cs"),
+            Some("src/name.cs".to_string())
+        );
+        assert_eq!(status_file_path(" M src/name.cs"), Some("src/name.cs".to_string()));
     }
 
     #[test]

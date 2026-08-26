@@ -100,6 +100,7 @@ export default function FileIcon(props: FileIconProps) {
     if (name === '.gitignore') return gitIcon;
     if (name === '.prettierrc' || name === 'prettierr') return prettierIcon;
     if (name === 'license') return mdIcon;
+    if (name.endsWith('.csproj.user')) return cSharpIcon;
     if (name.includes('package.json')) return packageIcon;
     if (name.includes('package-lock.json')) return packageIcon;
 

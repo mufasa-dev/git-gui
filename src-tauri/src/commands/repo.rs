@@ -117,6 +117,7 @@ fn repository_snapshot_from_git(repo_path: &str) -> Result<RepositorySnapshot, S
 
     let mut status_options = StatusOptions::new();
     status_options.include_untracked(true);
+    status_options.recurse_untracked_dirs(true);
     let statuses = repository.statuses(Some(&mut status_options)).map_err(|error| error.to_string())?;
     let mut local_changes = Vec::new();
 

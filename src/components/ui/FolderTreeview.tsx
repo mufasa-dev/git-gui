@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import FileIcon from "./FileIcon";
 import alertIcon from '../../assets/alert.png';
 
@@ -15,13 +15,15 @@ export function FolderTreeView(props: {
     showStatus: boolean;
     selectMode?: "single" | "multi";
     onToggle: (path: string, selected: boolean, isFile: boolean) => void;
+    onToggleMany?: (paths: string[], selected: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
     onDbClick?: (items: string[]) => void;
  }) {
   const buildTree = (files: ChangeItem[]) => {
     const root: any = {};
     for (const f of files) {
-      const parts = f.path.split("/");
+      const parts = f.path.replace(/\\/g, "/").split("/").filter(Boolean);
+      if (parts.length === 0) continue;
       let current = root;
 
       parts.forEach((part, idx) => {
@@ -50,8 +52,8 @@ export function FolderTreeView(props: {
     });
   };
 
-  const tree = () => buildTree(props.items);
-  const sortedRoot = () => sortEntries(Object.entries(tree()));
+  const tree = createMemo(() => buildTree(props.items));
+  const sortedRoot = createMemo(() => sortEntries(Object.entries(tree())));
 
   return (
     <ul class="space-y-1">
@@ -61,7 +63,7 @@ export function FolderTreeView(props: {
               node={child} name={name} path={name} 
               selected={props.selected} staged={props.staged} 
               defaultOpen={props.defaultOpen}
-              onToggle={props.onToggle} onContextMenu={props.onContextMenu} 
+              onToggle={props.onToggle} onToggleMany={props.onToggleMany} onContextMenu={props.onContextMenu}
               onDbClick={props.onDbClick}
               showStatus={props.showStatus}
               loopNumber={1}
@@ -84,6 +86,7 @@ function TreeNode(props: {
     selectMode?: "single" | "multi";
     loopNumber: number;
     onToggle: (path: string, selected: boolean, isFile: boolean) => void;
+    onToggleMany?: (paths: string[], selected: boolean) => void;
     onContextMenu?: (e: MouseEvent, item: any) => void;
     onDbClick?: (items: string[]) => void;
     sortFn: (entries: [string, any][]) => [string, any][];
@@ -103,7 +106,11 @@ function TreeNode(props: {
     } else {
       const allPaths = collectPaths(props.node, props.path);
       const allSelected = allPaths.every((p) => props.selected.includes(p));
-      allPaths.forEach((p) => props.onToggle(p, !allSelected, true));
+      if (props.onToggleMany) {
+        props.onToggleMany(allPaths, !allSelected);
+      } else {
+        allPaths.forEach((p) => props.onToggle(p, !allSelected, false));
+      }
     }
   };
 
@@ -209,6 +216,7 @@ function TreeNode(props: {
                 staged={props.staged}
                 defaultOpen={props.defaultOpen}
                 onToggle={props.onToggle}
+                onToggleMany={props.onToggleMany}
                 onContextMenu={props.onContextMenu}
                 onDbClick={props.onDbClick}
                 sortFn={props.sortFn}
