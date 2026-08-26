@@ -48,7 +48,7 @@ const fileStatusClass = (status: string) => {
 const fileStatusLabel = (status: string) => status || "M";
 
 export function CommitDetails(props: CommitDetailsProps) {
-  const repository = props.repo ?? {
+  const repository = () => props.repo ?? {
     path: props.repoPath ?? "",
     name: props.repoName ?? "",
     branches: [],
@@ -70,7 +70,7 @@ export function CommitDetails(props: CommitDetailsProps) {
     setDiffError(null);
     setLoadingDiff(true);
     try {
-      const res = await getCommitFileDiff(repository.path, props.commit.hash, file.file);
+      const res = await getCommitFileDiff(repository().path, props.commit.hash, file.file);
       if (requestId === diffRequestId) {
         setFileDiff(res);
       }
@@ -303,7 +303,7 @@ export function CommitDetails(props: CommitDetailsProps) {
                       <Show when={fileDiff()} fallback={<div class="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-center text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"><i class="fa-solid fa-triangle-exclamation text-lg" aria-hidden="true"></i><span>{t("file").preview_unavailable}</span><Show when={diffError()}><span class="max-w-full break-words text-[10px] opacity-75">{diffError()}</span></Show></div>}>
                         <div class="min-h-32 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-800">
                           <DiffViewer
-                            path={repository.path}
+                            path={repository().path}
                             file={selectedFile().file}
                             diff={fileDiff()!}
                             class="h-full text-xs"
@@ -334,7 +334,7 @@ export function CommitDetails(props: CommitDetailsProps) {
           width={"90vw"}
         >
           <UserProfileDialog
-            repo={repository}
+            repo={repository()}
             branch={props.branch || ""}
             email={props.commit?.authorEmail}
             fallbackName={props.commit?.authorName}
