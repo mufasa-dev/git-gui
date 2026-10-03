@@ -389,7 +389,7 @@ export default function Header(props: Props) {
                 },
                 {
                   img: newWindowIcon,
-                  label: "Abrir Claude Code",
+                  label: t("ai").open_claude_code,
                   hide: aiConfig()?.provider !== "anthropic" || !aiConfig()?.apiKey.trim(),
                   action: () => {
                     void openClaudeCodeTerminal(props.active!).catch(error => {

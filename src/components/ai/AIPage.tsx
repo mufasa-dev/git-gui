@@ -12,7 +12,7 @@ import { notify } from "../../utils/notifications";
 import { useApp } from "../../context/AppContext";
 
 export default function AIPage(props: { repo: Repo }) {
-  const { aiConfig, updateAIConfig } = useApp();
+  const { aiConfig, updateAIConfig, t } = useApp();
   const currentConfig = aiConfig();
   const [provider, setProvider] = createSignal<AIProvider>(currentConfig?.provider || "gemini");
   const [model, setModel] = createSignal(currentConfig?.model || AI_PROVIDER_DEFAULTS.gemini.model);
@@ -33,11 +33,11 @@ export default function AIPage(props: { repo: Repo }) {
   const saveConfiguration = (): AIConfig | null => {
     const config = activeConfig();
     if (!config.apiKey) {
-      notify.error("Configuração necessária", "Informe uma chave de API para usar a IA.");
+      notify.error(t("ai").configuration_required, t("ai").api_key_required);
       return null;
     }
     if (!config.model) {
-      notify.error("Configuração necessária", "Informe um modelo.");
+      notify.error(t("ai").configuration_required, t("ai").model_required);
       return null;
     }
     updateAIConfig(config);
@@ -65,7 +65,7 @@ export default function AIPage(props: { repo: Repo }) {
       const answer = await sendAIMessage(props.repo.path, config, nextMessages);
       setMessages([...nextMessages, { role: "assistant", content: answer }]);
     } catch (error) {
-      notify.error("Erro na IA", String(error));
+      notify.error(t("ai").ai_error, String(error));
     } finally {
       setIsSending(false);
     }
@@ -86,7 +86,7 @@ export default function AIPage(props: { repo: Repo }) {
             </div>
             <div>
               <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-500">Dev Brook AI</p>
-              <h1 class="text-xl font-bold">Assistente de desenvolvimento</h1>
+              <h1 class="text-xl font-bold">{t("ai").title}</h1>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
@@ -100,15 +100,15 @@ export default function AIPage(props: { repo: Repo }) {
           <section class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-700">
               <div>
-                <h2 class="font-semibold">Chat do repositório</h2>
-              <p class="text-xs text-gray-500 dark:text-gray-400">Pergunte sobre o código e as mudanças deste projeto.</p>
+                <h2 class="font-semibold">{t("ai").repository_chat}</h2>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{t("ai").repository_chat_hint}</p>
               </div>
               <button
                 class="rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => setMessages([])}
                 disabled={messages().length === 0}
               >
-                Limpar
+                {t("ai").clear}
               </button>
             </div>
 
@@ -117,12 +117,16 @@ export default function AIPage(props: { repo: Repo }) {
                 <div class="flex min-h-full items-center justify-center">
                   <div class="w-full max-w-2xl rounded-2xl border border-dashed border-gray-300 p-10 text-center dark:border-gray-600">
                     <i class="fa-regular fa-comments mb-3 text-4xl text-blue-400" />
-                    <h3 class="text-lg font-semibold">Como posso ajudar?</h3>
+                    <h3 class="text-lg font-semibold">{t("ai").empty_title}</h3>
                     <p class="mx-auto mt-2 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                      Analise alterações, explique um erro, sugira testes ou ajude a planejar a próxima mudança.
+                      {t("ai").empty_description}
                     </p>
                     <div class="mt-5 flex flex-wrap justify-center gap-2">
-                      <For each={["Explique as alterações atuais", "Sugira testes para este projeto", "Revise o último commit"]}>
+                      <For each={[
+                        t("ai").suggest_changes,
+                        t("ai").suggest_tests,
+                        t("ai").suggest_commit,
+                      ]}>
                         {(suggestion) => (
                           <button
                             class="rounded-full border border-gray-300 px-3 py-2 text-xs hover:border-blue-500 dark:border-gray-600"
@@ -145,7 +149,7 @@ export default function AIPage(props: { repo: Repo }) {
                         : "rounded-bl-md bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
                     }`}>
                       <div class="mb-1 text-[10px] font-bold uppercase tracking-wider opacity-60">
-                        {message.role === "user" ? "Você" : "Assistente"}
+                        {message.role === "user" ? t("ai").you : t("ai").assistant}
                       </div>
                       <div class="whitespace-pre-wrap break-words">{message.content}</div>
                     </div>
@@ -154,7 +158,7 @@ export default function AIPage(props: { repo: Repo }) {
               </For>
               <Show when={isSending()}>
                 <div class="text-sm text-gray-500">
-                  <i class="fa-solid fa-spinner mr-2 animate-spin" /> Analisando o repositório...
+                  <i class="fa-solid fa-spinner mr-2 animate-spin" /> {t("ai").analyzing_repository}
                 </div>
               </Show>
             </div>
@@ -162,7 +166,7 @@ export default function AIPage(props: { repo: Repo }) {
             <div class="border-t border-gray-200 p-4 dark:border-gray-700">
               <textarea
                 class="min-h-20 w-full resize-y rounded-xl border border-gray-300 bg-white p-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                placeholder={aiConfig() ? "Descreva o que você precisa..." : "Configure uma chave de API ao lado para começar..."}
+                placeholder={aiConfig() ? t("ai").prompt_placeholder : t("ai").configure_key_placeholder}
                 value={prompt()}
                 onInput={(event) => setPrompt(event.currentTarget.value)}
                 onKeyDown={(event) => {
@@ -174,13 +178,13 @@ export default function AIPage(props: { repo: Repo }) {
                 disabled={isSending()}
               />
               <div class="mt-2 flex items-center justify-between gap-3">
-                <span class="text-[11px] text-gray-500">Ctrl/Cmd + Enter para enviar</span>
+                <span class="text-[11px] text-gray-500">{t("ai").shortcut_hint}</span>
                 <button
                   class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                   onClick={sendMessage}
                   disabled={isSending() || !prompt().trim()}
                 >
-                  <i class="fa-solid fa-paper-plane mr-2" /> Enviar
+                  <i class="fa-solid fa-paper-plane mr-2" /> {t("ai").send}
                 </button>
               </div>
             </div>
@@ -189,13 +193,13 @@ export default function AIPage(props: { repo: Repo }) {
           <aside class="min-h-0 overflow-y-auto rounded-2xl border border-gray-300 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div class="mb-5 flex items-center justify-between">
               <div>
-                <h2 class="font-semibold">Configuração</h2>
-                <p class="text-xs text-gray-500 dark:text-gray-400">Válida apenas nesta sessão.</p>
+                <h2 class="font-semibold">{t("ai").configuration}</h2>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{t("ai").session_only}</p>
               </div>
-              <i class="fa-solid fa-shield-halved text-green-500" title="A chave não é persistida" />
+              <i class="fa-solid fa-shield-halved text-green-500" title={t("ai").key_not_persisted} />
             </div>
 
-            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Provedor</label>
+            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">{t("ai").provider}</label>
             <select
               class="input-select mb-4 w-full dark:border-gray-600 dark:bg-gray-700"
               value={provider()}
@@ -206,7 +210,7 @@ export default function AIPage(props: { repo: Repo }) {
               </For>
             </select>
 
-            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Modelo</label>
+            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">{t("ai").model}</label>
             <select
               class="input-select mb-2 w-full dark:border-gray-600 dark:bg-gray-700"
               value={AI_PROVIDER_DEFAULTS[provider()].models.includes(model()) ? model() : ""}
@@ -218,29 +222,29 @@ export default function AIPage(props: { repo: Repo }) {
             </select>
             <input
               class="input-text mb-4 w-full dark:border-gray-600 dark:bg-gray-700"
-              placeholder="Ou informe um modelo personalizado"
+              placeholder={t("ai").custom_model}
               value={model()}
               onInput={(event) => setModel(event.currentTarget.value)}
             />
 
-            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Chave de API</label>
+            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">{t("ai").api_key}</label>
             <input
               type="password"
               autocomplete="off"
               class="input-text mb-2 w-full dark:border-gray-600 dark:bg-gray-700"
-              placeholder={`Chave do ${providerDefaults().label}`}
+              placeholder={t("ai").api_key_placeholder.replace("{{provider}}", providerDefaults().label)}
               value={apiKey()}
               onInput={(event) => setApiKey(event.currentTarget.value)}
             />
             <p class="mb-5 text-[11px] leading-relaxed text-gray-500">
-              A chave é enviada somente quando você faz uma solicitação e fica apenas na memória desta sessão. O status e um diff limitado do repositório acompanham a conversa.
+              {t("ai").key_session_hint}
             </p>
 
-            <label class="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Modo de trabalho</label>
+            <label class="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">{t("ai").work_mode}</label>
             <div class="mb-5 grid grid-cols-2 gap-2">
               <For each={[
-                ["chat", "Chat", "Respostas e explicações"],
-                ["agent", "Agent", "Planejamento orientado a tarefas"],
+                ["chat", t("ai").chat_mode, t("ai").chat_mode_description],
+                ["agent", t("ai").agent_mode, t("ai").agent_mode_description],
               ] as [AIAgentMode, string, string][]}>
                 {([value, label, description]) => (
                   <button
@@ -255,15 +259,15 @@ export default function AIPage(props: { repo: Repo }) {
             </div>
 
             <button class="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700" onClick={saveConfiguration}>
-              <i class="fa-solid fa-lock mr-2" /> Usar nesta sessão
+              <i class="fa-solid fa-lock mr-2" /> {t("ai").use_session}
             </button>
             <Show when={aiConfig()}>
               <button class="mt-2 w-full rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-red-400 hover:text-red-500 dark:border-gray-600 dark:text-gray-300" onClick={clearConfiguration}>
-                Remover chave da sessão
+                {t("ai").remove_session_key}
               </button>
             </Show>
             <p class="mt-5 border-t border-gray-200 pt-4 text-[11px] leading-relaxed text-gray-500 dark:border-gray-700">
-              O botão Claude Code abre o terminal instalado na máquina. A autenticação desse CLI é independente desta chave e não é copiada para o ambiente do processo.
+              {t("ai").claude_terminal_note}
             </p>
           </aside>
         </div>
