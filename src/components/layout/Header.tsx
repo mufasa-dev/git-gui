@@ -28,6 +28,7 @@ import { githubService } from "../../services/github";
 import { azureService } from "../../services/azure";
 import { getProviderFromUrl } from "../../utils/gitProvider";
 import CreateStashModal from "../repo/CreateStashModal";
+import { openClaudeCodeTerminal } from "../../services/aiService";
 
 type Props = {
     repos: Repo[];
@@ -48,7 +49,7 @@ export default function Header(props: Props) {
     const [fetching, setFetching] = createSignal(false);
     const { showLoading, hideLoading } = useLoading();
     const [openModalNewBranch, setOpenModalNewBranch] = createSignal(false);
-    const { t } = useApp();
+    const { t, aiConfig } = useApp();
     
     const [platform, setPlatform] = createSignal("");
     const [showModalPullOpts, setShowModalPullOpts] = createSignal(false);
@@ -384,6 +385,16 @@ export default function Header(props: Props) {
                       const errorMessage = typeof error === 'string' ? error : String(error);
                       notify.error('Erro ao abrir console', errorMessage);
                     }
+                  }
+                },
+                {
+                  img: newWindowIcon,
+                  label: "Abrir Claude Code",
+                  hide: aiConfig()?.provider !== "anthropic" || !aiConfig()?.apiKey.trim(),
+                  action: () => {
+                    void openClaudeCodeTerminal(props.active!).catch(error => {
+                      notify.error('Erro ao abrir Claude Code', String(error));
+                    });
                   }
                 },
                 {

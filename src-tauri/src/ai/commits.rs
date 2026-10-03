@@ -1,8 +1,8 @@
-use std::env;
 use std::process::Stdio;
 
 use tokio::io::AsyncReadExt;
 
+use crate::ai::client::{complete, AIConfig, AIMessage};
 use crate::utils::git_command_async;
 
 const MAX_STAGED_FILES: usize = 100;
@@ -323,7 +323,7 @@ async fn collect_staged_diff(
 #[tauri::command]
 pub async fn generate_commit_suggestion(
     repo_path: String,
-    api_key: Option<String>,
+    config: AIConfig,
 ) -> Result<Vec<String>, String> {
     // 1. Validação prévia: Conta quantos arquivos estão no Stage (staged)
     let files_output = git_command_async(&repo_path)
@@ -399,55 +399,21 @@ pub async fn generate_commit_suggestion(
         diff_notice
     );
 
-    let key = match api_key {
-        Some(k) if !k.trim().is_empty() => k.trim().to_string(),
-        _ => {
-            let env_key = env::var("GEMINI_API_KEY")
-                .map_err(|_| "Chave de API do Gemini não encontrada. Configure a variável GEMINI_API_KEY no seu .env ou passe via parâmetro.".to_string())?;
-
-            if env_key.trim().is_empty() {
-                return Err("A variável GEMINI_API_KEY no seu .env está vazia.".into());
-            }
-            env_key.trim().to_string()
-        }
-    };
-
-    let url_string = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}",
-        key
-    );
-
-    let valid_url = reqwest::Url::parse(&url_string).map_err(|e| {
-        format!(
-            "Falha ao construir URL válida para a IA: {} (URL gerada: {})",
-            e, url_string
-        )
-    })?;
-
-    let client = reqwest::Client::new();
-    let response = client
-        .post(valid_url)
-        .json(&serde_json::json!({
-            "contents": [{ "parts": [{ "text": prompt }] }],
-            "generationConfig": { "responseMimeType": "application/json" }
-        }))
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let res_body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-
-    if let Some(error) = res_body.get("error") {
-        return Err(format!(
-            "Erro na API do Gemini (Código {}): {}",
-            error["code"],
-            error["message"].as_str().unwrap_or("Erro desconhecido")
-        ));
-    }
-
-    let ai_text = res_body["candidates"][0]["content"]["parts"][0]["text"]
-        .as_str()
-        .ok_or_else(|| format!("Estrutura inesperada na resposta da IA: {}", res_body))?;
+    let response = complete(
+        &config,
+        &[AIMessage {
+            role: "user".to_string(),
+            content: prompt,
+        }],
+        "Retorne somente JSON válido com as chaves title e description.",
+    )
+    .await?;
+    let ai_text = response.trim();
+    let ai_text = ai_text
+        .strip_prefix("```json")
+        .and_then(|value| value.strip_suffix("```"))
+        .unwrap_or(ai_text)
+        .trim();
 
     let parsed_json: serde_json::Value = serde_json::from_str(ai_text).map_err(|e| {
         format!(

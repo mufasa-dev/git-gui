@@ -1,6 +1,7 @@
 import { createSignal, createContext, useContext, JSX } from "solid-js";
 import * as i18n from "@solid-primitives/i18n";
 import { dict, Locale } from "../i18n";
+import { AIConfig } from "../models/AI.model";
 
 interface AppContextProps {
   // Voltamos para o tipo Translator padrão
@@ -11,6 +12,8 @@ interface AppContextProps {
   toggleTheme: () => void;
   token: () => string | null;
   updateToken: (newToken: string | null) => void;
+  aiConfig: () => AIConfig | null;
+  updateAIConfig: (config: AIConfig | null) => void;
 }
 
 const AppContext = createContext<AppContextProps>();
@@ -25,6 +28,7 @@ export function AppProvider(props: { children: JSX.Element }) {
 
   const [isDark, setIsDark] = createSignal(localStorage.getItem("theme") !== "light");
   const [token, setToken] = createSignal<string | null>(localStorage.getItem("brook_token"));
+  const [aiConfig, setAIConfig] = createSignal<AIConfig | null>(null);
 
   const toggleTheme = () => {
     const newDark = !isDark();
@@ -40,6 +44,7 @@ export function AppProvider(props: { children: JSX.Element }) {
         localStorage.removeItem("brook_token");
     }
     setToken(newToken);
+    if (!newToken) setAIConfig(null);
   };
 
   const updateLocale = (l: Locale) => {
@@ -48,7 +53,17 @@ export function AppProvider(props: { children: JSX.Element }) {
   };
 
   return (
-    <AppContext.Provider value={{ t, locale, setLocale: updateLocale, isDark, toggleTheme, token, updateToken }}>
+    <AppContext.Provider value={{
+      t,
+      locale,
+      setLocale: updateLocale,
+      isDark,
+      toggleTheme,
+      token,
+      updateToken,
+      aiConfig,
+      updateAIConfig: setAIConfig,
+    }}>
       {props.children}
     </AppContext.Provider>
   );

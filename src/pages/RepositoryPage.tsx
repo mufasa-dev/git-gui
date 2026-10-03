@@ -21,6 +21,7 @@ const ProviderAuthPage = lazy(() => import("./ProviderAuthPage"));
 const PullRequestsPage = lazy(() => import("../components/PullRequest/PullRequestsPage"));
 const TestRunner = lazy(() => import("../components/Test/TestRunner").then(module => ({ default: module.TestRunner })));
 const PipelinesPage = lazy(() => import("../components/pipeleine/PipelinesPage"));
+const AIPage = lazy(() => import("../components/ai/AIPage"));
 
 export default function RepoTabsPage() {
   const [repos, setRepos] = createSignal<Repo[]>([]);
@@ -538,6 +539,12 @@ export default function RepoTabsPage() {
                 />
               }
             >
+              <Match when={active() && activePage() === 'ai'}>
+                <Show when={activeRepo()} fallback={<div>{t('loading').loading_repositories}</div>}>
+                  {(currentRepo) => <AIPage repo={currentRepo()} />}
+                </Show>
+              </Match>
+
               {/* Caso: Página de Commits */}
               <Match when={active() && activePage() === 'commits'}>
                 <Show when={activeRepo()} fallback={<div>{t('loading').loading_repositories}</div>}>

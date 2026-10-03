@@ -175,6 +175,8 @@ fn main() {
             tests::vitest_test::get_vitest_test_files,
             tests::project_type::detect_project_type,
             ai::commits::generate_commit_suggestion,
+            ai::chat::ai_chat,
+            commands::terminal::open_claude_code_terminal,
             authentication::login::login_with_supabase,
             authentication::login::register_with_supabase,
             authentication::login::get_my_profile,

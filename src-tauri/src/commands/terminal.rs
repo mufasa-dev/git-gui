@@ -80,6 +80,42 @@ pub fn open_git_bash(_path: String) {
 }
 
 #[tauri::command]
+pub fn open_claude_code_terminal(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd")
+            .args(["/C", "start", "\"Claude Code\"", "cmd", "/K", "claude"])
+            .current_dir(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let escaped_path = path.replace('\\', "\\\\").replace('"', "\\\"");
+        let script = format!(
+            "tell application \"Terminal\" to do script \"cd \\\"{}\\\" && claude\"",
+            escaped_path
+        );
+        Command::new("osascript")
+            .args(["-e", &script])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("x-terminal-emulator")
+            .args(["-e", "bash", "-lc", "claude"])
+            .current_dir(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn open_repo_in_browser(path: String) -> Result<(), String> {
     // roda git config pra pegar a URL remota
     let output = git_command(&path)

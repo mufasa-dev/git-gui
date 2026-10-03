@@ -50,7 +50,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [viewMode, setViewMode] = createSignal<"tree" | "list">(
     localStorage.getItem("local-changes-view-mode") === "list" ? "list" : "tree"
   );
-  const { t } = useApp();
+  const { t, aiConfig } = useApp();
 
   const summaryDiff = (change: LocalChange): Diff => ({
     diff: "",
@@ -326,11 +326,15 @@ export function LocalChanges(props: { repo: Repo; }) {
       notify.error("Ops!", "Você precisa preparar (stage) alguns arquivos antes de pedir ajuda à IA.");
       return;
     }
+    const config = aiConfig();
+    if (!config) {
+      notify.error("Configuração necessária", "Configure sua chave de API na tela de IA antes de gerar a mensagem.");
+      return;
+    }
 
     try {
       setIsGeneratingAI(true);
-      // Chama o serviço do Tauri que criamos
-      const [suggestedTitle, suggestedDescription] = await generateCommitSuggestion(props.repo.path);
+      const [suggestedTitle, suggestedDescription] = await generateCommitSuggestion(props.repo.path, config);
       
       // Alimenta os inputs da sua tela automaticamente
       setCommitMessage(suggestedTitle);
