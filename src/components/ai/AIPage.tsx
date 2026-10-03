@@ -77,9 +77,9 @@ export default function AIPage(props: { repo: Repo }) {
   };
 
   return (
-    <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gray-100 p-3 dark:bg-gray-950">
+    <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gray-200 p-3 dark:bg-gray-900">
       <div class="flex min-h-0 w-full flex-1 flex-col gap-3">
-        <header class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <header class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-300 bg-white px-5 py-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div class="flex items-center gap-3">
             <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/15 text-blue-500">
               <i class="fa-solid fa-wand-magic-sparkles text-xl" />
@@ -90,21 +90,21 @@ export default function AIPage(props: { repo: Repo }) {
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <span class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            <span class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-200">
               {providerDefaults().label} · {model()}
             </span>
           </div>
         </header>
 
         <div class="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <section class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-800">
+          <section class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-700">
               <div>
                 <h2 class="font-semibold">Chat do repositório</h2>
               <p class="text-xs text-gray-500 dark:text-gray-400">Pergunte sobre o código e as mudanças deste projeto.</p>
               </div>
               <button
-                class="rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                class="rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => setMessages([])}
                 disabled={messages().length === 0}
               >
@@ -115,7 +115,7 @@ export default function AIPage(props: { repo: Repo }) {
             <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
               <Show when={messages().length === 0}>
                 <div class="flex min-h-full items-center justify-center">
-                  <div class="w-full max-w-2xl rounded-2xl border border-dashed border-gray-300 p-10 text-center dark:border-gray-700">
+                  <div class="w-full max-w-2xl rounded-2xl border border-dashed border-gray-300 p-10 text-center dark:border-gray-600">
                     <i class="fa-regular fa-comments mb-3 text-4xl text-blue-400" />
                     <h3 class="text-lg font-semibold">Como posso ajudar?</h3>
                     <p class="mx-auto mt-2 max-w-xl text-sm text-gray-500 dark:text-gray-400">
@@ -125,7 +125,7 @@ export default function AIPage(props: { repo: Repo }) {
                       <For each={["Explique as alterações atuais", "Sugira testes para este projeto", "Revise o último commit"]}>
                         {(suggestion) => (
                           <button
-                            class="rounded-full border border-gray-300 px-3 py-2 text-xs hover:border-blue-500 dark:border-gray-700"
+                            class="rounded-full border border-gray-300 px-3 py-2 text-xs hover:border-blue-500 dark:border-gray-600"
                             onClick={() => setPrompt(suggestion)}
                           >
                             {suggestion}
@@ -142,7 +142,7 @@ export default function AIPage(props: { repo: Repo }) {
                     <div class={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
                       message.role === "user"
                         ? "rounded-br-md bg-blue-600 text-white"
-                        : "rounded-bl-md bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                        : "rounded-bl-md bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
                     }`}>
                       <div class="mb-1 text-[10px] font-bold uppercase tracking-wider opacity-60">
                         {message.role === "user" ? "Você" : "Assistente"}
@@ -159,9 +159,9 @@ export default function AIPage(props: { repo: Repo }) {
               </Show>
             </div>
 
-            <div class="border-t border-gray-200 p-4 dark:border-gray-800">
+            <div class="border-t border-gray-200 p-4 dark:border-gray-700">
               <textarea
-                class="min-h-20 w-full resize-y rounded-xl border border-gray-300 bg-transparent p-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700"
+                class="min-h-20 w-full resize-y rounded-xl border border-gray-300 bg-white p-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                 placeholder={aiConfig() ? "Descreva o que você precisa..." : "Configure uma chave de API ao lado para começar..."}
                 value={prompt()}
                 onInput={(event) => setPrompt(event.currentTarget.value)}
@@ -186,7 +186,7 @@ export default function AIPage(props: { repo: Repo }) {
             </div>
           </section>
 
-          <aside class="min-h-0 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <aside class="min-h-0 overflow-y-auto rounded-2xl border border-gray-300 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div class="mb-5 flex items-center justify-between">
               <div>
                 <h2 class="font-semibold">Configuração</h2>
@@ -197,7 +197,7 @@ export default function AIPage(props: { repo: Repo }) {
 
             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Provedor</label>
             <select
-              class="input-select mb-4 w-full"
+              class="input-select mb-4 w-full dark:border-gray-600 dark:bg-gray-700"
               value={provider()}
               onChange={(event) => selectProvider(event.currentTarget.value as AIProvider)}
             >
@@ -208,7 +208,7 @@ export default function AIPage(props: { repo: Repo }) {
 
             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Modelo</label>
             <select
-              class="input-select mb-2 w-full"
+              class="input-select mb-2 w-full dark:border-gray-600 dark:bg-gray-700"
               value={AI_PROVIDER_DEFAULTS[provider()].models.includes(model()) ? model() : ""}
               onChange={(event) => setModel(event.currentTarget.value)}
             >
@@ -217,7 +217,7 @@ export default function AIPage(props: { repo: Repo }) {
               </For>
             </select>
             <input
-              class="input-text mb-4 w-full"
+              class="input-text mb-4 w-full dark:border-gray-600 dark:bg-gray-700"
               placeholder="Ou informe um modelo personalizado"
               value={model()}
               onInput={(event) => setModel(event.currentTarget.value)}
@@ -227,7 +227,7 @@ export default function AIPage(props: { repo: Repo }) {
             <input
               type="password"
               autocomplete="off"
-              class="input-text mb-2 w-full"
+              class="input-text mb-2 w-full dark:border-gray-600 dark:bg-gray-700"
               placeholder={`Chave do ${providerDefaults().label}`}
               value={apiKey()}
               onInput={(event) => setApiKey(event.currentTarget.value)}
@@ -244,7 +244,7 @@ export default function AIPage(props: { repo: Repo }) {
               ] as [AIAgentMode, string, string][]}>
                 {([value, label, description]) => (
                   <button
-                    class={`rounded-xl border p-2 text-left ${mode() === value ? "border-blue-500 bg-blue-500/10" : "border-gray-300 dark:border-gray-700"}`}
+                    class={`rounded-xl border p-2 text-left ${mode() === value ? "border-blue-500 bg-blue-500/10" : "border-gray-300 dark:border-gray-600"}`}
                     onClick={() => setMode(value)}
                   >
                     <div class="text-xs font-semibold">{label}</div>
@@ -258,11 +258,11 @@ export default function AIPage(props: { repo: Repo }) {
               <i class="fa-solid fa-lock mr-2" /> Usar nesta sessão
             </button>
             <Show when={aiConfig()}>
-              <button class="mt-2 w-full rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-red-400 hover:text-red-500 dark:border-gray-700" onClick={clearConfiguration}>
+              <button class="mt-2 w-full rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-red-400 hover:text-red-500 dark:border-gray-600 dark:text-gray-300" onClick={clearConfiguration}>
                 Remover chave da sessão
               </button>
             </Show>
-            <p class="mt-5 border-t border-gray-200 pt-4 text-[11px] leading-relaxed text-gray-500 dark:border-gray-800">
+            <p class="mt-5 border-t border-gray-200 pt-4 text-[11px] leading-relaxed text-gray-500 dark:border-gray-700">
               O botão Claude Code abre o terminal instalado na máquina. A autenticação desse CLI é independente desta chave e não é copiada para o ambiente do processo.
             </p>
           </aside>
