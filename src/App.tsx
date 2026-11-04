@@ -11,6 +11,12 @@ export default function App() {
   // Pegamos o token e a função de atualização diretamente do contexto global
   const { token } = useApp();
 
+  // 🔧 BYPASS TEMPORÁRIO DE LOGIN/AUTENTICAÇÃO
+  // Enquanto `REQUIRE_LOGIN` for `false`, a tela de login é pulada e o app
+  // abre direto na área de repositórios, independente do token salvo.
+  // Para voltar a exigir login/autenticação, basta trocar para `true`.
+  const REQUIRE_LOGIN = false;
+
   onMount(() => {
     // A lógica de inicialização do token pode ficar no AppContext, 
     // mas mantemos o Dark Mode aqui se preferir.
@@ -31,8 +37,8 @@ export default function App() {
            Assim que o updateToken for chamado em qualquer lugar, 
            esta tela alterna automaticamente.
         */}
-        <Show 
-          when={token()} 
+        <Show
+          when={REQUIRE_LOGIN ? token() : true}
           fallback={<LoginPage />}
         >
           <RepositoryPage />

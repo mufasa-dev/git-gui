@@ -15,6 +15,8 @@ import { useLoading } from "../ui/LoadingContext";
 import { useApp } from "../../context/AppContext";
 import { generateCommitSuggestion } from "../../services/aiService";
 import { PREVIEW_MAX_BYTES } from "../../utils/file";
+import AIKeyModal from "../ai/AIKeyModal";
+import { AIConfig } from "../../models/AI.model";
 
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
@@ -43,6 +45,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
   const [isGeneratingAI, setIsGeneratingAI] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
+  const [aiKeyModalOpen, setAiKeyModalOpen] = createSignal(false);
 
   const saveCommitDraft = (message: string, description: string) => {
     updateCommitDraft(props.repo.path, { message, description });
@@ -50,7 +53,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [viewMode, setViewMode] = createSignal<"tree" | "list">(
     localStorage.getItem("local-changes-view-mode") === "list" ? "list" : "tree"
   );
-  const { t, aiConfig } = useApp();
+  const { t, aiConfig, updateAIConfig } = useApp();
 
   const summaryDiff = (change: LocalChange): Diff => ({
     diff: "",
@@ -321,21 +324,12 @@ export function LocalChanges(props: { repo: Repo; }) {
     await loadChanges();
   };
 
-  const handleAIGenerate = async () => {
-    if (staged().length === 0) {
-      notify.error("Ops!", "Você precisa preparar (stage) alguns arquivos antes de pedir ajuda à IA.");
-      return;
-    }
-    const config = aiConfig();
-    if (!config) {
-      notify.error("Configuração necessária", "Configure sua chave de API na tela de IA antes de gerar a mensagem.");
-      return;
-    }
-
+  // Executa de fato a chamada à IA e aplica a sugestão nos campos de commit.
+  const runAIGeneration = async (config: AIConfig) => {
     try {
       setIsGeneratingAI(true);
       const [suggestedTitle, suggestedDescription] = await generateCommitSuggestion(props.repo.path, config);
-      
+
       // Alimenta os inputs da sua tela automaticamente
       setCommitMessage(suggestedTitle);
       setCommitDescription(suggestedDescription);
@@ -347,6 +341,29 @@ export function LocalChanges(props: { repo: Repo; }) {
     } finally {
       setIsGeneratingAI(false);
     }
+  };
+
+  const handleAIGenerate = async () => {
+    if (staged().length === 0) {
+      notify.error("Ops!", "Você precisa preparar (stage) alguns arquivos antes de pedir ajuda à IA.");
+      return;
+    }
+    const config = aiConfig();
+    if (!config) {
+      // Sem chave de IA configurada: abre o modal para escolher a IA (Gemini, GPT ou Claude) e informar a chave.
+      setAiKeyModalOpen(true);
+      return;
+    }
+
+    await runAIGeneration(config);
+  };
+
+  // Chamado ao confirmar o modal de configuração de IA: salva a chave para a
+  // sessão (mesmo mecanismo usado pela tela de IA) e já gera a sugestão.
+  const handleAIKeyConfirm = async (config: AIConfig) => {
+    updateAIConfig(config);
+    setAiKeyModalOpen(false);
+    await runAIGeneration(config);
   };
 
   const unstage = async (paths: string[]) => {
@@ -539,6 +556,11 @@ export function LocalChanges(props: { repo: Repo; }) {
         onViewModeChange={updateViewMode}
         onClose={() => setSettingsOpen(false)}
         t={t}
+      />
+      <AIKeyModal
+        open={aiKeyModalOpen()}
+        onClose={() => setAiKeyModalOpen(false)}
+        onConfirm={handleAIKeyConfirm}
       />
       <Show when={menuVisible()}>
         <ContextMenu

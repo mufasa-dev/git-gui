@@ -7,7 +7,7 @@ import testIcon from "../../assets/test_silver.png";
 import prIcon from "../../assets/pr_silver.png";
 import rocketIcon from "../../assets/rocket_silver.png";
 import profileIcon from "../../assets/profile_silver.png";
-import aiIcon from "../../assets/ask_silver.png";
+// import aiIcon from "../../assets/ask_silver.png"; // usado apenas pelo botão de IA, desabilitado temporariamente
 import Tooltip from "./Tooltip";
 import { createEffect, Show } from "solid-js";
 import { useApp } from "../../context/AppContext";
@@ -28,11 +28,14 @@ export default function LateralBar(props: {
 
   return (
     <div class="flex flex-col shrink-0 mt-2 mb-2" style={{"width": "56px", "min-width": "56px"}}>
+      {/* 🔧 Tela de IA desabilitada temporariamente. Para reativar, descomente o bloco abaixo
+          (e o <Match> de 'ai' + o import de AIPage em RepositoryPage.tsx).
       <Tooltip text="IA" class="mb-2">
         <Button class={`left-btn w-full ${props.active === "ai" ? "selected" : ""}`} onClick={() => props.onChangeActive("ai")}>
           <img src={aiIcon} class="h-10" />
         </Button>
       </Tooltip>
+      */}
       <Tooltip text={t('commits').commits} class="mb-2">
         <Button class={`left-btn w-full ${props.active === "commits" ? "selected" : ""}`} onClick={() => props.onChangeActive("commits")}>
           <img src={branchIcon} class="h-10" />

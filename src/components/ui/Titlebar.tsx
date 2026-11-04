@@ -13,7 +13,11 @@ export default function Titlebar() {
   const [showProfileModal, setShowProfileModal] = createSignal(false);
   const [isMaximized, setIsMaximized] = createSignal(false);
   const { t, token } = useApp();
-  
+
+  // 🔧 Menu de conta (Minha conta / Configurações / Sair) desabilitado
+  // temporariamente. Para reativar, troque este valor para `true`.
+  const SHOW_ACCOUNT_MENU = false;
+
   const appWindow = getCurrentWindow();
 
   const handleLogout = () => {
@@ -67,8 +71,8 @@ export default function Titlebar() {
       
       <div class="flex h-full items-center">
         <LanguageSelector />
-        {/* Botão de Conta / Dropdown */}
-        <Show when={token()}>
+        {/* Botão de Conta / Dropdown (Minha conta / Configurações / Sair) */}
+        <Show when={SHOW_ACCOUNT_MENU && token()}>
           <div class="relative h-full" ref={menuRef}>
             <button
               onClick={() => setShowAccountMenu(!showAccountMenu())}
