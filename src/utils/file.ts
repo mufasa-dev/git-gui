@@ -100,12 +100,15 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   uid: "Resource",
   gdshader: "Resource",
   cfg: "Config",
+  targets: "Config",
+  props: "Config",
   cs: "C#",
   csproject: "C#",
   vcxproj: "C#",
   csproj: "C#",
   cshtml: "C#",
   razor: "C#",
+  t4: "C#",
   sln: "C#",
   slnx: "C#",
   cpp: "C++",
@@ -113,6 +116,7 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   h: "C++",
   asp: "Asp",
   aspx : "Aspx",
+  asax: "Asax",
   vbs: "VBScript",
   oca: "VBScript",
   // Andoird
@@ -157,6 +161,8 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   sql: "SQL",
   db: "Db",
   bat: "Bat",
+  cmd: "Bat", // .cmd é equivalente ao .bat no Windows
+  sh: "Shell", // Scripts shell/bash — eram contados como "Other" antes
   coffee: "Coffee",
   lua: "Lua",
   julia: "Julia",
@@ -287,6 +293,7 @@ export const GROUP_COLORS: Record<string, string> = {
   "SQL": "#e38c00",
   "Db": "#e38c00",
   "Bat": "#1f1f1f",
+  "Shell": "#89e051",
   "Font": "#f7e03d",
   "Adobe Flash": "#f7e03d",
   "Adobe Photoshop": "#3a86ff",
@@ -314,7 +321,20 @@ export const IGNORED_EXTENSIONS = [
   'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload', "pro",
   'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc', 'ini', 'old', 'new', 'lic', 'log', 'bak', 'backup', 'temp', 'cache', 'dist', 'out', 'build', 'target', 'obj',
   // Godot
-  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', 'depren'
+  'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', 'depren',
+  // Binários e artefatos de build/debug (.lib, .pdb etc. não são código-fonte)
+  'lib', 'pdb', 'nupkg', 'mpp', 'rsp', 'transform',
+  // Certificados e assinaturas digitais
+  'p7s',
+  // Controle de versão legado e arquivos de configuração de ferramentas/linters
+  'vspscc', 'vssscc', 'gitmodules', 'mailmap', 'npmignore',
+  'jshintrc', 'jshintignore', 'htmllintrc', 'eslintrc', 'manifest', 'orderedtest', 'xdt',
+  // Modelos 3D / CAD / BIM (não são código, são assets binários como .fbx/.glb)
+  'dae', 'xkt', 'gltf', 'ifc',
+  // Imagens e documentos binários adicionais
+  'cur', 'jfif', 'xls',
+  // Dados opacos/criptografados
+  'enc'
 ];
 
 export const PREVIEW_MAX_BYTES = 2 * 1024 * 1024;
