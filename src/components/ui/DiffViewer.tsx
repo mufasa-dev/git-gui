@@ -200,7 +200,7 @@ export default function DiffViewer(props: Props) {
       </Show>
 
       <Show when={!previewUnavailable() && (!hasConflict() || props.isStaged)}>
-        <div class="w-full max-w-[200px] min-w-full h-[100px]">
+        <div class="w-full min-w-full">
           <div class="font-mono text-sm rounded-md w-full custom-scrollbar">
             <div class="min-w-max flex flex-col">
               <For each={diffLines()}>
