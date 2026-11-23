@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Commit {
     hash: String,
     graph_symbol: Option<String>,
@@ -17,7 +17,7 @@ pub struct Commit {
     date: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FileEntry {
     name: String,
@@ -169,10 +169,15 @@ pub async fn get_commit_details(path: String, hash: String) -> Result<Value, Str
 }
 
 pub fn get_commit_details_blocking(path: String, hash: String) -> Result<Value, String> {
+    // `-m --first-parent`: em commits de merge mostra os arquivos alterados em
+    // relação ao primeiro pai (o que o merge trouxe para a branch). Sem isso o
+    // git usa o "combined diff", que quase sempre vem vazio para merges.
     let output = git_command(&path)
         .arg("show")
+        .arg("-m")
+        .arg("--first-parent")
         .arg("--name-status")
-        .arg("--pretty=format:%H%n%an%n%ae%n%ad%n%s%n%b%n%P")
+        .arg("--pretty=format:%H%n%an%n%ae%n%ad%n%s%n%P%n%b%x00")
         .arg(&hash)
         .output()
         .map_err(|e| e.to_string())?;
@@ -182,36 +187,26 @@ pub fn get_commit_details_blocking(path: String, hash: String) -> Result<Value, 
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let lines: Vec<&str> = stdout.split('\n').collect();
-
-    let commit_hash = lines.get(0).unwrap_or(&"").to_string();
-    let author_name = lines.get(1).unwrap_or(&"").to_string();
-    let author_email = lines.get(2).unwrap_or(&"").to_string();
-    let author_date = lines.get(3).unwrap_or(&"").to_string();
-    let subject = lines.get(4).unwrap_or(&"").to_string();
-
-    let mut body_lines = Vec::new();
-    let mut idx = 5;
-    while idx < lines.len() {
-        let line = lines[idx];
-        if line.len() == 40
-            || (line.contains(' ') && line.split_whitespace().all(|h| h.len() == 40))
-        {
-            break;
-        }
-        body_lines.push(line);
-        idx += 1;
-    }
-    let body = body_lines.join("\n").trim().to_string();
-
-    let parents_line = lines.get(idx).unwrap_or(&"");
-    let parents: Vec<String> = parents_line
+    // Cabeçalho (hash, autor, email, data, assunto, pais, corpo) termina no NUL;
+    // depois vem a lista de arquivos. Antes o corpo e os pais eram separados
+    // por heurística, o que quebrava em commits sem pai ou com corpo vazio.
+    let (header, files_part) = stdout.split_once('\0').unwrap_or((&stdout, ""));
+    let mut header_lines = header.split('\n');
+    let commit_hash = header_lines.next().unwrap_or("").to_string();
+    let author_name = header_lines.next().unwrap_or("").to_string();
+    let author_email = header_lines.next().unwrap_or("").to_string();
+    let author_date = header_lines.next().unwrap_or("").to_string();
+    let subject = header_lines.next().unwrap_or("").to_string();
+    let parents: Vec<String> = header_lines
+        .next()
+        .unwrap_or("")
         .split_whitespace()
         .map(|p| p.to_string())
         .collect();
+    let body = header_lines.collect::<Vec<_>>().join("\n").trim().to_string();
 
     let mut files: Vec<Value> = Vec::new();
-    for line in lines.iter().skip(idx + 1) {
+    for line in files_part.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
             continue;
@@ -220,7 +215,8 @@ pub fn get_commit_details_blocking(path: String, hash: String) -> Result<Value, 
         let parts: Vec<&str> = trimmed.split('\t').collect();
 
         if parts.len() >= 2 {
-            let clean_path = parts[1].trim_matches('"').trim();
+            // Renomeações/cópias vêm como "R100<TAB>antigo<TAB>novo": usa o novo.
+            let clean_path = parts[parts.len() - 1].trim_matches('"').trim();
 
             files.push(json!({
                 "file": clean_path,
@@ -359,13 +355,23 @@ pub async fn get_commit_file_diff(
     commit_sha: String,
     file_path: String,
 ) -> Result<serde_json::Value, String> {
-    let diff_output = git_command(&repo_path)
-        .arg("diff")
-        .arg(format!("{}^!", commit_sha))
-        .arg("--")
-        .arg(&file_path)
-        .output()
-        .map_err(|error| error.to_string())?;
+    // Compara com o primeiro pai. Antes era `<sha>^!`, que em commits de merge
+    // gera um "combined diff" (`diff --cc`) que o visualizador não entende.
+    let diff_against = |base: &str| {
+        git_command(&repo_path)
+            .arg("diff")
+            .arg(base)
+            .arg(&commit_sha)
+            .arg("--")
+            .arg(&file_path)
+            .output()
+            .map_err(|error| error.to_string())
+    };
+    let mut diff_output = diff_against(&format!("{}^1", commit_sha))?;
+    if !diff_output.status.success() {
+        // Commit raiz (sem pai): compara com a árvore vazia do git.
+        diff_output = diff_against("4b825dc642cb6eb9a060e54bf8d69288fbee4904")?;
+    }
 
     if !diff_output.status.success() {
         return Err(String::from_utf8_lossy(&diff_output.stderr).to_string());
@@ -506,6 +512,103 @@ pub fn get_path_history_blocking(
     Ok(commits)
 }
 
+/// Cache do "último commit" de cada pasta, por (repositório, commit, pasta).
+/// Como a chave é o SHA resolvido da branch, o resultado nunca fica velho:
+/// se a branch andar, o SHA muda e a pasta é recalculada.
+type DirectoryCache = std::sync::Mutex<HashMap<(String, String, String), Vec<FileEntry>>>;
+static DIRECTORY_CACHE: std::sync::OnceLock<DirectoryCache> = std::sync::OnceLock::new();
+const DIRECTORY_CACHE_LIMIT: usize = 300;
+
+fn directory_cache() -> &'static DirectoryCache {
+    DIRECTORY_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()))
+}
+
+fn normalize_folder(folder_path: &str) -> String {
+    if folder_path == "." {
+        String::new()
+    } else {
+        folder_path.trim_matches('/').to_string()
+    }
+}
+
+fn resolve_commit_sha(repo_path: &str, branch: &str) -> Option<String> {
+    let repo = git2::Repository::open(repo_path).ok()?;
+    let commit = repo.revparse_single(branch).ok()?.peel_to_commit().ok()?;
+    Some(commit.id().to_string())
+}
+
+/// Lista os itens de uma pasta numa branch (um único `git ls-tree`).
+/// `-z` evita aspas/escape em nomes com espaços ou acentos.
+fn list_directory_items(repo_path: &str, branch: &str, folder: &str) -> Result<Vec<(String, bool)>, String> {
+    let target_path = if folder.is_empty() {
+        format!("{}:", branch)
+    } else {
+        format!("{}:{}/", branch, folder)
+    };
+
+    let output = git_command(repo_path)
+        .args(["ls-tree", "-z", &target_path])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let mut items = Vec::new();
+    for record in output.stdout.split(|byte| *byte == 0) {
+        if record.is_empty() {
+            continue;
+        }
+        let record = String::from_utf8_lossy(record);
+        let Some((info, name)) = record.split_once('\t') else { continue };
+        let is_dir = info.split_whitespace().nth(1) == Some("tree");
+        items.push((name.to_string(), is_dir));
+    }
+    Ok(items)
+}
+
+fn sort_entries(entries: &mut [FileEntry]) {
+    entries.sort_by(|a, b| {
+        if a.is_dir != b.is_dir {
+            return b.is_dir.cmp(&a.is_dir);
+        }
+        a.name.to_lowercase().cmp(&b.name.to_lowercase())
+    });
+}
+
+fn build_entries(folder: &str, items: Vec<(String, bool)>) -> Vec<FileEntry> {
+    let mut entries: Vec<FileEntry> = items
+        .into_iter()
+        .map(|(name, is_dir)| {
+            let path = if folder.is_empty() { name.clone() } else { format!("{}/{}", folder, name) };
+            FileEntry { name, path, is_dir, last_commit: None }
+        })
+        .collect();
+    sort_entries(&mut entries);
+    entries
+}
+
+/// Lista a pasta SEM o último commit (rápido). A tela de arquivos mostra isso
+/// na hora e depois completa com `list_directory_with_commits`.
+#[tauri::command]
+pub async fn list_directory(repo_path: String, branch: String, folder_path: String) -> Result<Vec<FileEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let folder = normalize_folder(&folder_path);
+        // Se a pasta já está no cache, devolve completa de uma vez.
+        if let Some(sha) = resolve_commit_sha(&repo_path, &branch) {
+            let key = (repo_path.clone(), sha, folder.clone());
+            if let Some(cached) = directory_cache().lock().ok().and_then(|cache| cache.get(&key).cloned()) {
+                return Ok(cached);
+            }
+        }
+        let items = list_directory_items(&repo_path, &branch, &folder)?;
+        Ok(build_entries(&folder, items))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
 pub async fn list_directory_with_commits(repo_path: String, branch: String, folder_path: String) -> Result<Vec<FileEntry>, String> {
     tauri::async_runtime::spawn_blocking(move || list_directory_with_commits_blocking(repo_path, branch, folder_path))
@@ -518,73 +621,40 @@ pub fn list_directory_with_commits_blocking(
     branch: String,
     folder_path: String,
 ) -> Result<Vec<FileEntry>, String> {
-    let target_path = if folder_path.is_empty() || folder_path == "." {
-        format!("{}:", branch)
-    } else {
-        let path_with_slash = if folder_path.ends_with('/') {
-            folder_path.clone()
-        } else {
-            format!("{}/", folder_path)
-        };
-        format!("{}:{}", branch, path_with_slash)
-    };
+    let folder = normalize_folder(&folder_path);
+    let cache_key = resolve_commit_sha(&repo_path, &branch)
+        .map(|sha| (repo_path.clone(), sha, folder.clone()));
 
-    // 1. Lista os arquivos (LS-TREE) - Rápido
-    let output = git_command(&repo_path)
-        .args(&["ls-tree", "-l", &target_path])
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    if let Some(key) = &cache_key {
+        if let Some(cached) = directory_cache().lock().ok().and_then(|cache| cache.get(key).cloned()) {
+            return Ok(cached);
+        }
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let items = list_directory_items(&repo_path, &branch, &folder)?;
 
-    // 2. Coleta as linhas em um Vec para podermos paralelizar
-    let lines: Vec<&str> = stdout.lines().collect();
-
-    // 3. PROCESSAMENTO PARALELO (O segredo da velocidade)
-    let entries: Vec<FileEntry> = lines
+    // Um `git log -n 1 -- <item>` por item, em paralelo. Testamos uma passada
+    // única pelo histórico (libgit2 e `git log --name-only`), mas o git CLI
+    // por item, que usa o commit-graph, foi mais rápido na maioria das pastas.
+    let mut entries: Vec<FileEntry> = build_entries(&folder, items)
         .into_par_iter()
-        .map(|line| {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 5 {
-                return None;
-            }
-
-            let is_dir = parts[1] == "tree";
-            let name = parts[4..].join(" ");
-
-            let full_item_path = if folder_path.is_empty() || folder_path == "." {
-                name.clone()
-            } else {
-                format!("{}/{}", folder_path.trim_end_matches('/'), name)
-            };
-
-            // Agora cada thread busca o seu commit de forma independente
-            let last_commit =
-                get_last_commit_for_path_blocking(repo_path.clone(), branch.clone(), full_item_path.clone())
+        .map(|mut entry| {
+            entry.last_commit =
+                get_last_commit_for_path_blocking(repo_path.clone(), branch.clone(), entry.path.clone())
                     .unwrap_or(None);
-
-            Some(FileEntry {
-                name,
-                path: full_item_path,
-                is_dir,
-                last_commit,
-            })
+            entry
         })
-        .filter_map(|x| x) // Remove os Nones
         .collect();
+    sort_entries(&mut entries);
 
-    // 4. Ordenação final
-    let mut final_entries = entries;
-    final_entries.sort_by(|a, b| {
-        if a.is_dir != b.is_dir {
-            return b.is_dir.cmp(&a.is_dir);
+    if let Some(key) = cache_key {
+        if let Ok(mut cache) = directory_cache().lock() {
+            if cache.len() >= DIRECTORY_CACHE_LIMIT {
+                cache.clear();
+            }
+            cache.insert(key, entries.clone());
         }
-        a.name.to_lowercase().cmp(&b.name.to_lowercase())
-    });
+    }
 
-    Ok(final_entries)
+    Ok(entries)
 }

@@ -211,6 +211,7 @@
     "loading_commits": "Carregando commits...",
     "loading_branches": "Carregando branches...",
     "loading_repositories": "Carregando repositórios...",
+    "loading_repository": "Carregando repositório...",
     "loading_pull_requests": "Carregando pull requests...",
     "offers": "Carregando ofertas...",
     "data": "Carregando dados...",
@@ -309,7 +310,10 @@
     "last_commit": "Último commit",
     "commit_date": "Data do commit",
     "select_commit": "Selecione um commit para ver os detalhes",
-    "search_placeholder": "Filtrar commits (mensagem, hash, autor)..."
+    "search_placeholder": "Filtrar commits (mensagem, hash, autor)...",
+    "view_details": "Ver detalhes",
+    "copy_sha": "Copiar SHA",
+    "sha_copied": "SHA copiado"
   },
   "branch": {
     "change_branch": "Trocar de branch",
@@ -908,4 +912,4 @@
     "less": "Lenos",
     "more": "Mais"
   }
-}
+}

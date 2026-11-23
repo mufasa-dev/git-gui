@@ -584,6 +584,14 @@ export default function RepoTabsPage() {
     if (!isInitializing()) void untrack(() => pollBackgroundRepos());
   });
 
+  // Repositório ativo que ainda está carregando (aba aberta pela primeira vez).
+  const pendingActiveRepo = createMemo(() => {
+    const currentActive = active();
+    if (!currentActive) return null;
+    const repo = repos().find(r => r.path === currentActive);
+    return repo?.pending ? repo : null;
+  });
+
   const activeRepo = createMemo(() => {
     const currentActive = active();
     if (!currentActive) return null;
@@ -654,6 +662,30 @@ export default function RepoTabsPage() {
                 </Show>
               </Match>
               */}
+
+              {/* Repositório ainda carregando: painel central em qualquer página */}
+              <Match when={pendingActiveRepo()}>
+                {(pendingRepo) => (
+                  <div class="flex min-h-0 min-w-0 flex-1 items-center justify-center p-6" role="status" aria-live="polite" aria-busy="true">
+                    <div class="w-full max-w-sm overflow-hidden rounded-2xl border border-gray-300 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-gray-800/90 dark:shadow-blue-950/30">
+                      <div class="flex items-center gap-4">
+                        <div class="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/15 text-blue-500 dark:text-blue-400">
+                          <div class="absolute inset-0 rounded-2xl border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
+                          <i class="fa-solid fa-code-branch text-lg" aria-hidden="true" />
+                        </div>
+                        <div class="min-w-0">
+                          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-500/80 dark:text-blue-300/80">{t('loading').loading_repository}</p>
+                          <h2 class="mt-1 truncate text-lg font-semibold text-gray-800 dark:text-white" title={pendingRepo().path}>{pendingRepo().name}</h2>
+                        </div>
+                      </div>
+                      <p class="mt-4 truncate text-xs text-gray-500 dark:text-gray-400" title={pendingRepo().path}>{pendingRepo().path}</p>
+                      <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700/80">
+                        <div class="h-full w-full animate-pulse rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-400" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </Match>
 
               {/* Caso: Página de Commits */}
               <Match when={active() && activePage() === 'commits'}>

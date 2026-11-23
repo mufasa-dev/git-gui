@@ -81,6 +81,15 @@ export async function getPathHistory(path: string, branch: string, filePath: str
   );
 }
 
+/** Lista a pasta sem o último commit (rápido). Se a pasta já estiver no cache
+ *  do backend, os itens já vêm com o último commit preenchido. */
+export async function listDirectoryQuick(repoPath: string, branch: string, folderPath: string) {
+  return await invoke<FileEntry[]>(
+    "list_directory",
+    { repoPath, branch, folderPath }
+  );
+}
+
 export async function listDirectory(repoPath: string, branch: string, folderPath: string) {
   return await invoke<FileEntry[]>(
     "list_directory_with_commits",

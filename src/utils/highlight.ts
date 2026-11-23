@@ -434,6 +434,8 @@ function getPattern(fileName: string, dynamicKeywordRegex: RegExp) {
     return pattern;
 }
 
+const patternCache = new Map<string, any[]>();
+
 export function highlightCode(line: string, fileName: string): string {
     if (!line) return "";
 
@@ -441,19 +443,23 @@ export function highlightCode(line: string, fileName: string): string {
     if (extension == 'tsx') extension = 'ts';
     if (extension == 'jsx') extension = 'js';
 
-    // 1. Prepara a lista de keywords da linguagem
-    const langKeywords = keywordMap[extension] || keywordMap['js'];
-    const dynamicKeywordRegex = new RegExp(`\\b(${langKeywords.join('|')})\\b`, 'g');
+    // 1 e 3. Padrões da linguagem: montados uma vez por tipo de arquivo e
+    //       reaproveitados (antes eram recriados a cada linha).
+    const cacheKey = `${getExtension(fileName)}|${extension}|${fileName.toLowerCase() === 'makefile'}`;
+    let patterns = patternCache.get(cacheKey);
+    if (!patterns) {
+        const langKeywords = keywordMap[extension] || keywordMap['js'];
+        const dynamicKeywordRegex = new RegExp(`\\b(${langKeywords.join('|')})\\b`, 'g');
+        patterns = getPattern(fileName, dynamicKeywordRegex);
+        patternCache.set(cacheKey, patterns);
+    }
 
     // 2. Escapa HTML
     let escaped = line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    // 3. Define os padrões (A ordem aqui dita a prioridade)
-    const patterns = getPattern(fileName, dynamicKeywordRegex);
-
     let parts = [{ text: escaped, highlighted: false }];
 
-    patterns.forEach(pattern => {
+    patterns.forEach((pattern: any) => {
     let newParts: { text: string; highlighted: boolean }[] = [];
     parts.forEach(part => {
         if (part.highlighted) {
@@ -484,4 +490,4 @@ export function highlightCode(line: string, fileName: string): string {
     });
 
     return parts.map(p => p.text).join("");
-}
+}

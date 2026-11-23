@@ -82,7 +82,7 @@ function parseDiff(diff: string): DiffLine[] {
 }
 
 export default function DiffViewer(props: Props) {
-  const diffLines = () => parseDiff(props.diff.diff);
+  const diffLines = createMemo(() => parseDiff(props.diff.diff));
   const [showMergeResolver, setShowMergeResolver] = createSignal(false);
   const { t } = useApp();
 

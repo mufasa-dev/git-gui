@@ -1,4 +1,8 @@
-import { createEffect, createSignal, createMemo, For, Show } from "solid-js";
+import { createEffect, createSignal, createMemo, For, Show, onCleanup } from "solid-js";
+import { Portal } from "solid-js/web";
+import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
+import Dialog from "../ui/Dialog";
+import { CommitDetailsModal } from "./CommitDetailsModal";
 import { Repo } from "../../models/Repo.model";
 import { getCommitDetails, getCommits } from "../../services/gitService";
 import { formatRelativeDate } from "../../utils/date";
@@ -216,6 +220,54 @@ export default function CommitsList(props: Props) {
     previousRefsRevision = refsRevision;
   });
 
+  // ---- Menu de contexto da lista de commits ----
+  const [menu, setMenu] = createSignal<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+  const [modalCommit, setModalCommit] = createSignal<any>(null);
+  const closeMenu = () => setMenu(null);
+  document.addEventListener("click", closeMenu);
+  document.addEventListener("scroll", closeMenu, true);
+  onCleanup(() => {
+    document.removeEventListener("click", closeMenu);
+    document.removeEventListener("scroll", closeMenu, true);
+  });
+
+  async function openCommitModal(hash: string) {
+    try {
+      const details = await getCommitDetails(props.repo.path, hash);
+      setModalCommit({ ...details, _ts: Date.now() });
+    } catch (error) {
+      notify.error(t("error").load_commits, String(error));
+    }
+  }
+
+  async function copyCommitSha(hash: string) {
+    try {
+      await navigator.clipboard.writeText(hash);
+      notify.success(t("commits").sha_copied, hash);
+    } catch (error) {
+      notify.error(t("error").error, String(error));
+    }
+  }
+
+  function showCommitMenu(e: MouseEvent, commit: any) {
+    e.preventDefault();
+    e.stopPropagation();
+    const items: ContextMenuItem[] = [
+      { label: t("commits").view_details, action: () => void openCommitModal(commit.hash) },
+      { label: t("commits").copy_sha, action: () => void copyCommitSha(commit.hash) },
+    ];
+    if (props.onCreateTag) {
+      items.push({
+        label: t("tag").create,
+        action: () => props.onCreateTag?.({ hash: commit.hash, subject: commit.message }),
+      });
+    }
+    // Mantém o menu dentro da janela.
+    const x = Math.min(e.clientX, window.innerWidth - 200);
+    const y = Math.min(e.clientY, window.innerHeight - 140);
+    setMenu({ x, y, items });
+  }
+
   function onMouseMove(e: MouseEvent) {
     if (resizing()) {
       const newHeight = window.innerHeight - e.clientY - 20;
@@ -317,6 +369,7 @@ export default function CommitsList(props: Props) {
                       selectedCommit()?.hash === c.hash ? "selected" : ""
                     }`}
                     onClick={() => selectCommit(c.hash)}
+                    onContextMenu={(e) => showCommitMenu(e, c)}
                   >
                     <div class="commit-hash-cell">{c.hash.slice(0, 7)}</div>
                     <div class="commit-message-cell">
@@ -361,6 +414,38 @@ export default function CommitsList(props: Props) {
           onCreateTag={props.onCreateTag}
         />
       </div>
+
+      <Show when={menu()}>
+        {(currentMenu) => (
+          <Portal>
+            <ContextMenu
+              name=""
+              items={currentMenu().items}
+              position={{ x: currentMenu().x, y: currentMenu().y }}
+              onClose={closeMenu}
+            />
+          </Portal>
+        )}
+      </Show>
+
+      <Dialog
+        open={Boolean(modalCommit())}
+        title={t("commits").details}
+        icon="fa-solid fa-code-commit"
+        iconColor="text-purple-600 dark:text-purple-300"
+        onClose={() => setModalCommit(null)}
+        panelClass="-translate-y-2"
+        bodyClass="p-0 h-full" width="calc(100vw - 40px)" height="calc(100vh - 150px)">
+        <CommitDetailsModal
+          commit={modalCommit()}
+          repo={props.repo}
+          branch={props.branch || ""}
+          openParent={true}
+          openProfile={true}
+          selectCommit={openCommitModal}
+          onCreateTag={props.onCreateTag}
+        />
+      </Dialog>
     </div>
   );
-}
+}

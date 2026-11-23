@@ -211,6 +211,7 @@
     "loading_commits": "コミットを読み込み中...",
     "loading_branches": "ブランチを読み込み中...",
     "loading_repositories": "リポジトリを読み込み中...",
+    "loading_repository": "リポジトリを読み込み中...",
     "loading_pull_requests": "プルリクエストを読み込み中...",
     "offers": "オファーを読み込み中",
     "data": "データを読み込み中...",
@@ -309,7 +310,10 @@
     "last_commit": "最新のコミット",
     "commit_date": "コミット日",
     "select_commit": "コミットを選択して詳細を表示",
-    "search_placeholder": "フィルタ (メッセージ、ハッシュ、作成者)..."
+    "search_placeholder": "フィルタ (メッセージ、ハッシュ、作成者)...",
+    "view_details": "詳細を表示",
+    "copy_sha": "SHAをコピー",
+    "sha_copied": "SHAをコピーしました"
   },
   "branch": {
     "change_branch": "ブランチを切り替える",
@@ -908,4 +912,4 @@
     "less": "少ない",
     "more": "多い"
   }
-}
+}

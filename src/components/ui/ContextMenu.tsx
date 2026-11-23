@@ -16,7 +16,7 @@ type ContextMenuProps = {
 export default function ContextMenu(props: ContextMenuProps) {
   return (
     <div
-      class="absolute bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded shadow-md z-50"
+      class="absolute bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded shadow-md z-50"
       style={{ top: `${props.position.y}px`, left: `${props.position.x}px` }}
     >
       <ul class="text-sm">

@@ -118,6 +118,7 @@ fn main() {
             commands::commit::get_commit_file_diff,
             commands::commit::get_last_commit_for_path,
             commands::commit::get_path_history,
+            commands::commit::list_directory,
             commands::commit::list_directory_with_commits,
             commands::stage::list_local_changes,
             commands::stage::get_repository_status,

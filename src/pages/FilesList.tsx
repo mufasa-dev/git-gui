@@ -7,7 +7,7 @@ import Dialog from "../components/ui/Dialog";
 import { CommitDetailsModal } from "../components/commits/CommitDetailsModal";
 import { 
   listBranchFiles, getBranchFileContent, getBranchFilePage, getLastCommitForPath,
-  listDirectory, getPathHistory, getCommitDetails, getBranchFileMetadata 
+  listDirectory, listDirectoryQuick, getPathHistory, getCommitDetails, getBranchFileMetadata 
 } from "../services/gitService";
 import { FileSidebar } from "../components/files/FileSidebar";
 import { FileViewerContainer } from "../components/files/FileViewerContainer";
@@ -98,6 +98,7 @@ export default function FileList(props: {
         setNextLine(null);
         setIsLoadingMore(false);
         setSelectedFilePath([path]);
+        directoryRequestId++;
         setDirectoryContent(null);
         const data = await getBranchFileMetadata(props.repo.path, selectedBranch(), path);
         setIsBinary(data.isBinary);
@@ -117,6 +118,7 @@ export default function FileList(props: {
         setFileContent(data.content);
         setFileMeta({size: data.size, lines: data.lineCount});
         setSelectedFilePath([path]);
+        directoryRequestId++;
         setDirectoryContent(null);
       } catch (e) {
         setFileContent(t('error').load_file);
@@ -188,12 +190,25 @@ export default function FileList(props: {
     }
   };
 
+  // Carrega a pasta em duas fases: primeiro a lista de itens (rápida), depois
+  // o último commit de cada item. Respostas atrasadas de outra pasta/arquivo
+  // são descartadas pelo `directoryRequestId`.
+  let directoryRequestId = 0;
   const getDirectoryContent = async (path: string) => {
+    const requestId = ++directoryRequestId;
+    const repoPath = props.repo.path;
+    const branch = selectedBranch();
     try {
-      const content = await listDirectory(props.repo.path, selectedBranch(), path);
+      const quick = await listDirectoryQuick(repoPath, branch, path);
+      if (requestId !== directoryRequestId) return;
+      setDirectoryContent(quick);
+      if (quick.every(entry => entry.lastCommit)) return;
+
+      const content = await listDirectory(repoPath, branch, path);
+      if (requestId !== directoryRequestId) return;
       setDirectoryContent(content);
     } catch {
-      setDirectoryContent(null);
+      if (requestId === directoryRequestId) setDirectoryContent(null);
     }
   };
 
@@ -229,7 +244,8 @@ export default function FileList(props: {
           setIsPreviewLimited(false);
           setNextLine(null);
           setIsLoadingMore(false);
-          setDirectoryContent(null);
+          directoryRequestId++;
+        setDirectoryContent(null);
         }}
         onFileClick={handleFileClick}
         sidebarWidth={sidebarWidth()}
@@ -282,4 +298,4 @@ export default function FileList(props: {
       </Dialog>
     </div>
   );
-}
+}

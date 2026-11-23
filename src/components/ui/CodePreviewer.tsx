@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { highlightCode } from "../../utils/highlight";
 import { useApp } from "../../context/AppContext";
 
@@ -13,11 +13,11 @@ type Props = {
 export default function CodePreviewer(props: Props) {
     const { t } = useApp();
 
-    const allLines = () => {
+    const allLines = createMemo(() => {
         if (!props.content) return [];
         const lines = props.content.split("\n");
         return props.content.endsWith("\n") ? lines.slice(0, -1) : lines;
-    };
+    });
 
     const canLoadMore = () => Boolean(props.hasMore && props.onLoadMore);
 

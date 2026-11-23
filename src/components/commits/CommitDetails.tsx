@@ -62,6 +62,18 @@ export function CommitDetails(props: CommitDetailsProps) {
   const [modalUserProfileOpen, setModalUserProfileOpen] = createSignal(false);
   let diffRequestId = 0;
   const { t, locale } = useApp();
+  const [shaCopied, setShaCopied] = createSignal(false);
+
+  const copySha = async () => {
+    if (!props.commit?.hash) return;
+    try {
+      await navigator.clipboard.writeText(props.commit.hash);
+      setShaCopied(true);
+      window.setTimeout(() => setShaCopied(false), 1500);
+    } catch (error) {
+      notify.error(t("error").error, String(error));
+    }
+  };
 
   const fetchFileDiff = async (file: any) => {
     const requestId = ++diffRequestId;
@@ -224,8 +236,19 @@ export function CommitDetails(props: CommitDetailsProps) {
                       <div class="space-y-1.5 text-[11px]">
                         <div class="flex items-center justify-between gap-2">
                           <span class="text-gray-400">SHA</span>
-                          <span class="max-w-[145px] truncate rounded-md bg-white px-1.5 py-0.5 font-mono text-gray-600 dark:bg-gray-800 dark:text-gray-300" title={props.commit.hash}>
-                            {props.commit.hash.slice(0, 8)}
+                          <span class="flex items-center gap-1">
+                            <span class="max-w-[145px] truncate rounded-md bg-white px-1.5 py-0.5 font-mono text-gray-600 dark:bg-gray-800 dark:text-gray-300" title={props.commit.hash}>
+                              {props.commit.hash.slice(0, 8)}
+                            </span>
+                            <button
+                              type="button"
+                              class="flex h-5 w-5 items-center justify-center rounded text-gray-400 transition-colors hover:bg-white hover:text-blue-500 dark:hover:bg-gray-800 dark:hover:text-blue-300"
+                              title={shaCopied() ? t("commits").sha_copied : t("commits").copy_sha}
+                              aria-label={t("commits").copy_sha}
+                              onClick={copySha}
+                            >
+                              <i class={`fa-regular text-[11px] ${shaCopied() ? "fa-circle-check text-emerald-500" : "fa-copy"}`} aria-hidden="true"></i>
+                            </button>
                           </span>
                         </div>
                         <Show when={props.commit?.parents?.length > 0}>
