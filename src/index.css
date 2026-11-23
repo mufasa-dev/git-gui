@@ -439,3 +439,11 @@ body,
 .height-container {
   height: calc(100vh - 128px);
 }
+/* Barra de progresso indeterminada do executor de testes */
+@keyframes test-progress-indeterminate {
+  0% { left: -35%; }
+  100% { left: 100%; }
+}
+.test-progress-indeterminate {
+  animation: test-progress-indeterminate 1.4s ease-in-out infinite;
+}

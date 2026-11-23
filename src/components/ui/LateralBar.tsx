@@ -11,6 +11,7 @@ import profileIcon from "../../assets/profile_silver.png";
 import Tooltip from "./Tooltip";
 import { createEffect, Show } from "solid-js";
 import { useApp } from "../../context/AppContext";
+import { activeRunPath, repoDisplayName } from "../Test/testSessionStore";
 
 export default function LateralBar(props: {
   repos: Repo[];
@@ -46,10 +47,18 @@ export default function LateralBar(props: {
           <img src={fileIcon} class="h-10" />
         </Button>
       </Tooltip>
-      <Tooltip text={t('test').tests} class="mb-2">
-        <Button class={`left-btn w-full ${props.active === "test" ? "selected" : ""}`} onClick={() => props.onChangeActive("test")}>
-          <img src={testIcon} class="h-10" />
-        </Button>
+      <Tooltip text={activeRunPath() ? `${t('test').tests} · ${t('test').running_tests} (${repoDisplayName(activeRunPath())})` : t('test').tests} class="mb-2">
+        <div class="relative w-full">
+          <Button class={`left-btn w-full ${props.active === "test" ? "selected" : ""}`} onClick={() => props.onChangeActive("test")}>
+            <img src={testIcon} class="h-10" />
+          </Button>
+          {/* Indicador de testes rodando em segundo plano */}
+          <Show when={activeRunPath()}>
+            <span class="pointer-events-none absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-white shadow-[0_0_8px_rgba(59,130,246,0.8)]">
+              <i class="fa-solid fa-circle-notch animate-spin text-[8px]"></i>
+            </span>
+          </Show>
+        </div>
       </Tooltip>
       <Tooltip text={t('dashboard').dashboard} class="mb-2">
         <Button class={`left-btn w-full ${props.active === "dashboard" ? "selected" : ""}`} onClick={() => props.onChangeActive("dashboard")}>

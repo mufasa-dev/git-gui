@@ -86,4 +86,6 @@ export async function runTestTerminal(
   if (kind === "rust" || kind === "cargo") {
     return await invoke("run_rust_tests", args);
   }
+
+  throw new Error(`Runner de testes não suportado: ${kind}`);
 }
