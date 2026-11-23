@@ -6,7 +6,6 @@ use serde::Serialize;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use tauri::command;
 use tokio::process::Command as TokioCommand;
 
 #[derive(Debug, Serialize)]
@@ -168,7 +167,13 @@ pub async fn get_repository_snapshot(path: String) -> Result<RepositorySnapshot,
 }
 
 #[tauri::command]
-pub fn open_repo(path: String) -> Result<String, String> {
+pub async fn open_repo(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || open_repo_blocking(path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn open_repo_blocking(path: String) -> Result<String, String> {
     if Path::new(&path).join(".git").exists() {
         Ok(format!("Repositório válido em {}", path))
     } else {
@@ -384,8 +389,14 @@ pub async fn fetch_repo(
     }
 }
 
-#[command]
-pub fn git_config_pull(repo_path: String, mode: String) -> Result<(), String> {
+#[tauri::command]
+pub async fn git_config_pull(repo_path: String, mode: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || git_config_pull_blocking(repo_path, mode))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn git_config_pull_blocking(repo_path: String, mode: String) -> Result<(), String> {
     let value = match mode.as_str() {
         "merge" => "false",
         "rebase" => "true",

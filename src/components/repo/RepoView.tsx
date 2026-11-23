@@ -181,7 +181,7 @@ export default function RepoView(props: Props) {
       onMouseLeave={stopResize}
     >
       {/* Painel esquerdo */}
-      <div class="flex min-h-0 min-w-0 flex-col border-r border-gray-300 pt-2 pb-2 pl-2 dark:border-gray-900 overflow-hidden" style={{ width: `${sidebarWidth()}px` }}>
+      <div class="flex min-h-0 min-w-0 shrink-0 flex-col border-r border-gray-300 pt-2 pb-2 pl-2 dark:border-gray-900 overflow-hidden" style={{ width: `${sidebarWidth()}px` }}>
         <div class="container-branch-list mb-2">
           <div class="flex">
             <b title={props.repo.name} class="truncate font-bold mb-2">{props.repo.name}</b>

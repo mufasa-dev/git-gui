@@ -414,11 +414,11 @@ export function LocalChanges(props: { repo: Repo; }) {
   const clearDiff = () => setDiff({diff: ""});  
 
   return (
-    <div class="flex h-full w-full select-none pt-2 mr-1"
+    <div class="flex h-full min-w-0 flex-1 select-none pt-2 mr-1"
       onMouseMove={onMouseMove}
       onMouseUp={stopResize}
       onMouseLeave={stopResize}>
-      <div class="container-branch-list mb-2 overflow-auto border-r py-3 px-0" style={{ width: `${sidebarWidth()}px` }}>
+      <div class="container-branch-list mb-2 shrink-0 overflow-auto border-r py-3 px-0" style={{ width: `${sidebarWidth()}px` }}>
         <div style={{"height": "40px"}} class="flex flex-col">
           <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 mb-3 flex items-center" onContextMenu={showContextMenu}>
             <b>{t('file').updates}</b>

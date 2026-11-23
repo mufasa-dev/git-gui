@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::command;
 
 #[derive(Serialize)]
 pub struct Commit {
@@ -111,7 +110,13 @@ pub async fn list_commits(
 }
 
 #[tauri::command]
-pub fn list_user_commits(
+pub async fn list_user_commits(path: String, branch: String, email: String) -> Result<Vec<Commit>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_user_commits_blocking(path, branch, email))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn list_user_commits_blocking(
     path: String,
     branch: String,
     email: String,
@@ -156,8 +161,14 @@ pub fn list_user_commits(
     Ok(commits)
 }
 
-#[command]
-pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
+#[tauri::command]
+pub async fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || get_commit_details_blocking(path, hash))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn get_commit_details_blocking(path: String, hash: String) -> Result<Value, String> {
     let output = git_command(&path)
         .arg("show")
         .arg("--name-status")
@@ -232,7 +243,13 @@ pub fn get_commit_details(path: String, hash: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn get_multiple_commits_subjects(
+pub async fn get_multiple_commits_subjects(path: String, hashes: Vec<String>) -> Result<HashMap<String, String>, String> {
+    tauri::async_runtime::spawn_blocking(move || get_multiple_commits_subjects_blocking(path, hashes))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn get_multiple_commits_subjects_blocking(
     path: String,
     hashes: Vec<String>,
 ) -> Result<HashMap<String, String>, String> {
@@ -268,8 +285,14 @@ pub fn get_multiple_commits_subjects(
     Ok(result)
 }
 
-#[command]
-pub fn git_commit(
+#[tauri::command]
+pub async fn git_commit(repo_path: String, message: String, description: String, amend: bool) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || git_commit_blocking(repo_path, message, description, amend))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn git_commit_blocking(
     repo_path: String,
     message: String,
     description: String,
@@ -386,7 +409,13 @@ pub async fn get_commit_file_diff(
 }
 
 #[tauri::command]
-pub fn get_last_commit_for_path(
+pub async fn get_last_commit_for_path(path: String, branch: String, file_path: String) -> Result<Option<Commit>, String> {
+    tauri::async_runtime::spawn_blocking(move || get_last_commit_for_path_blocking(path, branch, file_path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn get_last_commit_for_path_blocking(
     path: String,
     branch: String,
     file_path: String,
@@ -432,7 +461,13 @@ pub fn get_last_commit_for_path(
 }
 
 #[tauri::command]
-pub fn get_path_history(
+pub async fn get_path_history(path: String, branch: String, file_path: String) -> Result<Vec<Commit>, String> {
+    tauri::async_runtime::spawn_blocking(move || get_path_history_blocking(path, branch, file_path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn get_path_history_blocking(
     path: String,
     branch: String,
     file_path: String,
@@ -472,7 +507,13 @@ pub fn get_path_history(
 }
 
 #[tauri::command]
-pub fn list_directory_with_commits(
+pub async fn list_directory_with_commits(repo_path: String, branch: String, folder_path: String) -> Result<Vec<FileEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_directory_with_commits_blocking(repo_path, branch, folder_path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn list_directory_with_commits_blocking(
     repo_path: String,
     branch: String,
     folder_path: String,
@@ -523,7 +564,7 @@ pub fn list_directory_with_commits(
 
             // Agora cada thread busca o seu commit de forma independente
             let last_commit =
-                get_last_commit_for_path(repo_path.clone(), branch.clone(), full_item_path.clone())
+                get_last_commit_for_path_blocking(repo_path.clone(), branch.clone(), full_item_path.clone())
                     .unwrap_or(None);
 
             Some(FileEntry {

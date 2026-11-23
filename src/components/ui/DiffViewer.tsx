@@ -102,27 +102,32 @@ export default function DiffViewer(props: Props) {
     props.onMergeStatusChange?.(showMergeResolver());
   });
 
+  let imageRequestId = 0;
   createEffect(async () => {
-    if (props.diff.oldFile) {
-      try {
-        const base64 = await loadImage(props.diff.oldFile);
-        setOldImg(base64);
-      } catch {
-        setOldImg(undefined);
-      }
-    } else {
+    const requestId = ++imageRequestId;
+    const oldFile = props.diff.oldFile;
+    const newFile = props.diff.newFile;
+
+    if (!isImageDiff()) {
       setOldImg(undefined);
-    }
-    if (props.diff.newFile) {
-      try {
-        const base64 = await loadImage(props.diff.newFile);
-        setNewImg(base64);
-      } catch (error) {
-        setNewImg(undefined);
-      }
-    } else {
       setNewImg(undefined);
+      return;
     }
+
+    const load = async (file?: string | null) => {
+      if (!file) return undefined;
+      try {
+        return await loadImage(file);
+      } catch {
+        return undefined;
+      }
+    };
+
+    const [oldBase64, newBase64] = await Promise.all([load(oldFile), load(newFile)]);
+
+    if (requestId !== imageRequestId) return;
+    setOldImg(oldBase64);
+    setNewImg(newBase64);
   });
 
   const hasConflict = createMemo(() => {

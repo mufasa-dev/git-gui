@@ -18,7 +18,13 @@ fn image_mime_type(path: &str) -> &'static str {
 }
 
 #[tauri::command]
-pub fn load_image_base64(path: String) -> Result<String, String> {
+pub async fn load_image_base64(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || load_image_base64_blocking(path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn load_image_base64_blocking(path: String) -> Result<String, String> {
     let data = fs::read(&path).map_err(|e| e.to_string())?;
     Ok(format!(
         "data:{};base64,{}",

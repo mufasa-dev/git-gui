@@ -49,12 +49,24 @@ fn main() {
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            if let Some(url) = args
-                .iter()
-                .skip(1)
-                .find(|arg| is_github_oauth_callback(arg))
-            {
-                let _ = app.emit("oauth-callback", url.clone());
+            // 🔎 Diagnóstico: ajuda a identificar, rodando o app pelo terminal
+            // (ex.: `npm run tauri dev`), se o SO está mesmo reabrindo o app
+            // com a URL do callback do GitHub quando o navegador tenta usar
+            // o protocolo "dev-brook://". Se essa linha nunca aparecer depois
+            // de autorizar no GitHub, o problema está fora do app (protocolo
+            // não associado no Windows, política do navegador bloqueando
+            // abertura de app externo, etc.) e não no código do oauth em si.
+            eprintln!("[single-instance] argumentos recebidos: {:?}", args);
+
+            match args.iter().skip(1).find(|arg| is_github_oauth_callback(arg)) {
+                Some(url) => {
+                    eprintln!("[single-instance] callback do GitHub reconhecido, emitindo oauth-callback: {url}");
+                    let _ = app.emit("oauth-callback", url.clone());
+                }
+                None if args.len() > 1 => {
+                    eprintln!("[single-instance] nenhum argumento bateu com o callback esperado (dev-brook://auth...)");
+                }
+                None => {}
             }
         }));
     }
@@ -69,7 +81,15 @@ fn main() {
         .setup(|app| {
             #[cfg(any(windows, target_os = "linux"))]
             {
-                app.deep_link().register_all()?;
+                // 🔎 Diagnóstico: confirma se o registro do protocolo
+                // "dev-brook://" no SO (registro do Windows / xdg no Linux)
+                // deu certo nesta execução. Se aparecer um erro aqui, é
+                // quase certo que o GitHub nunca vai conseguir reabrir o
+                // app — vale rodar o app pelo terminal pra ver essa saída.
+                match app.deep_link().register_all() {
+                    Ok(()) => eprintln!("[deep-link] protocolo \"dev-brook://\" registrado com sucesso."),
+                    Err(e) => eprintln!("[deep-link] falha ao registrar o protocolo \"dev-brook://\": {e}"),
+                }
             }
             Ok(())
         })

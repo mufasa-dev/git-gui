@@ -4,7 +4,6 @@ use serde_json::json;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
-use tauri::command;
 
 const PREVIEW_MAX_BYTES: usize = 2 * 1024 * 1024;
 const PREVIEW_MAX_LINES: usize = 1000;
@@ -230,7 +229,13 @@ fn status_file_path(line: &str) -> Option<String> {
 }
 
 #[tauri::command]
-pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
+pub async fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_local_changes_blocking(path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn list_local_changes_blocking(path: String) -> Result<Vec<serde_json::Value>, String> {
     let output = git_command(&path)
         .arg("status")
         .arg("--porcelain")
@@ -334,7 +339,13 @@ pub fn list_local_changes(path: String) -> Result<Vec<serde_json::Value>, String
 }
 
 #[tauri::command]
-pub fn get_repository_status(path: String) -> Result<serde_json::Value, String> {
+pub async fn get_repository_status(path: String) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || get_repository_status_blocking(path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn get_repository_status_blocking(path: String) -> Result<serde_json::Value, String> {
     let repository = Repository::open(&path).map_err(|error| error.to_string())?;
     let head = repository.head().ok();
     let head_id = head
@@ -410,8 +421,14 @@ fn normalize_gitignore_entry(file_path: &str) -> Result<String, String> {
     }
 }
 
-#[command]
-pub fn ignore_file(path: String, file_path: String) -> Result<String, String> {
+#[tauri::command]
+pub async fn ignore_file(path: String, file_path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || ignore_file_blocking(path, file_path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn ignore_file_blocking(path: String, file_path: String) -> Result<String, String> {
     let entry = normalize_gitignore_entry(&file_path)?;
     let gitignore_path = Path::new(&path).join(".gitignore");
     let mut content = if gitignore_path.exists() {
@@ -433,8 +450,14 @@ pub fn ignore_file(path: String, file_path: String) -> Result<String, String> {
 }
 
 /// Stage arquivos (git add)
-#[command]
-pub fn stage_files(path: String, files: Vec<String>) -> Result<(), String> {
+#[tauri::command]
+pub async fn stage_files(path: String, files: Vec<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || stage_files_blocking(path, files))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn stage_files_blocking(path: String, files: Vec<String>) -> Result<(), String> {
     let mut cmd = git_command(&path);
     cmd.arg("add").args(&files);
 
@@ -448,8 +471,14 @@ pub fn stage_files(path: String, files: Vec<String>) -> Result<(), String> {
 }
 
 /// Unstage arquivos (git reset)
-#[command]
-pub fn unstage_files(path: String, files: Vec<String>) -> Result<(), String> {
+#[tauri::command]
+pub async fn unstage_files(path: String, files: Vec<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || unstage_files_blocking(path, files))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn unstage_files_blocking(path: String, files: Vec<String>) -> Result<(), String> {
     let mut cmd = git_command(&path);
     cmd.arg("reset").args(&files);
 
@@ -536,8 +565,14 @@ fn remove_untracked_path(path: &Path) -> Result<(), String> {
     }
 }
 
-#[command]
-pub fn discard_changes(path: String, files: Vec<String>) -> Result<String, String> {
+#[tauri::command]
+pub async fn discard_changes(path: String, files: Vec<String>) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || discard_changes_blocking(path, files))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn discard_changes_blocking(path: String, files: Vec<String>) -> Result<String, String> {
     let mut tracked_files = Vec::new();
 
     for file in files {
@@ -583,7 +618,13 @@ pub fn discard_changes(path: String, files: Vec<String>) -> Result<String, Strin
 }
 
 #[tauri::command]
-pub fn get_diff(
+pub async fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || get_diff_blocking(repo_path, file, staged))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn get_diff_blocking(
     repo_path: String,
     file: String,
     staged: bool,
@@ -765,8 +806,14 @@ fn run_git(repo_path: &str, args: &[&str]) -> Result<String, String> {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
-#[command]
-pub fn reset_hard(repo_path: String) -> Result<String, String> {
+#[tauri::command]
+pub async fn reset_hard(repo_path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || reset_hard_blocking(repo_path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn reset_hard_blocking(repo_path: String) -> Result<String, String> {
     run_git(&repo_path, &["reset", "--hard"])
 }
 
