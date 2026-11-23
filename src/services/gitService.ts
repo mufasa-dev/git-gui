@@ -114,6 +114,11 @@ export async function getRepositoryStatus(path: string): Promise<RepositoryStatu
   return await invoke<RepositoryStatus>("get_repository_status", { path });
 }
 
+/** Contagem leve de alterações de vários repositórios (null = erro ao consultar). */
+export async function getRepositoriesChangeCounts(paths: string[]): Promise<Record<string, number | null>> {
+  return await invoke<Record<string, number | null>>("get_repositories_change_counts", { paths });
+}
+
 export async function ignoreFile(repoPath: string, filePath: string): Promise<string> {
   return await invoke<string>("ignore_file", { path: repoPath, filePath });
 }
@@ -133,7 +138,8 @@ export async function discard_changes(repoPath: string, paths: string[]) {
 export async function getDiff(
   repoPath: string,
   file: string,
-  staged: boolean = false
+  staged: boolean = false,
+  status?: string
 ): Promise<Diff> {
   let relativeFile =file;
   if (file.startsWith(repoPath)) {
@@ -143,6 +149,8 @@ export async function getDiff(
     repoPath,
     file: relativeFile,
     staged,
+    // Status já conhecido pelo front: evita 2 processos git extras no backend.
+    status: status ?? null,
   });
 }
 
@@ -512,4 +520,4 @@ export async function cloneRepository(url: string, targetPath: string): Promise<
   } catch (e) {
     throw e;
   }
-}
+}

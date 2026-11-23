@@ -1,6 +1,6 @@
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { Diff } from "../../models/Diff.model";
-import { loadImage } from "../../services/imageService";
+import { loadGitImage, loadImage } from "../../services/imageService";
 import Dialog from "./Dialog";
 import MergeResolver from "../repo/MergeResolver";
 import { notify } from "../../utils/notifications";
@@ -20,6 +20,8 @@ type Props = {
   class: string;
   file: string;
   isStaged?: boolean;
+  /** Status do arquivo no Local Changes (untracked, added, modified, deleted...). */
+  status?: string;
   onSaveSuccess?: (file: string) => void;
   onMergeStatusChange?: (active: boolean) => void;
 };
@@ -102,11 +104,19 @@ export default function DiffViewer(props: Props) {
     props.onMergeStatusChange?.(showMergeResolver());
   });
 
+  // Imagem nova não tem versão antiga; imagem apagada não tem versão nova.
+  const isAddedImage = () => props.status === "untracked" || props.status === "added";
+  const isDeletedImage = () => props.status === "deleted";
+
   let imageRequestId = 0;
   createEffect(async () => {
     const requestId = ++imageRequestId;
     const oldFile = props.diff.oldFile;
     const newFile = props.diff.newFile;
+    const status = props.status;
+    const staged = Boolean(props.isStaged);
+    const repoPath = props.path;
+    const relativeFile = props.file;
 
     if (!isImageDiff()) {
       setOldImg(undefined);
@@ -123,7 +133,31 @@ export default function DiffViewer(props: Props) {
       }
     };
 
-    const [oldBase64, newBase64] = await Promise.all([load(oldFile), load(newFile)]);
+    const loadFromGit = async (spec: string) => {
+      try {
+        return await loadGitImage(repoPath, spec);
+      } catch {
+        return undefined;
+      }
+    };
+
+    let oldPromise: Promise<string | undefined>;
+    let newPromise: Promise<string | undefined>;
+
+    if (status !== undefined) {
+      // Staged: compara HEAD com o index. Não staged: compara index com o disco.
+      oldPromise = isAddedImage()
+        ? Promise.resolve(undefined)
+        : loadFromGit(staged ? `HEAD:${relativeFile}` : `:${relativeFile}`);
+      newPromise = isDeletedImage()
+        ? Promise.resolve(undefined)
+        : staged ? loadFromGit(`:${relativeFile}`) : load(newFile);
+    } else {
+      oldPromise = load(oldFile);
+      newPromise = load(newFile);
+    }
+
+    const [oldBase64, newBase64] = await Promise.all([oldPromise, newPromise]);
 
     if (requestId !== imageRequestId) return;
     setOldImg(oldBase64);
@@ -166,18 +200,23 @@ export default function DiffViewer(props: Props) {
       <Show when={isBinary() && isImageDiff() && !hasConflict()}>
         <div class="h-[100%] py-2">
           <div class="flex gap-4 p-4 border border-gray-300 dark:border-gray-900 rounded-md h-[100%] items-center">
-            <div class="flex-1 flex flex-col items-center justify-center h-[100%] border-r dark:border-gray-900">
-              <p class="text-sm text-gray-500 mb-auto">{t('merge').old_version}</p>
-              <Show when={oldImg()} fallback={<p class="text-gray-400 mb-auto">{t('merge').not_avaliable}</p>}>
-                <img src={oldImg()} alt="Versão antiga" class="max-w-full max-h-96 object-contain mx-auto mb-auto" />
-              </Show>
-            </div>
-            <div class="flex-1 flex flex-col items-center justify-center h-[100%]">
-              <p class="text-sm text-gray-500 mb-auto">{t('merge').new_version}</p>
-              <Show when={newImg()} fallback={<p class="text-gray-400 mb-auto">{t('merge').not_avaliable}</p>}>
-                <img src={newImg()} alt="Versão nova" class="max-w-full max-h-96 object-contain mx-auto mb-auto" />
-              </Show>
-            </div>
+            <Show when={!isAddedImage()}>
+              <div class="flex-1 flex flex-col items-center justify-center h-[100%] dark:border-gray-900"
+                classList={{ "border-r": !isDeletedImage() }}>
+                <p class="text-sm text-gray-500 mb-auto">{t('merge').old_version}</p>
+                <Show when={oldImg()} fallback={<p class="text-gray-400 mb-auto">{t('merge').not_avaliable}</p>}>
+                  <img src={oldImg()} alt="Versão antiga" class="max-w-full max-h-96 object-contain mx-auto mb-auto" />
+                </Show>
+              </div>
+            </Show>
+            <Show when={!isDeletedImage()}>
+              <div class="flex-1 flex flex-col items-center justify-center h-[100%]">
+                <p class="text-sm text-gray-500 mb-auto">{t('merge').new_version}</p>
+                <Show when={newImg()} fallback={<p class="text-gray-400 mb-auto">{t('merge').not_avaliable}</p>}>
+                  <img src={newImg()} alt="Versão nova" class="max-w-full max-h-96 object-contain mx-auto mb-auto" />
+                </Show>
+              </div>
+            </Show>
           </div>
         </div>
       </Show>

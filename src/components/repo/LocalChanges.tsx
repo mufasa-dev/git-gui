@@ -18,6 +18,9 @@ import { PREVIEW_MAX_BYTES } from "../../utils/file";
 import AIKeyModal from "../ai/AIKeyModal";
 import { AIConfig } from "../../models/AI.model";
 
+// Largura da lista de arquivos compartilhada entre abas (sobrevive à remontagem).
+const [sidebarWidth, setSidebarWidth] = createSignal(300);
+
 export function LocalChanges(props: { repo: Repo; }) {
   const minWidth = 200;
   const maxWidth = 600;
@@ -26,7 +29,6 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [selected, setSelected] = createSignal<string[]>([]);
   const [fileSelected, setFileSelected] = createSignal<string>("");
   const [stagedPreparedSelected, setStagedPreparedSelected] = createSignal<string[]>([]);
-  const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
   const [startX, setStartX] = createSignal(0);
   const [startWidth, setStartWidth] = createSignal(0);
@@ -102,7 +104,7 @@ export function LocalChanges(props: { repo: Repo; }) {
 
         const newDiff = fileExists.isPreviewable === false
           ? summaryDiff(fileExists)
-          : await getDiff(props.repo.path, selectedPath, fileExists.staged);
+          : await getDiff(props.repo.path, selectedPath, fileExists.staged, fileExists.status);
         if (currentDiffRequestId === diffRequestId && fileSelected() === selectedPath
           && (newDiff.diff !== diff().diff || newDiff.reason !== diff().reason || newDiff.truncated !== diff().truncated)) {
           setDiff(newDiff);
@@ -297,7 +299,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
 
     try {
-      const result = await getDiff(props.repo.path, selectedPath, staged);
+      const result = await getDiff(props.repo.path, selectedPath, staged, change.status);
       if (fileSelected() === selectedPath) {
         setDiff(result);
       }
@@ -411,7 +413,16 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   };
 
-  const clearDiff = () => setDiff({diff: ""});  
+  const clearDiff = () => setDiff({diff: ""});
+
+  // Status do arquivo aberto no diff (usado para saber se a imagem é nova/apagada).
+  const selectedStatus = () => {
+    const selectedPath = fileSelected();
+    if (!selectedPath) return undefined;
+    const staged = isVisualizingStaged();
+    return (changes().find(item => item.path === selectedPath && item.staged === staged)
+      ?? changes().find(item => item.path === selectedPath))?.status;
+  };  
 
   return (
     <div class="flex h-full min-w-0 flex-1 select-none pt-2 mr-1"
@@ -490,7 +501,7 @@ export function LocalChanges(props: { repo: Repo; }) {
       <div class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
         <div class="flex-1 overflow-auto p-2 container-branch-list min-w-0 border border-gray-300 dark:border-gray-700">
           <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
-            path={props.repo.path} isStaged={isVisualizingStaged()}
+            path={props.repo.path} isStaged={isVisualizingStaged()} status={selectedStatus()}
             onMergeStatusChange={(open) => setIsMerging(open)}
             onSaveSuccess={(filePath: string) => {
               setIsMerging(false);

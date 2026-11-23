@@ -1,4 +1,4 @@
-import { createResource, Show, createSignal, createMemo } from "solid-js";
+import { createResource, Show, createSignal, createMemo, onCleanup } from "solid-js";
 import { GitProvider } from "../utils/gitProvider";
 import { getRemoteUrl } from "../services/gitService"; 
 import { githubService } from "../services/github";
@@ -77,6 +77,36 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
   const [showHelp, setShowHelp] = createSignal(false);
   const { t } = useApp();
 
+  // Fallback manual para o login do GitHub: em algumas máquinas (observado
+  // em instalações Windows) o navegador não consegue reabrir o app sozinho
+  // via protocolo "dev-brook://", então o retorno automático nunca chega e a
+  // tela fica "Aguardando autenticação..." pra sempre, mesmo já tendo
+  // autorizado no GitHub. Depois de alguns segundos oferecemos colar o link
+  // manualmente para destravar o login sem depender do SO.
+  const GITHUB_FALLBACK_DELAY_MS = 15000;
+  let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
+  const [showManualFallback, setShowManualFallback] = createSignal(false);
+  const [manualUrl, setManualUrl] = createSignal("");
+  const [manualError, setManualError] = createSignal<string | null>(null);
+  const [manualSubmitting, setManualSubmitting] = createSignal(false);
+
+  const clearFallbackTimer = () => {
+    if (fallbackTimer) {
+      clearTimeout(fallbackTimer);
+      fallbackTimer = undefined;
+    }
+  };
+
+  const resetGithubLoginUi = () => {
+    clearFallbackTimer();
+    setShowManualFallback(false);
+    setManualUrl("");
+    setManualError(null);
+    setManualSubmitting(false);
+  };
+
+  onCleanup(clearFallbackTimer);
+
   const { refetchUser } = useRepoContext();
   const [remoteUrl] = createResource(() => props.repoPath ? getRemoteUrl(props.repoPath) : null);
 
@@ -110,7 +140,10 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
 
     try {
       if (props.provider === 'github') {
+        resetGithubLoginUi();
+        fallbackTimer = setTimeout(() => setShowManualFallback(true), GITHUB_FALLBACK_DELAY_MS);
         await githubService.login();
+        resetGithubLoginUi();
         refetchUser();
       } else if (props.provider === 'azure') {
         const response = await azureService.loginWithPAT(patToken().trim(), orgName().trim());
@@ -126,6 +159,32 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
       setAuthError(t('provider').error_authentication);
     } finally {
       setIsLogging(false);
+      clearFallbackTimer();
+    }
+  };
+
+  // Chamado quando o usuário cola manualmente o link "dev-brook://auth?..."
+  // que o navegador tentou (e não conseguiu) abrir sozinho. Resolve o login
+  // independentemente da Promise de `githubService.login()` (que, se o SO
+  // nunca encaminhar o callback, fica pendente para sempre — inofensivo,
+  // mas nunca mais resolve sozinha).
+  const handleManualSubmit = async (e: Event) => {
+    e.preventDefault();
+    const url = manualUrl().trim();
+    if (!url || manualSubmitting()) return;
+
+    setManualSubmitting(true);
+    setManualError(null);
+    try {
+      await githubService.completeLoginFromUrl(url);
+      resetGithubLoginUi();
+      setIsLogging(false);
+      refetchUser();
+    } catch (err) {
+      console.error("Falha ao concluir login manual do GitHub", err);
+      setManualError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setManualSubmitting(false);
     }
   };
 
@@ -137,16 +196,53 @@ function LoginAction(props: { provider: GitProvider; repoPath?: string }) {
       </p>
 
       <Show when={props.provider === 'azure'} fallback={
-        <button 
-          onClick={handleLogin}
-          disabled={isLogging()}
-          class="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
-        >
-          <Show when={isLogging()} fallback={<span>{t('provider').do_login}</span>}>
-            <i class="fa-solid fa-circle-notch animate-spin text-sm"></i>
-            <span>{t('provider').waiting_authentication}</span>
+        <>
+          <button
+            onClick={handleLogin}
+            disabled={isLogging()}
+            class="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
+          >
+            <Show when={isLogging()} fallback={<span>{t('provider').do_login}</span>}>
+              <i class="fa-solid fa-circle-notch animate-spin text-sm"></i>
+              <span>{t('provider').waiting_authentication}</span>
+            </Show>
+          </button>
+
+          {/* Fallback manual: some a partir de ~15s de espera sem retorno automático. */}
+          <Show when={isLogging() && showManualFallback()}>
+            <form onSubmit={handleManualSubmit} class="mt-3 text-left flex flex-col gap-2 border-t border-gray-200 dark:border-gray-700 pt-4">
+              <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                Não voltou automaticamente? Em algumas instalações do Windows o navegador não
+                consegue reabrir o app sozinho. Se você já autorizou no GitHub, cole aqui o link
+                que começa com <span class="font-mono">dev-brook://auth</span> (costuma aparecer
+                na barra de endereço ou em um aviso de "não foi possível abrir o aplicativo").
+              </p>
+              <input
+                type="text"
+                placeholder="dev-brook://auth?code=..."
+                value={manualUrl()}
+                onInput={(e) => setManualUrl(e.currentTarget.value)}
+                disabled={manualSubmitting()}
+                class="w-full px-3 py-2 rounded-lg border bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+              />
+              <Show when={manualError()}>
+                <span class="text-xs font-medium text-red-500 flex items-center gap-1">
+                  <i class="fa-solid fa-triangle-exclamation"></i> {manualError()}
+                </span>
+              </Show>
+              <button
+                type="submit"
+                disabled={manualSubmitting() || !manualUrl().trim()}
+                class="px-4 py-2 rounded-lg border border-blue-500 text-blue-500 hover:bg-blue-500/10 text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Show when={manualSubmitting()} fallback={<span>Concluir login com este link</span>}>
+                  <i class="fa-solid fa-circle-notch animate-spin text-sm"></i>
+                  <span>Validando...</span>
+                </Show>
+              </button>
+            </form>
           </Show>
-        </button>
+        </>
       }>
         <form onSubmit={handleLogin} class="mt-2 text-left flex flex-col gap-3">
           

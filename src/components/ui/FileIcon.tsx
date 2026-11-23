@@ -58,6 +58,8 @@ import delphiIcon from "../../assets/delphi.png";
 import pascalIcon from "../../assets/pascal.png";
 import dllIcon from "../../assets/dll.png";
 import webAssemblyIcon from "../../assets/web_assembly.png";
+import wgslIcon from "../../assets/wgsl.png";
+import ascIcon from "../../assets/asc.png";
 import flashIcon from "../../assets/flash.png";
 import rpgMakerIcon from "../../assets/rpg_maker.png";
 import androidIcon from "../../assets/android.png";
@@ -98,7 +100,7 @@ export default function FileIcon(props: FileIconProps) {
     if (name === 'jenkinsfile') return jenkinsIcon;
     if (name === 'makefile') return makefileIcon;
     if (name === '.gitignore') return gitIcon;
-    if (name === '.prettierrc' || name === 'prettierr') return prettierIcon;
+    if (name.startsWith('.prettierrc') || name.startsWith('prettier.config') || name === 'prettierr') return prettierIcon;
     if (name === 'license') return mdIcon;
     if (name.endsWith('.csproj.user')) return cSharpIcon;
     if (name.includes('package.json')) return packageIcon;
@@ -157,6 +159,8 @@ export default function FileIcon(props: FileIconProps) {
       gif: imageIcon,
       ico: imageIcon,
       webp: imageIcon,
+      tif: imageIcon,
+      tiff: imageIcon,
       svg: svgIcon,
       cs: cSharpIcon,
       cshtml: cSharpIcon,
@@ -290,7 +294,32 @@ export default function FileIcon(props: FileIconProps) {
       conf: configIcon,
       env: configIcon,
       properties: configIcon,
-      browserslistrc: configIcon
+      browserslistrc: configIcon,
+      template: configIcon,
+      // Shaders WebGPU
+      wgsl: wgslIcon,
+      // Chaves, assinaturas e certificados
+      asc: ascIcon,
+      pem: ascIcon,
+      key: ascIcon,
+      crt: ascIcon,
+      cer: ascIcon,
+      pfx: ascIcon,
+      p7s: ascIcon,
+      // Variações de extensões que já tinham ícone
+      sass: scssIcon,
+      aspx: aspIcon,
+      asax: aspIcon,
+      cmd: batIcon,
+      mts: tsIcon,
+      cts: tsIcon,
+      jsonc: jsonIcon,
+      mdx: mdIcon,
+      phtml: phpIcon,
+      pyw: pythonIcon,
+      // PowerShell (usa o ícone de terminal)
+      ps1: gitIcon,
+      psm1: gitIcon
     };
 
     return mapping[ext!] || defaultIcon;
@@ -308,4 +337,4 @@ export default function FileIcon(props: FileIconProps) {
       }}
     />
   );
-}
+}

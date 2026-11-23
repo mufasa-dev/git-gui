@@ -26,13 +26,17 @@ type Props = {
   refreshBranches: (path: string) => Promise<void>;
   goToPage: (page: string) => void;
 };
+// Guardados fora do componente para sobreviver à troca de aba: ao abrir um
+// repositório que ainda está carregando, o RepoView é desmontado e montado de
+// novo, e sem isso a tela voltava para "Commits" e a largura para o padrão.
+const [viewMode, setViewMode] = createSignal<"commits" | "changes">("commits");
+const [sidebarWidth, setSidebarWidth] = createSignal(300);
+
 export default function RepoView(props: Props) {
   const minWidth = 200;
   const maxWidth = 600;
 
   const [search, setSearch] = createSignal("");
-  const [viewMode, setViewMode] = createSignal<"commits" | "changes">("commits");
-  const [sidebarWidth, setSidebarWidth] = createSignal(300);
   const [isResizing, setIsResizing] = createSignal(false);
   const [prSelectedBranch, setprSelectedBranch] = createSignal(props.repo.activeBranch);
   const [selectedRef, setSelectedRef] = createSignal(props.repo.activeBranch);

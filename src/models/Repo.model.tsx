@@ -16,4 +16,6 @@ export type Repo = {
   stashes?: Stash[];
   tags?: Tag[];
   refsRevision?: number;
-};
+  /** true enquanto o repositório só tem o "esqueleto" (aba aberta, dados ainda não carregados). */
+  pending?: boolean;
+};

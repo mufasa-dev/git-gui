@@ -1,5 +1,7 @@
 use crate::utils::git_command;
 use git2::{Repository, Status, StatusOptions};
+use rayon::prelude::*;
+use std::collections::HashMap;
 use serde_json::json;
 use std::fs::{self, File};
 use std::io::Read;
@@ -378,6 +380,61 @@ pub fn get_repository_status_blocking(path: String) -> Result<serde_json::Value,
     }))
 }
 
+/// Conta as entradas de `git status --porcelain -z` (um arquivo = uma entrada).
+/// Usa o git CLI porque ele aproveita fscache/untrackedCache/fsmonitor no
+/// Windows, e `--no-optional-locks` para não disputar o index com outras
+/// ferramentas. Pastas não rastreadas contam como uma entrada só (`normal`),
+/// o que é bem mais barato que percorrê-las.
+fn quick_change_count(path: &str) -> Result<usize, String> {
+    let output = git_command(path)
+        .args([
+            "--no-optional-locks",
+            "status",
+            "--porcelain",
+            "-z",
+            "--untracked-files=normal",
+        ])
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let mut count = 0;
+    let mut fields = output.stdout.split(|byte| *byte == 0);
+    while let Some(entry) = fields.next() {
+        if entry.len() < 3 {
+            continue;
+        }
+        count += 1;
+        // Renomeações/cópias trazem o caminho original no campo seguinte.
+        if matches!(entry[0], b'R' | b'C') || matches!(entry[1], b'R' | b'C') {
+            fields.next();
+        }
+    }
+    Ok(count)
+}
+
+/// Verificação leve de alterações para vários repositórios de uma vez
+/// (usada para a bolinha das abas). Repositórios com erro voltam como `null`.
+#[tauri::command]
+pub async fn get_repositories_change_counts(
+    paths: Vec<String>,
+) -> Result<HashMap<String, Option<usize>>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        paths
+            .into_par_iter()
+            .map(|path| {
+                let count = quick_change_count(&path).ok();
+                (path, count)
+            })
+            .collect()
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
 fn parse_repository_status(output: &str) -> (String, String, usize) {
     let mut head = String::new();
     let mut branch = String::new();
@@ -618,36 +675,59 @@ pub fn discard_changes_blocking(path: String, files: Vec<String>) -> Result<Stri
 }
 
 #[tauri::command]
-pub async fn get_diff(repo_path: String, file: String, staged: bool) -> Result<serde_json::Value, String> {
-    tauri::async_runtime::spawn_blocking(move || get_diff_blocking(repo_path, file, staged))
+pub async fn get_diff(
+    repo_path: String,
+    file: String,
+    staged: bool,
+    status: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || get_diff_blocking(repo_path, file, staged, status))
         .await
         .map_err(|error| error.to_string())?
 }
 
+/// `status` é o status que o front já conhece (vindo de `list_local_changes`
+/// ou do snapshot). Quando informado, evita dois processos git extras
+/// (`ls-files --others` e `status --porcelain`); cada spawn de `git.exe`
+/// custa dezenas de milissegundos no Windows.
 pub fn get_diff_blocking(
     repo_path: String,
     file: String,
     staged: bool,
+    status: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let file_path = Path::new(&repo_path).join(&file);
     let (size, metadata_binary, metadata_previewable) = file_metadata(&file_path);
     let metadata_previewable = metadata_previewable || !file_path.exists();
 
-    let status_output = git_command(&repo_path)
-        .arg("ls-files")
-        .arg("--others")
-        .arg("--exclude-standard")
-        .arg(&file)
-        .output()
-        .map_err(|e| e.to_string())?;
-    let is_untracked = !status_output.stdout.is_empty();
+    let known_status = status
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
 
-    let conflict_status = git_command(&repo_path)
-        .args(["status", "--porcelain", "--"])
-        .arg(&file)
-        .output()
-        .map(|output| status_has_conflict(&output.stdout))
-        .unwrap_or(false);
+    let (is_untracked, conflict_status) = match known_status {
+        Some(value) => (value == "untracked", value == "conflicted"),
+        None => {
+            // Fallback para chamadas que não informam o status.
+            let status_output = git_command(&repo_path)
+                .arg("ls-files")
+                .arg("--others")
+                .arg("--exclude-standard")
+                .arg(&file)
+                .output()
+                .map_err(|e| e.to_string())?;
+            let is_untracked = !status_output.stdout.is_empty();
+
+            let conflict_status = git_command(&repo_path)
+                .args(["status", "--porcelain", "--"])
+                .arg(&file)
+                .output()
+                .map(|output| status_has_conflict(&output.stdout))
+                .unwrap_or(false);
+
+            (is_untracked, conflict_status)
+        }
+    };
 
     let sample = if file_path.is_file() {
         read_file_sample(&file_path)

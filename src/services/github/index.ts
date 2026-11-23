@@ -36,6 +36,64 @@ async function githubRequest(path: string, init: RequestInit = {}) {
   return payload;
 }
 
+type GithubAuthCallback = { code: string } | { error: string };
+
+// Valida se a URL recebida realmente é o retorno do nosso fluxo OAuth
+// (protocolo "dev-brook://auth...") e extrai o "code" (ou o erro). Retorna
+// `null` quando a URL não bate com o esquema esperado.
+function parseGithubCallbackUrl(rawUrl: string): GithubAuthCallback | null {
+  let callbackUrl: URL;
+  try {
+    callbackUrl = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+
+  if (callbackUrl.protocol !== "dev-brook:" || callbackUrl.hostname !== "auth") {
+    return null;
+  }
+
+  const error = callbackUrl.searchParams.get("error");
+  if (error) {
+    const description = callbackUrl.searchParams.get("error_description");
+    return { error: description || `Autenticação cancelada pelo GitHub: ${error}` };
+  }
+
+  const code = callbackUrl.searchParams.get("code");
+  if (!code) {
+    return { error: "O GitHub não retornou o código de autenticação." };
+  }
+
+  return { code };
+}
+
+// Troca o "code" pelo access_token no backend (Rust) e persiste o token.
+// Usada tanto pelo fluxo automático (evento "oauth-callback") quanto pelo
+// fallback manual (completeLoginFromUrl).
+async function finishGithubLogin(callback: GithubAuthCallback): Promise<{ token: string; provider: string }> {
+  if ("error" in callback) {
+    throw new Error(callback.error);
+  }
+
+  const result = await invoke<{ token: string; provider: string }>("exchange_code_for_token", {
+    code: callback.code,
+    clientId: GITHUB_CLIENT_ID,
+    clientSecret: GITHUB_CLIENT_SECRET,
+  });
+
+  const token = result.token?.trim();
+  if (!token) {
+    throw new Error("O GitHub não retornou um token de acesso.");
+  }
+
+  const store = await getAuthStore();
+  await store.set("github_token", token);
+  await store.save();
+  tokenCache = token;
+
+  return { ...result, token };
+}
+
 export const githubService = {
 
   async getToken(): Promise<string | null> {
@@ -71,48 +129,15 @@ export const githubService = {
       const handleCallback = async (event: { payload: unknown }) => {
         if (handled || typeof event.payload !== "string") return;
 
-        let callbackUrl: URL;
-        try {
-          callbackUrl = new URL(event.payload);
-        } catch {
-          return;
-        }
-
-        if (callbackUrl.protocol !== "dev-brook:" || callbackUrl.hostname !== "auth") {
-          return;
-        }
+        // parseGithubCallbackUrl devolve `null` quando a URL recebida não é
+        // o callback do nosso esquema (ex.: outro evento qualquer) — nesse
+        // caso simplesmente ignoramos e continuamos esperando.
+        const parsed = parseGithubCallbackUrl(event.payload);
+        if (!parsed) return;
 
         handled = true;
-
         try {
-          const error = callbackUrl.searchParams.get("error");
-          if (error) {
-            const description = callbackUrl.searchParams.get("error_description");
-            throw new Error(description || `Autenticação cancelada pelo GitHub: ${error}`);
-          }
-
-          const code = callbackUrl.searchParams.get("code");
-          if (!code) {
-            throw new Error("O GitHub não retornou o código de autenticação.");
-          }
-
-          const result = await invoke<{ token: string; provider: string }>("exchange_code_for_token", {
-            code,
-            clientId: GITHUB_CLIENT_ID,
-            clientSecret: GITHUB_CLIENT_SECRET,
-          });
-
-          const token = result.token?.trim();
-          if (!token) {
-            throw new Error("O GitHub não retornou um token de acesso.");
-          }
-
-          const store = await getAuthStore();
-          await store.set("github_token", token);
-          await store.save();
-          tokenCache = token;
-
-          resolve({ ...result, token });
+          resolve(await finishGithubLogin(parsed));
         } catch (error) {
           reject(error);
         } finally {
@@ -130,6 +155,30 @@ export const githubService = {
         }
       })();
     });
+  },
+
+  /**
+   * Caminho manual/alternativo para concluir o login do GitHub.
+   *
+   * O fluxo normal depende do Windows/Linux reabrir o app via protocolo
+   * customizado (`dev-brook://auth?...`) e reencaminhar isso pro app já
+   * aberto (ver `main.rs`, evento "oauth-callback"). Em algumas máquinas
+   * Windows isso não acontece (protocolo não associado, política do
+   * navegador bloqueando abertura de app externo, etc.) e a tela de login
+   * fica esperando pra sempre, mesmo com a autorização já concedida no
+   * GitHub. Como alternativa, o usuário pode colar aqui a própria URL
+   * `dev-brook://auth?code=...` (o navegador costuma mostrá-la na barra de
+   * endereço ou em um aviso de "não foi possível abrir o app") para concluir
+   * a autenticação sem depender do redirecionamento automático do SO.
+   */
+  async completeLoginFromUrl(rawUrl: string) {
+    const parsed = parseGithubCallbackUrl(rawUrl.trim());
+    if (!parsed) {
+      throw new Error(
+        "Isso não parece um link de retorno válido do GitHub. Ele deve começar com \"dev-brook://auth\"."
+      );
+    }
+    return finishGithubLogin(parsed);
   },
 
   async getCurrentUser() {

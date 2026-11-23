@@ -72,6 +72,8 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   // TypeScript
   ts: "TypeScript",
   tsx: "TypeScript",
+  mts: "TypeScript",
+  cts: "TypeScript",
   // JavaScript
   js: "JavaScript",
   jsx: "JavaScript",
@@ -111,9 +113,14 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   t4: "C#",
   sln: "C#",
   slnx: "C#",
+  c: "C",
   cpp: "C++",
   hpp: "C++",
   h: "C++",
+  cc: "C++",
+  cxx: "C++",
+  hh: "C++",
+  hxx: "C++",
   asp: "Asp",
   aspx : "Aspx",
   asax: "Asax",
@@ -143,6 +150,8 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   wasm: "WebAssembly",
   wat: "WebAssembly",
   wast: "WebAssembly",
+  // Shaders (WebGPU)
+  wgsl: "WGSL",
   // Styles
   css: "CSS",
   sass: "CSS",
@@ -163,6 +172,18 @@ export const LANGUAGE_GROUPS: Record<string, string> = {
   bat: "Bat",
   cmd: "Bat", // .cmd é equivalente ao .bat no Windows
   sh: "Shell", // Scripts shell/bash — eram contados como "Other" antes
+  bash: "Shell",
+  zsh: "Shell",
+  ps1: "PowerShell",
+  psm1: "PowerShell",
+  ex: "Elixir",
+  exs: "Elixir",
+  heex: "Elixir",
+  pl: "Perl",
+  pm: "Perl",
+  r: "R",
+  lisp: "Lisp",
+  el: "Lisp",
   coffee: "Coffee",
   lua: "Lua",
   julia: "Julia",
@@ -268,6 +289,7 @@ export const GROUP_COLORS: Record<string, string> = {
   "PHP": "#4f5d95",
   "Go": "#41acd5",
   "C#": "#178600",
+  "C": "#a8b9cc",
   "C++": "#f34b7d",
   "Asp": "#6a40fd",
   "Aspx": "#6a40fd",
@@ -294,12 +316,18 @@ export const GROUP_COLORS: Record<string, string> = {
   "Db": "#e38c00",
   "Bat": "#1f1f1f",
   "Shell": "#89e051",
+  "PowerShell": "#012456",
+  "Elixir": "#6e4a7e",
+  "Perl": "#0298c3",
+  "R": "#198ce7",
+  "Lisp": "#3fb68b",
   "Font": "#f7e03d",
   "Adobe Flash": "#f7e03d",
   "Adobe Photoshop": "#3a86ff",
   "Json": "#51aff7",
   "Assembly": "#3053a5",
   "WebAssembly": "#5d58ea",
+  "WGSL": "#1a5e9a",
   "Coffee": "#6f4c3e",
   "Config": "#555555",
   "Other": "#8b949e"
@@ -318,7 +346,7 @@ export const IGNORED_EXTENSIONS = [
   'gitignore', 'gitattributes', 'gitkeep', 'editorconfig', 'eslintignore', 'prettierignore', 'http', 'dockerignore', 'dcproj', 'original', 'pubxml', 'cer', 'dep', 'babelrc', 'appcache',
   // Outros arquivos de configuração comuns
   'vscode', 'idea', 'sublime-project', 'sublime-workspace', 'sqlproj', 'rxsl', 'xap', 'cab', 'defaults', "example", "properties", 'rules',
-  'suo', 'user', 'userosscache', 'slnvb', 'ps1', 'psd1', 'psm1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload', "pro",
+  'suo', 'user', 'userosscache', 'slnvb', 'psd1', 'vsix', 'vsixmanifest', 'appxmanifest', 'appxbundle', 'appxupload', "pro",
   'msi', 'exe', 'nsi', 'pfx', 'ocx', 'browserslistrc', 'ini', 'old', 'new', 'lic', 'log', 'bak', 'backup', 'temp', 'cache', 'dist', 'out', 'build', 'target', 'obj',
   // Godot
   'import', 'gdc', 'precomp', 'uid', 'pck', 'tmp', 'config', 'dll', 'resx', 'bcmap', 'js_34343', 'diz', 'depren',
@@ -334,7 +362,9 @@ export const IGNORED_EXTENSIONS = [
   // Imagens e documentos binários adicionais
   'cur', 'jfif', 'xls',
   // Dados opacos/criptografados
-  'enc'
+  'enc',
+  // Assinaturas/chaves PGP em ASCII (.asc), imagens TIFF, templates e config do Prettier
+  'asc', 'tif', 'tiff', 'template', 'prettierrc'
 ];
 
 export const PREVIEW_MAX_BYTES = 2 * 1024 * 1024;
@@ -353,4 +383,4 @@ export const UNSUPPORTED_EXTENSIONS = [
 export function isUnsupportedPreviewFile(filename: string): boolean {
   const normalized = filename.toLowerCase();
   return UNSUPPORTED_EXTENSIONS.some(extension => normalized.endsWith(extension));
-}
+}

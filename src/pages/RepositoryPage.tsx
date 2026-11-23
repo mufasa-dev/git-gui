@@ -1,11 +1,11 @@
-import { createEffect, createMemo, createResource, createSignal, lazy, Match, onCleanup, onMount, Show, Switch } from "solid-js";
-import { getRepositorySnapshot, getRepositoryStatus, getLocalChanges, getRemoteUrl, listStashes, listTags } from "../services/gitService";
+import { createEffect, createMemo, createResource, createSignal, lazy, Match, onCleanup, onMount, Show, Switch, untrack } from "solid-js";
+import { getRepositorySnapshot, getRepositoriesChangeCounts, getRepositoryStatus, getLocalChanges, getRemoteUrl, listStashes, listTags } from "../services/gitService";
 import TabBar from "../components/ui/TabBar";
 import RepoView from "../components/repo/RepoView";
 import { Repo } from "../models/Repo.model";
 import RepoContext, { CommitDraft } from "../context/RepoContext";
 
-import { loadRepos, saveActiveRepo, saveRepos } from "../services/storeService";
+import { loadActiveRepo, loadRepos, saveActiveRepo, saveRepos } from "../services/storeService";
 import Header from "../components/layout/Header";
 import LateralBar from "../components/ui/LateralBar";
 import WelcomeScreen from "./WelcomeScreen";
@@ -54,6 +54,8 @@ export default function RepoTabsPage() {
   const refreshStates = new Map<string, RefreshState>();
   const busyRepos = new Set<string>();
   let statusPollTimer: ReturnType<typeof setInterval> | undefined;
+  let backgroundPollTimer: ReturnType<typeof setInterval> | undefined;
+  let backgroundPollInFlight = false;
   let statusPollInFlight = false;
 
   const normalizeRepoPath = (repoPath: string) => repoPath.replace(/\\/g, "/").replace(/\/$/, "").toLowerCase();
@@ -202,45 +204,85 @@ export default function RepoTabsPage() {
     });
   });
 
+  // Carrega os dados completos de um repositório (snapshot, stashes e tags).
+  // Chamadas simultâneas para o mesmo repositório compartilham a mesma Promise.
+  const repoLoads = new Map<string, Promise<boolean>>();
+
+  const repoNameFromPath = (repoPath: string) =>
+    repoPath.split(/[\\/]/).filter(Boolean).pop() || repoPath;
+
+  const placeholderRepo = (repoPath: string): Repo => ({
+    path: repoPath,
+    name: repoNameFromPath(repoPath),
+    branches: [],
+    pending: true,
+  });
+
+  const loadRepoData = (repoPath: string): Promise<boolean> => {
+    const existing = repoLoads.get(repoPath);
+    if (existing) return existing;
+
+    const promise = (async () => {
+      try {
+        const [snapshot, stashes, tags] = await Promise.all([
+          getRepositorySnapshot(repoPath),
+          listStashes(repoPath),
+          listTags(repoPath),
+        ]);
+
+        setRepos(prev => prev.map(repo => repo.path !== repoPath ? repo : {
+          ...repo,
+          branches: snapshot.branches,
+          remoteBranches: snapshot.remoteBranches,
+          activeBranch: snapshot.activeBranch ?? undefined,
+          localChanges: snapshot.localChanges,
+          localChangesCount: snapshot.localChangesCount,
+          gitRevision: snapshot.gitRevision ?? undefined,
+          statusSignature: snapshot.statusSignature,
+          stashes,
+          tags,
+          refsRevision: (repo.refsRevision ?? 0) + 1,
+          pending: false,
+        }));
+        return true;
+      } catch (err) {
+        console.warn(`Não foi possível reabrir repo ${repoPath}`, err);
+        // Remove a aba (sem apagar da lista salva, igual ao comportamento anterior).
+        const remaining = untrack(repos).filter(repo => repo.path !== repoPath);
+        setRepos(remaining);
+        if (untrack(active) === repoPath) {
+          setActive(remaining[0]?.path ?? null);
+        }
+        return false;
+      } finally {
+        repoLoads.delete(repoPath);
+      }
+    })();
+
+    repoLoads.set(repoPath, promise);
+    return promise;
+  };
+
   onMount(async () => {
     try {
-      const savedPaths = await loadRepos();
-      setInitializationTotal(savedPaths.length);
+      const savedPaths = [...new Set(await loadRepos())];
+      const savedActive = await loadActiveRepo().catch(() => null);
 
-      for (const repoPath of savedPaths) {
-        setInitializationCurrent(repoPath);
+      // Cria todas as abas na hora, mas só carrega os dados do repositório ativo.
+      // Os demais são carregados quando a aba for aberta.
+      setRepos(savedPaths.map(placeholderRepo));
 
-        try {
-          const snapshot = await getRepositorySnapshot(repoPath);
-          const [stashes, tags] = await Promise.all([
-            listStashes(repoPath),
-            listTags(repoPath),
-          ]);
-          const name = repoPath.split(/[\\/]/).filter(Boolean).pop() || repoPath;
+      const initialActive = savedActive && savedPaths.includes(savedActive)
+        ? savedActive
+        : savedPaths[0] ?? null;
 
-          const repo: Repo = {
-            path: repoPath,
-            name,
-            branches: snapshot.branches,
-            remoteBranches: snapshot.remoteBranches,
-            activeBranch: snapshot.activeBranch ?? undefined,
-            localChanges: snapshot.localChanges,
-            localChangesCount: snapshot.localChangesCount,
-            gitRevision: snapshot.gitRevision ?? undefined,
-            statusSignature: snapshot.statusSignature,
-            stashes,
-            tags,
-            refsRevision: 0,
-          };
-
-          setRepos(prev => prev.some(item => item.path === repoPath) ? prev : [...prev, repo]);
-          if (!active()) setActive(repoPath);
-        } catch (err) {
-          setInitializationFailures(value => value + 1);
-          console.warn(`Não foi possível reabrir repo ${repoPath}`, err);
-        } finally {
-          setInitializationCompleted(value => value + 1);
-        }
+      if (initialActive) {
+        setInitializationTotal(1);
+        setInitializationCurrent(initialActive);
+        setActive(initialActive);
+        const ok = await loadRepoData(initialActive);
+        if (!ok) setInitializationFailures(value => value + 1);
+        setInitializationCompleted(value => value + 1);
       }
     } catch (err) {
       console.warn("Não foi possível carregar os repositórios salvos", err);
@@ -335,7 +377,10 @@ export default function RepoTabsPage() {
 
   const pollRepositoryStatuses = async () => {
     if (isInitializing() || statusPollInFlight || document.visibilityState !== "visible") return;
-    const currentRepos = repos();
+    // Só o repositório ativo é consultado. Os outros são atualizados
+    // quando a aba deles for aberta (ver efeito de troca de aba abaixo).
+    const currentActive = active();
+    const currentRepos = repos().filter(repo => repo.path === currentActive && !repo.pending);
     if (!currentRepos.length) return;
 
     statusPollInFlight = true;
@@ -377,8 +422,48 @@ export default function RepoTabsPage() {
     }
   };
 
+  // Atualiza só o indicador de alterações (bolinha da aba) dos repositórios
+  // que NÃO estão ativos, com uma consulta leve feita em paralelo no backend.
+  // O repositório ativo continua no polling completo de 5 s acima.
+  const pollBackgroundRepos = async () => {
+    if (isInitializing() || backgroundPollInFlight || document.visibilityState !== "visible") return;
+    const currentActive = active();
+    const paths = repos()
+      .map(repo => repo.path)
+      .filter(path => path !== currentActive && !busyRepos.has(path));
+    if (!paths.length) return;
+
+    backgroundPollInFlight = true;
+    try {
+      const counts = await getRepositoriesChangeCounts(paths);
+      const activeNow = active();
+      setRepos(prev => {
+        let changed = false;
+        const next = prev.map(repo => {
+          // Se o usuário abriu a aba enquanto a consulta rodava, o polling
+          // completo do repositório ativo é quem manda.
+          if (repo.path === activeNow) return repo;
+          const count = counts[repo.path];
+          if (count === undefined || count === null || repo.localChangesCount === count) return repo;
+          changed = true;
+          return { ...repo, localChangesCount: count };
+        });
+        return changed ? next : prev;
+      });
+    } catch (error) {
+      console.warn("Não foi possível consultar o status dos repositórios em segundo plano:", error);
+    } finally {
+      backgroundPollInFlight = false;
+    }
+  };
+
   const executeRefresh = async (repoPath: string, scope: RefreshScope) => {
-    if (!repos().some(repo => repo.path === repoPath)) return;
+    const repo = repos().find(item => item.path === repoPath);
+    if (!repo) return;
+    if (repo.pending) {
+      await loadRepoData(repoPath);
+      return;
+    }
     if (scope === "worktree") {
       await updateLocalChanges(repoPath);
     } else {
@@ -450,8 +535,17 @@ export default function RepoTabsPage() {
   let previousActive: string | null = null;
   createEffect(() => {
     const currentActive = active();
-    if (currentActive && previousActive !== null && currentActive !== previousActive) {
-      scheduleRefresh(currentActive, "worktree", 0);
+    if (currentActive && currentActive !== previousActive) {
+      const repo = untrack(repos).find(item => item.path === currentActive);
+      if (repo?.pending) {
+        // Primeira vez que a aba é aberta: carrega os dados completos.
+        void loadRepoData(currentActive);
+      } else if (repo && previousActive !== null) {
+        // Repositórios inativos não entram no polling, então ao voltar para
+        // a aba atualizamos tudo (refs + alterações locais).
+        scheduleRefresh(currentActive, "all", 0);
+      }
+      if (!untrack(isInitializing)) void saveActiveRepo(currentActive).catch(() => undefined);
     }
     previousActive = currentActive;
   });
@@ -462,17 +556,22 @@ export default function RepoTabsPage() {
         void requestRefresh(active()!, "all", 0).catch(() => undefined);
       }
     };
-    const handleFocus = () => handleVisibilityChange();
+    const handleFocus = () => {
+      handleVisibilityChange();
+      void pollBackgroundRepos();
+    };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
     void pollRepositoryStatuses();
     statusPollTimer = setInterval(() => void pollRepositoryStatuses(), 5000);
+    backgroundPollTimer = setInterval(() => void pollBackgroundRepos(), 10000);
 
     onCleanup(() => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
       if (statusPollTimer) clearInterval(statusPollTimer);
+      if (backgroundPollTimer) clearInterval(backgroundPollTimer);
       refreshStates.forEach(state => {
         if (state.timer) clearTimeout(state.timer);
         state.waiters.forEach(waiter => waiter.resolve());
@@ -480,10 +579,17 @@ export default function RepoTabsPage() {
     });
   });
 
+  // Assim que a inicialização termina, já preenche as bolinhas das outras abas.
+  createEffect(() => {
+    if (!isInitializing()) void untrack(() => pollBackgroundRepos());
+  });
+
   const activeRepo = createMemo(() => {
     const currentActive = active();
     if (!currentActive) return null;
-    return repos().find(r => r.path === currentActive) || null;
+    const repo = repos().find(r => r.path === currentActive);
+    // Enquanto os dados não chegam, as telas mostram o fallback de carregamento.
+    return repo && !repo.pending ? repo : null;
   });
 
   const changeActiveRepo = (newActive: string | null) => {
