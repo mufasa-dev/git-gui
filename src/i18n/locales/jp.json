@@ -1003,5 +1003,38 @@
     "banner": "最新コミットのファイル + ステージ済みの変更。「元に戻す」でファイルをコミットから外します。",
     "pushed_badge": "プッシュ済み: 強制プッシュが必要です",
     "remove_hint": "選択したファイルを修正後のコミットから外します"
+  },
+  "hunk": {
+    "stage": "ハンクをステージ",
+    "unstage": "ハンクを取り消し",
+    "error": "ハンクを適用できませんでした"
+  },
+  "eol": {
+    "title": "改行コード",
+    "only_title": "改行コードだけが変更されています",
+    "only_desc": "内容は同じで、改行コードだけが変わっています（Git: {{index}}、ディスク: {{worktree}}）。エディターや core.autocrlf の設定が原因のことが多いです。",
+    "normalize_file": "{{eol}} に変換",
+    "show_anyway": "差分を表示",
+    "banner": "{{count}} 個のファイルが改行コード (CRLF/LF) のみ変更されています。",
+    "normalize_all": "正規化",
+    "create_gitattributes": ".gitattributes を作成",
+    "gitattributes_hint": "\"* text=auto\" を含む .gitattributes を作成し、Git が改行コードを自動で正規化するようにします",
+    "normalized": "{{count}} 個のファイルを正規化しました。",
+    "gitattributes_created": "\"* text=auto\" で .gitattributes を作成しました。コミットを忘れずに。"
+  },
+  "commit_msg": {
+    "too_long": "タイトルが {{count}} 文字です（最大 72）。詳細は説明に移してください。",
+    "long": "50 文字以内のタイトルが読みやすいです。",
+    "trailing_period": "タイトルの末尾にピリオドを付けないでください。",
+    "type_hint": "種類:"
+  },
+  "push": {
+    "rejected_title": "プッシュが拒否されました",
+    "rejected_message": "ブランチ {{branch}} のリモートに、ローカルにないコミットがあります。他の人がプッシュした場合は先にプルしてください。履歴を書き換えた場合 (amend、rebase) は強制プッシュを使ってください。",
+    "pull_first": "先にプル",
+    "force": "強制プッシュ (--force-with-lease)",
+    "force_hint": "--force-with-lease は、リモートが最後に確認した状態のままの場合にのみ上書きします。その間に誰かがプッシュしていれば拒否されます。",
+    "forced_success": "強制プッシュが完了しました！",
+    "lease_failed": "最後のフェッチ以降にリモートが変更されたため、他の人のコミットを消さないよう強制プッシュは拒否されました。フェッチ/プルしてから再試行してください。"
   }
 }

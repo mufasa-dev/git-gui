@@ -194,9 +194,16 @@ export async function pushRepo(
   remote: string = "origin",
   branch: string = "HEAD",
   token?: string,
-  provider?: string
+  provider?: string,
+  forceWithLease: boolean = false
 ): Promise<string> {
-  return await invoke("push_repo", { path: repoPath, remote, branch, token, provider });
+  return await invoke("push_repo", { path: repoPath, remote, branch, token, provider, forceWithLease });
+}
+
+export function isPushRejected(error: unknown): boolean {
+  const message = String(error).toLowerCase();
+  return message.includes("[rejected]") || message.includes("non-fast-forward")
+    || message.includes("fetch first") || message.includes("updates were rejected");
 }
 
 export async function pull(repoPath: string, branch: string, token?: string, provider?: string): Promise<GitPullResult> {
@@ -569,4 +576,23 @@ export async function getAmendDiff(repoPath: string, file: string): Promise<Diff
 
 export async function removeFromAmend(repoPath: string, files: string[]): Promise<void> {
   await invoke("remove_from_amend", { repoPath, files });
+}
+
+
+export async function applyPatchToIndex(repoPath: string, patch: string, reverse: boolean): Promise<void> {
+  await invoke("apply_patch_to_index", { repoPath, patch, reverse });
+}
+
+export type LineEndingChanges = { files: string[]; hasGitattributes: boolean };
+
+export async function listLineEndingChanges(repoPath: string): Promise<LineEndingChanges> {
+  return await invoke<LineEndingChanges>("list_line_ending_changes", { repoPath });
+}
+
+export async function normalizeLineEndings(repoPath: string, files: string[]): Promise<number> {
+  return await invoke<number>("normalize_line_endings", { repoPath, files });
+}
+
+export async function createGitattributes(repoPath: string): Promise<void> {
+  await invoke("create_gitattributes", { repoPath });
 }

@@ -859,6 +859,11 @@ pub fn get_diff_blocking(
     let diff_binary = diff_str.contains("Binary files") || diff_str.contains("GIT binary patch");
     let preview = text_preview(&diff_bytes);
     let truncated = output_truncated || preview.truncated;
+    let eol = if !diff_binary && !diff_str.trim().is_empty() {
+        line_ending_only_info(&repo_path, &file, staged)
+    } else {
+        None
+    };
 
     Ok(json!({
         "diff": if diff_binary || truncated { "" } else { diff_str.as_str() },
@@ -870,6 +875,8 @@ pub fn get_diff_blocking(
         "isPreviewable": !diff_binary && !truncated,
         "truncated": truncated,
         "hasConflict": false,
+        "lineEndingOnly": eol.is_some(),
+        "eol": eol,
         "reason": if diff_binary { Some("binary") } else if truncated { Some("diff_too_large") } else { None::<&str> }
     }))
 }
@@ -1227,4 +1234,166 @@ pub fn remove_from_amend_blocking(repo_path: String, files: Vec<String>) -> Resu
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
     Ok(())
+}
+
+fn index_eol(repo_path: &str, file: &str) -> Option<(String, String)> {
+    let output = git_stdout(repo_path, &["ls-files", "--eol", "--", file])?;
+    let line = output.lines().next()?;
+    let mut index = String::new();
+    let mut worktree = String::new();
+    for token in line.split_whitespace() {
+        if let Some(value) = token.strip_prefix("i/") {
+            index = value.to_string();
+        } else if let Some(value) = token.strip_prefix("w/") {
+            worktree = value.to_string();
+        }
+    }
+    Some((index, worktree))
+}
+
+fn line_ending_only_info(repo_path: &str, file: &str, staged: bool) -> Option<serde_json::Value> {
+    let mut args = vec!["diff", "--quiet", "--ignore-cr-at-eol"];
+    if staged {
+        args.push("--cached");
+    }
+    args.extend(["--", file]);
+    if !git_succeeds(repo_path, &args) {
+        return None;
+    }
+    let (index, worktree) = index_eol(repo_path, file).unwrap_or_default();
+    Some(json!({ "index": index, "worktree": worktree }))
+}
+
+#[tauri::command]
+pub async fn list_line_ending_changes(repo_path: String) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || list_line_ending_changes_blocking(repo_path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn list_line_ending_changes_blocking(repo_path: String) -> Result<serde_json::Value, String> {
+    let changed = git_stdout(&repo_path, &["diff", "--name-only", "--no-renames", "-z"])
+        .ok_or_else(|| "Falha ao listar alterações".to_string())?;
+    let with_content = git_stdout(
+        &repo_path,
+        &["diff", "--numstat", "--no-renames", "--ignore-cr-at-eol", "-z"],
+    )
+    .ok_or_else(|| "Falha ao listar alterações".to_string())?;
+
+    let content_files: std::collections::HashSet<String> = with_content
+        .split('\0')
+        .filter_map(|entry| entry.splitn(3, '\t').nth(2))
+        .filter(|path| !path.is_empty())
+        .map(|path| path.to_string())
+        .collect();
+
+    let files: Vec<String> = changed
+        .split('\0')
+        .filter(|path| !path.is_empty() && !content_files.contains(*path))
+        .map(|path| path.to_string())
+        .collect();
+
+    let has_gitattributes = Path::new(&repo_path).join(".gitattributes").exists();
+
+    Ok(json!({ "files": files, "hasGitattributes": has_gitattributes }))
+}
+
+#[tauri::command]
+pub async fn normalize_line_endings(repo_path: String, files: Vec<String>) -> Result<usize, String> {
+    tauri::async_runtime::spawn_blocking(move || normalize_line_endings_blocking(repo_path, files))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn normalize_line_endings_blocking(repo_path: String, files: Vec<String>) -> Result<usize, String> {
+    let mut normalized = 0;
+    for file in files {
+        let full_path = safe_worktree_path(&repo_path, &file)?;
+        let Some((index, _)) = index_eol(&repo_path, &file) else {
+            continue;
+        };
+        let use_crlf = match index.as_str() {
+            "lf" => false,
+            "crlf" => true,
+            _ => continue,
+        };
+
+        let bytes = fs::read(&full_path).map_err(|e| format!("{}: {}", file, e))?;
+        if is_binary_bytes(&bytes) {
+            continue;
+        }
+
+        let mut lf = Vec::with_capacity(bytes.len());
+        let mut iter = bytes.iter().peekable();
+        while let Some(&byte) = iter.next() {
+            if byte == b'\r' && iter.peek() == Some(&&b'\n') {
+                continue;
+            }
+            lf.push(byte);
+        }
+
+        let output = if use_crlf {
+            let mut crlf = Vec::with_capacity(lf.len() + lf.len() / 20);
+            for byte in lf {
+                if byte == b'\n' {
+                    crlf.push(b'\r');
+                }
+                crlf.push(byte);
+            }
+            crlf
+        } else {
+            lf
+        };
+
+        if output != bytes {
+            fs::write(&full_path, output).map_err(|e| format!("{}: {}", file, e))?;
+            normalized += 1;
+        }
+    }
+    Ok(normalized)
+}
+
+#[tauri::command]
+pub fn create_gitattributes(repo_path: String) -> Result<(), String> {
+    let path = Path::new(&repo_path).join(".gitattributes");
+    if path.exists() {
+        return Err("O repositório já possui um .gitattributes".to_string());
+    }
+    fs::write(&path, "* text=auto\n").map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn apply_patch_to_index(repo_path: String, patch: String, reverse: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || apply_patch_to_index_blocking(repo_path, patch, reverse))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn apply_patch_to_index_blocking(repo_path: String, patch: String, reverse: bool) -> Result<(), String> {
+    use std::io::Write;
+
+    let mut cmd = git_command(&repo_path);
+    cmd.args(["apply", "--cached", "--whitespace=nowarn"]);
+    if reverse {
+        cmd.arg("--reverse");
+    }
+    cmd.arg("-")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+    {
+        let stdin = child
+            .stdin
+            .as_mut()
+            .ok_or_else(|| "Não foi possível enviar o patch ao Git".to_string())?;
+        stdin.write_all(patch.as_bytes()).map_err(|e| e.to_string())?;
+    }
+    let output = child.wait_with_output().map_err(|e| e.to_string())?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
 }

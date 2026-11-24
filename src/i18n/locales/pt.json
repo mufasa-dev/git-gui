@@ -1003,5 +1003,38 @@
     "banner": "Arquivos do último commit + alterações preparadas. \"Desfazer\" remove o arquivo do commit.",
     "pushed_badge": "Já enviado ao remoto: vai precisar de push forçado",
     "remove_hint": "Remove os arquivos selecionados do commit corrigido"
+  },
+  "hunk": {
+    "stage": "Preparar trecho",
+    "unstage": "Desfazer trecho",
+    "error": "Não foi possível aplicar o trecho"
+  },
+  "eol": {
+    "title": "Quebra de linha",
+    "only_title": "Só a quebra de linha mudou",
+    "only_desc": "O conteúdo é igual; mudou apenas o fim de linha (Git: {{index}}, disco: {{worktree}}). Isso costuma vir do editor ou da configuração core.autocrlf.",
+    "normalize_file": "Converter para {{eol}}",
+    "show_anyway": "Ver diff mesmo assim",
+    "banner": "{{count}} arquivo(s) alterado(s) só na quebra de linha (CRLF/LF).",
+    "normalize_all": "Normalizar",
+    "create_gitattributes": "Criar .gitattributes",
+    "gitattributes_hint": "Cria um .gitattributes com \"* text=auto\" para o Git normalizar as quebras de linha automaticamente",
+    "normalized": "{{count}} arquivo(s) normalizado(s).",
+    "gitattributes_created": ".gitattributes criado com \"* text=auto\". Lembre de commitá-lo."
+  },
+  "commit_msg": {
+    "too_long": "Título com {{count}} caracteres (máx. 72): mova os detalhes para a descrição.",
+    "long": "Títulos com até 50 caracteres são mais legíveis.",
+    "trailing_period": "Evite ponto final no título.",
+    "type_hint": "Tipo:"
+  },
+  "push": {
+    "rejected_title": "Push rejeitado",
+    "rejected_message": "O remoto da branch {{branch}} tem commits que a sua não tem. Se outra pessoa enviou commits, faça pull antes. Se você reescreveu o histórico (amend, rebase), use o push forçado.",
+    "pull_first": "Fazer pull primeiro",
+    "force": "Forçar push (--force-with-lease)",
+    "force_hint": "--force-with-lease só sobrescreve o remoto se ele ainda estiver no ponto que o seu Git conhece; se alguém enviou commits nesse meio tempo, o push é recusado.",
+    "forced_success": "Push forçado realizado com sucesso!",
+    "lease_failed": "O remoto mudou desde o último fetch e o push forçado foi recusado para não apagar commits de outra pessoa. Faça fetch/pull e tente de novo."
   }
 }

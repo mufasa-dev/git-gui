@@ -1003,5 +1003,38 @@
     "banner": "File dell'ultimo commit + modifiche preparate. \"Annulla\" rimuove il file dal commit.",
     "pushed_badge": "Già inviato: richiederà un push forzato",
     "remove_hint": "Rimuove i file selezionati dal commit corretto"
+  },
+  "hunk": {
+    "stage": "Prepara blocco",
+    "unstage": "Annulla blocco",
+    "error": "Impossibile applicare il blocco"
+  },
+  "eol": {
+    "title": "Fine riga",
+    "only_title": "È cambiato solo il fine riga",
+    "only_desc": "Il contenuto è uguale; è cambiato solo il fine riga (Git: {{index}}, disco: {{worktree}}). Di solito dipende dall'editor o da core.autocrlf.",
+    "normalize_file": "Converti in {{eol}}",
+    "show_anyway": "Mostra comunque il diff",
+    "banner": "{{count}} file modificati solo nel fine riga (CRLF/LF).",
+    "normalize_all": "Normalizza",
+    "create_gitattributes": "Crea .gitattributes",
+    "gitattributes_hint": "Crea un .gitattributes con \"* text=auto\" perché Git normalizzi i fine riga automaticamente",
+    "normalized": "{{count}} file normalizzati.",
+    "gitattributes_created": ".gitattributes creato con \"* text=auto\". Ricordati di committarlo."
+  },
+  "commit_msg": {
+    "too_long": "Titolo di {{count}} caratteri (max 72): sposta i dettagli nella descrizione.",
+    "long": "I titoli fino a 50 caratteri sono più leggibili.",
+    "trailing_period": "Evita il punto finale nel titolo.",
+    "type_hint": "Tipo:"
+  },
+  "push": {
+    "rejected_title": "Push rifiutato",
+    "rejected_message": "Il remoto del branch {{branch}} ha commit che il tuo non ha. Se qualcun altro ha fatto push, fai prima pull. Se hai riscritto la cronologia (amend, rebase), usa il push forzato.",
+    "pull_first": "Fai prima pull",
+    "force": "Forza push (--force-with-lease)",
+    "force_hint": "--force-with-lease sovrascrive il remoto solo se è ancora dove il tuo Git lo ha visto l'ultima volta; se qualcuno ha fatto push nel frattempo, viene rifiutato.",
+    "forced_success": "Push forzato completato!",
+    "lease_failed": "Il remoto è cambiato dall'ultimo fetch e il push forzato è stato rifiutato per non cancellare commit altrui. Fai fetch/pull e riprova."
   }
 }

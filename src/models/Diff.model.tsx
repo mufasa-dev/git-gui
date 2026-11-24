@@ -9,4 +9,6 @@ export type Diff = {
     truncated?: boolean;
     hasConflict?: boolean;
     reason?: string;
+    lineEndingOnly?: boolean;
+    eol?: { index: string; worktree: string } | null;
 }

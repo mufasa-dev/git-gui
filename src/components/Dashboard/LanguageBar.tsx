@@ -1,5 +1,5 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
-import { GROUP_COLORS, IGNORED_EXTENSIONS, LANGUAGE_GROUPS } from "../../utils/file";
+import { findBuildOutputRoots, GROUP_COLORS, IGNORED_EXTENSIONS, isBuildOutputPath, LANGUAGE_GROUPS } from "../../utils/file";
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
 
@@ -35,17 +35,12 @@ export default function LanguageBar(props: { files: { path: string, size: number
   const codeFiles = createMemo(() => {
     if (!props.files.length) return [];
     
+    const buildRoots = findBuildOutputRoots(props.files.map(file => file.path));
+
     return props.files.filter(file => {
       const path = file.path;
-    
-      if (
-        path.includes('.godot/') ||    
-        path.includes('.import/') ||   
-        path.includes('node_modules/') || 
-        path.includes('/bin/') || 
-        path.includes('/obj/') || 
-        path.includes('target/')       
-      ) {
+
+      if (isBuildOutputPath(path, buildRoots)) {
         return false;
       }
       const fileName = path.split('/').pop() || ''; 

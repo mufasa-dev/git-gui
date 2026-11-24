@@ -236,6 +236,7 @@ pub async fn push_repo(
     branch: Option<String>,
     token: Option<String>,
     provider: Option<String>,
+    force_with_lease: Option<bool>,
 ) -> Result<String, String> {
     let remote_name = remote.unwrap_or_else(|| "origin".to_string());
     let branch_name = branch.unwrap_or_else(|| "HEAD".to_string());
@@ -243,8 +244,15 @@ pub async fn push_repo(
     let mut cmd = git_command_async(&path);
     cmd = configure_git_auth_async(cmd, token, provider);
 
+    let mut args = vec!["push", "-u"];
+    if force_with_lease.unwrap_or(false) {
+        args.push("--force-with-lease");
+    }
+    args.push(&remote_name);
+    args.push(&branch_name);
+
     let output = cmd
-        .args(["push", "-u", &remote_name, &branch_name])
+        .args(&args)
         .output()
         .await
         .map_err(|e| e.to_string())?;

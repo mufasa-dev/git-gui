@@ -5,7 +5,7 @@ import Button from "../ui/Button";
 import DropdownButton from "../ui/DropdownButton";
 import NewBranchModal from "../branch/NewBranchModal";
 import BranchSelector from "../branch/BranchSelector"; // 🌟 Import do novo seletor customizado
-import { fetchRepo, getRepositorySnapshot, getCurrentBranch, pull, pushRepo, validateRepo, createBranch, configPullMode, listStashes, listTags, applyStash, popStash, clearStashes } from "../../services/gitService";
+import { fetchRepo, getRepositorySnapshot, getCurrentBranch, isPushRejected, pull, pushRepo, validateRepo, createBranch, configPullMode, listStashes, listTags, applyStash, popStash, clearStashes } from "../../services/gitService";
 import { saveRepos } from "../../services/storeService";
 import folderIcon from "../../assets/folder_silver.png";
 import fetchIcon from "../../assets/reload_silver.png";
@@ -45,6 +45,7 @@ type Props = {
 
 export default function Header(props: Props) {
     const [pushing, setPushing] = createSignal(false);
+    const [rejectedPush, setRejectedPush] = createSignal<{ repoPath: string; branch: string } | null>(null);
     const [pulling, setPulling] = createSignal(false);
     const [fetching, setFetching] = createSignal(false);
     const { showLoading, hideLoading } = useLoading();
@@ -106,14 +107,15 @@ export default function Header(props: Props) {
         }
     }
 
-    const doPush = async () => {
+    const doPush = async (forceWithLease: boolean = false) => {
       const repoPath = props.active;
       if (!repoPath) return;
+      let branch = "";
       props.setRepoBusy?.(repoPath, true);
       setPushing(true);
       showLoading(t("loading").pushing);
       try {
-        const branch = await getCurrentBranch(repoPath);
+        branch = await getCurrentBranch(repoPath);
         
         let tokenToSend = "";
         if (provider() === 'azure') {
@@ -122,12 +124,18 @@ export default function Header(props: Props) {
           tokenToSend = await githubService.getToken() || "";
         }
 
-        await pushRepo(repoPath, "origin", branch, tokenToSend, provider());
+        await pushRepo(repoPath, "origin", branch, tokenToSend, provider(), forceWithLease);
         
-        notify.success('Git Push', `Push realizado com sucesso!`);
+        notify.success('Git Push', forceWithLease ? t('push').forced_success : `Push realizado com sucesso!`);
         await props.refreshBranches(repoPath);
       } catch (err) {
-        notify.error('Erro no Push', `${err}`);
+        if (!forceWithLease && branch && isPushRejected(err)) {
+          setRejectedPush({ repoPath, branch });
+        } else if (forceWithLease && isPushRejected(err)) {
+          notify.error('Erro no Push', t('push').lease_failed);
+        } else {
+          notify.error('Erro no Push', `${err}`);
+        }
       } finally {
         setPushing(false);
         props.setRepoBusy?.(repoPath, false);
@@ -434,6 +442,38 @@ export default function Header(props: Props) {
             onCreate={(branchName: string, branchType: string, checkout: boolean, baseBranch: string) => doCreateBranch(branchName, branchType, checkout, baseBranch)}
             repoPath={props.active!} branches={props.active ? props.repos.find(r => r.path === props.active!)?.branches.map(b => b.name) || [] : []}
             refreshBranches={props.refreshBranches} />
+
+            <Dialog
+              open={rejectedPush() !== null}
+              title={t('push').rejected_title}
+              onClose={() => setRejectedPush(null)}
+            >
+              <div class="space-y-4 text-gray-700 dark:text-gray-200">
+                <p>{t('push').rejected_message.replace('{{branch}}', rejectedPush()?.branch ?? '')}</p>
+                <div class="space-y-2">
+                  <button
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
+                    onClick={async () => {
+                      setRejectedPush(null);
+                      await doPull();
+                    }}
+                  >
+                    <i class="fa-solid fa-download mr-2"></i>{t('push').pull_first}
+                  </button>
+                  <button
+                    class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition"
+                    onClick={async () => {
+                      const target = rejectedPush();
+                      setRejectedPush(null);
+                      if (target && target.repoPath === props.active) await doPush(true);
+                    }}
+                  >
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>{t('push').force}
+                  </button>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{t('push').force_hint}</p>
+                </div>
+              </div>
+            </Dialog>
 
             <Dialog
               open={showModalPullOpts()}

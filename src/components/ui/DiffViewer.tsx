@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { Diff } from "../../models/Diff.model";
 import { loadGitImage, loadImage } from "../../services/imageService";
 import Dialog from "./Dialog";
@@ -24,6 +24,9 @@ type Props = {
   status?: string;
   onSaveSuccess?: (file: string) => void;
   onMergeStatusChange?: (active: boolean) => void;
+  hunkAction?: "stage" | "unstage";
+  onHunkAction?: (patch: string, reverse: boolean) => Promise<void>;
+  onNormalizeEol?: () => Promise<void>;
 };
 
 type DiffLine = {
@@ -31,7 +34,25 @@ type DiffLine = {
   oldLine?: number;
   newLine?: number;
   content: string;
+  hunkIndex?: number;
 };
+
+function splitPatch(diff: string): { header: string[]; hunks: string[][] } {
+  const lines = (diff || "").split("\n");
+  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  const header: string[] = [];
+  const hunks: string[][] = [];
+  for (const line of lines) {
+    if (line.startsWith("@@")) {
+      hunks.push([line]);
+    } else if (hunks.length === 0) {
+      header.push(line);
+    } else {
+      hunks[hunks.length - 1].push(line);
+    }
+  }
+  return { header, hunks };
+}
 
 function parseDiff(diff: string): DiffLine[] {
   if (!diff) return [];
@@ -41,6 +62,7 @@ function parseDiff(diff: string): DiffLine[] {
 
   let oldLine = 0;
   let newLine = 0;
+  let hunkIndex = -1;
 
   for (const line of lines) {
     if (line.includes("No newline at end of file")) {
@@ -63,7 +85,8 @@ function parseDiff(diff: string): DiffLine[] {
         oldLine = parseInt(match[1], 10);
         newLine = parseInt(match[2], 10);
       }
-      result.push({ type: "hunk", content: line });
+      hunkIndex++;
+      result.push({ type: "hunk", content: line, hunkIndex });
       continue;
     }
 
@@ -84,6 +107,40 @@ function parseDiff(diff: string): DiffLine[] {
 export default function DiffViewer(props: Props) {
   const diffLines = createMemo(() => parseDiff(props.diff.diff));
   const [showMergeResolver, setShowMergeResolver] = createSignal(false);
+  const [showEolDiff, setShowEolDiff] = createSignal(false);
+  const [hunkBusy, setHunkBusy] = createSignal(false);
+  const [eolBusy, setEolBusy] = createSignal(false);
+  const patchParts = createMemo(() => splitPatch(props.diff.diff));
+  const eolOnly = () => Boolean(props.diff.lineEndingOnly) && !showEolDiff();
+  const canUseHunks = () => Boolean(props.hunkAction && props.onHunkAction)
+    && patchParts().header.some(line => line.startsWith("--- "));
+
+  createEffect(on(() => props.file, () => setShowEolDiff(false), { defer: true }));
+
+  const runHunkAction = async (index?: number) => {
+    if (index === undefined || hunkBusy() || !props.onHunkAction) return;
+    const parts = patchParts();
+    const hunk = parts.hunks[index];
+    if (!hunk) return;
+    setHunkBusy(true);
+    try {
+      await props.onHunkAction([...parts.header, ...hunk].join("\n") + "\n", props.hunkAction === "unstage");
+    } finally {
+      setHunkBusy(false);
+    }
+  };
+
+  const runNormalizeEol = async () => {
+    if (!props.onNormalizeEol || eolBusy()) return;
+    setEolBusy(true);
+    try {
+      await props.onNormalizeEol();
+    } finally {
+      setEolBusy(false);
+    }
+  };
+
+  const eolLabel = (value?: string) => (value || "?").toUpperCase();
   const { t } = useApp();
 
   const isBinary = createMemo(() => {
@@ -243,7 +300,34 @@ export default function DiffViewer(props: Props) {
         </div>
       </Show>
 
-      <Show when={!previewUnavailable() && (!hasConflict() || props.isStaged)}>
+      <Show when={!previewUnavailable() && eolOnly() && (!hasConflict() || props.isStaged)}>
+        <div class="h-full flex items-center justify-center p-8">
+          <div class="max-w-xl w-full rounded-xl border border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/30 p-8 text-center">
+            <i class="fa-solid fa-arrow-turn-down text-4xl text-sky-500 mb-4"></i>
+            <h2 class="text-xl font-semibold mb-2">{t('eol').only_title}</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-5">
+              {t('eol').only_desc
+                .replace('{{index}}', eolLabel(props.diff.eol?.index))
+                .replace('{{worktree}}', eolLabel(props.diff.eol?.worktree))}
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-3">
+              <Show when={props.onNormalizeEol && !props.isStaged}>
+                <button class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-50"
+                  disabled={eolBusy()} onClick={runNormalizeEol}>
+                  <i class={`fa-solid ${eolBusy() ? "fa-spinner animate-spin" : "fa-wand-magic"}`}></i>
+                  {t('eol').normalize_file.replace('{{eol}}', eolLabel(props.diff.eol?.index))}
+                </button>
+              </Show>
+              <button class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600"
+                onClick={() => setShowEolDiff(true)}>
+                {t('eol').show_anyway}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Show>
+
+      <Show when={!previewUnavailable() && !eolOnly() && (!hasConflict() || props.isStaged)}>
         <div class="w-full min-w-full">
           <div class="font-mono text-sm rounded-md w-full custom-scrollbar">
             <div class="min-w-max flex flex-col">
@@ -271,6 +355,26 @@ export default function DiffViewer(props: Props) {
                       class="flex-1 px-4 whitespace-pre select-text font-mono leading-6 alignment-baseline"
                       innerHTML={highlightCode(line.content, props.file)}
                     />
+                    <Show when={line.type === "hunk" && canUseHunks()}>
+                      <div class="sticky right-0 flex items-center pr-2 pl-4 bg-blue-50 dark:bg-slate-800">
+                        <button
+                          type="button"
+                          class="flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold opacity-100 transition-colors disabled:opacity-40"
+                          classList={{
+                            "border-green-500/50 text-green-700 hover:bg-green-500/15 dark:text-green-300": props.hunkAction === "stage",
+                            "border-amber-500/50 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300": props.hunkAction === "unstage",
+                          }}
+                          disabled={hunkBusy()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void runHunkAction(line.hunkIndex);
+                          }}
+                        >
+                          <i class={`fa-solid ${props.hunkAction === "stage" ? "fa-plus" : "fa-minus"}`}></i>
+                          {props.hunkAction === "stage" ? t('hunk').stage : t('hunk').unstage}
+                        </button>
+                      </div>
+                    </Show>
                   </div>
                 )}
               </For>

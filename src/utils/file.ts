@@ -364,14 +364,46 @@ export const IGNORED_EXTENSIONS = [
   // Dados opacos/criptografados
   'enc',
   // Assinaturas/chaves PGP em ASCII (.asc), imagens TIFF, templates e config do Prettier
-  'asc', 'tif', 'tiff', 'template', 'prettierrc'
+  'asc', 'tif', 'tiff', 'template', 'prettierrc',
+  // Artefatos de compilação (Rust/Cargo, C/C++, MSVC)
+  'o', 'a', 'rlib', 'rmeta', 'exp', 'ilk', 'idb', 'pch', 'gch', 'dylib', 'd', 'timestamp', 'cargo-lock', 'tag'
 ];
+
+export const BUILD_OUTPUT_DIRS = ['node_modules', 'target', 'bin', 'obj', '.godot', '.import'];
+
+export function findBuildOutputRoots(paths: string[]): string[] {
+  const roots = new Set<string>();
+  for (const path of paths) {
+    const parts = path.split('/');
+    const name = (parts[parts.length - 1] || '').toLowerCase();
+    if (name === 'cachedir.tag' || name === '.rustc_info.json') {
+      if (parts.length > 1) roots.add(parts.slice(0, -1).join('/'));
+      continue;
+    }
+    if (name === '.cargo-lock' && parts.length > 2) {
+      roots.add(parts.slice(0, -2).join('/'));
+      continue;
+    }
+    const markerIndex = parts.findIndex(part => part === '.fingerprint' || part === 'incremental');
+    if (markerIndex > 1) roots.add(parts.slice(0, markerIndex - 1).join('/'));
+  }
+  return [...roots];
+}
+
+export function isBuildOutputPath(path: string, roots: string[] = []): boolean {
+  const parts = path.toLowerCase().split('/');
+  const isOutputDir = (part: string, index: number) =>
+    BUILD_OUTPUT_DIRS.includes(part) && !(part === 'bin' && parts[index - 1] === 'src');
+  if (parts.slice(0, -1).some(isOutputDir)) return true;
+  return roots.some(root => path === root || path.startsWith(root + '/'));
+}
 
 export const PREVIEW_MAX_BYTES = 2 * 1024 * 1024;
 export const PREVIEW_MAX_LINES = 1000;
 
 export const UNSUPPORTED_EXTENSIONS = [
   '.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.bin', '.dll', '.so', '.dylib',
+  '.o', '.a', '.rlib', '.rmeta', '.exp', '.lib', '.pdb', '.ilk', '.idb', '.pch', '.gch',
   '.mp4', '.mkv', '.mov', '.mp3', '.ogg', '.wav', '.avi', '.webm',
   '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
   '.ds_store', '.ifc', '.bim', '.rvt', '.rfa', '.nwd', '.nwc',
@@ -383,4 +415,4 @@ export const UNSUPPORTED_EXTENSIONS = [
 export function isUnsupportedPreviewFile(filename: string): boolean {
   const normalized = filename.toLowerCase();
   return UNSUPPORTED_EXTENSIONS.some(extension => normalized.endsWith(extension));
-}
+}

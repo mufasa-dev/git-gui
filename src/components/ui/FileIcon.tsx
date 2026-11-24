@@ -105,6 +105,8 @@ export default function FileIcon(props: FileIconProps) {
     if (name.endsWith('.csproj.user')) return cSharpIcon;
     if (name.includes('package.json')) return packageIcon;
     if (name.includes('package-lock.json')) return packageIcon;
+    if (name === 'cargo.toml' || name === 'cargo.lock' || name === 'rust-toolchain' || name === 'rust-toolchain.toml') return rustIcon;
+    if (name === 'cachedir.tag' || name === '.cargo-lock' || name === '.rustc_info.json') return configIcon;
 
     // Ícones de teste
     if (name === 'jasmine') return jasmineIcon;
@@ -261,6 +263,18 @@ export default function FileIcon(props: FileIconProps) {
       woff: fontIcon,
       woff2: fontIcon,
       dll: dllIcon,
+      o: dllIcon,
+      a: dllIcon,
+      lib: dllIcon,
+      rlib: dllIcon,
+      rmeta: dllIcon,
+      exp: dllIcon,
+      pdb: dllIcon,
+      ilk: dllIcon,
+      dylib: dllIcon,
+      so: dllIcon,
+      d: configIcon,
+      timestamp: configIcon,
       dts: dllIcon,
       delphi: delphiIcon,
       dpr: delphiIcon,
@@ -337,4 +351,4 @@ export default function FileIcon(props: FileIconProps) {
       }}
     />
   );
-}
+}

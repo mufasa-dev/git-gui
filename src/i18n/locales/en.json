@@ -1003,5 +1003,38 @@
     "banner": "Files from the last commit + staged changes. \"Undo\" removes the file from the commit.",
     "pushed_badge": "Already pushed: will require a force push",
     "remove_hint": "Removes the selected files from the amended commit"
+  },
+  "hunk": {
+    "stage": "Stage hunk",
+    "unstage": "Unstage hunk",
+    "error": "Couldn't apply the hunk"
+  },
+  "eol": {
+    "title": "Line endings",
+    "only_title": "Only line endings changed",
+    "only_desc": "The content is the same; only the line endings changed (Git: {{index}}, disk: {{worktree}}). This usually comes from the editor or core.autocrlf.",
+    "normalize_file": "Convert to {{eol}}",
+    "show_anyway": "Show diff anyway",
+    "banner": "{{count}} file(s) changed only in line endings (CRLF/LF).",
+    "normalize_all": "Normalize",
+    "create_gitattributes": "Create .gitattributes",
+    "gitattributes_hint": "Creates a .gitattributes with \"* text=auto\" so Git normalizes line endings automatically",
+    "normalized": "{{count}} file(s) normalized.",
+    "gitattributes_created": ".gitattributes created with \"* text=auto\". Remember to commit it."
+  },
+  "commit_msg": {
+    "too_long": "Title has {{count}} characters (max 72): move details to the description.",
+    "long": "Titles up to 50 characters are easier to read.",
+    "trailing_period": "Avoid a trailing period in the title.",
+    "type_hint": "Type:"
+  },
+  "push": {
+    "rejected_title": "Push rejected",
+    "rejected_message": "The remote of branch {{branch}} has commits yours doesn't. If someone else pushed, pull first. If you rewrote history (amend, rebase), use a force push.",
+    "pull_first": "Pull first",
+    "force": "Force push (--force-with-lease)",
+    "force_hint": "--force-with-lease only overwrites the remote if it's still where your Git last saw it; if someone pushed in the meantime, the push is refused.",
+    "forced_success": "Force push completed!",
+    "lease_failed": "The remote changed since your last fetch, so the force push was refused to avoid deleting someone else's commits. Fetch/pull and try again."
   }
 }

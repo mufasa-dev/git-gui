@@ -1,6 +1,6 @@
-import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { AmendInfo, commit, discard_changes, getAmendDiff, getAmendInfo, getDiff, ignoreFile, listAmendChanges, removeFromAmend, stageFiles, unstageFiles } from "../../services/gitService";
+import { AmendInfo, applyPatchToIndex, commit, createGitattributes, discard_changes, getAmendDiff, getAmendInfo, getDiff, ignoreFile, LineEndingChanges, listAmendChanges, listLineEndingChanges, normalizeLineEndings, removeFromAmend, stageFiles, unstageFiles } from "../../services/gitService";
 import ConfirmModal from "../ui/ConfirmModal";
 import { FolderTreeView } from "../ui/FolderTreeview";
 import { ChangeListView } from "../ui/ChangeListView";
@@ -43,6 +43,9 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [amendWarnings, setAmendWarnings] = createSignal<string[] | null>(null);
   let amendSavedDraft: { message: string; description: string } | null = null;
   let amendRequestId = 0;
+  const [eolChanges, setEolChanges] = createSignal<LineEndingChanges>({ files: [], hasGitattributes: true });
+  const [eolBusy, setEolBusy] = createSignal(false);
+  let eolRequestId = 0;
   let lastRepoPath: string | undefined;
   let diffRequestId = 0;
   const { refreshBranches, refreshLocalChanges, commitDrafts, updateCommitDraft, clearCommitDraft } = useRepoContext();
@@ -163,6 +166,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
 
     void syncChanges(localChanges);
+    void refreshEolChanges();
     if (untrack(commitAmend)) void refreshAmendChanges();
   });
 
@@ -437,6 +441,96 @@ export function LocalChanges(props: { repo: Repo; }) {
     await loadChanges();
   }
 
+  const refreshEolChanges = async () => {
+    const requestId = ++eolRequestId;
+    const repoPath = props.repo.path;
+    const hasModified = (props.repo.localChanges ?? []).some(change => !change.staged && change.status === "modified");
+    if (!hasModified) {
+      setEolChanges({ files: [], hasGitattributes: true });
+      return;
+    }
+    try {
+      const result = await listLineEndingChanges(repoPath);
+      if (requestId === eolRequestId && repoPath === props.repo.path) setEolChanges(result);
+    } catch {
+      if (requestId === eolRequestId) setEolChanges({ files: [], hasGitattributes: true });
+    }
+  };
+
+  const normalizeEol = async (files: string[]) => {
+    if (files.length === 0 || eolBusy()) return;
+    setEolBusy(true);
+    try {
+      const count = await normalizeLineEndings(props.repo.path, files);
+      notify.success(t('eol').title, t('eol').normalized.replace('{{count}}', String(count)));
+      await loadChanges();
+      if (fileSelected()) await loadDiff(isVisualizingStaged());
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    } finally {
+      setEolBusy(false);
+    }
+  };
+
+  const addGitattributes = async () => {
+    try {
+      await createGitattributes(props.repo.path);
+      notify.success(t('eol').title, t('eol').gitattributes_created);
+      await loadChanges();
+      await refreshEolChanges();
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    }
+  };
+
+  const changeSide = (path: string, stagedSide: boolean) => {
+    if (stagedSide && commitAmend()) return amendChanges().some(change => change.path === path);
+    return changes().some(change => change.path === path && (stagedSide
+      ? change.staged && change.status !== "untracked"
+      : !change.staged || change.status === "untracked"));
+  };
+
+  const applyHunk = async (patch: string, reverse: boolean) => {
+    const path = fileSelected();
+    try {
+      await applyPatchToIndex(props.repo.path, patch, reverse);
+    } catch (error) {
+      notify.error(t('hunk').error, String(error));
+      return;
+    }
+    await loadChanges();
+    if (commitAmend()) await refreshAmendChanges();
+    if (!path || fileSelected() !== path) return;
+
+    let view = isVisualizingStaged();
+    if (!changeSide(path, view) && changeSide(path, !view)) {
+      view = !view;
+      setIsVisualizingStaged(view);
+    }
+    if (!changeSide(path, view)) {
+      setFileSelected("");
+      clearDiff();
+      return;
+    }
+    await loadDiff(view);
+  };
+
+  const hunkActionFor = () => {
+    const status = selectedStatus();
+    if (!fileSelected() || status === "untracked" || status === "conflicted") return undefined;
+    return isVisualizingStaged() ? "unstage" as const : "stage" as const;
+  };
+
+  const titleLength = () => commitMessage().trim().length;
+  const titleIssues = createMemo(() => {
+    const title = commitMessage().trim();
+    const issues: { level: "error" | "warn"; text: string }[] = [];
+    if (title.length > 72) issues.push({ level: "error", text: t('commit_msg').too_long.replace('{{count}}', String(title.length)) });
+    else if (title.length > 50) issues.push({ level: "warn", text: t('commit_msg').long }); 
+    if (title.endsWith(".")) issues.push({ level: "warn", text: t('commit_msg').trailing_period });
+    return issues;
+  });
+
   const prepareAll = async () => {
     const allPaths = changes().map(c => c.path);
     await stageFiles(props.repo.path, allPaths);
@@ -642,6 +736,26 @@ export function LocalChanges(props: { repo: Repo; }) {
               {t('git').prepare}
             </button>
           </div>
+          <Show when={eolChanges().files.length > 0}>
+            <div class="mx-3 mb-2 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1.5 text-[11px] text-sky-800 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-200">
+              <div class="flex items-start gap-1.5">
+                <i class="fa-solid fa-arrow-turn-down mt-0.5"></i>
+                <span title={eolChanges().files.join("\n")}>{t('eol').banner.replace('{{count}}', String(eolChanges().files.length))}</span>
+              </div>
+              <div class="mt-1.5 flex flex-wrap gap-1.5">
+                <button class="rounded-md bg-sky-600 px-2 py-0.5 font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+                  disabled={eolBusy()} onClick={() => normalizeEol(eolChanges().files)}>
+                  <i class={`fa-solid mr-1 ${eolBusy() ? "fa-spinner animate-spin" : "fa-wand-magic"}`}></i>{t('eol').normalize_all}
+                </button>
+                <Show when={!eolChanges().hasGitattributes}>
+                  <button class="rounded-md border border-sky-400 px-2 py-0.5 font-semibold hover:bg-sky-500/10"
+                    title={t('eol').gitattributes_hint} onClick={addGitattributes}>
+                    {t('eol').create_gitattributes}
+                  </button>
+                </Show>
+              </div>
+            </div>
+          </Show>
           {unstaged().length === 0 && <div class="px-4 text-center text-gray-400">{t('git').no_changes}</div>}
           <Show when={viewMode() === "tree"} fallback={
             <ChangeListView
@@ -734,6 +848,9 @@ export function LocalChanges(props: { repo: Repo; }) {
           >
             <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
               path={props.repo.path} isStaged={isVisualizingStaged()} status={selectedStatus()}
+              hunkAction={hunkActionFor()}
+              onHunkAction={applyHunk}
+              onNormalizeEol={() => normalizeEol([fileSelected()])}
               onMergeStatusChange={(open) => setIsMerging(open)}
               onSaveSuccess={(filePath: string) => {
                 setIsMerging(false);
@@ -744,14 +861,48 @@ export function LocalChanges(props: { repo: Repo; }) {
         </div>
         <div class="mt-2 container-branch-list mb-2">
           <div class="flex gap-2 items-center w-full">
-            <input type="text" class="flex-1 input-text mt-0" placeholder={t('commits').commit_message}
-              value={commitMessage()} disabled={isGeneratingAI()}
-              onInput={(e) => {
-                const message = e.currentTarget.value;
-                setCommitMessage(message);
-                saveCommitDraft(message, commitDescription());
-              }}
-            />
+            <div class="relative flex-1">
+              <input type="text" class="w-full input-text mt-0 pr-20" placeholder={t('commits').commit_message}
+                value={commitMessage()} disabled={isGeneratingAI()}
+                onInput={(e) => {
+                  const message = e.currentTarget.value;
+                  setCommitMessage(message);
+                  saveCommitDraft(message, commitDescription());
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    void handleCommit();
+                  }
+                }}
+              />
+              <Show when={titleLength() > 0}>
+                <div class="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1.5 text-[11px] font-mono">
+                  <Show when={titleIssues().length > 0}>
+                    <span class="group relative flex cursor-help items-center">
+                      <i class="fa-solid fa-circle-exclamation"
+                        classList={{
+                          "text-red-500": titleIssues().some(issue => issue.level === "error"),
+                          "text-amber-500": !titleIssues().some(issue => issue.level === "error"),
+                        }}></i>
+                      <span class="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-max max-w-[280px] flex-col gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 font-sans text-xs text-gray-700 shadow-lg group-hover:flex dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200">
+                        <For each={titleIssues()}>
+                          {(issue) => <span>{issue.text}</span>}
+                        </For>
+                      </span>
+                    </span>
+                  </Show>
+                  <span class="pointer-events-none"
+                    classList={{
+                      "text-gray-400": titleLength() <= 50,
+                      "text-amber-500": titleLength() > 50 && titleLength() <= 72,
+                      "text-red-500 font-bold": titleLength() > 72,
+                    }}>
+                    {titleLength()}/72
+                  </span>
+                </div>
+              </Show>
+            </div>
             
             <button 
               class="px-3 py-2 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 
@@ -775,6 +926,12 @@ export function LocalChanges(props: { repo: Repo; }) {
               const description = e.currentTarget.value;
               setCommitDescription(description);
               saveCommitDraft(commitMessage(), description);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                void handleCommit();
+              }
             }}
             rows="2" disabled={isGeneratingAI()}
           />
