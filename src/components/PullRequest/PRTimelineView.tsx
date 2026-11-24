@@ -13,6 +13,9 @@ import { azureService } from "../../services/azure";
 import { AzureCodeSnippet } from "./AzureCodeSnippet";
 import AuthenticatedAvatar from "./AuthenticatedAvatar";
 
+const commitTitle = (message?: string) =>
+    (message || "").split(/\r?\n/).map(line => line.trim()).find(Boolean) || "";
+
 type PRTimelineViewProps = {
     owner: string;
     project: string;
@@ -499,14 +502,15 @@ export default function PRTimelineView(props: PRTimelineViewProps) {
                                 <Show when={item.__typename === 'PullRequestCommit'}>
                                     <div class="relative">
                                         <div class="absolute -left-[35px] top-1 w-[12px] h-[12px] rounded-full bg-blue-500 border-4 border-gray-200 dark:border-gray-600"></div>
-                                        <div class="flex justify-between items-center pr-4">
-                                            <div class="font-mono text-sm font-bold text-gray-500 dark:text-gray-400 flex items-center 
+                                        <div class="flex justify-between items-center gap-3 pr-4">
+                                            <div class="font-mono text-sm font-bold text-gray-500 dark:text-gray-400 flex items-center min-w-0 flex-1
                                                       mt-1 hover:text-blue-500 dark:hover:text-blue-500 hover:underline cursor-pointer transition-colors"
+                                                    title={item.commit.message}
                                                     onClick={() => props.selectCommit(item.commit.oid)}>
-                                                <span>{t('git').commit}</span>
-                                                <CommitMessage message={item.commit.message} class="text-sm text-gray-600 dark:text-gray-300 ml-1" />
+                                                <span class="shrink-0">{t('git').commit}</span>
+                                                <CommitMessage message={commitTitle(item.commit.message)} class="text-sm text-gray-600 dark:text-gray-300 ml-1 min-w-0 truncate" />
                                             </div>
-                                            <span class="opacity-30 font-mono text-[10px]">{new Date(item.commit.committedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                            <span class="shrink-0 opacity-30 font-mono text-[10px]">{new Date(item.commit.committedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                         </div>
                                     </div>
                                 </Show>

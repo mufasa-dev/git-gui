@@ -12,6 +12,8 @@ import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
 import { Repo } from "../../models/Repo.model";
 import { Diff } from "../../models/Diff.model";
+import { GitProvider } from "../../utils/gitProvider";
+import { TextWithCards, useCardModal } from "../board/useCardModal";
 
 type CommitDetailsModalProps = {
   commit: any;
@@ -21,6 +23,9 @@ type CommitDetailsModalProps = {
   openProfile?: boolean;
   selectCommit?: (hash: string) => void;
   onCreateTag?: (commit: { hash: string; subject: string }) => void;
+  provider?: GitProvider;
+  org?: string;
+  isLogged?: boolean;
 };
 
 const fileStatusClass = (status: string) => {
@@ -56,6 +61,14 @@ export function CommitDetailsModal(props: CommitDetailsModalProps) {
   let diffRequestId = 0;
 
   const { t, locale } = useApp();
+
+  const { openCard, CardModal } = useCardModal(() => ({
+    repoPath: props.repo.path,
+    repoName: props.repo.name,
+    provider: props.provider,
+    org: props.org,
+  }));
+  const canClickOnCard = () => props.isLogged !== false;
 
   const fetchFileDiff = async (file: any) => {
     const commitHash = props.commit?.hash;
@@ -230,11 +243,11 @@ export function CommitDetailsModal(props: CommitDetailsModalProps) {
                     <i class="fa-solid fa-message text-blue-500" aria-hidden="true"></i>{t("commits").message}
                   </div>
                   <h2 class="text-xl font-bold leading-snug text-gray-900 dark:text-white">
-                    <CommitMessage message={props.commit.subject} />
+                    <CommitMessage message={props.commit.subject} canClickOnCard={canClickOnCard()} onClickCard={openCard} />
                   </h2>
                   <Show when={props.commit.body}>
                     <div class="mt-5 whitespace-pre-wrap border-t border-gray-100 pt-5 text-sm leading-7 text-gray-600 dark:border-gray-800 dark:text-gray-300">
-                      {props.commit.body}
+                      <TextWithCards text={props.commit.body} clickable={canClickOnCard()} onClickCard={openCard} />
                     </div>
                   </Show>
                 </section>
@@ -321,6 +334,8 @@ export function CommitDetailsModal(props: CommitDetailsModalProps) {
           </Show>
         </div>
       </Show>
+
+      <CardModal />
 
       <Show when={profileOpen()}>
         <Dialog open={profileOpen()} onClose={() => setProfileOpen(false)} title={t("auth").user_profile} icon="fa-solid fa-user" iconColor="text-indigo-600 dark:text-indigo-300" width="90vw">

@@ -843,7 +843,8 @@
     "assigned_to": "Assigned to {{user}}",
     "changed_to": "Changed para",
     "child": "child",
-    "parent": "parent"
+    "parent": "parent",
+    "card_unavailable": "Couldn't identify this repository's GitHub/Azure remote to open the card."
   },
   "pipeline": {
     "pipeline": "Pipeline",
@@ -962,5 +963,25 @@
     "dec": "Dec",
     "less": "Less",
     "more": "More"
+  },
+  "editor": {
+    "edit": "Edit",
+    "cannot_edit": "This file can't be edited here",
+    "save": "Save",
+    "cancel": "Cancel",
+    "full_code": "View full code",
+    "only_changes": "View changes only",
+    "open_vscode": "Open in VS Code",
+    "no_changes_title": "Editor",
+    "no_changes": "No changes to save.",
+    "saved_title": "File saved",
+    "saved": "{{file}} was saved.",
+    "unsaved": "Unsaved changes",
+    "discard_title": "Discard edits?",
+    "discard_message": "You have unsaved changes. Do you want to discard them?",
+    "discard": "Discard",
+    "removed_lines": "Removed lines (read-only)",
+    "out_of_sync_title": "Editor",
+    "out_of_sync": "The file changed since the diff was loaded. Opening the full code."
   }
 }

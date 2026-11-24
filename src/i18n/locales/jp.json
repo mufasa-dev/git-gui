@@ -843,7 +843,8 @@
     "assigned_to": "{{user}}に割り当て済み",
     "changed_to": "変更先",
     "child": "子",
-    "parent": "親"
+    "parent": "親",
+    "card_unavailable": "カードを開くためのこのリポジトリの GitHub/Azure リモートを特定できませんでした。"
   },
   "pipeline": {
     "pipeline": "パイプライン",
@@ -962,5 +963,25 @@
     "dec": "12月",
     "less": "少ない",
     "more": "多い"
+  },
+  "editor": {
+    "edit": "編集",
+    "cannot_edit": "このファイルはここでは編集できません",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "full_code": "コード全体を表示",
+    "only_changes": "変更のみ表示",
+    "open_vscode": "VS Codeで開く",
+    "no_changes_title": "エディター",
+    "no_changes": "保存する変更はありません。",
+    "saved_title": "ファイルを保存しました",
+    "saved": "{{file}} を保存しました。",
+    "unsaved": "未保存の変更",
+    "discard_title": "編集を破棄しますか？",
+    "discard_message": "未保存の変更があります。破棄しますか？",
+    "discard": "破棄",
+    "removed_lines": "削除された行（読み取り専用）",
+    "out_of_sync_title": "エディター",
+    "out_of_sync": "diff の読み込み後にファイルが変更されました。コード全体を開きます。"
   }
 }

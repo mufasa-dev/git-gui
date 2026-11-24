@@ -189,6 +189,8 @@ fn main() {
             commands::image::load_git_image_base64,
             commands::merge::merge_branch,
             commands::merge::save_file,
+            commands::merge::read_worktree_file,
+            commands::merge::save_worktree_file,
             commands::pull_request::open_pull_request,
             commands::pr_conflict::prepare_pr_conflict,
             commands::pr_conflict::get_pr_conflict_status,

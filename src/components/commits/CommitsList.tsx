@@ -411,6 +411,9 @@ export default function CommitsList(props: Props) {
           selectCommit={selectCommit}
           openParent={true}
           openProfile={true}
+          provider={props.provider}
+          org={props.org}
+          isLogged={props.isLogged}
           onCreateTag={props.onCreateTag}
         />
       </div>
@@ -443,6 +446,9 @@ export default function CommitsList(props: Props) {
           openParent={true}
           openProfile={true}
           selectCommit={openCommitModal}
+          provider={props.provider}
+          org={props.org}
+          isLogged={props.isLogged}
           onCreateTag={props.onCreateTag}
         />
       </Dialog>

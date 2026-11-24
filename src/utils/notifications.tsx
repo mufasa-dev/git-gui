@@ -23,5 +23,8 @@ export const notify = {
   },
   error: (title: string, message: string) => {
     toast.custom((t) => baseToast(title, message, 'bg-red-500', t.visible, t.id), { duration: 5000 });
+  },
+  info: (title: string, message: string) => {
+    toast.custom((t) => baseToast(title, message, 'bg-blue-500', t.visible, t.id), { duration: 3000 });
   }
 };

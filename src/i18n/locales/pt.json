@@ -843,7 +843,8 @@
     "assigned_to": "Atribuído a {{user}}",
     "changed_to": "Alterado para",
     "child": "filho",
-    "parent": "pai"
+    "parent": "pai",
+    "card_unavailable": "Não foi possível identificar o GitHub/Azure deste repositório para abrir o card."
   },
   "pipeline": {
     "pipeline": "Pipeline",
@@ -962,5 +963,25 @@
     "dec": "Dez",
     "less": "Lenos",
     "more": "Mais"
+  },
+  "editor": {
+    "edit": "Editar",
+    "cannot_edit": "Este arquivo não pode ser editado aqui",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "full_code": "Ver código completo",
+    "only_changes": "Ver só alterações",
+    "open_vscode": "Abrir no VS Code",
+    "no_changes_title": "Editor",
+    "no_changes": "Nenhuma alteração para salvar.",
+    "saved_title": "Arquivo salvo",
+    "saved": "{{file}} foi salvo.",
+    "unsaved": "Alterações não salvas",
+    "discard_title": "Descartar edição?",
+    "discard_message": "Você tem alterações não salvas. Deseja descartá-las?",
+    "discard": "Descartar",
+    "removed_lines": "Linhas removidas (somente leitura)",
+    "out_of_sync_title": "Editor",
+    "out_of_sync": "O arquivo mudou desde o diff carregado. Abrindo o código completo."
   }
 }

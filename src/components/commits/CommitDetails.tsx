@@ -13,6 +13,7 @@ import { useApp } from "../../context/AppContext";
 import { GitProvider } from "../../utils/gitProvider";
 import { Repo } from "../../models/Repo.model";
 import { Diff } from "../../models/Diff.model";
+import { TextWithCards, useCardModal } from "../board/useCardModal";
 
 type CommitDetailsProps = {
   commit: any;
@@ -63,6 +64,13 @@ export function CommitDetails(props: CommitDetailsProps) {
   let diffRequestId = 0;
   const { t, locale } = useApp();
   const [shaCopied, setShaCopied] = createSignal(false);
+  const { openCard, CardModal } = useCardModal(() => ({
+    repoPath: repository().path,
+    repoName: repository().name,
+    provider: props.provider,
+    org: props.org,
+  }));
+  const canClickOnCard = () => props.isLogged !== false;
 
   const copySha = async () => {
     if (!props.commit?.hash) return;
@@ -221,12 +229,12 @@ export function CommitDetails(props: CommitDetailsProps) {
                     <section class="min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-700/40">
                       <div class="mb-1 flex items-start gap-2">
                         <div class="min-w-0 flex-1 text-sm font-semibold leading-5 text-gray-800 dark:text-gray-100">
-                          <CommitMessage message={props.commit.subject} />
+                          <CommitMessage message={props.commit.subject} canClickOnCard={canClickOnCard()} onClickCard={openCard} />
                         </div>
                       </div>
                       <Show when={props.commit.body}>
                         <p class="mt-1 whitespace-pre-wrap border-t border-gray-200/80 pt-1.5 text-xs leading-5 text-gray-500 dark:border-gray-600 dark:text-gray-300">
-                          {props.commit.body}
+                          <TextWithCards text={props.commit.body} clickable={canClickOnCard()} onClickCard={openCard} />
                         </p>
                       </Show>
                     </section>
@@ -346,6 +354,8 @@ export function CommitDetails(props: CommitDetailsProps) {
           {t("commits").select_commit}
         </div>
       </Show>
+
+      <CardModal />
 
       <Show when={modalUserProfileOpen()}>
         <Dialog

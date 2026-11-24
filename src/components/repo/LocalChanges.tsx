@@ -6,6 +6,7 @@ import { ChangeListView } from "../ui/ChangeListView";
 import LocalChangesSettingsModal from "./LocalChangesSettingsModal";
 import { useRepoContext } from "../../context/RepoContext";
 import DiffViewer from "../ui/DiffViewer";
+import LocalChangeEditor from "./LocalChangeEditor";
 import { LocalChange } from "../../models/LocalChanges.model";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
 import { openVsCodeDiff } from "../../services/openService";
@@ -499,15 +500,28 @@ export function LocalChanges(props: { repo: Repo; }) {
       ></div>
 
       <div class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
-        <div class="flex-1 overflow-auto p-2 container-branch-list min-w-0 border border-gray-300 dark:border-gray-700">
-          <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
-            path={props.repo.path} isStaged={isVisualizingStaged()} status={selectedStatus()}
-            onMergeStatusChange={(open) => setIsMerging(open)}
-            onSaveSuccess={(filePath: string) => {
-              setIsMerging(false);
-              prepare([filePath]);
-              loadChanges();
-            }} />
+        <div class="flex-1 overflow-hidden container-branch-list min-w-0 border border-gray-300 dark:border-gray-700 !p-0">
+          <LocalChangeEditor
+            repoPath={props.repo.path}
+            file={fileSelected()}
+            diff={diff()}
+            isStaged={isVisualizingStaged()}
+            status={selectedStatus()}
+            disabled={isMerging()}
+            onSaved={async () => {
+              await loadChanges();
+              await loadDiff(isVisualizingStaged());
+            }}
+          >
+            <DiffViewer diff={diff()} class="h-full" file={fileSelected()}
+              path={props.repo.path} isStaged={isVisualizingStaged()} status={selectedStatus()}
+              onMergeStatusChange={(open) => setIsMerging(open)}
+              onSaveSuccess={(filePath: string) => {
+                setIsMerging(false);
+                prepare([filePath]);
+                loadChanges();
+              }} />
+          </LocalChangeEditor>
         </div>
         <div class="mt-2 container-branch-list mb-2">
           <div class="flex gap-2 items-center w-full">

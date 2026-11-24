@@ -74,9 +74,13 @@ const CommitMessage = (props: Props) => {
     return (
       <For each={parts}>
         {(part) => (
-          <Show when={part.startsWith("#")} fallback={<span>{part}</span>}>
+          <Show when={/^#\d+$/.test(part)} fallback={<span>{part}</span>}>
             <span
-              onClick={() => props.canClickOnCard && props.onClickCard?.(part.replace("#", ""))}
+              onClick={(e) => {
+                if (!props.canClickOnCard) return;
+                e.stopPropagation();
+                props.onClickCard?.(part.replace("#", ""));
+              }}
               class={`text-blue-600 dark:text-blue-400 font-medium ${
                 props.canClickOnCard ? "cursor-pointer hover:underline" : ""
               }`}

@@ -529,4 +529,13 @@ export async function cloneRepository(url: string, targetPath: string): Promise<
   } catch (e) {
     throw e;
   }
-}
+}
+/** Lê o conteúdo atual (em disco) de um arquivo do repositório para edição. */
+export async function readWorktreeFile(repoPath: string, file: string): Promise<string> {
+  return await invoke<string>("read_worktree_file", { repoPath, file });
+}
+
+/** Grava no disco o conteúdo editado de um arquivo do repositório. */
+export async function saveWorktreeFile(repoPath: string, file: string, content: string): Promise<void> {
+  await invoke("save_worktree_file", { repoPath, file, content });
+}
