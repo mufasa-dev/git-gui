@@ -106,17 +106,44 @@ const CommitMessage = (props: Props) => {
         }
       >
         <Show when={parsed().type} fallback={renderContentWithCards(parsed().fullMessage || "")}>
-          <span class={commitColors[parsed().type!] || "text-gray-500 dark:text-gray-400"}>
-            {parsed().type}: 
-          </span>
+          <span class={commitColors[parsed().type!] || "text-gray-500 dark:text-gray-400"}>{parsed().type}</span>
           <Show when={parsed().scope}>
-            <span class="text-gray-500 dark:text-gray-500">({parsed().scope}): </span>
+            <span class="text-gray-500 dark:text-gray-400">({parsed().scope})</span>
           </Show>
+          <span class={commitColors[parsed().type!] || "text-gray-500 dark:text-gray-400"}>:</span>{" "}
           {renderContentWithCards(parsed().mainContent!)}
         </Show>
       </Show>
     </div>
   );
 };
+
+export type CommitTitleToken = { text: string; class?: string };
+
+const CARD_CLASS = "text-blue-600 dark:text-blue-400";
+const NEUTRAL_TYPE_CLASS = "text-gray-500 dark:text-gray-400";
+
+export function tokenizeCommitTitle(raw: string): CommitTitleToken[] {
+  const tokens: CommitTitleToken[] = [];
+  let rest = raw;
+  const match = raw.match(/^(\s*)([\w-]+)(\([^)]*\))?(!)?(\s*:)/);
+
+  if (match) {
+    const lower = match[2].toLowerCase();
+    const color = commitColors[TAG_MAPPING[lower] || lower] || NEUTRAL_TYPE_CLASS;
+    if (match[1]) tokens.push({ text: match[1] });
+    tokens.push({ text: match[2], class: color });
+    if (match[3]) tokens.push({ text: match[3], class: NEUTRAL_TYPE_CLASS });
+    if (match[4]) tokens.push({ text: match[4], class: "text-red-500" });
+    tokens.push({ text: match[5], class: color });
+    rest = raw.slice(match[0].length);
+  }
+
+  for (const part of rest.split(/(#\d+)/)) {
+    if (!part) continue;
+    tokens.push(/^#\d+$/.test(part) ? { text: part, class: CARD_CLASS } : { text: part });
+  }
+  return tokens;
+}
 
 export default CommitMessage;

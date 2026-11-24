@@ -2,6 +2,7 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack }
 import { Repo } from "../../models/Repo.model";
 import { AmendInfo, applyPatchToIndex, commit, createGitattributes, discard_changes, getAmendDiff, getAmendInfo, getDiff, ignoreFile, LineEndingChanges, listAmendChanges, listLineEndingChanges, normalizeLineEndings, removeFromAmend, stageFiles, unstageFiles } from "../../services/gitService";
 import ConfirmModal from "../ui/ConfirmModal";
+import { tokenizeCommitTitle } from "../ui/CommitMessage";
 import { FolderTreeView } from "../ui/FolderTreeview";
 import { ChangeListView } from "../ui/ChangeListView";
 import LocalChangesSettingsModal from "./LocalChangesSettingsModal";
@@ -522,6 +523,9 @@ export function LocalChanges(props: { repo: Repo; }) {
   };
 
   const titleLength = () => commitMessage().trim().length;
+  const [titleScroll, setTitleScroll] = createSignal(0);
+  const titleTokens = createMemo(() => tokenizeCommitTitle(commitMessage()));
+  const syncTitleScroll = (input: HTMLInputElement) => setTitleScroll(input.scrollLeft);
   const titleIssues = createMemo(() => {
     const title = commitMessage().trim();
     const issues: { level: "error" | "warn"; text: string }[] = [];
@@ -862,13 +866,18 @@ export function LocalChanges(props: { repo: Repo; }) {
         <div class="mt-2 container-branch-list mb-2">
           <div class="flex gap-2 items-center w-full">
             <div class="relative flex-1">
-              <input type="text" class="w-full input-text mt-0 pr-20" placeholder={t('commits').commit_message}
+              <input type="text" class="commit-title-input w-full input-text mt-0 pr-20" placeholder={t('commits').commit_message}
                 value={commitMessage()} disabled={isGeneratingAI()}
                 onInput={(e) => {
                   const message = e.currentTarget.value;
                   setCommitMessage(message);
                   saveCommitDraft(message, commitDescription());
+                  syncTitleScroll(e.currentTarget);
                 }}
+                onScroll={(e) => syncTitleScroll(e.currentTarget)}
+                onKeyUp={(e) => syncTitleScroll(e.currentTarget)}
+                onClick={(e) => syncTitleScroll(e.currentTarget)}
+                onSelect={(e) => syncTitleScroll(e.currentTarget)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
@@ -876,6 +885,14 @@ export function LocalChanges(props: { repo: Repo; }) {
                   }
                 }}
               />
+              <div aria-hidden="true"
+                class="commit-title-overlay input-text pointer-events-none absolute inset-0 mt-0 flex items-center overflow-hidden pr-20 !border-transparent !bg-transparent !shadow-none">
+                <span class="whitespace-pre" style={{ transform: `translateX(-${titleScroll()}px)` }}>
+                  <For each={titleTokens()}>
+                    {(token) => <span class={token.class}>{token.text}</span>}
+                  </For>
+                </span>
+              </div>
               <Show when={titleLength() > 0}>
                 <div class="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1.5 text-[11px] font-mono">
                   <Show when={titleIssues().length > 0}>

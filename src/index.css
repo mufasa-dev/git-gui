@@ -503,3 +503,21 @@ body,
 .diff-scroll-no-vbar::-webkit-scrollbar:vertical {
   width: 0 !important;
 }
+
+.commit-title-input {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+  caret-color: rgb(17 24 39);
+}
+.dark .commit-title-input {
+  caret-color: #fff;
+}
+.commit-title-input::placeholder {
+  -webkit-text-fill-color: rgb(156 163 175);
+}
+.commit-title-overlay,
+.commit-title-overlay * {
+  font-weight: inherit !important;
+  font-style: normal !important;
+  letter-spacing: inherit;
+}
