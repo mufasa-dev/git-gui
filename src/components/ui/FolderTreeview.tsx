@@ -11,6 +11,7 @@ export function FolderTreeView(props: {
     items: ChangeItem[],
     selected: string[];
     staged: boolean;
+    contextPath?: string | null;
     defaultOpen?: boolean;
     showStatus: boolean;
     selectMode?: "single" | "multi";
@@ -61,7 +62,7 @@ export function FolderTreeView(props: {
         {([name, child]: any) => (
             <TreeNode 
               node={child} name={name} path={name} 
-              selected={props.selected} staged={props.staged} 
+              selected={props.selected} staged={props.staged} contextPath={props.contextPath}
               defaultOpen={props.defaultOpen}
               onToggle={props.onToggle} onToggleMany={props.onToggleMany} onContextMenu={props.onContextMenu}
               onDbClick={props.onDbClick}
@@ -80,6 +81,7 @@ function TreeNode(props: {
     name: string; 
     path: string; 
     staged: boolean
+    contextPath?: string | null;
     selected: string[];
     defaultOpen?: boolean;
     showStatus: boolean;
@@ -164,7 +166,10 @@ function TreeNode(props: {
     }}>
       <div
         class="cursor-pointer select-none flex items-center" style={{ "padding-left": `${props.loopNumber * 1}rem` }}
-        classList={{ "text-blue-500 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400": props.selected.includes(props.path) }}
+        classList={{
+          "text-blue-500 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400": props.selected.includes(props.path),
+          "context-target rounded": !!props.contextPath && props.node.__isFile && props.contextPath === props.path,
+        }}
         onClick={toggle} onDblClick={() => {
           if (props.node.__isFile && props.onDbClick) {
             props.onDbClick([props.path]);
@@ -214,6 +219,7 @@ function TreeNode(props: {
                 path={props.path + "/" + name}
                 selected={props.selected}
                 staged={props.staged}
+                contextPath={props.contextPath}
                 defaultOpen={props.defaultOpen}
                 onToggle={props.onToggle}
                 onToggleMany={props.onToggleMany}

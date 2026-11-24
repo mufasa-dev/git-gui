@@ -223,7 +223,11 @@ export default function CommitsList(props: Props) {
   // ---- Menu de contexto da lista de commits ----
   const [menu, setMenu] = createSignal<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
   const [modalCommit, setModalCommit] = createSignal<any>(null);
-  const closeMenu = () => setMenu(null);
+  const [contextHash, setContextHash] = createSignal<string | null>(null);
+  const closeMenu = () => {
+    setMenu(null);
+    setContextHash(null);
+  };
   document.addEventListener("click", closeMenu);
   document.addEventListener("scroll", closeMenu, true);
   onCleanup(() => {
@@ -266,6 +270,7 @@ export default function CommitsList(props: Props) {
     const x = Math.min(e.clientX, window.innerWidth - 200);
     const y = Math.min(e.clientY, window.innerHeight - 140);
     setMenu({ x, y, items });
+    setContextHash(commit.hash);
   }
 
   function onMouseMove(e: MouseEvent) {
@@ -367,7 +372,7 @@ export default function CommitsList(props: Props) {
                   <div
                     class={`cm-commit-item ${
                       selectedCommit()?.hash === c.hash ? "selected" : ""
-                    }`}
+                    } ${menu() && contextHash() === c.hash ? "context-target" : ""}`}
                     onClick={() => selectCommit(c.hash)}
                     onContextMenu={(e) => showCommitMenu(e, c)}
                   >
@@ -454,4 +459,4 @@ export default function CommitsList(props: Props) {
       </Dialog>
     </div>
   );
-}
+}

@@ -982,6 +982,10 @@
     "discard": "破棄",
     "removed_lines": "削除された行（読み取り専用）",
     "out_of_sync_title": "エディター",
-    "out_of_sync": "diff の読み込み後にファイルが変更されました。コード全体を開きます。"
+    "out_of_sync": "diff の読み込み後にファイルが変更されました。コード全体を開きます。",
+    "new_file": "（新規ファイル）",
+    "cannot_edit_binary": "バイナリファイルはここでは編集できません",
+    "cannot_edit_deleted": "ファイルは削除されました",
+    "cannot_edit_conflict": "編集する前にコンフリクトを解決してください"
   }
 }

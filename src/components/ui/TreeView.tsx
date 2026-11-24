@@ -19,6 +19,7 @@ export type TreeViewProps = {
   onSelectBranch?: (branch: string) => void;
   onActivateBranch?: (branch: string) => void;
   openContextMenu?: (e: MouseEvent, branch: string) => void;
+  contextBranch?: string | null;
   enableBranchDrag?: boolean;
   draggedBranch?: string | null;
   dropTargetBranch?: string | null;
@@ -152,11 +153,12 @@ export default function TreeView(props: TreeViewProps) {
         const isSelected = node.original === props.selectedBranch;
         const isDragged = isLeaf && node.original === props.draggedBranch;
         const isDropTarget = isLeaf && node.original === props.dropTargetBranch;
+        const isContextTarget = isLeaf && !!props.contextBranch && node.original === props.contextBranch;
         const folderVisual = getFolderVisual(node.name, !!open()[nodePath]);
         return (
             <li>
                 <div
-                  class={`flex min-w-0 select-none items-center rounded-lg transition-colors ${props.enableBranchDrag && isLeaf ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${isSelected ? "font-bold text-green-600" : ""} ${isDropTarget ? "bg-blue-500/15 ring-1 ring-blue-500/60" : ""} ${isDragged ? "opacity-50" : ""}`}
+                  class={`flex min-w-0 select-none items-center rounded-lg transition-colors ${props.enableBranchDrag && isLeaf ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${isSelected ? "font-bold text-green-600" : ""} ${isDropTarget ? "bg-blue-500/15 ring-1 ring-blue-500/60" : ""} ${isDragged ? "opacity-50" : ""} ${isContextTarget ? "context-target" : ""}`}
                   draggable={props.enableBranchDrag && isLeaf}
                   onClick={() => handleClick(node)}
                   onDragStart={(e: DragEvent) => {
@@ -222,6 +224,7 @@ export default function TreeView(props: TreeViewProps) {
                         onSelectBranch={props.onSelectBranch}
                         onActivateBranch={props.onActivateBranch}
                         openContextMenu={props.openContextMenu}
+                        contextBranch={props.contextBranch}
                         enableBranchDrag={props.enableBranchDrag}
                         draggedBranch={props.draggedBranch}
                         dropTargetBranch={props.dropTargetBranch}

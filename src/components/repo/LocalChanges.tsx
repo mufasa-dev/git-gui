@@ -46,6 +46,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [isMerging, setIsMerging] = createSignal(false);
   const [isVisualizingStaged, setIsVisualizingStaged] = createSignal(false);
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
+  const [contextTarget, setContextTarget] = createSignal<{ path: string; staged: boolean } | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [aiKeyModalOpen, setAiKeyModalOpen] = createSignal(false);
@@ -248,6 +249,7 @@ export function LocalChanges(props: { repo: Repo; }) {
 
   const showContextMenu = (e: MouseEvent, item: any = null) => {
     e.preventDefault();
+    setContextTarget(item?.path ? { path: item.path, staged: !!item.staged } : null);
 
     let items = []
     if (item && item.path) {
@@ -279,7 +281,15 @@ export function LocalChanges(props: { repo: Repo; }) {
     setMenuVisible(true);
   };
 
-  const hideContextMenu = () => setMenuVisible(false);
+  const hideContextMenu = () => {
+    setMenuVisible(false);
+    setContextTarget(null);
+  };
+
+  const contextPathFor = (staged: boolean) => {
+    const target = contextTarget();
+    return menuVisible() && target && target.staged === staged ? target.path : null;
+  };
 
   document.addEventListener("click", hideContextMenu);
   onCleanup(() => document.removeEventListener("click", hideContextMenu));
@@ -454,13 +464,14 @@ export function LocalChanges(props: { repo: Repo; }) {
               items={unstaged()}
               selected={selected()}
               staged={false}
+              contextPath={contextPathFor(false)}
               onToggle={toggleItem}
               onContextMenu={showContextMenu}
               onDbClick={(items: string[]) => prepare(items)}
             />
           }>
             <FolderTreeView items={unstaged()} selectMode="multi"
-              selected={selected()} staged={false} showStatus={true}
+              selected={selected()} staged={false} showStatus={true} contextPath={contextPathFor(false)}
               onToggle={toggleItem} onToggleMany={toggleItems} onContextMenu={showContextMenu}
               onDbClick={(items: string[]) => prepare(items)}
             />
@@ -479,13 +490,14 @@ export function LocalChanges(props: { repo: Repo; }) {
               items={staged()}
               selected={stagedPreparedSelected()}
               staged={true}
+              contextPath={contextPathFor(true)}
               onToggle={toggleStagedItem}
               onContextMenu={showContextMenu}
               onDbClick={(items: string[]) => unstage(items)}
             />
           }>
             <FolderTreeView items={staged()} showStatus={true}
-              selected={stagedPreparedSelected()} staged={true} selectMode="multi"
+              selected={stagedPreparedSelected()} staged={true} selectMode="multi" contextPath={contextPathFor(true)}
               onToggle={toggleStagedItem} onToggleMany={toggleStagedItems} onContextMenu={showContextMenu}
               onDbClick={(items: string[]) => unstage(items)}
             />

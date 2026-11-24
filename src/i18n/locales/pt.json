@@ -982,6 +982,10 @@
     "discard": "Descartar",
     "removed_lines": "Linhas removidas (somente leitura)",
     "out_of_sync_title": "Editor",
-    "out_of_sync": "O arquivo mudou desde o diff carregado. Abrindo o código completo."
+    "out_of_sync": "O arquivo mudou desde o diff carregado. Abrindo o código completo.",
+    "new_file": "(arquivo novo)",
+    "cannot_edit_binary": "Arquivos binários não podem ser editados aqui",
+    "cannot_edit_deleted": "O arquivo foi apagado",
+    "cannot_edit_conflict": "Resolva o conflito antes de editar"
   }
 }

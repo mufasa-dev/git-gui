@@ -447,3 +447,55 @@ body,
 .test-progress-indeterminate {
   animation: test-progress-indeterminate 1.4s ease-in-out infinite;
 }
+
+/* ---- Editor de código com highlight (LocalChangeEditor / CodeEditor) ---- */
+.code-editor {
+  --code-line: 1.5rem;
+  tab-size: 4;
+}
+.code-editor-gutter {
+  line-height: var(--code-line);
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+.code-editor-layer {
+  grid-area: 1 / 1;
+  align-self: stretch;
+  justify-self: stretch;
+  margin: 0;
+  border: 0;
+  padding: 0.25rem 0.75rem;
+  font: inherit;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+  line-height: var(--code-line);
+  white-space: pre;
+  tab-size: 4;
+}
+.code-editor-line {
+  min-height: var(--code-line);
+}
+/* O highlighter usa negrito/itálico/tamanhos em alguns tokens; no editor tudo
+   precisa ter a mesma largura do textarea para o cursor não desalinhar. */
+.code-editor-highlight * {
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  font-style: normal !important;
+  line-height: inherit !important;
+  letter-spacing: inherit !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+.code-editor-input {
+  -webkit-text-fill-color: transparent;
+}
+.code-editor-input::selection {
+  background: rgb(59 130 246 / 0.35);
+}
+
+.context-target {
+  outline: 2px solid rgb(59 130 246 / 0.75) !important;
+  outline-offset: -2px;
+  background-color: rgb(59 130 246 / 0.12) !important;
+}

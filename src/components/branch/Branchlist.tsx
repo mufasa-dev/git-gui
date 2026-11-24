@@ -31,6 +31,7 @@ export default function BranchList(props: Props) {
   const [menuVisible, setMenuVisible] = createSignal(false);
   const [menuPos, setMenuPos] = createSignal({ x: 0, y: 0 });
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
+  const [contextBranch, setContextBranch] = createSignal<string | null>(null);
   const [itemName, setItemName] = createSignal<string>("");
   const [draggedBranch, setDraggedBranch] = createSignal<string | null>(null);
   const [dropTargetBranch, setDropTargetBranch] = createSignal<string | null>(null);
@@ -134,6 +135,7 @@ export default function BranchList(props: Props) {
 
   const openContextMenu = (e: MouseEvent, branch: string) => {
     e.preventDefault();
+    setContextBranch(branch);
     
     let items = [];
     let isNotActiveBranch = branch != props.activeBranch;
@@ -233,6 +235,7 @@ export default function BranchList(props: Props) {
 
   const openRemoteContextMenu = (e: MouseEvent, branch: string) => {
     e.preventDefault();
+    setContextBranch(branch);
     
     let items = [];
     let isNotActiveBranch = branch != props.activeBranch;
@@ -329,7 +332,10 @@ export default function BranchList(props: Props) {
     }
   }
 
-  const hideContextMenu = () => setMenuVisible(false);
+  const hideContextMenu = () => {
+    setMenuVisible(false);
+    setContextBranch(null);
+  };
 
   document.addEventListener("click", hideContextMenu);
   onCleanup(() => document.removeEventListener("click", hideContextMenu));
@@ -355,6 +361,7 @@ export default function BranchList(props: Props) {
               onSelectBranch={props.onSelectBranch}
               onActivateBranch={props.onActivateBranch}
               openContextMenu={openContextMenu}
+              contextBranch={menuVisible() ? contextBranch() : null}
               enableBranchDrag={true}
               draggedBranch={draggedBranch()}
               dropTargetBranch={dropTargetBranch()}
@@ -390,6 +397,7 @@ export default function BranchList(props: Props) {
               selectedBranch={props.selectedBranch}
               onSelectBranch={props.onSelectBranch}
               openContextMenu={openRemoteContextMenu}
+              contextBranch={menuVisible() ? contextBranch() : null}
             />
           </div>
         </Show>
@@ -400,7 +408,7 @@ export default function BranchList(props: Props) {
           name={itemName()}
           items={menuItems()}
           position={menuPos()}
-          onClose={() => setMenuVisible(false)}
+          onClose={hideContextMenu}
         />
       </Show>
       <Show when={openModalConfirm()}>

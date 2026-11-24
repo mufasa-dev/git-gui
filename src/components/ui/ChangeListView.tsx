@@ -10,6 +10,7 @@ type Props = {
   items: ChangeItem[];
   selected: string[];
   staged: boolean;
+  contextPath?: string | null;
   onToggle: (path: string, selected: boolean, isFile: boolean) => void;
   onContextMenu?: (event: MouseEvent, item: ChangeItem & { staged: boolean }) => void;
   onDbClick?: (items: string[]) => void;
@@ -37,7 +38,10 @@ export function ChangeListView(props: Props) {
           return (
             <li
               class="cursor-pointer select-none flex items-center gap-2 rounded px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-              classList={{ "text-blue-500 bg-blue-100 dark:bg-blue-900/30": isSelected() }}
+              classList={{
+                "text-blue-500 bg-blue-100 dark:bg-blue-900/30": isSelected(),
+                "context-target": !!props.contextPath && props.contextPath === item.path,
+              }}
               onClick={() => props.onToggle(item.path, !isSelected(), true)}
               onDblClick={() => props.onDbClick?.([item.path])}
               onContextMenu={(event) => {

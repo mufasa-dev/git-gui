@@ -982,6 +982,10 @@
     "discard": "Discard",
     "removed_lines": "Removed lines (read-only)",
     "out_of_sync_title": "Editor",
-    "out_of_sync": "The file changed since the diff was loaded. Opening the full code."
+    "out_of_sync": "The file changed since the diff was loaded. Opening the full code.",
+    "new_file": "(new file)",
+    "cannot_edit_binary": "Binary files can't be edited here",
+    "cannot_edit_deleted": "The file was deleted",
+    "cannot_edit_conflict": "Resolve the conflict before editing"
   }
 }

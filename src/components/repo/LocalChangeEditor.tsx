@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createSignal, For, JSX, on, onCleanup, onMount, Show } from "solid-js";
 import FileIcon from "../ui/FileIcon";
 import ConfirmModal from "../ui/ConfirmModal";
+import CodeEditor from "../ui/CodeEditor";
 import vsCodeIcon from "../../assets/vscode.png";
 import { Diff } from "../../models/Diff.model";
 import { readWorktreeFile, saveWorktreeFile } from "../../services/gitService";
@@ -96,8 +97,6 @@ export default function LocalChangeEditor(props: Props) {
   const [fullText, setFullText] = createSignal("");
   const [confirmDiscard, setConfirmDiscard] = createSignal<null | (() => void)>(null);
 
-  let fullTextarea: HTMLTextAreaElement | undefined;
-  let fullGutter: HTMLPreElement | undefined;
 
   const fileName = () => props.file.split(/[\\/]/).pop() || props.file;
   const fileDir = () => {
@@ -120,12 +119,19 @@ export default function LocalChangeEditor(props: Props) {
     !diffHasConflict()
   );
 
-  const canEditHunks = () =>
-    !props.isStaged &&
-    props.status !== "untracked" &&
-    props.status !== "added" &&
-    !props.diff.truncated &&
-    props.diff.isPreviewable !== false;
+  // A edição por trechos vale também para arquivos novos e para "Preparadas":
+  // antes de liberar, os trechos são conferidos com o arquivo em disco.
+  const canEditHunks = () => props.diff.isPreviewable !== false;
+
+  const isNewFile = () => props.status === "untracked" || props.status === "added";
+
+  const cannotEditReason = () => {
+    if (props.disabled) return tr().cannot_edit;
+    if (props.diff.isBinary) return tr().cannot_edit_binary;
+    if (props.status === "deleted") return tr().cannot_edit_deleted;
+    if (props.status === "conflicted" || diffHasConflict()) return tr().cannot_edit_conflict;
+    return tr().cannot_edit;
+  };
 
   const isDirty = createMemo(() => {
     const model = fileModel();
@@ -147,7 +153,10 @@ export default function LocalChangeEditor(props: Props) {
   };
 
   // Trocar de arquivo (ou entre "preparadas"/"alterações") sai do modo de edição.
-  createEffect(on(() => [props.file, props.isStaged, props.repoPath], resetEditor, { defer: true }));
+  // A chave é uma string memorizada: o polling do repositório recria o objeto
+  // `repo` a cada atualização, e sem comparar o valor isso fechava o editor.
+  const editorKey = createMemo(() => `${props.repoPath}\u0000${props.file}\u0000${props.isStaged ? 1 : 0}`);
+  createEffect(on(editorKey, resetEditor, { defer: true }));
 
   const enterFullMode = (model: FileModel, lines = model.lines) => {
     setFullText(toNormalizedText(model, lines));
@@ -162,7 +171,17 @@ export default function LocalChangeEditor(props: Props) {
       const model = parseFile(raw);
       setFileModel(model);
 
-      const parsed = canEditHunks() ? parseHunks(props.diff.diff) : [];
+      let parsed = canEditHunks() ? parseHunks(props.diff.diff) : [];
+      // Arquivo novo: o diff sintético não tem cabeçalho @@ (ou vem truncado),
+      // então o arquivo inteiro vira um único trecho editável.
+      if (isNewFile() && (parsed.length === 0 || props.diff.truncated)) {
+        parsed = [{
+          header: `@@ -0,0 +1,${model.lines.length} @@ ${tr().new_file}`,
+          newStart: 1,
+          origLines: [...model.lines],
+          delLines: [],
+        }];
+      }
       const inSync = parsed.length > 0 && parsed.every(hunk => {
         const start = hunkIndex(hunk);
         const slice = model.lines.slice(start, start + hunk.origLines.length);
@@ -280,9 +299,6 @@ export default function LocalChangeEditor(props: Props) {
     }
   };
 
-  const lineNumbers = (start: number, count: number) =>
-    Array.from({ length: Math.max(count, 1) }, (_, i) => start + i).join("\n");
-
   const headerButton = "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
@@ -330,7 +346,7 @@ export default function LocalChangeEditor(props: Props) {
 
             <Show when={!editing()}>
               <button type="button" class={`${headerButton} border border-gray-300 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700`}
-                onClick={startEdit} disabled={!canEdit() || loading()} title={canEdit() ? tr().edit : tr().cannot_edit}>
+                onClick={startEdit} disabled={!canEdit() || loading()} title={canEdit() ? tr().edit : cannotEditReason()}>
                 <Show when={loading()} fallback={<i class="fa-solid fa-pen"></i>}>
                   <i class="fa-solid fa-spinner animate-spin"></i>
                 </Show>
@@ -349,26 +365,19 @@ export default function LocalChangeEditor(props: Props) {
       <div class="min-h-0 flex-1 overflow-auto p-2 custom-scrollbar">
         <Show when={editing()} fallback={props.children}>
           <Show when={mode() === "hunks"} fallback={
-            <div class="flex h-full min-h-[200px] overflow-hidden rounded-md border border-blue-300 font-mono text-sm dark:border-blue-900/60">
-              <pre ref={fullGutter}
-                class="m-0 shrink-0 select-none overflow-hidden border-r border-gray-300 bg-gray-50/50 px-2 py-2 text-right text-[11px] leading-6 text-gray-400 dark:border-gray-700 dark:bg-slate-900/20">
-                {lineNumbers(1, fullText().split("\n").length)}
-              </pre>
-              <textarea ref={fullTextarea}
-                class="min-w-0 flex-1 resize-none overflow-auto whitespace-pre bg-transparent px-3 py-2 leading-6 text-gray-800 outline-none dark:text-gray-100 custom-scrollbar"
-                wrap="off" spellcheck={false} autocomplete="off"
-                value={fullText()}
-                onInput={(e) => setFullText(e.currentTarget.value)}
-                onKeyDown={handleTab}
-                onScroll={(e) => { if (fullGutter) fullGutter.scrollTop = e.currentTarget.scrollTop; }}
-              />
-            </div>
+            <CodeEditor
+              fill
+              class="min-h-[200px] rounded-md border border-blue-300 dark:border-blue-900/60"
+              value={fullText()}
+              fileName={props.file}
+              onInput={setFullText}
+              onKeyDown={handleTab}
+            />
           }>
             <div class="flex flex-col gap-3">
               <For each={hunks()}>
                 {(hunk, index) => {
                   const text = () => hunkTexts()[index()] ?? "";
-                  const lineCount = () => text().split("\n").length;
                   const changed = () => text() !== hunk.origLines.join("\n");
                   return (
                     <div class="overflow-hidden rounded-md border font-mono text-sm"
@@ -390,22 +399,13 @@ export default function LocalChangeEditor(props: Props) {
                           </For>
                         </div>
                       </Show>
-                      <div class="flex">
-                        <pre class="m-0 shrink-0 select-none border-r border-gray-300 bg-gray-50/50 px-2 py-1 text-right text-[11px] leading-6 text-gray-400 dark:border-gray-700 dark:bg-slate-900/20">
-                          {lineNumbers(Math.max(hunk.newStart, 1), lineCount())}
-                        </pre>
-                        <textarea
-                          class="min-w-0 flex-1 resize-none overflow-x-auto overflow-y-hidden whitespace-pre bg-transparent px-3 py-1 leading-6 text-gray-800 outline-none focus:bg-blue-50/40 dark:text-gray-100 dark:focus:bg-white/5 custom-scrollbar"
-                          wrap="off" spellcheck={false} autocomplete="off"
-                          rows={Math.max(lineCount(), 1)}
-                          value={text()}
-                          onInput={(e) => {
-                            const value = e.currentTarget.value;
-                            setHunkTexts(prev => prev.map((item, i) => (i === index() ? value : item)));
-                          }}
-                          onKeyDown={handleTab}
-                        />
-                      </div>
+                      <CodeEditor
+                        value={text()}
+                        fileName={props.file}
+                        startLine={hunk.newStart}
+                        onInput={(value) => setHunkTexts(prev => prev.map((item, i) => (i === index() ? value : item)))}
+                        onKeyDown={handleTab}
+                      />
                     </div>
                   );
                 }}
