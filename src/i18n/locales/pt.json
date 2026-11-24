@@ -987,5 +987,21 @@
     "cannot_edit_binary": "Arquivos binários não podem ser editados aqui",
     "cannot_edit_deleted": "O arquivo foi apagado",
     "cannot_edit_conflict": "Resolva o conflito antes de editar"
+  },
+  "amend": {
+    "no_commits": "Este repositório ainda não tem commits para corrigir.",
+    "operation_in_progress": "Há um {{op}} em andamento. Conclua ou aborte antes de usar o amend.",
+    "head_changed": "O último commit mudou desde que o amend foi ativado. Ative novamente para carregar o commit atual.",
+    "empty_commit": "O commit ficaria vazio. Mantenha ao menos um arquivo em Preparadas.",
+    "nothing_changed": "Nada mudou: altere a mensagem ou prepare arquivos para corrigir o commit.",
+    "pushed_warning": "Este commit já foi enviado para {{upstream}}. Corrigi-lo reescreve o histórico e vai exigir push forçado.",
+    "merge_warning": "O último commit é um merge; o amend manterá os dois pais.",
+    "author_warning": "O commit foi feito por {{author}}; o autor original será mantido.",
+    "confirm_title": "Corrigir o último commit?",
+    "confirm": "Corrigir commit",
+    "success": "Último commit corrigido.",
+    "banner": "Arquivos do último commit + alterações preparadas. \"Desfazer\" remove o arquivo do commit.",
+    "pushed_badge": "Já enviado ao remoto: vai precisar de push forçado",
+    "remove_hint": "Remove os arquivos selecionados do commit corrigido"
   }
 }

@@ -999,3 +999,232 @@ mod tests {
         std::fs::remove_dir_all(directory).unwrap();
     }
 }
+
+const EMPTY_TREE_HASH: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
+fn git_succeeds(repo_path: &str, args: &[&str]) -> bool {
+    git_command(repo_path)
+        .args(args)
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+fn git_stdout(repo_path: &str, args: &[&str]) -> Option<String> {
+    let output = git_command(repo_path).args(args).output().ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+fn amend_base(repo_path: &str) -> &'static str {
+    if git_succeeds(repo_path, &["rev-parse", "--verify", "-q", "HEAD~1^{commit}"]) {
+        "HEAD~1"
+    } else {
+        EMPTY_TREE_HASH
+    }
+}
+
+fn operation_in_progress(repo_path: &str) -> Option<String> {
+    let checks = [
+        ("MERGE_HEAD", "merge"),
+        ("rebase-merge", "rebase"),
+        ("rebase-apply", "rebase"),
+        ("CHERRY_PICK_HEAD", "cherry-pick"),
+        ("REVERT_HEAD", "revert"),
+    ];
+
+    for (marker, name) in checks {
+        let Some(path) = git_stdout(repo_path, &["rev-parse", "--git-path", marker]) else {
+            continue;
+        };
+        let path = path.trim();
+        if path.is_empty() {
+            continue;
+        }
+        let full = if Path::new(path).is_absolute() {
+            PathBuf::from(path)
+        } else {
+            Path::new(repo_path).join(path)
+        };
+        if full.exists() {
+            return Some(name.to_string());
+        }
+    }
+    None
+}
+
+#[tauri::command]
+pub async fn get_amend_info(repo_path: String) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || get_amend_info_blocking(repo_path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn get_amend_info_blocking(repo_path: String) -> Result<serde_json::Value, String> {
+    if !git_succeeds(&repo_path, &["rev-parse", "--verify", "-q", "HEAD^{commit}"]) {
+        return Ok(json!({ "hasHead": false }));
+    }
+
+    let raw = git_stdout(&repo_path, &["log", "-1", "--format=%H%x00%an%x00%ae%x00%P%x00%B"])
+        .ok_or_else(|| "Não foi possível ler o último commit".to_string())?;
+    let mut parts = raw.splitn(5, '\0');
+    let hash = parts.next().unwrap_or("").trim().to_string();
+    let author_name = parts.next().unwrap_or("").to_string();
+    let author_email = parts.next().unwrap_or("").to_string();
+    let parents = parts.next().unwrap_or("").split_whitespace().count();
+    let message = parts.next().unwrap_or("").replace("\r\n", "\n");
+    let message = message.trim_end();
+
+    let (subject, body) = match message.split_once('\n') {
+        Some((first, rest)) => (first.trim().to_string(), rest.trim().to_string()),
+        None => (message.trim().to_string(), String::new()),
+    };
+
+    let current_email = git_stdout(&repo_path, &["config", "user.email"])
+        .map(|value| value.trim().to_string())
+        .unwrap_or_default();
+    let is_current_user = current_email.is_empty()
+        || current_email.eq_ignore_ascii_case(author_email.trim());
+
+    let upstream = git_stdout(
+        &repo_path,
+        &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+    )
+    .map(|value| value.trim().to_string())
+    .filter(|value| !value.is_empty());
+
+    let pushed = match &upstream {
+        Some(upstream) => git_succeeds(&repo_path, &["merge-base", "--is-ancestor", "HEAD", upstream]),
+        None => git_stdout(&repo_path, &["branch", "-r", "--contains", "HEAD"])
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false),
+    };
+
+    Ok(json!({
+        "hasHead": true,
+        "hash": hash,
+        "subject": subject,
+        "body": body,
+        "authorName": author_name,
+        "authorEmail": author_email,
+        "isCurrentUser": is_current_user,
+        "isMerge": parents > 1,
+        "isRoot": parents == 0,
+        "pushed": pushed,
+        "upstream": upstream,
+        "operationInProgress": operation_in_progress(&repo_path),
+    }))
+}
+
+#[tauri::command]
+pub async fn list_amend_changes(repo_path: String) -> Result<Vec<serde_json::Value>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_amend_changes_blocking(repo_path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn list_amend_changes_blocking(repo_path: String) -> Result<Vec<serde_json::Value>, String> {
+    let base = amend_base(&repo_path);
+    let output = git_command(&repo_path)
+        .args(["diff", "--cached", "--name-status", "--no-renames", "-z", base])
+        .output()
+        .map_err(|error| error.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut tokens = stdout.split('\0').filter(|value| !value.is_empty());
+    let mut changes = Vec::new();
+
+    while let (Some(code), Some(file)) = (tokens.next(), tokens.next()) {
+        let status = match code.chars().next().unwrap_or('M') {
+            'A' => "added",
+            'D' => "deleted",
+            'U' => "conflicted",
+            _ => "modified",
+        };
+        let file_path = Path::new(&repo_path).join(file);
+        let size = if status == "deleted" {
+            0
+        } else {
+            fs::metadata(&file_path).map(|metadata| metadata.len()).unwrap_or(0)
+        };
+
+        changes.push(json!({
+            "path": file.replace('\\', "/"),
+            "status": status,
+            "staged": true,
+            "extension": Path::new(file).extension().and_then(|value| value.to_str()).unwrap_or(""),
+            "size": size,
+            "lineCount": null,
+            "isBinary": false,
+            "isPreviewable": true
+        }));
+    }
+
+    Ok(changes)
+}
+
+#[tauri::command]
+pub async fn get_amend_diff(repo_path: String, file: String) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || get_amend_diff_blocking(repo_path, file))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn get_amend_diff_blocking(repo_path: String, file: String) -> Result<serde_json::Value, String> {
+    let base = amend_base(&repo_path);
+    let file_path = Path::new(&repo_path).join(&file);
+    let size = fs::metadata(&file_path).map(|metadata| metadata.len()).ok();
+
+    let (diff_bytes, output_truncated) = bounded_git_output(
+        &repo_path,
+        &["diff", "--cached", "--no-renames", base, "--", file.as_str()],
+    )?;
+    let diff_str = String::from_utf8_lossy(&diff_bytes).to_string();
+    let diff_binary = diff_str.contains("Binary files") || diff_str.contains("GIT binary patch");
+    let preview = text_preview(&diff_bytes);
+    let truncated = output_truncated || preview.truncated;
+
+    Ok(json!({
+        "diff": if diff_binary || truncated { "" } else { diff_str.as_str() },
+        "oldFile": null,
+        "newFile": file_path.to_string_lossy().to_string(),
+        "size": size,
+        "lineCount": preview.line_count,
+        "isBinary": diff_binary,
+        "isPreviewable": !diff_binary && !truncated,
+        "truncated": truncated,
+        "hasConflict": false,
+        "reason": if diff_binary { Some("binary") } else if truncated { Some("diff_too_large") } else { None::<&str> }
+    }))
+}
+
+#[tauri::command]
+pub async fn remove_from_amend(repo_path: String, files: Vec<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || remove_from_amend_blocking(repo_path, files))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+pub fn remove_from_amend_blocking(repo_path: String, files: Vec<String>) -> Result<(), String> {
+    if files.is_empty() {
+        return Ok(());
+    }
+
+    let mut cmd = git_command(&repo_path);
+    if amend_base(&repo_path) == "HEAD~1" {
+        cmd.args(["reset", "-q", "HEAD~1", "--"]);
+    } else {
+        cmd.args(["rm", "--cached", "-q", "-r", "--"]);
+    }
+    let output = cmd.args(&files).output().map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
+}

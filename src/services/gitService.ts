@@ -539,3 +539,34 @@ export async function readWorktreeFile(repoPath: string, file: string): Promise<
 export async function saveWorktreeFile(repoPath: string, file: string, content: string): Promise<void> {
   await invoke("save_worktree_file", { repoPath, file, content });
 }
+
+export type AmendInfo = {
+  hasHead: boolean;
+  hash?: string;
+  subject?: string;
+  body?: string;
+  authorName?: string;
+  authorEmail?: string;
+  isCurrentUser?: boolean;
+  isMerge?: boolean;
+  isRoot?: boolean;
+  pushed?: boolean;
+  upstream?: string | null;
+  operationInProgress?: string | null;
+};
+
+export async function getAmendInfo(repoPath: string): Promise<AmendInfo> {
+  return await invoke<AmendInfo>("get_amend_info", { repoPath });
+}
+
+export async function listAmendChanges(repoPath: string): Promise<LocalChange[]> {
+  return await invoke<LocalChange[]>("list_amend_changes", { repoPath });
+}
+
+export async function getAmendDiff(repoPath: string, file: string): Promise<Diff> {
+  return await invoke<Diff>("get_amend_diff", { repoPath, file });
+}
+
+export async function removeFromAmend(repoPath: string, files: string[]): Promise<void> {
+  await invoke("remove_from_amend", { repoPath, files });
+}

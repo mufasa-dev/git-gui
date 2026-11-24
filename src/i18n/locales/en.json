@@ -987,5 +987,21 @@
     "cannot_edit_binary": "Binary files can't be edited here",
     "cannot_edit_deleted": "The file was deleted",
     "cannot_edit_conflict": "Resolve the conflict before editing"
+  },
+  "amend": {
+    "no_commits": "This repository has no commits to amend yet.",
+    "operation_in_progress": "A {{op}} is in progress. Finish or abort it before amending.",
+    "head_changed": "The last commit changed since amend was enabled. Enable it again to load the current commit.",
+    "empty_commit": "The commit would be empty. Keep at least one file in Staged.",
+    "nothing_changed": "Nothing changed: edit the message or stage files to amend the commit.",
+    "pushed_warning": "This commit was already pushed to {{upstream}}. Amending rewrites history and will require a force push.",
+    "merge_warning": "The last commit is a merge; amend will keep both parents.",
+    "author_warning": "The commit was made by {{author}}; the original author will be kept.",
+    "confirm_title": "Amend the last commit?",
+    "confirm": "Amend commit",
+    "success": "Last commit amended.",
+    "banner": "Files from the last commit + staged changes. \"Undo\" removes the file from the commit.",
+    "pushed_badge": "Already pushed: will require a force push",
+    "remove_hint": "Removes the selected files from the amended commit"
   }
 }

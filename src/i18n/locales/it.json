@@ -987,5 +987,21 @@
     "cannot_edit_binary": "I file binari non possono essere modificati qui",
     "cannot_edit_deleted": "Il file è stato eliminato",
     "cannot_edit_conflict": "Risolvi il conflitto prima di modificare"
+  },
+  "amend": {
+    "no_commits": "Questo repository non ha ancora commit da correggere.",
+    "operation_in_progress": "È in corso un {{op}}. Completalo o annullalo prima dell'amend.",
+    "head_changed": "L'ultimo commit è cambiato da quando è stato attivato l'amend. Riattivalo per caricare il commit attuale.",
+    "empty_commit": "Il commit sarebbe vuoto. Mantieni almeno un file tra i preparati.",
+    "nothing_changed": "Nessuna modifica: cambia il messaggio o prepara dei file per correggere il commit.",
+    "pushed_warning": "Questo commit è già stato inviato a {{upstream}}. Correggerlo riscrive la cronologia e richiederà un push forzato.",
+    "merge_warning": "L'ultimo commit è un merge; l'amend manterrà entrambi i genitori.",
+    "author_warning": "Il commit è stato fatto da {{author}}; l'autore originale verrà mantenuto.",
+    "confirm_title": "Correggere l'ultimo commit?",
+    "confirm": "Correggi commit",
+    "success": "Ultimo commit corretto.",
+    "banner": "File dell'ultimo commit + modifiche preparate. \"Annulla\" rimuove il file dal commit.",
+    "pushed_badge": "Già inviato: richiederà un push forzato",
+    "remove_hint": "Rimuove i file selezionati dal commit corretto"
   }
 }

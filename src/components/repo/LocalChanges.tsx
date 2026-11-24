@@ -1,6 +1,7 @@
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { commit, discard_changes, getDiff, ignoreFile, stageFiles, unstageFiles } from "../../services/gitService";
+import { AmendInfo, commit, discard_changes, getAmendDiff, getAmendInfo, getDiff, ignoreFile, listAmendChanges, removeFromAmend, stageFiles, unstageFiles } from "../../services/gitService";
+import ConfirmModal from "../ui/ConfirmModal";
 import { FolderTreeView } from "../ui/FolderTreeview";
 import { ChangeListView } from "../ui/ChangeListView";
 import LocalChangesSettingsModal from "./LocalChangesSettingsModal";
@@ -36,6 +37,12 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [commitMessage, setCommitMessage] = createSignal("");
   const [commitDescription, setCommitDescription] = createSignal("");
   const [commitAmend, setCommitAmend] = createSignal(false);
+  const [amendInfo, setAmendInfo] = createSignal<AmendInfo | null>(null);
+  const [amendChanges, setAmendChanges] = createSignal<LocalChange[]>([]);
+  const [amendLoading, setAmendLoading] = createSignal(false);
+  const [amendWarnings, setAmendWarnings] = createSignal<string[] | null>(null);
+  let amendSavedDraft: { message: string; description: string } | null = null;
+  let amendRequestId = 0;
   let lastRepoPath: string | undefined;
   let diffRequestId = 0;
   const { refreshBranches, refreshLocalChanges, commitDrafts, updateCommitDraft, clearCommitDraft } = useRepoContext();
@@ -52,6 +59,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [aiKeyModalOpen, setAiKeyModalOpen] = createSignal(false);
 
   const saveCommitDraft = (message: string, description: string) => {
+    if (untrack(commitAmend)) return;
     updateCommitDraft(props.repo.path, { message, description });
   };
   const [viewMode, setViewMode] = createSignal<"tree" | "list">(
@@ -96,10 +104,12 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
 
     const currentPaths = res.map(c => c.path);
+    const amendActive = untrack(commitAmend);
     setSelected(prev => prev.filter(p => currentPaths.includes(p)));
-    setStagedPreparedSelected(prev => prev.filter(p => currentPaths.includes(p)));
+    if (!amendActive) setStagedPreparedSelected(prev => prev.filter(p => currentPaths.includes(p)));
 
     const selectedPath = fileSelected();
+    if (amendActive && viewingStaged) return;
     if (selectedPath) {
       const fileExists = findSelected(res, selectedPath);
       if (fileExists) {
@@ -139,6 +149,13 @@ export function LocalChanges(props: { repo: Repo; }) {
       setFileSelected("");
       setDiff({diff: ""});
 
+      amendRequestId++;
+      amendSavedDraft = null;
+      setCommitAmend(false);
+      setAmendInfo(null);
+      setAmendChanges([]);
+      setAmendWarnings(null);
+
       const draft = commitDrafts()[newPath] ?? { message: "", description: "" };
       setCommitMessage(draft.message);
       setCommitDescription(draft.description);
@@ -146,6 +163,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
 
     void syncChanges(localChanges);
+    if (untrack(commitAmend)) void refreshAmendChanges();
   });
 
 
@@ -164,7 +182,85 @@ export function LocalChanges(props: { repo: Repo; }) {
     setSidebarWidth(newWidth);
   };
 
-  const staged = () => changes().filter((c) => c.staged && c.status !== "untracked");
+  const normalStaged = () => changes().filter((c) => c.staged && c.status !== "untracked");
+  const staged = () => (commitAmend() ? amendChanges() : normalStaged());
+
+  const refreshAmendChanges = async () => {
+    const requestId = ++amendRequestId;
+    try {
+      const list = await listAmendChanges(props.repo.path);
+      if (requestId !== amendRequestId || !commitAmend()) return;
+
+      const previousSignature = changeSignature(amendChanges());
+      setAmendChanges(list);
+      setStagedPreparedSelected(prev => prev.filter(path => list.some(change => change.path === path)));
+
+      const selectedPath = fileSelected();
+      if (selectedPath && isVisualizingStaged()) {
+        if (!list.some(change => change.path === selectedPath)) {
+          setFileSelected("");
+          clearDiff();
+        } else if (changeSignature(list) !== previousSignature) {
+          void loadDiff(true);
+        }
+      }
+    } catch (error) {
+      if (requestId === amendRequestId) notify.error(t('error').error, String(error));
+    }
+  };
+
+  const leaveStagedView = () => {
+    setStagedPreparedSelected([]);
+    if (isVisualizingStaged()) {
+      setFileSelected("");
+      clearDiff();
+    }
+  };
+
+  const exitAmend = (restoreDraft: boolean) => {
+    amendRequestId++;
+    setCommitAmend(false);
+    setAmendInfo(null);
+    setAmendChanges([]);
+    leaveStagedView();
+    if (restoreDraft && amendSavedDraft) {
+      setCommitMessage(amendSavedDraft.message);
+      setCommitDescription(amendSavedDraft.description);
+    }
+    amendSavedDraft = null;
+  };
+
+  const toggleAmend = async (checked: boolean) => {
+    if (!checked) {
+      exitAmend(true);
+      return;
+    }
+
+    setAmendLoading(true);
+    try {
+      const info = await getAmendInfo(props.repo.path);
+      if (!info.hasHead) {
+        notify.error(t('git').amend, t('amend').no_commits);
+        return;
+      }
+      if (info.operationInProgress) {
+        notify.error(t('git').amend, t('amend').operation_in_progress.replace('{{op}}', info.operationInProgress));
+        return;
+      }
+
+      amendSavedDraft = { message: commitMessage(), description: commitDescription() };
+      setAmendInfo(info);
+      setCommitAmend(true);
+      setCommitMessage(info.subject ?? "");
+      setCommitDescription(info.body ?? "");
+      leaveStagedView();
+      await refreshAmendChanges();
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    } finally {
+      setAmendLoading(false);
+    }
+  };
   const unstaged = () => changes().filter((c) => !c.staged || c.status == "untracked");
 
   const toggleItem = (path: string, _select: boolean, _isFile: boolean) => {
@@ -303,8 +399,11 @@ export function LocalChanges(props: { repo: Repo; }) {
   const loadDiff = async (staged: boolean) => {
     const requestId = ++diffRequestId;
     const selectedPath = fileSelected();
-    const change = changes().find(item => item.path === selectedPath && item.staged === staged)
-      ?? changes().find(item => item.path === selectedPath);
+    const amendView = staged && commitAmend();
+    const change = amendView
+      ? amendChanges().find(item => item.path === selectedPath)
+      : changes().find(item => item.path === selectedPath && item.staged === staged)
+        ?? changes().find(item => item.path === selectedPath);
 
     if (!change) {
       clearDiff();
@@ -317,7 +416,9 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
 
     try {
-      const result = await getDiff(props.repo.path, selectedPath, staged, change.status);
+      const result = amendView
+        ? await getAmendDiff(props.repo.path, selectedPath)
+        : await getDiff(props.repo.path, selectedPath, staged, change.status);
       if (requestId === diffRequestId && fileSelected() === selectedPath && isVisualizingStaged() === staged) {
         setDiff(result);
       }
@@ -388,11 +489,21 @@ export function LocalChanges(props: { repo: Repo; }) {
   };
 
   const unstage = async (paths: string[]) => {
-    await unstageFiles(props.repo.path, paths);
+    const targets = paths.length > 0 ? paths : staged().map(change => change.path);
+    if (targets.length === 0) return;
+    try {
+      if (commitAmend()) await removeFromAmend(props.repo.path, targets);
+      else await unstageFiles(props.repo.path, targets);
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+      return;
+    }
     setSelected([]);
+    setStagedPreparedSelected([]);
     clearDiff();
     setFileSelected("");
     await loadChanges();
+    if (commitAmend()) await refreshAmendChanges();
   }
 
   const discard = async (paths: string[]) => {
@@ -410,18 +521,82 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   }
 
+  const fullCommitMessage = (message: string, description: string) => {
+    const title = message.trim();
+    const body = description.trim();
+    return body ? `${title}\n\n${body}` : title;
+  };
+
   const handleCommit = async () => {
     if (!commitMessage().trim()) {
       notify.error('Ops!', t('commits').enter_commit_message);
       return;
     }
+
+    if (!commitAmend()) {
+      await runCommit(false);
+      return;
+    }
+
+    let info: AmendInfo;
+    try {
+      info = await getAmendInfo(props.repo.path);
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+      return;
+    }
+    if (!info.hasHead) {
+      notify.error(t('git').amend, t('amend').no_commits);
+      return;
+    }
+    if (info.operationInProgress) {
+      notify.error(t('git').amend, t('amend').operation_in_progress.replace('{{op}}', info.operationInProgress));
+      return;
+    }
+    if (info.hash !== amendInfo()?.hash) {
+      notify.error(t('git').amend, t('amend').head_changed);
+      exitAmend(true);
+      return;
+    }
+    setAmendInfo(info);
+
+    if (amendChanges().length === 0) {
+      notify.error(t('git').amend, t('amend').empty_commit);
+      return;
+    }
+
+    const sameMessage = fullCommitMessage(commitMessage(), commitDescription())
+      === fullCommitMessage(info.subject ?? "", info.body ?? "");
+    if (normalStaged().length === 0 && sameMessage) {
+      notify.error(t('git').amend, t('amend').nothing_changed);
+      return;
+    }
+
+    const warnings: string[] = [];
+    if (info.pushed) warnings.push(t('amend').pushed_warning.replace('{{upstream}}', info.upstream || 'remoto'));
+    if (info.isMerge) warnings.push(t('amend').merge_warning);
+    if (info.isCurrentUser === false) warnings.push(t('amend').author_warning.replace('{{author}}', info.authorName || info.authorEmail || ''));
+
+    if (warnings.length > 0) {
+      setAmendWarnings(warnings);
+      return;
+    }
+
+    await runCommit(true);
+  };
+
+  const runCommit = async (amend: boolean) => {
     try {
       showLoading("Realizando commit...");
-      await commit(props.repo.path, commitMessage(), commitDescription(), commitAmend());
-      setCommitMessage("");
-      setCommitDescription("");
-      clearCommitDraft(props.repo.path);
-      setCommitAmend(false);
+      await commit(props.repo.path, commitMessage(), commitDescription(), amend);
+      if (amend) {
+        exitAmend(true);
+        notify.success(t('git').amend, t('amend').success);
+      } else {
+        setCommitMessage("");
+        setCommitDescription("");
+        clearCommitDraft(props.repo.path);
+      }
       clearDiff();
       await refreshBranches(props.repo.path);
     } catch (err) {
@@ -439,6 +614,7 @@ export function LocalChanges(props: { repo: Repo; }) {
     const selectedPath = fileSelected();
     if (!selectedPath) return undefined;
     const staged = isVisualizingStaged();
+    if (staged && commitAmend()) return amendChanges().find(item => item.path === selectedPath)?.status;
     return (changes().find(item => item.path === selectedPath && item.staged === staged)
       ?? changes().find(item => item.path === selectedPath))?.status;
   };  
@@ -487,11 +663,34 @@ export function LocalChanges(props: { repo: Repo; }) {
 
           <div class="border-y border-gray-300 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 px-4 py-1 flex items-center mt-2 mb-3">
             <b class="mr-1">{t('git').prepared}</b>
+            <Show when={commitAmend()}>
+              <span class="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-600 dark:text-amber-300">amend</span>
+            </Show>
             <button class="ml-auto px-3 py-1 text-sm bg-green-500 text-white rounded-lg disabled:opacity-50" 
-              disabled={staged().length === 0} onclick={() => unstage(stagedPreparedSelected())}>
+              disabled={staged().length === 0}
+              title={commitAmend() ? t('amend').remove_hint : undefined}
+              onclick={() => unstage(stagedPreparedSelected())}>
               {t('git').undo}
             </button>
           </div>
+
+          <Show when={commitAmend() && amendInfo()}>
+            {(info) => (
+              <div class="mx-3 mb-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                <div class="flex min-w-0 items-center gap-1.5">
+                  <i class="fa-solid fa-code-commit shrink-0"></i>
+                  <span class="shrink-0 font-mono">{(info().hash || "").slice(0, 7)}</span>
+                  <span class="min-w-0 truncate" title={info().subject}>{info().subject}</span>
+                </div>
+                <div class="mt-0.5 opacity-80">{t('amend').banner}</div>
+                <Show when={info().pushed}>
+                  <div class="mt-1 flex items-center gap-1 font-semibold text-red-600 dark:text-red-400">
+                    <i class="fa-solid fa-triangle-exclamation"></i>{t('amend').pushed_badge}
+                  </div>
+                </Show>
+              </div>
+            )}
+          </Show>
           
           <Show when={viewMode() === "tree"} fallback={
             <ChangeListView
@@ -584,12 +783,17 @@ export function LocalChanges(props: { repo: Repo; }) {
             <div>
               <input
                 type="checkbox" id="amend" name="amend"
-                checked={commitAmend()} onChange={(e) => setCommitAmend(e.currentTarget.checked)}
+                checked={commitAmend()} disabled={amendLoading() || isGeneratingAI()}
+                onChange={async (e) => {
+                  const input = e.currentTarget;
+                  await toggleAmend(input.checked);
+                  input.checked = commitAmend();
+                }}
               />
               <label for="amend" class="ml-1">{t('git').amend}</label>
             </div>
             <button class="pl-2 pr-4 py-1 bg-blue-600 ml-auto text-white rounded-xl" onClick={handleCommit}
-              disabled={staged().length === 0 || !commitMessage().trim() || isGeneratingAI()}>
+              disabled={staged().length === 0 || !commitMessage().trim() || isGeneratingAI() || amendLoading()}>
               <i class="fa fa-check"></i> {t('git').commit}
             </button>
           </div>
@@ -601,6 +805,18 @@ export function LocalChanges(props: { repo: Repo; }) {
         onViewModeChange={updateViewMode}
         onClose={() => setSettingsOpen(false)}
         t={t}
+      />
+      <ConfirmModal
+        isOpen={amendWarnings() !== null}
+        title={t('amend').confirm_title}
+        message={(amendWarnings() ?? []).join(" ")}
+        confirmText={t('amend').confirm}
+        isDanger={true}
+        onConfirm={() => {
+          setAmendWarnings(null);
+          void runCommit(true);
+        }}
+        onCancel={() => setAmendWarnings(null)}
       />
       <AIKeyModal
         open={aiKeyModalOpen()}
