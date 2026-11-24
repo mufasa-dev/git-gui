@@ -172,7 +172,14 @@ export const githubService = {
    * a autenticação sem depender do redirecionamento automático do SO.
    */
   async completeLoginFromUrl(rawUrl: string) {
-    const parsed = parseGithubCallbackUrl(rawUrl.trim());
+    const input = rawUrl.trim();
+    // Aceita o link dev-brook://auth?code=..., qualquer link que contenha
+    // "code=" ou só o próprio código colado.
+    const codeMatch = input.match(/[?&]code=([^&#\s]+)/);
+    const parsed: GithubAuthCallback | null =
+      parseGithubCallbackUrl(input) ??
+      (codeMatch ? { code: decodeURIComponent(codeMatch[1]) } : null) ??
+      (/^[A-Za-z0-9_-]{16,}$/.test(input) ? { code: input } : null);
     if (!parsed) {
       throw new Error(
         "Isso não parece um link de retorno válido do GitHub. Ele deve começar com \"dev-brook://auth\"."

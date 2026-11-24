@@ -13,12 +13,16 @@ mod utils;
 use tauri::Emitter;
 use tauri_plugin_deep_link::DeepLinkExt;
 
+// Aceita "dev-brook://auth?code=..." e também as variações que o navegador /
+// Windows às vezes produzem: "dev-brook://auth/?code=..." (barra extra),
+// esquema em maiúsculas e aspas em volta do argumento.
 fn is_github_oauth_callback(value: &str) -> bool {
-    value
-        .strip_prefix("dev-brook://auth")
-        .is_some_and(|suffix| {
-            suffix.is_empty() || suffix.starts_with('?') || suffix.starts_with('#')
-        })
+    let lower = value.trim().trim_matches('"').to_ascii_lowercase();
+    let Some(rest) = lower.strip_prefix("dev-brook://auth") else {
+        return false;
+    };
+    let rest = rest.strip_prefix('/').unwrap_or(rest);
+    rest.is_empty() || rest.starts_with('?') || rest.starts_with('#')
 }
 
 #[cfg(test)]
@@ -29,6 +33,9 @@ mod oauth_callback_tests {
     fn accepts_github_oauth_callback_urls() {
         assert!(is_github_oauth_callback("dev-brook://auth?code=test"));
         assert!(is_github_oauth_callback("dev-brook://auth#error"));
+        assert!(is_github_oauth_callback("dev-brook://auth/?code=test"));
+        assert!(is_github_oauth_callback("DEV-BROOK://auth?code=test"));
+        assert!(is_github_oauth_callback("\"dev-brook://auth?code=test\""));
     }
 
     #[test]
@@ -60,8 +67,9 @@ fn main() {
 
             match args.iter().skip(1).find(|arg| is_github_oauth_callback(arg)) {
                 Some(url) => {
+                    let url = url.trim().trim_matches('"').to_string();
                     eprintln!("[single-instance] callback do GitHub reconhecido, emitindo oauth-callback: {url}");
-                    let _ = app.emit("oauth-callback", url.clone());
+                    let _ = app.emit("oauth-callback", url);
                 }
                 None if args.len() > 1 => {
                     eprintln!("[single-instance] nenhum argumento bateu com o callback esperado (dev-brook://auth...)");
@@ -91,6 +99,22 @@ fn main() {
                     Err(e) => eprintln!("[deep-link] falha ao registrar o protocolo \"dev-brook://\": {e}"),
                 }
             }
+
+            // Caminho oficial do plugin de deep-link: com o recurso "deep-link"
+            // do single-instance ativo, a URL recebida pela segunda instância
+            // chega aqui também. Emite o mesmo evento; o frontend ignora
+            // duplicatas (flag `handled` em githubService.login).
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    let url = url.to_string();
+                    eprintln!("[deep-link] URL recebida: {url}");
+                    if is_github_oauth_callback(&url) {
+                        let _ = handle.emit("oauth-callback", url);
+                    }
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
