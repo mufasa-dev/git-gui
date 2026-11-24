@@ -84,7 +84,11 @@ export function LocalChanges(props: { repo: Repo; }) {
     if (isMerging()) return;
 
     const previousChanges = changes();
-    const previousSelectedChange = previousChanges.find(change => change.path === fileSelected());
+    const viewingStaged = isVisualizingStaged();
+    const findSelected = (items: LocalChange[], path: string) =>
+      items.find(change => change.path === path && change.staged === viewingStaged)
+      ?? items.find(change => change.path === path);
+    const previousSelectedChange = findSelected(previousChanges, fileSelected());
     const listChanged = changeSignature(res) !== changeSignature(previousChanges);
 
     if (listChanged) {
@@ -96,22 +100,23 @@ export function LocalChanges(props: { repo: Repo; }) {
     setStagedPreparedSelected(prev => prev.filter(p => currentPaths.includes(p)));
 
     const selectedPath = fileSelected();
-    const currentDiffRequestId = ++diffRequestId;
     if (selectedPath) {
-      const fileExists = res.find(c => c.path === selectedPath);
+      const fileExists = findSelected(res, selectedPath);
       if (fileExists) {
         const selectedChangeChanged = !previousSelectedChange
           || changeSignature([previousSelectedChange]) !== changeSignature([fileExists]);
         if (!selectedChangeChanged) return;
 
+        const currentDiffRequestId = ++diffRequestId;
         const newDiff = fileExists.isPreviewable === false
           ? summaryDiff(fileExists)
-          : await getDiff(props.repo.path, selectedPath, fileExists.staged, fileExists.status);
-        if (currentDiffRequestId === diffRequestId && fileSelected() === selectedPath
+          : await getDiff(props.repo.path, selectedPath, viewingStaged, fileExists.status);
+        if (currentDiffRequestId === diffRequestId && fileSelected() === selectedPath && isVisualizingStaged() === viewingStaged
           && (newDiff.diff !== diff().diff || newDiff.reason !== diff().reason || newDiff.truncated !== diff().truncated)) {
           setDiff(newDiff);
         }
-      } else if (currentDiffRequestId === diffRequestId && fileSelected() === selectedPath) {
+      } else {
+        diffRequestId++;
         setFileSelected("");
         setDiff({diff: ""});
       }
@@ -162,21 +167,18 @@ export function LocalChanges(props: { repo: Repo; }) {
   const staged = () => changes().filter((c) => c.staged && c.status !== "untracked");
   const unstaged = () => changes().filter((c) => !c.staged || c.status == "untracked");
 
-  const toggleItem = (path: string, select: boolean, _isFile: boolean) => {
-    if (path === fileSelected()) {
+  const toggleItem = (path: string, _select: boolean, _isFile: boolean) => {
+    if (path === fileSelected() && !isVisualizingStaged()) {
       clearDiff();
       setFileSelected("");
-      setIsVisualizingStaged(false);
       setSelected((prev) => prev.filter((p) => p !== path));
-    } else {
-      setFileSelected(path);
-      loadDiff(false);
-      setIsVisualizingStaged(false);
-      setSelected((prev) => {
-        if (select) return [...prev, path];
-        else return prev.filter((p) => p !== path);
-      });
+      return;
     }
+
+    setIsVisualizingStaged(false);
+    setFileSelected(path);
+    setSelected((prev) => (prev.includes(path) ? prev : [...prev, path]));
+    void loadDiff(false);
   };
 
   const toggleItems = (paths: string[], select: boolean) => {
@@ -206,16 +208,20 @@ export function LocalChanges(props: { repo: Repo; }) {
       }
     });
 
-    if (isFile) {
-      if (path === fileSelected() && !select) {
+    if (!isFile) return;
+
+    if (path === fileSelected() && isVisualizingStaged()) {
+      if (!select) {
         setFileSelected("");
         clearDiff();
-      } else if (select) {
-        setFileSelected(path);
-        setIsVisualizingStaged(true);
-        loadDiff(true);
       }
+      return;
     }
+
+    setStagedPreparedSelected((prev) => (prev.includes(path) ? prev : [...prev, path]));
+    setIsVisualizingStaged(true);
+    setFileSelected(path);
+    void loadDiff(true);
   };
 
   const openSelectedInVsCode = async (filePath: string) => {
@@ -295,6 +301,7 @@ export function LocalChanges(props: { repo: Repo; }) {
   onCleanup(() => document.removeEventListener("click", hideContextMenu));
 
   const loadDiff = async (staged: boolean) => {
+    const requestId = ++diffRequestId;
     const selectedPath = fileSelected();
     const change = changes().find(item => item.path === selectedPath && item.staged === staged)
       ?? changes().find(item => item.path === selectedPath);
@@ -311,10 +318,11 @@ export function LocalChanges(props: { repo: Repo; }) {
 
     try {
       const result = await getDiff(props.repo.path, selectedPath, staged, change.status);
-      if (fileSelected() === selectedPath) {
+      if (requestId === diffRequestId && fileSelected() === selectedPath && isVisualizingStaged() === staged) {
         setDiff(result);
       }
     } catch (error) {
+      if (requestId !== diffRequestId) return;
       console.error("Erro ao carregar diff:", error);
       notify.error(t('error').load_file, String(error));
     }

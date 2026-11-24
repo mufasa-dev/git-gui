@@ -499,3 +499,7 @@ body,
   outline-offset: -2px;
   background-color: rgb(59 130 246 / 0.12) !important;
 }
+
+.diff-scroll-no-vbar::-webkit-scrollbar:vertical {
+  width: 0 !important;
+}

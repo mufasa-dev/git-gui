@@ -250,6 +250,7 @@ export default function DiffViewer(props: Props) {
               <For each={diffLines()}>
                 {(line) => (
                   <div
+                    data-diff-line={line.type}
                     class={`flex items-stretch w-full border-b border-transparent last:border-0 ${
                       line.type === "add"
                         ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200"

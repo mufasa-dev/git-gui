@@ -3,6 +3,7 @@ import { getGravatarUrl } from "../../services/gravatarService";
 import { formatDate } from "../../utils/date";
 import { getCommitFileDiff } from "../../services/gitService";
 import DiffViewer from "../ui/DiffViewer";
+import DiffScrollArea from "../ui/DiffScrollArea";
 import { notify } from "../../utils/notifications";
 import FileIcon from "../ui/FileIcon";
 import CommitMessage from "../ui/CommitMessage";
@@ -311,7 +312,7 @@ export function CommitDetailsModal(props: CommitDetailsModalProps) {
                 </div>
               </aside>
 
-              <section class="min-h-0 overflow-auto bg-gray-100 p-4 dark:bg-gray-900">
+              <DiffScrollArea class="min-h-[320px] bg-gray-100 dark:bg-gray-900 lg:min-h-0" innerClass="p-4">
                 <Show when={selectedFile()} fallback={<div class="flex h-full min-h-48 items-center justify-center rounded-2xl border border-dashed border-gray-300 text-sm text-gray-400 dark:border-gray-800">{t("pr").select_file_see_changes}</div>}>
                   <div class="mb-3 flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-800">
                     <FileIcon fileName={getFileName(selectedFile().file)} class="h-5 w-5" />
@@ -329,7 +330,7 @@ export function CommitDetailsModal(props: CommitDetailsModalProps) {
                     </Show>
                   </Show>
                 </Show>
-              </section>
+              </DiffScrollArea>
             </div>
           </Show>
         </div>

@@ -2,6 +2,7 @@ import { createEffect, createMemo, createSignal, For, JSX, on, onCleanup, onMoun
 import FileIcon from "../ui/FileIcon";
 import ConfirmModal from "../ui/ConfirmModal";
 import CodeEditor from "../ui/CodeEditor";
+import DiffScrollArea from "../ui/DiffScrollArea";
 import vsCodeIcon from "../../assets/vscode.png";
 import { Diff } from "../../models/Diff.model";
 import { readWorktreeFile, saveWorktreeFile } from "../../services/gitService";
@@ -362,7 +363,7 @@ export default function LocalChangeEditor(props: Props) {
         </div>
       </Show>
 
-      <div class="min-h-0 flex-1 overflow-auto p-2 custom-scrollbar">
+      <DiffScrollArea class="flex-1" innerClass="p-2">
         <Show when={editing()} fallback={props.children}>
           <Show when={mode() === "hunks"} fallback={
             <CodeEditor
@@ -413,7 +414,7 @@ export default function LocalChangeEditor(props: Props) {
             </div>
           </Show>
         </Show>
-      </div>
+      </DiffScrollArea>
 
       <ConfirmModal
         isOpen={confirmDiscard() !== null}
