@@ -290,7 +290,12 @@
     "list_view": "ファイル一覧",
     "list_view_description": "各ファイルを1行で表示します。",
     "ignore_file": "ファイルを無視",
-    "file_ignored": ".gitignore に追加しました"
+    "file_ignored": ".gitignore に追加しました",
+    "ignore_folder": "フォルダーを無視",
+    "folder_ignored": "フォルダーを .gitignore に追加しました。",
+    "folder_ignored_tracked": "フォルダーを .gitignore に追加しました。既にバージョン管理されているファイルは追跡されたままです。git rm -r --cached でインデックスから削除してください。",
+    "prepare_folder": "フォルダーをステージ",
+    "undo_folder": "フォルダーを取り消し"
   },
   "commits": {
     "commits": "コミット",
@@ -1054,6 +1059,7 @@
     "discard_file": "ファイルの変更を破棄",
     "discard_file_title": "変更を破棄しますか？",
     "discard_file_message": "{{file}} のすべての変更が失われます。元に戻せません。",
-    "discard_confirm": "破棄"
+    "discard_confirm": "破棄",
+    "discard_folder_message": "フォルダー {{folder}} 内の {{count}} 個のファイルのすべての変更が失われます。元に戻せません。"
   }
 }

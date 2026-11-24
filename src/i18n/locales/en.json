@@ -290,7 +290,12 @@
     "list_view": "File list",
     "list_view_description": "Show each file on its own line.",
     "ignore_file": "Ignore file",
-    "file_ignored": "File added to .gitignore"
+    "file_ignored": "File added to .gitignore",
+    "ignore_folder": "Ignore folder",
+    "folder_ignored": "Folder added to .gitignore.",
+    "folder_ignored_tracked": "Folder added to .gitignore. Files that were already versioned are still tracked; remove them from the index with git rm -r --cached.",
+    "prepare_folder": "Stage folder",
+    "undo_folder": "Unstage folder"
   },
   "commits": {
     "commits": "Commits",
@@ -1054,6 +1059,7 @@
     "discard_file": "Discard file changes",
     "discard_file_title": "Discard changes?",
     "discard_file_message": "All changes to {{file}} will be lost. This can't be undone.",
-    "discard_confirm": "Discard"
+    "discard_confirm": "Discard",
+    "discard_folder_message": "All changes to the {{count}} file(s) in folder {{folder}} will be lost. This can't be undone."
   }
 }

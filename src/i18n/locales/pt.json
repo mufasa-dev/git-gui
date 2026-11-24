@@ -290,7 +290,12 @@
     "list_view": "Lista de arquivos",
     "list_view_description": "Exibe cada arquivo em uma linha.",
     "ignore_file": "Ignorar arquivo",
-    "file_ignored": "Arquivo adicionado ao .gitignore"
+    "file_ignored": "Arquivo adicionado ao .gitignore",
+    "ignore_folder": "Ignorar pasta",
+    "folder_ignored": "Pasta adicionada ao .gitignore.",
+    "folder_ignored_tracked": "Pasta adicionada ao .gitignore. Arquivos que já estavam versionados continuam sendo rastreados; remova-os do índice com git rm -r --cached.",
+    "prepare_folder": "Preparar pasta",
+    "undo_folder": "Desfazer pasta"
   },
   "commits": {
     "commits": "Commits",
@@ -1054,6 +1059,7 @@
     "discard_file": "Descartar alterações do arquivo",
     "discard_file_title": "Descartar alterações?",
     "discard_file_message": "Todas as alterações de {{file}} serão perdidas. Essa ação não pode ser desfeita.",
-    "discard_confirm": "Descartar"
+    "discard_confirm": "Descartar",
+    "discard_folder_message": "Todas as alterações dos {{count}} arquivo(s) da pasta {{folder}} serão perdidas. Essa ação não pode ser desfeita."
   }
 }

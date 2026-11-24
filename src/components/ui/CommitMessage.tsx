@@ -1,5 +1,5 @@
 import { For, Show, createMemo } from "solid-js";
-import { commitColors, TAG_MAPPING } from "../../utils/file";
+import { commitColors, isCommitType, TAG_MAPPING } from "../../utils/file";
 
 interface Props {
   message: string;
@@ -50,9 +50,10 @@ const CommitMessage = (props: Props) => {
     }
 
     // Aceita tanto "feat(scope): mensagem" quanto "feat: (scope): mensagem".
-    const malformedTagMatch = msg.match(/^([\w-]+)\s*:\s*\(([^)]+)\)\s*:?[ \t]*(.*)$/);
-    const conventionalTagMatch = msg.match(/^([\w-]+)(?:\(([^)]+)\))?\s*:\s*(.*)$/);
-    const tagMatch = malformedTagMatch || conventionalTagMatch;
+    const malformedTagMatch = msg.match(/^([\w-]+)\s*:(?!\/\/)\s*\(([^)]+)\)\s*:?[ \t]*(.*)$/);
+    const conventionalTagMatch = msg.match(/^([\w-]+)(?:\(([^)]+)\))?\s*:(?!\/\/)\s*(.*)$/);
+    const rawTagMatch = malformedTagMatch || conventionalTagMatch;
+    const tagMatch = rawTagMatch && isCommitType(rawTagMatch[1]) ? rawTagMatch : null;
 
     let type = tagMatch ? tagMatch[1] : null;
     if (type) {

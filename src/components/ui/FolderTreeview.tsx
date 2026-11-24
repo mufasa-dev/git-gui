@@ -162,13 +162,15 @@ function TreeNode(props: {
     <li oncontextmenu={(e) => { 
       e.preventDefault();
       e.stopPropagation();
-      props.onContextMenu && props.onContextMenu(e, props.node.__isFile ? { path: props.path, status: props.node.__status, staged: props.staged } : null);
+      props.onContextMenu && props.onContextMenu(e, props.node.__isFile
+        ? { path: props.path, status: props.node.__status, staged: props.staged }
+        : { path: props.path, isFolder: true, staged: props.staged, files: collectPaths(props.node, props.path) });
     }}>
       <div
         class="cursor-pointer select-none flex items-center" style={{ "padding-left": `${props.loopNumber * 1}rem` }}
         classList={{
           "text-blue-500 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400": props.selected.includes(props.path),
-          "context-target rounded": !!props.contextPath && props.node.__isFile && props.contextPath === props.path,
+          "context-target rounded": !!props.contextPath && props.contextPath === props.path,
         }}
         onClick={toggle} onDblClick={() => {
           if (props.node.__isFile && props.onDbClick) {

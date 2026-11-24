@@ -11,6 +11,12 @@ export function getExtension(filename: string): string {
   return ext.toLowerCase();
 }
 
+export const NON_COMMIT_TYPES = new Set(["http", "https", "ftp", "ftps", "sftp", "ssh", "git", "file", "mailto", "www", "localhost"]);
+
+export function isCommitType(type: string | null | undefined): boolean {
+  return Boolean(type) && !NON_COMMIT_TYPES.has(type!.toLowerCase());
+}
+
 export const commitColors: Record<string, string> = {
   feat: "text-green-600 dark:text-green-400 font-bold",
   fix: "text-amber-600 dark:text-amber-400 font-bold",

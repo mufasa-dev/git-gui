@@ -1,5 +1,5 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
-import { INFERENCE_RULES, TAG_MAPPING, tagBaseColors } from "../../utils/file";
+import { INFERENCE_RULES, isCommitType, TAG_MAPPING, tagBaseColors } from "../../utils/file";
 import Dialog from "../ui/Dialog";
 import { useApp } from "../../context/AppContext";
 
@@ -57,7 +57,7 @@ const CommitTypeDistribution = (props: Props) => {
     let totalProcessed = 0;
     const hidden = hiddenTypes(); // Pega a lista de ocultos
     
-    const tagRegex = /^(\w+)(?:\(([^)]+)\))?:\s*(.*)$/;
+    const tagRegex = /^(\w+)(?:\(([^)]+)\))?:(?!\/\/)\s*(.*)$/;
 
     props.commits.forEach((c) => {
       const msg = c.message || "";
@@ -67,7 +67,7 @@ const CommitTypeDistribution = (props: Props) => {
         type = "merge";
       } else {
         const match = msg.match(tagRegex);
-        type = match ? normalizeTag(match[1]) : inferTagFromMessage(msg);
+        type = match && isCommitType(match[1]) ? normalizeTag(match[1]) : inferTagFromMessage(msg);
       }
 
       // FILTRO: Se o tipo for "other" ou estiver na lista de OCULTOS, ignoramos
@@ -91,7 +91,7 @@ const CommitTypeDistribution = (props: Props) => {
 
   const detectedTypes = createMemo(() => {
     const types = new Set<string>();
-    const tagRegex = /^(\w+)(?:\(([^)]+)\))?:\s*(.*)$/;
+    const tagRegex = /^(\w+)(?:\(([^)]+)\))?:(?!\/\/)\s*(.*)$/;
 
     props.commits.forEach((c) => {
       const msg = c.message || "";
@@ -101,7 +101,7 @@ const CommitTypeDistribution = (props: Props) => {
         type = "merge";
       } else {
         const match = msg.match(tagRegex);
-        type = match ? normalizeTag(match[1]) : inferTagFromMessage(msg);
+        type = match && isCommitType(match[1]) ? normalizeTag(match[1]) : inferTagFromMessage(msg);
       }
 
       if (type !== "other") {

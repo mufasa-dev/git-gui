@@ -358,34 +358,84 @@ export function LocalChanges(props: { repo: Repo; }) {
     }
   };
 
+  const ignoreSelectedFolder = async (folderPath: string, files: string[]) => {
+    try {
+      await ignoreFile(props.repo.path, `${folderPath.replace(/\/+$/, "")}/`);
+      const tracked = changes().some(change => files.includes(change.path) && change.status !== "untracked");
+      notify.success(t('git').ignore_folder, tracked ? t('git').folder_ignored_tracked : t('git').folder_ignored);
+      setSelected((prev) => prev.filter((path) => !files.includes(path)));
+      setStagedPreparedSelected((prev) => prev.filter((path) => !files.includes(path)));
+      if (files.includes(fileSelected())) {
+        setFileSelected("");
+        clearDiff();
+      }
+      await loadChanges();
+    } catch (error) {
+      notify.error(t('error').error, String(error));
+    }
+  };
+
   const showContextMenu = (e: MouseEvent, item: any = null) => {
     e.preventDefault();
     setContextTarget(item?.path ? { path: item.path, staged: !!item.staged } : null);
 
-    let items = []
-    if (item && item.path) {
-      if (!item.staged) {
-        items.push({ label: t('git').prepare, action: () => prepare([item.path]) });
-      }
-      else {
-        items.push({ label: t('git').undo, action: () => unstage([item.path]) });
-      }
-
+    const items: ContextMenuItem[] = [];
+    if (item?.isFolder) {
+      const files: string[] = item.files ?? [];
+      const folderName = item.path.split("/").pop() || item.path;
+      items.push(item.staged
+        ? { label: t('git').undo_folder, icon: "fa-solid fa-rotate-left", action: () => void unstage(files) }
+        : { label: t('git').prepare_folder, icon: "fa-solid fa-check", action: () => void prepare(files) });
+      items.push({
+        label: t('git').ignore_folder,
+        icon: "fa-solid fa-eye-slash",
+        hr: true,
+        action: () => void ignoreSelectedFolder(item.path, files),
+      });
+      items.push({ label: t('git').prepare_all, icon: "fa-solid fa-check-double", action: () => void prepareAll() });
+      items.push({
+        label: t('branch').discart_changes,
+        icon: "fa-solid fa-trash-can",
+        danger: true,
+        action: () => setDiscardConfirm({
+          title: t('diff_menu').discard_file_title,
+          message: t('diff_menu').discard_folder_message.replace('{{folder}}', folderName).replace('{{count}}', String(files.length)),
+          action: () => discard(files),
+        }),
+      });
+    } else if (item?.path) {
+      items.push(item.staged
+        ? { label: t('git').undo, icon: "fa-solid fa-rotate-left", action: () => void unstage([item.path]) }
+        : { label: t('git').prepare, icon: "fa-solid fa-check", action: () => void prepare([item.path]) });
       items.push({
         label: t('branch').open_diff_vscode,
+        icon: "fa-solid fa-code-compare",
         hr: true,
-        action: () => openSelectedInVsCode(item.path),
+        action: () => void openSelectedInVsCode(item.path),
       });
       items.push({
         label: t('git').ignore_file,
-        action: () => ignoreSelectedFile(item.path),
+        icon: "fa-solid fa-eye-slash",
+        hr: true,
+        action: () => void ignoreSelectedFile(item.path),
+      });
+      items.push({ label: t('git').prepare_all, icon: "fa-solid fa-check-double", action: () => void prepareAll() });
+      items.push({
+        label: t('branch').discart_changes,
+        icon: "fa-solid fa-trash-can",
+        danger: true,
+        action: () => void discard([item.path]),
+      });
+    } else {
+      items.push({ label: t('git').prepare_all, icon: "fa-solid fa-check-double", action: () => void prepareAll() });
+      items.push({
+        label: t('branch').discart_changes,
+        icon: "fa-solid fa-trash-can",
+        danger: true,
+        disabled: selected().length === 0,
+        action: () => void discard(selected()),
       });
     }
-    items.push({ label: t('git').prepare_all, action: () => prepareAll() });
-    items.push({
-      label: t('branch').discart_changes,
-      action: () => discard(item?.path ? [item.path] : selected()),
-    });
 
     setMenuItems(items);
     setMenuPos({ x: e.clientX, y: e.clientY });

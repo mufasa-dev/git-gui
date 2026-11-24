@@ -487,6 +487,11 @@ pub async fn ignore_file(path: String, file_path: String) -> Result<String, Stri
 
 pub fn ignore_file_blocking(path: String, file_path: String) -> Result<String, String> {
     let entry = normalize_gitignore_entry(&file_path)?;
+    let entry = if entry.ends_with('/') && !entry.starts_with('/') && !entry.starts_with('\\') {
+        format!("/{}", entry)
+    } else {
+        entry
+    };
     let gitignore_path = Path::new(&path).join(".gitignore");
     let mut content = if gitignore_path.exists() {
         fs::read_to_string(&gitignore_path).map_err(|error| error.to_string())?

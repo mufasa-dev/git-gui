@@ -1,4 +1,4 @@
-import { commitColors, TAG_MAPPING } from "./file";
+import { commitColors, isCommitType, TAG_MAPPING } from "./file";
 
 type Token = { text: string; cls?: string };
 
@@ -113,8 +113,8 @@ export function analyzeCommitTitle(raw: string): TitleAnalysis {
   let type: string | null = null;
   let scope: string | null = null;
   let breaking = false;
-  const conventional = rest.match(/^(\s*)([\w-]+)(\([^)]*\))?(!)?(\s*:)/);
-  if (conventional) {
+  const conventional = rest.match(/^(\s*)([\w-]+)(\([^)]*\))?(!)?(\s*:)(?!\/\/)/);
+  if (conventional && isCommitType(conventional[2])) {
     type = conventional[2];
     scope = conventional[3] ? conventional[3].slice(1, -1) : null;
     breaking = Boolean(conventional[4]);
