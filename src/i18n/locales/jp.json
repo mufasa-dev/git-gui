@@ -1026,7 +1026,13 @@
     "too_long": "タイトルが {{count}} 文字です（最大 72）。詳細は説明に移してください。",
     "long": "50 文字以内のタイトルが読みやすいです。",
     "trailing_period": "タイトルの末尾にピリオドを付けないでください。",
-    "type_hint": "種類:"
+    "autosquash": "\"{{prefix}}\" が付いたコミット: autosquash の rebase で別のコミットにまとめられます。",
+    "wip": "WIP (作業中) のコミットです。",
+    "empty_scope": "スコープが空です。\"type(scope):\" にするか括弧を削除してください。",
+    "uppercase_type": "種類は小文字が慣例です: \"{{type}}\"。",
+    "not_imperative": "命令形を推奨します: \"{{word}}\" は過去形か進行形のようです (例: \"added\" ではなく \"add\")。",
+    "body_long": "説明の {{count}} 行が 72 文字を超えています。",
+    "breaking_without_bang": "説明に BREAKING CHANGE がありますが、タイトルに \"!\" がありません (例: \"feat!:\")。"
   },
   "push": {
     "rejected_title": "プッシュが拒否されました",
@@ -1036,5 +1042,18 @@
     "force_hint": "--force-with-lease は、リモートが最後に確認した状態のままの場合にのみ上書きします。その間に誰かがプッシュしていれば拒否されます。",
     "forced_success": "強制プッシュが完了しました！",
     "lease_failed": "最後のフェッチ以降にリモートが変更されたため、他の人のコミットを消さないよう強制プッシュは拒否されました。フェッチ/プルしてから再試行してください。"
+  },
+  "diff_menu": {
+    "copy": "コピー",
+    "paste": "貼り付け",
+    "stage_file": "ファイルをステージ",
+    "unstage_file": "ファイルを取り消し",
+    "discard_hunk": "ハンクを破棄",
+    "discard_hunk_title": "ハンクを破棄しますか？",
+    "discard_hunk_message": "このハンクの変更はディスク上のファイルから削除されます。元に戻せません。",
+    "discard_file": "ファイルの変更を破棄",
+    "discard_file_title": "変更を破棄しますか？",
+    "discard_file_message": "{{file}} のすべての変更が失われます。元に戻せません。",
+    "discard_confirm": "破棄"
   }
 }

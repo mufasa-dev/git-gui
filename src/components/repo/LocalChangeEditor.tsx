@@ -10,6 +10,17 @@ import { openVsCode } from "../../services/openService";
 import { notify } from "../../utils/notifications";
 import { useApp } from "../../context/AppContext";
 
+export type LocalChangeEditorController = {
+  isEditing: () => boolean;
+  mode: () => "hunks" | "full";
+  isDirty: () => boolean;
+  canEdit: () => boolean;
+  startEdit: () => Promise<void>;
+  showFullCode: () => void;
+  save: () => Promise<void>;
+  cancel: () => void;
+};
+
 type Props = {
   repoPath: string;
   /** Caminho do arquivo relativo ao repositório. */
@@ -25,6 +36,7 @@ type Props = {
   onEditingChange?: (editing: boolean) => void;
   /** Visualização normal (DiffViewer), exibida fora do modo de edição. */
   children: JSX.Element;
+  onController?: (controller: LocalChangeEditorController) => void;
 };
 
 type EditableHunk = {
@@ -264,6 +276,17 @@ export default function LocalChangeEditor(props: Props) {
   };
 
   const cancelEdit = () => askDiscard(resetEditor);
+
+  props.onController?.({
+    isEditing: editing,
+    mode,
+    isDirty,
+    canEdit,
+    startEdit,
+    showFullCode,
+    save,
+    cancel: cancelEdit,
+  });
   const backToChanges = () => askDiscard(() => { resetEditor(); void startEdit(); });
 
   const openInVsCode = async () => {

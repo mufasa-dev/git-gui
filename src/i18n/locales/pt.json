@@ -1026,7 +1026,13 @@
     "too_long": "Título com {{count}} caracteres (máx. 72): mova os detalhes para a descrição.",
     "long": "Títulos com até 50 caracteres são mais legíveis.",
     "trailing_period": "Evite ponto final no título.",
-    "type_hint": "Tipo:"
+    "autosquash": "Commit marcado com \"{{prefix}}\": será juntado a outro commit no rebase com autosquash.",
+    "wip": "Commit marcado como WIP (trabalho em andamento).",
+    "empty_scope": "Escopo vazio: use \"tipo(escopo):\" ou remova os parênteses.",
+    "uppercase_type": "O padrão é o tipo em minúsculas: \"{{type}}\".",
+    "not_imperative": "Prefira o imperativo: \"{{word}}\" parece estar no passado ou gerúndio (ex.: \"add\" em vez de \"added\").",
+    "body_long": "{{count}} linha(s) da descrição passam de 72 caracteres.",
+    "breaking_without_bang": "A descrição tem BREAKING CHANGE, mas o título não tem \"!\" (ex.: \"feat!:\")."
   },
   "push": {
     "rejected_title": "Push rejeitado",
@@ -1036,5 +1042,18 @@
     "force_hint": "--force-with-lease só sobrescreve o remoto se ele ainda estiver no ponto que o seu Git conhece; se alguém enviou commits nesse meio tempo, o push é recusado.",
     "forced_success": "Push forçado realizado com sucesso!",
     "lease_failed": "O remoto mudou desde o último fetch e o push forçado foi recusado para não apagar commits de outra pessoa. Faça fetch/pull e tente de novo."
+  },
+  "diff_menu": {
+    "copy": "Copiar",
+    "paste": "Colar",
+    "stage_file": "Preparar arquivo",
+    "unstage_file": "Desfazer arquivo",
+    "discard_hunk": "Descartar trecho",
+    "discard_hunk_title": "Descartar trecho?",
+    "discard_hunk_message": "As alterações deste trecho serão removidas do arquivo em disco. Essa ação não pode ser desfeita.",
+    "discard_file": "Descartar alterações do arquivo",
+    "discard_file_title": "Descartar alterações?",
+    "discard_file_message": "Todas as alterações de {{file}} serão perdidas. Essa ação não pode ser desfeita.",
+    "discard_confirm": "Descartar"
   }
 }

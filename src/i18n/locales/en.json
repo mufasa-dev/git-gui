@@ -1026,7 +1026,13 @@
     "too_long": "Title has {{count}} characters (max 72): move details to the description.",
     "long": "Titles up to 50 characters are easier to read.",
     "trailing_period": "Avoid a trailing period in the title.",
-    "type_hint": "Type:"
+    "autosquash": "Commit marked with \"{{prefix}}\": it will be squashed into another commit on an autosquash rebase.",
+    "wip": "Commit marked as WIP (work in progress).",
+    "empty_scope": "Empty scope: use \"type(scope):\" or remove the parentheses.",
+    "uppercase_type": "The convention is a lowercase type: \"{{type}}\".",
+    "not_imperative": "Prefer the imperative mood: \"{{word}}\" looks like past tense or gerund (e.g. \"add\" instead of \"added\").",
+    "body_long": "{{count}} description line(s) exceed 72 characters.",
+    "breaking_without_bang": "The description has BREAKING CHANGE but the title has no \"!\" (e.g. \"feat!:\")."
   },
   "push": {
     "rejected_title": "Push rejected",
@@ -1036,5 +1042,18 @@
     "force_hint": "--force-with-lease only overwrites the remote if it's still where your Git last saw it; if someone pushed in the meantime, the push is refused.",
     "forced_success": "Force push completed!",
     "lease_failed": "The remote changed since your last fetch, so the force push was refused to avoid deleting someone else's commits. Fetch/pull and try again."
+  },
+  "diff_menu": {
+    "copy": "Copy",
+    "paste": "Paste",
+    "stage_file": "Stage file",
+    "unstage_file": "Unstage file",
+    "discard_hunk": "Discard hunk",
+    "discard_hunk_title": "Discard hunk?",
+    "discard_hunk_message": "The changes in this hunk will be removed from the file on disk. This can't be undone.",
+    "discard_file": "Discard file changes",
+    "discard_file_title": "Discard changes?",
+    "discard_file_message": "All changes to {{file}} will be lost. This can't be undone.",
+    "discard_confirm": "Discard"
   }
 }

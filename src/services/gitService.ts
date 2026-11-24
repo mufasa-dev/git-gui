@@ -596,3 +596,7 @@ export async function normalizeLineEndings(repoPath: string, files: string[]): P
 export async function createGitattributes(repoPath: string): Promise<void> {
   await invoke("create_gitattributes", { repoPath });
 }
+
+export async function discardPatch(repoPath: string, patch: string): Promise<void> {
+  await invoke("discard_patch", { repoPath, patch });
+}

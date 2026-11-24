@@ -160,6 +160,7 @@ fn main() {
             commands::stage::normalize_line_endings,
             commands::stage::create_gitattributes,
             commands::stage::apply_patch_to_index,
+            commands::stage::discard_patch,
             commands::stage::reset_hard,
             commands::stash::list_stashes,
             commands::stash::create_stash,

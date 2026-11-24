@@ -504,19 +504,24 @@ body,
   width: 0 !important;
 }
 
-.commit-title-input {
+.commit-title-input,
+.commit-highlight-input {
   color: transparent !important;
   -webkit-text-fill-color: transparent;
   caret-color: rgb(17 24 39);
 }
-.dark .commit-title-input {
+.dark .commit-title-input,
+.dark .commit-highlight-input {
   caret-color: #fff;
 }
-.commit-title-input::placeholder {
+.commit-title-input::placeholder,
+.commit-highlight-input::placeholder {
   -webkit-text-fill-color: rgb(156 163 175);
 }
 .commit-title-overlay,
-.commit-title-overlay * {
+.commit-title-overlay *,
+.commit-body-overlay,
+.commit-body-overlay * {
   font-weight: inherit !important;
   font-style: normal !important;
   letter-spacing: inherit;

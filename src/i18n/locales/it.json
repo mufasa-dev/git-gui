@@ -1026,7 +1026,13 @@
     "too_long": "Titolo di {{count}} caratteri (max 72): sposta i dettagli nella descrizione.",
     "long": "I titoli fino a 50 caratteri sono più leggibili.",
     "trailing_period": "Evita il punto finale nel titolo.",
-    "type_hint": "Tipo:"
+    "autosquash": "Commit marcato con \"{{prefix}}\": verrà unito a un altro commit nel rebase con autosquash.",
+    "wip": "Commit marcato come WIP (lavoro in corso).",
+    "empty_scope": "Scope vuoto: usa \"tipo(scope):\" o rimuovi le parentesi.",
+    "uppercase_type": "La convenzione è il tipo in minuscolo: \"{{type}}\".",
+    "not_imperative": "Preferisci l'imperativo: \"{{word}}\" sembra al passato o al gerundio (es.: \"add\" invece di \"added\").",
+    "body_long": "{{count}} riga/e della descrizione superano i 72 caratteri.",
+    "breaking_without_bang": "La descrizione contiene BREAKING CHANGE ma il titolo non ha \"!\" (es.: \"feat!:\")."
   },
   "push": {
     "rejected_title": "Push rifiutato",
@@ -1036,5 +1042,18 @@
     "force_hint": "--force-with-lease sovrascrive il remoto solo se è ancora dove il tuo Git lo ha visto l'ultima volta; se qualcuno ha fatto push nel frattempo, viene rifiutato.",
     "forced_success": "Push forzato completato!",
     "lease_failed": "Il remoto è cambiato dall'ultimo fetch e il push forzato è stato rifiutato per non cancellare commit altrui. Fai fetch/pull e riprova."
+  },
+  "diff_menu": {
+    "copy": "Copia",
+    "paste": "Incolla",
+    "stage_file": "Prepara file",
+    "unstage_file": "Annulla file",
+    "discard_hunk": "Scarta blocco",
+    "discard_hunk_title": "Scartare il blocco?",
+    "discard_hunk_message": "Le modifiche di questo blocco verranno rimosse dal file su disco. L'azione non può essere annullata.",
+    "discard_file": "Scarta modifiche del file",
+    "discard_file_title": "Scartare le modifiche?",
+    "discard_file_message": "Tutte le modifiche a {{file}} andranno perse. L'azione non può essere annullata.",
+    "discard_confirm": "Scarta"
   }
 }

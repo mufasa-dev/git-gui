@@ -3,6 +3,9 @@ import { For, Show } from "solid-js";
 export type ContextMenuItem = {
   label: string;
   hr?: boolean;
+  icon?: string;
+  danger?: boolean;
+  disabled?: boolean;
   action: () => void;
 };
 
@@ -29,12 +32,18 @@ export default function ContextMenu(props: ContextMenuProps) {
           {(item) => (
             <li>
               <button
-                class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600"
+                class="flex w-full items-center text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                classList={{ "text-red-600 dark:text-red-400": item.danger }}
+                disabled={item.disabled}
                 onClick={() => {
+                  if (item.disabled) return;
                   item.action();
                   props.onClose();
                 }}
               >
+                <Show when={item.icon}>
+                  <i class={`${item.icon} mr-2.5 w-4 shrink-0 text-center text-[13px] opacity-75`}></i>
+                </Show>
                 {item.label}
               </button>
               {item.hr && <hr class="my-1 border-gray-300 dark:border-gray-600" />}

@@ -1370,10 +1370,24 @@ pub async fn apply_patch_to_index(repo_path: String, patch: String, reverse: boo
 }
 
 pub fn apply_patch_to_index_blocking(repo_path: String, patch: String, reverse: bool) -> Result<(), String> {
+    run_git_apply(&repo_path, &patch, reverse, true)
+}
+
+#[tauri::command]
+pub async fn discard_patch(repo_path: String, patch: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || run_git_apply(&repo_path, &patch, true, false))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+fn run_git_apply(repo_path: &str, patch: &str, reverse: bool, cached: bool) -> Result<(), String> {
     use std::io::Write;
 
-    let mut cmd = git_command(&repo_path);
-    cmd.args(["apply", "--cached", "--whitespace=nowarn"]);
+    let mut cmd = git_command(repo_path);
+    cmd.args(["apply", "--whitespace=nowarn"]);
+    if cached {
+        cmd.arg("--cached");
+    }
     if reverse {
         cmd.arg("--reverse");
     }

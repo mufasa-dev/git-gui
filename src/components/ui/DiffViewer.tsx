@@ -37,6 +37,13 @@ type DiffLine = {
   hunkIndex?: number;
 };
 
+export function buildHunkPatch(diff: string, index: number): string | null {
+  const parts = splitPatch(diff);
+  const hunk = parts.hunks[index];
+  if (!hunk || !parts.header.some(line => line.startsWith("--- "))) return null;
+  return [...parts.header, ...hunk].join("\n") + "\n";
+}
+
 function splitPatch(diff: string): { header: string[]; hunks: string[][] } {
   const lines = (diff || "").split("\n");
   if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
@@ -93,11 +100,11 @@ function parseDiff(diff: string): DiffLine[] {
     const cleanContent = line.slice(1);
 
     if (line.startsWith("+")) {
-      result.push({ type: "add", newLine: newLine++, content: cleanContent });
+      result.push({ type: "add", newLine: newLine++, content: cleanContent, hunkIndex });
     } else if (line.startsWith("-")) {
-      result.push({ type: "del", oldLine: oldLine++, content: cleanContent });
+      result.push({ type: "del", oldLine: oldLine++, content: cleanContent, hunkIndex });
     } else {
-      result.push({ type: "ctx", oldLine: oldLine++, newLine: newLine++, content: cleanContent });
+      result.push({ type: "ctx", oldLine: oldLine++, newLine: newLine++, content: cleanContent, hunkIndex });
     }
   }
 
@@ -335,6 +342,7 @@ export default function DiffViewer(props: Props) {
                 {(line) => (
                   <div
                     data-diff-line={line.type}
+                    data-hunk-index={line.hunkIndex !== undefined && line.hunkIndex >= 0 ? line.hunkIndex : undefined}
                     class={`flex items-stretch w-full border-b border-transparent last:border-0 ${
                       line.type === "add"
                         ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200"

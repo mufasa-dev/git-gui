@@ -1,14 +1,16 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { AmendInfo, applyPatchToIndex, commit, createGitattributes, discard_changes, getAmendDiff, getAmendInfo, getDiff, ignoreFile, LineEndingChanges, listAmendChanges, listLineEndingChanges, normalizeLineEndings, removeFromAmend, stageFiles, unstageFiles } from "../../services/gitService";
+import { AmendInfo, applyPatchToIndex, commit, createGitattributes, discard_changes, discardPatch, getAmendDiff, getAmendInfo, getDiff, ignoreFile, LineEndingChanges, listAmendChanges, listLineEndingChanges, normalizeLineEndings, removeFromAmend, stageFiles, unstageFiles } from "../../services/gitService";
 import ConfirmModal from "../ui/ConfirmModal";
-import { tokenizeCommitTitle } from "../ui/CommitMessage";
+import { analyzeCommitBody, analyzeCommitTitle, nonImperativeWord } from "../../utils/commitHighlight";
+import CommitBodyInput from "../ui/CommitBodyInput";
+import { buildHunkPatch } from "../ui/DiffViewer";
 import { FolderTreeView } from "../ui/FolderTreeview";
 import { ChangeListView } from "../ui/ChangeListView";
 import LocalChangesSettingsModal from "./LocalChangesSettingsModal";
 import { useRepoContext } from "../../context/RepoContext";
 import DiffViewer from "../ui/DiffViewer";
-import LocalChangeEditor from "./LocalChangeEditor";
+import LocalChangeEditor, { LocalChangeEditorController } from "./LocalChangeEditor";
 import { LocalChange } from "../../models/LocalChanges.model";
 import ContextMenu, { ContextMenuItem } from "../ui/ContextMenu";
 import { openVsCodeDiff } from "../../services/openService";
@@ -57,6 +59,8 @@ export function LocalChanges(props: { repo: Repo; }) {
   const [isMerging, setIsMerging] = createSignal(false);
   const [isVisualizingStaged, setIsVisualizingStaged] = createSignal(false);
   const [menuItems, setMenuItems] = createSignal<ContextMenuItem[]>([]);
+  const [discardConfirm, setDiscardConfirm] = createSignal<{ title: string; message: string; action: () => Promise<void> } | null>(null);
+  let editorController: LocalChangeEditorController | undefined;
   const [contextTarget, setContextTarget] = createSignal<{ path: string; staged: boolean } | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
@@ -524,7 +528,8 @@ export function LocalChanges(props: { repo: Repo; }) {
 
   const titleLength = () => commitMessage().trim().length;
   const [titleScroll, setTitleScroll] = createSignal(0);
-  const titleTokens = createMemo(() => tokenizeCommitTitle(commitMessage()));
+  const titleAnalysis = createMemo(() => analyzeCommitTitle(commitMessage()));
+  const bodyAnalysis = createMemo(() => analyzeCommitBody(commitDescription()));
   const syncTitleScroll = (input: HTMLInputElement) => setTitleScroll(input.scrollLeft);
   const titleIssues = createMemo(() => {
     const title = commitMessage().trim();
@@ -532,6 +537,20 @@ export function LocalChanges(props: { repo: Repo; }) {
     if (title.length > 72) issues.push({ level: "error", text: t('commit_msg').too_long.replace('{{count}}', String(title.length)) });
     else if (title.length > 50) issues.push({ level: "warn", text: t('commit_msg').long }); 
     if (title.endsWith(".")) issues.push({ level: "warn", text: t('commit_msg').trailing_period });
+
+    const analysis = titleAnalysis();
+    if (analysis.autosquash) issues.push({ level: "warn", text: t('commit_msg').autosquash.replace('{{prefix}}', analysis.autosquash) });
+    if (analysis.wip) issues.push({ level: "warn", text: t('commit_msg').wip });
+    if (analysis.scope !== null && analysis.scope.trim() === "") issues.push({ level: "warn", text: t('commit_msg').empty_scope });
+    if (analysis.type && analysis.type !== analysis.type.toLowerCase()) {
+      issues.push({ level: "warn", text: t('commit_msg').uppercase_type.replace('{{type}}', analysis.type.toLowerCase()) });
+    }
+    const word = nonImperativeWord(analysis.description);
+    if (word) issues.push({ level: "warn", text: t('commit_msg').not_imperative.replace('{{word}}', word) });
+
+    const body = bodyAnalysis();
+    if (body.longLines > 0) issues.push({ level: "warn", text: t('commit_msg').body_long.replace('{{count}}', String(body.longLines)) });
+    if (body.hasBreakingTrailer && !analysis.breaking) issues.push({ level: "warn", text: t('commit_msg').breaking_without_bang });
     return issues;
   });
 
@@ -603,6 +622,151 @@ export function LocalChanges(props: { repo: Repo; }) {
     await loadChanges();
     if (commitAmend()) await refreshAmendChanges();
   }
+
+  const discardHunk = async (patch: string) => {
+    try {
+      await discardPatch(props.repo.path, patch);
+    } catch (error) {
+      notify.error(t('hunk').error, String(error));
+      return;
+    }
+    const path = fileSelected();
+    await loadChanges();
+    if (!path || fileSelected() !== path) return;
+    if (!changeSide(path, false)) {
+      if (changeSide(path, true)) {
+        setIsVisualizingStaged(true);
+        await loadDiff(true);
+      } else {
+        setFileSelected("");
+        clearDiff();
+      }
+      return;
+    }
+    await loadDiff(false);
+  };
+
+  const copyEditorSelection = async (element: HTMLTextAreaElement) => {
+    const text = element.value.slice(element.selectionStart, element.selectionEnd);
+    if (text) await navigator.clipboard.writeText(text);
+  };
+
+  const pasteIntoEditor = async (element: HTMLTextAreaElement) => {
+    const text = await navigator.clipboard.readText();
+    if (!text) return;
+    element.focus();
+    if (!document.execCommand("insertText", false, text)) {
+      element.setRangeText(text, element.selectionStart, element.selectionEnd, "end");
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  };
+
+  const showDiffContextMenu = (e: MouseEvent) => {
+    const file = fileSelected();
+    if (!file || isMerging()) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const target = e.target as HTMLElement;
+    const staged = isVisualizingStaged();
+    const editor = editorController;
+    const editing = editor?.isEditing() ?? false;
+    const action = hunkActionFor();
+    const hunkElement = target.closest<HTMLElement>("[data-hunk-index]");
+    const hunkIndex = hunkElement ? Number(hunkElement.dataset.hunkIndex) : NaN;
+    const patch = !editing && action && !Number.isNaN(hunkIndex) ? buildHunkPatch(diff().diff, hunkIndex) : null;
+    const activeTextarea = editing && document.activeElement instanceof HTMLTextAreaElement
+      && target.closest(".code-editor") ? document.activeElement : null;
+    const fileName = file.split("/").pop() || file;
+    const items: ContextMenuItem[] = [];
+
+    if (activeTextarea) {
+      items.push({
+        label: t('diff_menu').copy,
+        icon: "fa-regular fa-copy",
+        disabled: activeTextarea.selectionStart === activeTextarea.selectionEnd,
+        action: () => void copyEditorSelection(activeTextarea).catch(error => notify.error(t('error').error, String(error))),
+      });
+      items.push({
+        label: t('diff_menu').paste,
+        icon: "fa-regular fa-paste",
+        hr: true,
+        action: () => void pasteIntoEditor(activeTextarea).catch(error => notify.error(t('error').error, String(error))),
+      });
+    }
+
+    if (patch) {
+      items.push({
+        label: staged ? t('hunk').unstage : t('hunk').stage,
+        icon: staged ? "fa-solid fa-minus" : "fa-solid fa-plus",
+        action: () => void applyHunk(patch, staged),
+      });
+    }
+    items.push({
+      label: staged ? t('diff_menu').unstage_file : t('diff_menu').stage_file,
+      icon: staged ? "fa-solid fa-rotate-left" : "fa-solid fa-check",
+      hr: true,
+      action: () => void (staged ? unstage([file]) : prepare([file])),
+    });
+
+    items.push({
+      label: t('branch').open_diff_vscode,
+      icon: "fa-solid fa-code-compare",
+      action: () => void openSelectedInVsCode(file),
+    });
+
+    if (editing && editor) {
+      if (editor.mode() === "hunks") {
+        items.push({ label: t('editor').full_code, icon: "fa-solid fa-file-code", action: () => editor.showFullCode() });
+      }
+      items.push({
+        label: `${t('editor').save} (Ctrl+S)`,
+        icon: "fa-solid fa-floppy-disk",
+        disabled: !editor.isDirty(),
+        action: () => void editor.save(),
+      });
+      items.push({ label: t('common').cancel, icon: "fa-solid fa-xmark", hr: true, action: () => editor.cancel() });
+    } else if (editor) {
+      items.push({
+        label: t('editor').edit,
+        icon: "fa-solid fa-pen",
+        disabled: !editor.canEdit(),
+        hr: true,
+        action: () => void editor.startEdit(),
+      });
+    } else {
+      items[items.length - 1].hr = true;
+    }
+
+    if (patch && !staged) {
+      items.push({
+        label: t('diff_menu').discard_hunk,
+        icon: "fa-solid fa-eraser",
+        danger: true,
+        action: () => setDiscardConfirm({
+          title: t('diff_menu').discard_hunk_title,
+          message: t('diff_menu').discard_hunk_message,
+          action: () => discardHunk(patch),
+        }),
+      });
+    }
+    items.push({
+      label: t('diff_menu').discard_file,
+      icon: "fa-solid fa-trash-can",
+      danger: true,
+      disabled: editing,
+      action: () => setDiscardConfirm({
+        title: t('diff_menu').discard_file_title,
+        message: t('diff_menu').discard_file_message.replace('{{file}}', fileName),
+        action: () => discard([file]),
+      }),
+    });
+
+    setContextTarget(null);
+    setMenuItems(items);
+    setMenuPos({ x: e.clientX, y: e.clientY });
+    setMenuVisible(true);
+  };
 
   const discard = async (paths: string[]) => {
     if (paths.length === 0) return;
@@ -837,8 +1001,10 @@ export function LocalChanges(props: { repo: Repo; }) {
       ></div>
 
       <div class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
-        <div class="flex-1 overflow-hidden container-branch-list min-w-0 border border-gray-300 dark:border-gray-700 !p-0">
+        <div class="flex-1 overflow-hidden container-branch-list min-w-0 border border-gray-300 dark:border-gray-700 !p-0"
+          onContextMenu={showDiffContextMenu}>
           <LocalChangeEditor
+            onController={(controller) => { editorController = controller; }}
             repoPath={props.repo.path}
             file={fileSelected()}
             diff={diff()}
@@ -887,13 +1053,10 @@ export function LocalChanges(props: { repo: Repo; }) {
               />
               <div aria-hidden="true"
                 class="commit-title-overlay input-text pointer-events-none absolute inset-0 mt-0 flex items-center overflow-hidden pr-20 !border-transparent !bg-transparent !shadow-none">
-                <span class="whitespace-pre" style={{ transform: `translateX(-${titleScroll()}px)` }}>
-                  <For each={titleTokens()}>
-                    {(token) => <span class={token.class}>{token.text}</span>}
-                  </For>
-                </span>
+                <span class="whitespace-pre" style={{ transform: `translateX(-${titleScroll()}px)` }}
+                  innerHTML={titleAnalysis().html} />
               </div>
-              <Show when={titleLength() > 0}>
+              <Show when={titleLength() > 0 || titleIssues().length > 0}>
                 <div class="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1.5 text-[11px] font-mono">
                   <Show when={titleIssues().length > 0}>
                     <span class="group relative flex cursor-help items-center">
@@ -935,12 +1098,11 @@ export function LocalChanges(props: { repo: Repo; }) {
             </button>
           </div>
 
-          <textarea 
-            class="w-full mt-2 input-text min-h-[20px] max-h-[200px] resize-y py-2 custom-scrollbar" 
+          <CommitBodyInput
             placeholder={t('common').description}
             value={commitDescription()}
-            onInput={(e) => {
-              const description = e.currentTarget.value;
+            disabled={isGeneratingAI()}
+            onInput={(description) => {
               setCommitDescription(description);
               saveCommitDraft(commitMessage(), description);
             }}
@@ -950,7 +1112,6 @@ export function LocalChanges(props: { repo: Repo; }) {
                 void handleCommit();
               }
             }}
-            rows="2" disabled={isGeneratingAI()}
           />
 
           <div class="flex mt-2">
@@ -979,6 +1140,19 @@ export function LocalChanges(props: { repo: Repo; }) {
         onViewModeChange={updateViewMode}
         onClose={() => setSettingsOpen(false)}
         t={t}
+      />
+      <ConfirmModal
+        isOpen={discardConfirm() !== null}
+        title={discardConfirm()?.title ?? ""}
+        message={discardConfirm()?.message ?? ""}
+        confirmText={t('diff_menu').discard_confirm}
+        isDanger={true}
+        onConfirm={() => {
+          const pending = discardConfirm();
+          setDiscardConfirm(null);
+          void pending?.action();
+        }}
+        onCancel={() => setDiscardConfirm(null)}
       />
       <ConfirmModal
         isOpen={amendWarnings() !== null}
