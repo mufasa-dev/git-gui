@@ -9,7 +9,7 @@ use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager};
 use walkdir::WalkDir;
-use super::process::{clear_process, take_stderr, take_stdout, track_child, wait_for_exit};
+use super::process::{clear_process, hide_console, take_stderr, take_stdout, track_child, wait_for_exit};
 
 #[derive(Clone, Serialize)]
 pub struct Payload {
@@ -133,6 +133,7 @@ pub async fn run_ruby_tests(
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
+        hide_console(&mut command);
         let child = match command.spawn() {
             Ok(child) => child,
             Err(error) => {

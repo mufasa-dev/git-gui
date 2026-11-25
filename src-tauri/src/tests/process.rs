@@ -23,6 +23,21 @@ fn active_process() -> &'static Mutex<Option<ProcessHandle>> {
     ACTIVE_PROCESS.get_or_init(|| Mutex::new(None))
 }
 
+/// Flag do Windows que impede o processo filho de abrir uma janela de console (cmd.exe).
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Configura o comando para rodar em segundo plano, sem abrir janela de terminal no Windows.
+/// Deve ser chamado antes de `spawn()` em todos os runners de teste.
+pub fn hide_console(command: &mut std::process::Command) -> &mut std::process::Command {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
+}
+
 pub fn track_child(child: Child) -> ProcessHandle {
     let process = Arc::new(TrackedProcess {
         child: Mutex::new(child),
@@ -94,9 +109,9 @@ fn terminate_child(process: &ProcessHandle) -> io::Result<()> {
     #[cfg(windows)]
     {
         let pid = child.id().to_string();
-        let taskkill = std::process::Command::new("taskkill")
-            .args(["/PID", &pid, "/T", "/F"])
-            .status();
+        let mut taskkill = std::process::Command::new("taskkill");
+        taskkill.args(["/PID", &pid, "/T", "/F"]);
+        let taskkill = hide_console(&mut taskkill).status();
         if taskkill.map(|status| status.success()).unwrap_or(false) {
             return Ok(());
         }

@@ -64,6 +64,7 @@ export interface RunInfo {
   suite?: string;
   singleTest?: string;
   filePath?: string;
+  runnerId?: string;
   runnerLabel: string;
   framework?: string;
   startedAt: number;
@@ -125,6 +126,17 @@ interface InternalSession extends TestSession {
   mappingRequestId: number;
   compileLogBuffer: string[];
   seenResults: Set<string>;
+  /** Resultados de cada runner (Karma, Vitest, Cargo...) mantidos em memória. */
+  runnerStates: Map<string, RunnerState>;
+}
+
+/** Tudo que pertence a um runner específico e precisa sobreviver à troca de runner. */
+interface RunnerState {
+  specs: TestSpec[];
+  run: RunInfo | null;
+  consoleLines: ConsoleLine[];
+  compilationError: string[] | null;
+  selectedSuite: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -182,8 +194,13 @@ const stopTicker = () => {
 // Sessões
 // ---------------------------------------------------------------------------
 
-const specsKey = (path: string) => `brook_test_cache_${path}`;
-const lastRunKey = (path: string) => `brook_test_lastrun_${path}`;
+// Chaves antigas (um único cache por repositório, antes de separar por runner)
+const legacySpecsKey = (path: string) => `brook_test_cache_${path}`;
+const legacyLastRunKey = (path: string) => `brook_test_lastrun_${path}`;
+// Chaves atuais: um cache por repositório + runner
+const specsKey = (path: string, runnerId: string) => `brook_test_cache_${path}::${runnerId}`;
+const lastRunKey = (path: string, runnerId: string) => `brook_test_lastrun_${path}::${runnerId}`;
+const preferredRunnerKey = (path: string) => `brook_test_runner_${path}`;
 
 const readJson = <T,>(key: string, fallback: T): T => {
   try {
@@ -196,18 +213,14 @@ const readJson = <T,>(key: string, fallback: T): T => {
 
 const createSession = (repoPath: string): InternalSession =>
   createRoot(() => {
-    // Se o app foi fechado no meio de uma execução, os testes "running" do cache viram "skip".
-    const cachedSpecs = readJson<TestSpec[]>(specsKey(repoPath), []).map(spec =>
-      spec.status === 'running' ? { ...spec, status: 'skip' as const } : spec
-    );
-    const cachedRun = readJson<RunInfo | null>(lastRunKey(repoPath), null);
-
-    const [specs, setSpecs] = createSignal<TestSpec[]>(cachedSpecs);
+    // Os resultados são carregados por runner assim que o tipo do projeto é detectado
+    // (veja ensureProjectInfo / loadRunnerState).
+    const [specs, setSpecs] = createSignal<TestSpec[]>([]);
     const [projectInfo, setProjectInfo] = createSignal<ProjectType | null>(null);
     const [selectedRunnerId, setSelectedRunnerId] = createSignal<string | null>(null);
     const [mappedFiles, setMappedFiles] = createSignal<MappedTestFile[]>([]);
     const [compilationError, setCompilationError] = createSignal<string[] | null>(null);
-    const [run, setRun] = createSignal<RunInfo | null>(cachedRun?.finishedAt ? cachedRun : null);
+    const [run, setRun] = createSignal<RunInfo | null>(null);
     const [isStopping, setIsStopping] = createSignal(false);
     const [consoleLines, setConsoleLines] = createSignal<ConsoleLine[]>([]);
     const [selectedSuite, setSelectedSuite] = createSignal<string | null>(null);
@@ -228,14 +241,19 @@ const createSession = (repoPath: string): InternalSession =>
         };
     });
 
-    let storageTimer: ReturnType<typeof setTimeout> | undefined;
+    // Persiste os resultados do runner atual (cada runner tem sua própria chave)
+    const storageTimers = new Map<string, ReturnType<typeof setTimeout>>();
     createEffect(() => {
       const list = specs();
-      if (list.length === 0) return;
-      if (storageTimer) clearTimeout(storageTimer);
-      storageTimer = setTimeout(() => {
-        try { localStorage.setItem(specsKey(repoPath), JSON.stringify(list)); } catch { /* quota */ }
-      }, 300);
+      const runnerId = selectedRunnerId();
+      if (!runnerId || list.length === 0) return;
+      const key = specsKey(repoPath, runnerId);
+      const pending = storageTimers.get(key);
+      if (pending) clearTimeout(pending);
+      storageTimers.set(key, setTimeout(() => {
+        storageTimers.delete(key);
+        try { localStorage.setItem(key, JSON.stringify(list)); } catch { /* quota */ }
+      }, 300));
     });
 
     return {
@@ -257,6 +275,7 @@ const createSession = (repoPath: string): InternalSession =>
       mappingRequestId: 0,
       compileLogBuffer: [],
       seenResults: new Set<string>(),
+      runnerStates: new Map<string, RunnerState>(),
     };
   });
 
@@ -307,6 +326,59 @@ export const updateFileMapping = async (session: TestSession, runner = session.a
   }
 };
 
+const snapshotRunnerState = (s: InternalSession): RunnerState => ({
+  specs: s.specs(),
+  run: s.run(),
+  consoleLines: s.consoleLines(),
+  compilationError: s.compilationError(),
+  selectedSuite: s.selectedSuite(),
+});
+
+/** Lê o estado de um runner: memória primeiro, depois o cache em disco (localStorage). */
+const loadRunnerState = (s: InternalSession, runnerId: string, allowUnlabeledLegacy: boolean): RunnerState => {
+  const inMemory = s.runnerStates.get(runnerId);
+  if (inMemory) return inMemory;
+
+  let specs = readJson<TestSpec[] | null>(specsKey(s.repoPath, runnerId), null);
+  let run = readJson<RunInfo | null>(lastRunKey(s.repoPath, runnerId), null);
+
+  // Migração do cache antigo (sem runner): vai para o runner que fez a última execução
+  // (pelo nome salvo) ou, se não houver nome, para o primeiro runner carregado.
+  const legacyRun = readJson<RunInfo | null>(legacyLastRunKey(s.repoPath), null);
+  const runnerLabel = s.projectInfo()?.runners.find(runner => runner.id === runnerId)?.label;
+  const legacyIsMine = legacyRun?.runnerLabel ? legacyRun.runnerLabel === runnerLabel : allowUnlabeledLegacy;
+  if (legacyIsMine && specs === null) {
+    const legacy = readJson<TestSpec[] | null>(legacySpecsKey(s.repoPath), null);
+    if (legacy) {
+      specs = legacy;
+      run = run ?? readJson<RunInfo | null>(legacyLastRunKey(s.repoPath), null);
+      try {
+        localStorage.setItem(specsKey(s.repoPath, runnerId), JSON.stringify(legacy));
+        if (run) localStorage.setItem(lastRunKey(s.repoPath, runnerId), JSON.stringify(run));
+        localStorage.removeItem(legacySpecsKey(s.repoPath));
+        localStorage.removeItem(legacyLastRunKey(s.repoPath));
+      } catch { /* ignore */ }
+    }
+  }
+
+  return {
+    // Se o app foi fechado no meio de uma execução, os testes "running" viram "skip".
+    specs: (specs || []).map(spec => spec.status === 'running' ? { ...spec, status: 'skip' as const } : spec),
+    run: run?.finishedAt ? run : null,
+    consoleLines: [],
+    compilationError: null,
+    selectedSuite: null,
+  };
+};
+
+const applyRunnerState = (s: InternalSession, state: RunnerState) => {
+  s.setSpecs(state.specs);
+  s.setRun(state.run);
+  s.setConsoleLines(state.consoleLines);
+  s.setCompilationError(state.compilationError);
+  s.setSelectedSuite(state.selectedSuite);
+};
+
 /** Carrega (uma única vez por sessão) o tipo do projeto e o mapeamento de arquivos. */
 export const ensureProjectInfo = async (session: TestSession) => {
   const s = internal(session);
@@ -314,11 +386,23 @@ export const ensureProjectInfo = async (session: TestSession) => {
   s.projectInfoRequested = true;
   try {
     const info = await getProjectType(s.repoPath);
+    const preferred = localStorage.getItem(preferredRunnerKey(s.repoPath));
+    const current = s.selectedRunnerId();
+    // O cache antigo guardava o nome do runner da última execução: usa para saber de quem ele é.
+    const legacyRun = readJson<RunInfo | null>(legacyLastRunKey(s.repoPath), null);
+    const legacyRunner = legacyRun?.runnerLabel
+      ? info.runners.find(runner => runner.label === legacyRun.runnerLabel)
+      : undefined;
+    const runnerId = [current, preferred, legacyRunner?.id].find(id => id && info.runners.some(runner => runner.id === id))
+      || info.runners[0]?.id
+      || null;
+    s.setProjectInfo(info); // antes do loadRunnerState, que usa os labels dos runners
+    const state = runnerId && runnerId !== current && !isSessionRunning(s)
+      ? loadRunnerState(s, runnerId, true)
+      : null;
     batch(() => {
-      s.setProjectInfo(info);
-      s.setSelectedRunnerId(current =>
-        info.runners.some(runner => runner.id === current) ? current : info.runners[0]?.id || null
-      );
+      s.setSelectedRunnerId(runnerId);
+      if (state) applyRunnerState(s, state);
     });
     await updateFileMapping(s);
   } catch (error) {
@@ -329,17 +413,19 @@ export const ensureProjectInfo = async (session: TestSession) => {
 
 export const selectRunner = (session: TestSession, runnerId: string) => {
   const s = internal(session);
-  if (isSessionRunning(s) || runnerId === s.selectedRunnerId()) return;
+  const previous = s.selectedRunnerId();
+  if (isSessionRunning(s) || runnerId === previous) return;
+
+  // Guarda os resultados do runner atual antes de trocar, e restaura os do novo runner.
+  if (previous) s.runnerStates.set(previous, snapshotRunnerState(s));
+  const next = loadRunnerState(s, runnerId, false);
+
   batch(() => {
     s.setSelectedRunnerId(runnerId);
     s.setMappedFiles([]);
-    s.setSpecs([]);
-    s.setSelectedSuite(null);
-    s.setCompilationError(null);
-    s.setRun(null);
-    s.setConsoleLines([]);
+    applyRunnerState(s, next);
   });
-  try { localStorage.removeItem(specsKey(s.repoPath)); } catch { /* ignore */ }
+  try { localStorage.setItem(preferredRunnerKey(s.repoPath), runnerId); } catch { /* ignore */ }
   void updateFileMapping(s);
 };
 
@@ -581,7 +667,10 @@ const finishRun = (s: InternalSession, outcome?: RunOutcome, message?: string) =
   flushConsole();
   stopTicker();
 
-  try { localStorage.setItem(lastRunKey(s.repoPath), JSON.stringify(finished)); } catch { /* ignore */ }
+  const runnerId = finished.runnerId || s.selectedRunnerId();
+  if (runnerId) {
+    try { localStorage.setItem(lastRunKey(s.repoPath, runnerId), JSON.stringify(finished)); } catch { /* ignore */ }
+  }
 
   // Se o usuário não está olhando a tela de testes deste repositório, avisa.
   if (visibleRepoPath() !== s.repoPath) {
@@ -628,6 +717,7 @@ const startRun = async (session: TestSession, opts: StartOptions) => {
     suite: opts.suite,
     singleTest: opts.singleTest,
     filePath: opts.filePath,
+    runnerId: s.selectedRunnerId() || undefined,
     runnerLabel: runner?.label || 'Runner',
     framework: s.activeFramework(),
     startedAt: Date.now(),
@@ -741,7 +831,10 @@ export const dismissRun = (session: TestSession) => {
   const s = internal(session);
   if (isSessionRunning(s)) return;
   s.setRun(null);
-  try { localStorage.removeItem(lastRunKey(s.repoPath)); } catch { /* ignore */ }
+  const runnerId = s.selectedRunnerId();
+  if (runnerId) {
+    try { localStorage.removeItem(lastRunKey(s.repoPath, runnerId)); } catch { /* ignore */ }
+  }
 };
 
 // ---------------------------------------------------------------------------
