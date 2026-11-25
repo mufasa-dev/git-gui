@@ -12,6 +12,7 @@ type Props = {
   fill?: boolean;
   class?: string;
   ref?: (el: HTMLTextAreaElement) => void;
+  lineClass?: (index: number) => string;
 };
 
 const escapeHtml = (text: string) =>
@@ -36,7 +37,7 @@ export default function CodeEditor(props: Props) {
     }
     if (cache.size > 20000) cache.clear();
 
-    return lines().map(line => {
+    return lines().map((line, index) => {
       let html = cache.get(line);
       if (html === undefined) {
         try {
@@ -47,7 +48,8 @@ export default function CodeEditor(props: Props) {
         cache.set(line, html);
       }
       // Linha vazia precisa de conteúdo para manter a altura.
-      return `<div class="code-editor-line">${html || "​"}</div>`;
+      const extra = props.lineClass?.(index);
+      return `<div class="code-editor-line${extra ? ` ${extra}` : ""}">${html || "​"}</div>`;
     }).join("");
   });
 

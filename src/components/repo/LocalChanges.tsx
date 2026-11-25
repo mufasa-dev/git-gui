@@ -1,6 +1,6 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js";
 import { Repo } from "../../models/Repo.model";
-import { AmendInfo, applyPatchToIndex, commit, createGitattributes, discard_changes, discardPatch, getAmendDiff, getAmendInfo, getDiff, ignoreFile, LineEndingChanges, listAmendChanges, listLineEndingChanges, normalizeLineEndings, removeFromAmend, stageFiles, unstageFiles } from "../../services/gitService";
+import { AmendInfo, applyPatchToIndex, commit, createGitattributes, discard_changes, discardPatch, getAmendDiff, getAmendInfo, getDiff, getMergeMessage, ignoreFile, LineEndingChanges, listAmendChanges, listLineEndingChanges, normalizeLineEndings, removeFromAmend, stageFiles, unstageFiles } from "../../services/gitService";
 import ConfirmModal from "../ui/ConfirmModal";
 import { analyzeCommitBody, analyzeCommitTitle, nonImperativeWord } from "../../utils/commitHighlight";
 import CommitBodyInput from "../ui/CommitBodyInput";
@@ -145,6 +145,30 @@ export function LocalChanges(props: { repo: Repo; }) {
     await refreshLocalChanges(props.repo.path);
   };
 
+  /**
+   * Durante um merge (ou cherry-pick/revert) com conflito, preenche o commit com a
+   * mensagem preparada pelo git — ex.: "Merge branch 'MASTER' into novo_bim" —, como o VS Code faz.
+   * Só preenche se o campo estiver vazio e apenas uma vez por mensagem.
+   */
+  let appliedMergeMessage = "";
+  const refreshMergeMessage = async () => {
+    const repoPath = props.repo.path;
+    try {
+      const message = await getMergeMessage(repoPath);
+      if (!message || repoPath !== props.repo.path || untrack(commitAmend)) return;
+      const key = `${repoPath}\u0000${message}`;
+      if (appliedMergeMessage === key) return;
+      appliedMergeMessage = key;
+      if (untrack(commitMessage).trim() || untrack(commitDescription).trim()) return;
+
+      const [title, ...body] = message.split("\n");
+      setCommitMessage(title.trim());
+      setCommitDescription(body.join("\n").trim());
+    } catch (error) {
+      console.warn("Não foi possível ler a mensagem de merge:", error);
+    }
+  };
+
   createEffect(() => {
     const newPath = props.repo.path;
     const localChanges = props.repo.localChanges ?? [];
@@ -172,6 +196,7 @@ export function LocalChanges(props: { repo: Repo; }) {
 
     void syncChanges(localChanges);
     void refreshEolChanges();
+    void refreshMergeMessage();
     if (untrack(commitAmend)) void refreshAmendChanges();
   });
 

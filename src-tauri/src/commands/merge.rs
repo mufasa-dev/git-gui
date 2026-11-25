@@ -32,6 +32,38 @@ pub fn merge_branch(
     Ok(String::from_utf8_lossy(&merge_output.stdout).to_string())
 }
 
+/// Mensagem preparada pelo git para concluir um merge/cherry-pick/revert com conflito
+/// (`.git/MERGE_MSG`), sem as linhas de comentário. Lê só arquivos, sem chamar o git.
+#[tauri::command]
+pub fn get_merge_message(repo_path: String) -> Result<Option<String>, String> {
+    let repo = match git2::Repository::open(&repo_path) {
+        Ok(repo) => repo,
+        Err(_) => return Ok(None),
+    };
+    let git_dir = repo.path();
+
+    let in_progress = ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"]
+        .iter()
+        .any(|name| git_dir.join(name).is_file());
+    if !in_progress {
+        return Ok(None);
+    }
+
+    let raw = match std::fs::read_to_string(git_dir.join("MERGE_MSG")) {
+        Ok(content) => content,
+        Err(_) => return Ok(None),
+    };
+
+    let message = raw
+        .lines()
+        .filter(|line| !line.starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let message = message.trim();
+
+    Ok(if message.is_empty() { None } else { Some(message.to_string()) })
+}
+
 #[tauri::command]
 pub async fn save_file(path: String, content: String) -> Result<(), String> {
     let mut file = std::fs::File::create(&path).map_err(|e| e.to_string())?;

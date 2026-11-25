@@ -1,210 +1,175 @@
-import { EditorState, Range, StateField, Text } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
+/**
+ * Utilitários (sem dependências de editor) para ler e resolver conflitos de merge
+ * em um texto com marcadores `<<<<<<< / ||||||| / ======= / >>>>>>>`.
+ */
 
-export type ConflictChoice = "current" | "incoming" | "both";
+export type ConflictChoice = "current" | "incoming" | "both" | "both-incoming-first";
 
-export type ConflictBlock = {
-  /** Número sequencial do conflito no documento (1, 2, 3...). */
-  id: number;
-  /** Offset do início da linha `<<<<<<<`. */
-  from: number;
-  /** Offset do fim da linha `>>>>>>>`. */
-  to: number;
-  /** Linhas (1-based) dos marcadores. */
+export type TextSegment = {
+  kind: "text";
+  /** Linha (1-based) onde o trecho começa no arquivo. */
   startLine: number;
-  sepLine: number;
+  lines: string[];
+};
+
+export type ConflictSegment = {
+  kind: "conflict";
+  /** Número sequencial do conflito no arquivo (1, 2, 3...). */
+  id: number;
+  /** Linhas (1-based) dos marcadores `<<<<<<<` e `>>>>>>>`. */
+  startLine: number;
   endLine: number;
-  currentLines: string[];
-  incomingLines: string[];
+  current: string[];
+  incoming: string[];
+  /** Nome que vem depois do marcador (ex.: HEAD, MASTER). */
+  currentLabel: string;
+  incomingLabel: string;
+  /** Linhas originais do bloco, com marcadores. */
+  raw: string[];
 };
 
-export type ConflictLabels = {
-  line: string;
-  current: string;
-  incoming: string;
-  both: string;
-};
+export type Segment = TextSegment | ConflictSegment;
 
-export type ConflictExtensionOptions = {
-  labels: ConflictLabels;
-  onResolve: (view: EditorView, block: ConflictBlock, choice: ConflictChoice) => void;
-};
+export type LineKind = "" | "marker" | "current" | "base" | "incoming";
 
-/** Encontra todos os blocos completos `<<<<<<< / ======= / >>>>>>>` do documento. */
-export function parseConflicts(doc: Text): ConflictBlock[] {
-  const blocks: ConflictBlock[] = [];
-  let lineNumber = 1;
+const markerLabel = (line: string) => line.slice(7).trim();
 
-  while (lineNumber <= doc.lines) {
-    const startLine = doc.line(lineNumber);
-    if (!startLine.text.startsWith("<<<<<<<")) {
-      lineNumber++;
+/** Divide o texto em trechos normais e blocos de conflito. */
+export function parseSegments(text: string): Segment[] {
+  const lines = text.split("\n");
+  const segments: Segment[] = [];
+  let buffer: string[] = [];
+  let bufferStart = 1;
+  let conflictId = 0;
+
+  const flush = () => {
+    if (buffer.length > 0) segments.push({ kind: "text", startLine: bufferStart, lines: buffer });
+    buffer = [];
+  };
+
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.startsWith("<<<<<<<")) {
+      if (buffer.length === 0) bufferStart = index + 1;
+      buffer.push(line);
+      index++;
       continue;
     }
 
-    let sepLine = -1;
-    let endLine = -1;
-    for (let cursor = lineNumber + 1; cursor <= doc.lines; cursor++) {
-      const text = doc.line(cursor).text;
-      if (sepLine === -1) {
-        if (text.startsWith("<<<<<<<")) break; // início sem separador: descarta
-        if (text.startsWith("=======")) sepLine = cursor;
-      } else if (text.startsWith(">>>>>>>")) {
-        endLine = cursor;
+    let baseIndex = -1;
+    let sepIndex = -1;
+    let endIndex = -1;
+    for (let cursor = index + 1; cursor < lines.length; cursor++) {
+      const candidate = lines[cursor];
+      if (sepIndex === -1) {
+        if (candidate.startsWith("<<<<<<<")) break; // início sem separador: não é um bloco válido
+        if (baseIndex === -1 && candidate.startsWith("|||||||")) baseIndex = cursor;
+        else if (candidate.startsWith("=======")) sepIndex = cursor;
+      } else if (candidate.startsWith(">>>>>>>")) {
+        endIndex = cursor;
         break;
       }
     }
 
-    if (sepLine === -1 || endLine === -1) {
-      lineNumber++;
+    if (sepIndex === -1 || endIndex === -1) {
+      if (buffer.length === 0) bufferStart = index + 1;
+      buffer.push(line);
+      index++;
       continue;
     }
 
-    const currentLines: string[] = [];
-    const incomingLines: string[] = [];
-    for (let n = lineNumber + 1; n < sepLine; n++) currentLines.push(doc.line(n).text);
-    for (let n = sepLine + 1; n < endLine; n++) incomingLines.push(doc.line(n).text);
-
-    blocks.push({
-      id: blocks.length + 1,
-      from: startLine.from,
-      to: doc.line(endLine).to,
-      startLine: lineNumber,
-      sepLine,
-      endLine,
-      currentLines,
-      incomingLines,
+    flush();
+    conflictId++;
+    segments.push({
+      kind: "conflict",
+      id: conflictId,
+      startLine: index + 1,
+      endLine: endIndex + 1,
+      current: lines.slice(index + 1, baseIndex === -1 ? sepIndex : baseIndex),
+      incoming: lines.slice(sepIndex + 1, endIndex),
+      currentLabel: markerLabel(line),
+      incomingLabel: markerLabel(lines[endIndex]),
+      raw: lines.slice(index, endIndex + 1),
     });
-    lineNumber = endLine + 1;
+    index = endIndex + 1;
   }
 
-  return blocks;
+  flush();
+  return segments;
 }
 
-export function resolutionLines(block: ConflictBlock, choice: ConflictChoice): string[] {
-  if (choice === "current") return block.currentLines;
-  if (choice === "incoming") return block.incomingLines;
-  return [...block.currentLines, ...block.incomingLines];
+export function segmentText(segment: Segment): string {
+  return (segment.kind === "text" ? segment.lines : segment.raw).join("\n");
 }
 
-/** Substitui o bloco de conflito pelo lado escolhido. */
-export function applyResolution(view: EditorView, block: ConflictBlock, choice: ConflictChoice) {
-  const lines = resolutionLines(block, choice);
-  const insert = lines.join("\n");
-  let from = block.from;
-  let to = block.to;
-
-  if (lines.length === 0) {
-    // Remove também a quebra de linha, para não sobrar uma linha vazia.
-    if (to < view.state.doc.length) to += 1;
-    else if (from > 0) from -= 1;
-  }
-
-  view.dispatch({
-    changes: { from, to, insert },
-    selection: { anchor: from + insert.length },
-    scrollIntoView: true,
-  });
+export function segmentsToText(segments: Segment[]): string {
+  return segments.map(segmentText).join("\n");
 }
 
-class ConflictActionsWidget extends WidgetType {
-  private readonly key: string;
-
-  constructor(
-    private readonly block: ConflictBlock,
-    private readonly options: ConflictExtensionOptions,
-  ) {
-    super();
-    this.key = [
-      block.id,
-      block.from,
-      block.to,
-      block.startLine,
-      block.currentLines.join("\n"),
-      block.incomingLines.join("\n"),
-    ].join("\u0001");
-  }
-
-  eq(other: ConflictActionsWidget) {
-    return other.key === this.key;
-  }
-
-  toDOM(view: EditorView) {
-    const { labels } = this.options;
-    const root = document.createElement("div");
-    root.className = "cm-merge-actions";
-
-    const title = document.createElement("span");
-    title.className = "cm-merge-actions-title";
-    title.textContent = `#${this.block.id} · ${labels.line} ${this.block.startLine}`;
-    root.appendChild(title);
-
-    const choices: [ConflictChoice, string][] = [
-      ["current", labels.current],
-      ["incoming", labels.incoming],
-      ["both", labels.both],
-    ];
-
-    for (const [choice, label] of choices) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `cm-merge-btn cm-merge-btn-${choice}`;
-      button.textContent = label;
-      // Evita que o mousedown tire o foco/seleção do editor antes da ação.
-      button.addEventListener("mousedown", (event) => event.preventDefault());
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        this.options.onResolve(view, this.block, choice);
-      });
-      root.appendChild(button);
-    }
-
-    return root;
-  }
-
-  ignoreEvent() {
-    return true;
+export function resolutionLines(conflict: ConflictSegment, choice: ConflictChoice): string[] {
+  switch (choice) {
+    case "current": return conflict.current;
+    case "incoming": return conflict.incoming;
+    case "both": return [...conflict.current, ...conflict.incoming];
+    case "both-incoming-first": return [...conflict.incoming, ...conflict.current];
   }
 }
 
-function buildDecorations(state: EditorState, options: ConflictExtensionOptions): DecorationSet {
-  const ranges: Range<Decoration>[] = [];
-  const doc = state.doc;
-
-  const markerDeco = Decoration.line({ class: "cm-merge-marker" });
-  const currentDeco = Decoration.line({ class: "cm-merge-current" });
-  const incomingDeco = Decoration.line({ class: "cm-merge-incoming" });
-
-  for (const block of parseConflicts(doc)) {
-    ranges.push(
-      Decoration.widget({ widget: new ConflictActionsWidget(block, options), block: true, side: -1 })
-        .range(block.from),
-    );
-
-    ranges.push(markerDeco.range(doc.line(block.startLine).from));
-    ranges.push(markerDeco.range(doc.line(block.sepLine).from));
-    ranges.push(markerDeco.range(doc.line(block.endLine).from));
-
-    for (let n = block.startLine + 1; n < block.sepLine; n++) {
-      ranges.push(currentDeco.range(doc.line(n).from));
-    }
-    for (let n = block.sepLine + 1; n < block.endLine; n++) {
-      ranges.push(incomingDeco.range(doc.line(n).from));
+/** Troca um bloco de conflito pelas linhas escolhidas (lista vazia remove o bloco). */
+export function resolveConflictInText(text: string, conflictId: number, lines: string[]): string {
+  const segments = parseSegments(text);
+  const parts: string[] = [];
+  for (const segment of segments) {
+    if (segment.kind === "conflict" && segment.id === conflictId) {
+      if (lines.length > 0) parts.push(lines.join("\n"));
+    } else {
+      parts.push(segmentText(segment));
     }
   }
-
-  return Decoration.set(ranges, true);
+  return parts.join("\n");
 }
 
-/**
- * Extensão do CodeMirror: pinta os blocos de conflito (lado atual em verde,
- * lado incoming em azul, marcadores em âmbar) e mostra, acima de cada bloco,
- * os botões para escolher a resolução.
- */
-export function conflictExtension(options: ConflictExtensionOptions) {
-  return StateField.define<DecorationSet>({
-    create: (state) => buildDecorations(state, options),
-    update: (value, transaction) => (transaction.docChanged ? buildDecorations(transaction.state, options) : value),
-    provide: (field) => EditorView.decorations.from(field),
-  });
+/** Resolve todos os conflitos com a mesma escolha. */
+export function resolveAllInText(text: string, choice: ConflictChoice): string {
+  const parts: string[] = [];
+  for (const segment of parseSegments(text)) {
+    if (segment.kind === "conflict") {
+      const lines = resolutionLines(segment, choice);
+      if (lines.length > 0) parts.push(lines.join("\n"));
+    } else {
+      parts.push(segmentText(segment));
+    }
+  }
+  return parts.join("\n");
+}
+
+/** Classifica cada linha do texto (para colorir o modo texto). */
+export function lineKinds(text: string): LineKind[] {
+  const kinds: LineKind[] = [];
+  for (const segment of parseSegments(text)) {
+    if (segment.kind === "text") {
+      segment.lines.forEach(() => kinds.push(""));
+      continue;
+    }
+    let section: LineKind = "current";
+    segment.raw.forEach((line, index) => {
+      if (index === 0 || index === segment.raw.length - 1) {
+        kinds.push("marker");
+      } else if (line.startsWith("|||||||") && section === "current") {
+        kinds.push("marker");
+        section = "base";
+      } else if (line.startsWith("=======") && section !== "incoming") {
+        kinds.push("marker");
+        section = "incoming";
+      } else {
+        kinds.push(section);
+      }
+    });
+  }
+  return kinds;
+}
+
+export function hasConflictMarkers(text: string): boolean {
+  return parseSegments(text).some((segment) => segment.kind === "conflict") || /^<{7}( |$)/m.test(text);
 }

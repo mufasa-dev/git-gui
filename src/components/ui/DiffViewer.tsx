@@ -4,7 +4,7 @@ import { loadGitImage, loadImage } from "../../services/imageService";
 import Dialog from "./Dialog";
 import MergeResolver from "../repo/MergeResolver";
 import { notify } from "../../utils/notifications";
-import { saveFile } from "../../services/gitService";
+import { readWorktreeFile, saveWorktreeFile } from "../../services/gitService";
 import vsCodeIcon from "../../assets/vscode.png";
 import forkIcon from "../../assets/fork.png";
 import alertIcon from "../../assets/alert.png";
@@ -248,7 +248,12 @@ export default function DiffViewer(props: Props) {
 
   const saveFileOnSave = async (resolvedContent: string) => {
     try {
-      await saveFile(props.diff.newFile, resolvedContent);
+      // Grava pelo caminho do repositório e confere o que foi gravado no disco.
+      await saveWorktreeFile(props.path, props.file, resolvedContent);
+      const written = await readWorktreeFile(props.path, props.file);
+      if (written !== resolvedContent) {
+        throw new Error("O arquivo gravado não confere com o resultado do merge. Tente salvar novamente.");
+      }
       notify.success("Sucesso", t('merge').conflicts_resolved);
       setShowMergeResolver(false);
       if (props.diff.newFile) {
@@ -419,7 +424,8 @@ export default function DiffViewer(props: Props) {
           </div>
         </div>
       </Show>
-      <Dialog open={showMergeResolver()} title={t('merge').resolve_conflicts} onClose={() => setShowMergeResolver(false)} bodyClass="p-0" width="min(1200px, 95vw)" height="min(850px, 92vh)">
+      <Dialog open={showMergeResolver()} title={t('merge').resolve_conflicts} icon="fa-solid fa-code-merge" onClose={() => setShowMergeResolver(false)}
+        panelClass="flex flex-col overflow-hidden" bodyClass="p-0 flex flex-1 min-h-0 flex-col overflow-hidden" width="97vw" height="95vh">
         <MergeResolver
           repoPath={props.path}
           diffContent={props.diff.diff}

@@ -200,6 +200,7 @@ fn main() {
             commands::merge::save_file,
             commands::merge::read_worktree_file,
             commands::merge::save_worktree_file,
+            commands::merge::get_merge_message,
             commands::pull_request::open_pull_request,
             commands::pr_conflict::prepare_pr_conflict,
             commands::pr_conflict::get_pr_conflict_status,

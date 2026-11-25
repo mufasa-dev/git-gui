@@ -542,6 +542,14 @@ export async function readWorktreeFile(repoPath: string, file: string): Promise<
   return await invoke<string>("read_worktree_file", { repoPath, file });
 }
 
+/**
+ * Mensagem que o git preparou para o commit de um merge/cherry-pick/revert em andamento
+ * (`.git/MERGE_MSG`, sem as linhas de comentário). `null` quando não há operação em andamento.
+ */
+export async function getMergeMessage(repoPath: string): Promise<string | null> {
+  return await invoke<string | null>("get_merge_message", { repoPath });
+}
+
 /** Grava no disco o conteúdo editado de um arquivo do repositório. */
 export async function saveWorktreeFile(repoPath: string, file: string, content: string): Promise<void> {
   await invoke("save_worktree_file", { repoPath, file, content });

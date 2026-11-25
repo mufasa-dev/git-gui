@@ -156,6 +156,18 @@ export default function RepoTabsPage() {
     return false;
   }
 
+  const reorderRepo = (path: string, toIndex: number) => {
+    const current = repos();
+    const moving = current.find(repo => repo.path === path);
+    if (!moving) return;
+    const others = current.filter(repo => repo.path !== path);
+    const index = Math.max(0, Math.min(toIndex, others.length));
+    const next = [...others.slice(0, index), moving, ...others.slice(index)];
+    if (next.every((repo, position) => repo === current[position])) return;
+    setRepos(next);
+    saveRepos(next);
+  };
+
   const closeRepo = (id: string) => {
     const currentRepos = repos();
     const isClosingActive = active() === id;
@@ -622,7 +634,7 @@ export default function RepoTabsPage() {
 
         {/* Abas + conteúdo */}
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} />
+          <TabBar repos={repos()} active={active()} onChangeActive={setActive} onClose={closeRepo} onReorder={reorderRepo} />
 
           <Header
             repos={repos()}
