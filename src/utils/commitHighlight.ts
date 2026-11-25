@@ -13,7 +13,6 @@ const AUTOSQUASH = "text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-500/15 rou
 const WIP = "text-amber-700 dark:text-amber-300 bg-amber-500/20 rounded-sm";
 const BULLET = "text-sky-600 dark:text-sky-400";
 const EMAIL = "text-gray-400 dark:text-gray-500";
-const OVER_LIMIT = "bg-amber-400/30";
 
 export const BODY_LINE_LIMIT = 72;
 
@@ -57,26 +56,6 @@ function tokensToHtml(tokens: Token[]): string {
       ? `<span class="${token.cls}">${escapeHtml(token.text)}</span>`
       : escapeHtml(token.text))
     .join("");
-}
-
-function applyLineLimit(tokens: Token[], limit: number): Token[] {
-  const result: Token[] = [];
-  let column = 0;
-  for (const token of tokens) {
-    const start = column;
-    const end = column + token.text.length;
-    column = end;
-    if (end <= limit) {
-      result.push(token);
-    } else if (start >= limit) {
-      result.push({ text: token.text, cls: `${token.cls ?? ""} ${OVER_LIMIT}`.trim() });
-    } else {
-      const cut = limit - start;
-      result.push({ text: token.text.slice(0, cut), cls: token.cls });
-      result.push({ text: token.text.slice(cut), cls: `${token.cls ?? ""} ${OVER_LIMIT}`.trim() });
-    }
-  }
-  return result;
 }
 
 export type TitleAnalysis = {
@@ -189,7 +168,7 @@ export function analyzeCommitBody(text: string): BodyAnalysis {
     }
 
     if (line.length > BODY_LINE_LIMIT) longLines++;
-    return tokensToHtml(applyLineLimit(tokens.filter(token => token.text), BODY_LINE_LIMIT));
+    return tokensToHtml(tokens.filter(token => token.text));
   });
 
   const html = lines.join("\n") + (text.endsWith("\n") ? "​" : "");

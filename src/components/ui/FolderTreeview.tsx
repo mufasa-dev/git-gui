@@ -107,6 +107,12 @@ function TreeNode(props: {
       props.onToggle(props.path, !currentlySelected, true);
     } else {
       const allPaths = collectPaths(props.node, props.path);
+      // Pasta com um único arquivo: seleciona o arquivo, para o diff aparecer ao lado.
+      if (allPaths.length === 1) {
+        const onlyPath = allPaths[0];
+        props.onToggle(onlyPath, !props.selected.includes(onlyPath), true);
+        return;
+      }
       const allSelected = allPaths.every((p) => props.selected.includes(p));
       if (props.onToggleMany) {
         props.onToggleMany(allPaths, !allSelected);

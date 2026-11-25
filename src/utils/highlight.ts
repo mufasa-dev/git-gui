@@ -305,6 +305,12 @@ function getPattern(fileName: string, dynamicKeywordRegex: RegExp) {
     let pattern = [
         // Hunk Header (Prioridade Máxima)
         hunkHeaderPattern,
+        // Comentários HTML/XML <!-- --> (o texto já chega escapado: &lt;!-- --&gt;)
+        {
+            name: "html-comment",
+            regex: /&lt;!--[\s\S]*?(?:--&gt;|$)/g,
+            class: "text-green-600 dark:text-green-500 italic"
+        },
         // Comentários
         { 
             name: "comment", 
@@ -490,4 +496,4 @@ export function highlightCode(line: string, fileName: string): string {
     });
 
     return parts.map(p => p.text).join("");
-}
+}

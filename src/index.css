@@ -390,16 +390,109 @@ body,
 }
 
 /* Codemirror overrides */
-.cm-conflict-marker {
-  background-color: rgba(255, 165, 0, 0.2) !important;
+.cm-merge-marker {
+  background-color: rgba(245, 158, 11, 0.16) !important;
+  color: #b45309;
+  font-weight: 600;
 }
 
-.cm-conflict-current {
-  background-color: rgb(134 239 172 / 0.3);
+.cm-merge-current {
+  background-color: rgba(34, 197, 94, 0.14) !important;
 }
 
-.cm-conflict-incoming {
-  background-color: rgba(147, 197, 253, 0.3);
+.cm-merge-incoming {
+  background-color: rgba(59, 130, 246, 0.14) !important;
+}
+
+.dark .cm-merge-marker {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+  color: #fbbf24;
+}
+
+.dark .cm-merge-current {
+  background-color: rgba(34, 197, 94, 0.18) !important;
+}
+
+.dark .cm-merge-incoming {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.cm-merge-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin: 2px 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 11px;
+  line-height: 1;
+  color: #6b7280;
+  background: rgba(245, 158, 11, 0.08);
+  border-radius: 6px;
+  user-select: none;
+  cursor: default;
+}
+
+.dark .cm-merge-actions {
+  color: #9ca3af;
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.cm-merge-actions-title {
+  margin-right: auto;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.dark .cm-merge-actions-title {
+  color: #fcd34d;
+}
+
+.cm-merge-btn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.cm-merge-btn-current {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+.cm-merge-btn-current:hover { background: #bbf7d0; }
+
+.cm-merge-btn-incoming {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #93c5fd;
+}
+.cm-merge-btn-incoming:hover { background: #bfdbfe; }
+
+.cm-merge-btn-both {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border-color: #d8b4fe;
+}
+.cm-merge-btn-both:hover { background: #e9d5ff; }
+
+.dark .cm-merge-btn-current {
+  background: rgba(22, 101, 52, 0.45);
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, 0.5);
+}
+.dark .cm-merge-btn-incoming {
+  background: rgba(30, 64, 175, 0.45);
+  color: #bfdbfe;
+  border-color: rgba(59, 130, 246, 0.5);
+}
+.dark .cm-merge-btn-both {
+  background: rgba(107, 33, 168, 0.45);
+  color: #e9d5ff;
+  border-color: rgba(168, 85, 247, 0.5);
 }
 
 .silver-icon {

@@ -421,6 +421,7 @@ export default function DiffViewer(props: Props) {
       </Show>
       <Dialog open={showMergeResolver()} title={t('merge').resolve_conflicts} onClose={() => setShowMergeResolver(false)} bodyClass="p-0" width="min(1200px, 95vw)" height="min(850px, 92vh)">
         <MergeResolver
+          repoPath={props.path}
           diffContent={props.diff.diff}
           fileName={props.file}
           onClose={() => setShowMergeResolver(false)}
